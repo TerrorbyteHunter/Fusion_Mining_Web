@@ -435,6 +435,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/projects/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
   app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -555,6 +565,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user listings:", error);
       res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
+      const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
+      res.json(listing);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating listing:", error);
+      res.status(500).json({ message: "Failed to update listing" });
+    }
+  });
+
+  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteMarketplaceListing(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      res.status(500).json({ message: "Failed to delete listing" });
     }
   });
 

@@ -478,7 +478,9 @@ export const insertContactSettingsSchema = createInsertSchema(contactSettings).o
   id: true,
   updatedAt: true,
 });
-export const updateContactSettingsSchema = insertContactSettingsSchema.partial().required({ id: true });
+export const updateContactSettingsSchema = createInsertSchema(contactSettings).omit({
+  updatedAt: true,
+}).partial().required({ id: true });
 export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
 export type UpdateContactSettings = z.infer<typeof updateContactSettingsSchema>;
 export type ContactSettings = typeof contactSettings.$inferSelect;

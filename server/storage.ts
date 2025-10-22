@@ -64,6 +64,7 @@ export interface IStorage {
   getProjects(): Promise<Project[]>;
   getProjectById(id: string): Promise<Project | undefined>;
   updateProject(id: string, data: Partial<InsertProject>): Promise<Project>;
+  deleteProject(id: string): Promise<void>;
   expressProjectInterest(interest: InsertExpressInterest): Promise<ExpressInterest>;
 
   // Marketplace Listing operations
@@ -71,6 +72,8 @@ export interface IStorage {
   getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListing[]>;
   getMarketplaceListingById(id: string): Promise<MarketplaceListing | undefined>;
   updateListingStatus(id: string, status: string): Promise<MarketplaceListing>;
+  updateMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing>;
+  deleteMarketplaceListing(id: string): Promise<void>;
   getListingsBySellerId(sellerId: string): Promise<MarketplaceListing[]>;
 
   // Buyer Request operations
@@ -241,6 +244,10 @@ export class DatabaseStorage implements IStorage {
     return project;
   }
 
+  async deleteProject(id: string): Promise<void> {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+
   async expressProjectInterest(interestData: InsertExpressInterest): Promise<ExpressInterest> {
     const [interest] = await db
       .insert(expressInterest)
@@ -303,6 +310,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(marketplaceListings.id, id))
       .returning();
     return listing;
+  }
+
+  async updateMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing> {
+    const [listing] = await db
+      .update(marketplaceListings)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(marketplaceListings.id, id))
+      .returning();
+    return listing;
+  }
+
+  async deleteMarketplaceListing(id: string): Promise<void> {
+    await db.delete(marketplaceListings).where(eq(marketplaceListings.id, id));
   }
 
   async getListingsBySellerId(sellerId: string): Promise<MarketplaceListing[]> {

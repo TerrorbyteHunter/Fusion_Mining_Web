@@ -37,7 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { BlogPost, ContactSubmission, ActivityLog, Project, Video } from "@shared/schema";
+import type { BlogPost, ContactSubmission, ActivityLog, Project, Video, MarketplaceListing } from "@shared/schema";
 import { 
   Newspaper, 
   Mail, 
@@ -50,7 +50,8 @@ import {
   CheckCircle,
   Clock,
   Video as VideoIcon,
-  Power
+  Power,
+  Store
 } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -95,6 +96,22 @@ export default function AdminCMS() {
     area: "",
     estimatedValue: "",
   });
+  const [isCreateListingOpen, setIsCreateListingOpen] = useState(false);
+  const [isEditListingOpen, setIsEditListingOpen] = useState(false);
+  const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
+  const [listingForm, setListingForm] = useState({
+    sellerId: "",
+    type: "mineral" as "mineral" | "partnership",
+    title: "",
+    description: "",
+    mineralType: "",
+    grade: "",
+    location: "",
+    quantity: "",
+    price: "",
+    imageUrl: "",
+    status: "approved" as "pending" | "approved" | "rejected" | "inactive",
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -138,8 +155,12 @@ export default function AdminCMS() {
     queryKey: ["/api/projects"],
   });
 
-  const { data: videos, isLoading: loadingVideos } = useQuery<Video[]>({
+  const { data: videos, isLoading: loadingVideos} = useQuery<Video[]>({
     queryKey: ["/api/videos"],
+  });
+
+  const { data: marketplaceListings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
+    queryKey: ["/api/marketplace/listings"],
   });
 
   const createPostMutation = useMutation({
@@ -361,6 +382,32 @@ export default function AdminCMS() {
     },
   });
 
+  const updateListingStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      return await apiRequest("PATCH", `/api/marketplace/listings/${id}`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+      toast({ title: "Listing status updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update listing status", variant: "destructive" });
+    },
+  });
+
+  const deleteListingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/marketplace/listings/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+      toast({ title: "Listing deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete listing", variant: "destructive" });
+    },
+  });
+
   const handleCreatePost = () => {
     if (!postForm.title || !postForm.slug || !postForm.content) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
@@ -451,7 +498,7 @@ export default function AdminCMS() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs defaultValue="blog" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="blog" data-testid="tab-blog">
                 <Newspaper className="mr-2 h-4 w-4" />
                 Blog Posts
@@ -467,6 +514,10 @@ export default function AdminCMS() {
               <TabsTrigger value="projects" data-testid="tab-projects">
                 <MapPin className="mr-2 h-4 w-4" />
                 Projects
+              </TabsTrigger>
+              <TabsTrigger value="marketplace" data-testid="tab-marketplace">
+                <Store className="mr-2 h-4 w-4" />
+                Marketplace
               </TabsTrigger>
               <TabsTrigger value="activity" data-testid="tab-activity">
                 <Activity className="mr-2 h-4 w-4" />
@@ -1016,6 +1067,94 @@ export default function AdminCMS() {
                   <CardContent>
                     <MapPin className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                     <h3 className="text-xl font-semibold mb-2">No Projects</h3>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="marketplace" className="mt-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Marketplace Listings</h2>
+              </div>
+              {loadingListings ? (
+                <Skeleton className="h-96 w-full" />
+              ) : marketplaceListings && marketplaceListings.length > 0 ? (
+                <div className="grid gap-4">
+                  {marketplaceListings.map((listing) => (
+                    <Card key={listing.id} data-testid={`card-listing-${listing.id}`}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <CardTitle>{listing.title}</CardTitle>
+                            <CardDescription>{listing.location}</CardDescription>
+                          </div>
+                          <StatusBadge status={listing.status} />
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="mb-4">{listing.description}</p>
+                        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                          <div>
+                            <p className="text-muted-foreground">Type</p>
+                            <p className="font-medium capitalize">{listing.type}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Mineral</p>
+                            <p className="font-medium">{listing.mineralType || '-'}</p>
+                          </div>
+                          {listing.price && (
+                            <div>
+                              <p className="text-muted-foreground">Price</p>
+                              <p className="font-medium">{listing.price}</p>
+                            </div>
+                          )}
+                          {listing.quantity && (
+                            <div>
+                              <p className="text-muted-foreground">Quantity</p>
+                              <p className="font-medium">{listing.quantity}</p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pt-4 border-t justify-between items-center">
+                          <Select
+                            value={listing.status}
+                            onValueChange={(status) => updateListingStatusMutation.mutate({ id: listing.id, status })}
+                          >
+                            <SelectTrigger className="w-40" data-testid={`select-listing-status-${listing.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to delete this listing?")) {
+                                  deleteListingMutation.mutate(listing.id);
+                                }
+                              }}
+                              disabled={deleteListingMutation.isPending}
+                              data-testid={`button-delete-listing-${listing.id}`}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Marketplace Listings</h3>
                   </CardContent>
                 </Card>
               )}
