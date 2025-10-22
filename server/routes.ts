@@ -43,7 +43,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
-        const user = await storage.getUser(userId);
+        let user = await storage.getUser(userId);
+        
+        // Auto-create test users if they don't exist
+        if (!user) {
+          const testUsers: { [key: string]: { email: string; firstName: string; lastName: string; role: string } } = {
+            'test-admin-123': { email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User', role: 'admin' },
+            'test-seller-456': { email: 'seller@fusionmining.com', firstName: 'Sarah', lastName: 'Seller', role: 'seller' },
+            'test-buyer-789': { email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer', role: 'buyer' },
+          };
+
+          const testUserData = testUsers[userId];
+          if (testUserData) {
+            user = await storage.upsertUser({
+              id: userId,
+              email: testUserData.email,
+              firstName: testUserData.firstName,
+              lastName: testUserData.lastName,
+            });
+            await storage.updateUserRole(userId, testUserData.role);
+            user = await storage.getUser(userId);
+          }
+        }
+
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
@@ -88,6 +110,205 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error("Error fetching test accounts:", error);
         res.status(500).json({ message: "Failed to fetch test accounts" });
+      }
+    });
+
+    app.post('/api/seed-data', async (req, res) => {
+      try {
+        // Seed projects using storage interface
+        const projectsData = [
+          {
+            name: "Konkola Copper Mine",
+            description: "Large-scale copper mining operation in the Copperbelt Province. Excellent infrastructure and proven reserves of high-grade copper ore.",
+            licenseType: "mining",
+            minerals: ["Copper", "Cobalt"],
+            location: "Copperbelt",
+            latitude: "-12.4178",
+            longitude: "27.4178",
+            status: "active",
+            area: "1,200 hectares",
+            estimatedValue: "$500M - $1B",
+          },
+          {
+            name: "Kagem Emerald Mine",
+            description: "World's largest emerald mine producing premium quality gemstones. Partnership opportunities available for exploration expansion.",
+            licenseType: "mining",
+            minerals: ["Emerald"],
+            location: "Copperbelt",
+            latitude: "-13.0000",
+            longitude: "28.0000",
+            status: "active",
+            area: "41 square kilometers",
+            estimatedValue: "$100M - $300M",
+          },
+          {
+            name: "Mwinilunga Gold Exploration",
+            description: "New gold exploration license in promising geological formation. Seeking investment partners for initial drilling and sampling.",
+            licenseType: "exploration",
+            minerals: ["Gold"],
+            location: "Northern Province",
+            latitude: "-11.7358",
+            longitude: "24.4289",
+            status: "active",
+            area: "500 hectares",
+            estimatedValue: "$50M - $150M",
+          },
+          {
+            name: "Luapula Cobalt Processing",
+            description: "Strategic cobalt processing facility with modern infrastructure. Perfect for battery-grade cobalt production.",
+            licenseType: "processing",
+            minerals: ["Cobalt"],
+            location: "Luapula Province",
+            latitude: "-11.6667",
+            longitude: "28.7167",
+            status: "active",
+            area: "200 hectares",
+            estimatedValue: "$200M - $400M",
+          },
+          {
+            name: "Central Province Gold Fields",
+            description: "Multiple gold-bearing sites across Central Province. Excellent potential for small to medium scale operations.",
+            licenseType: "exploration",
+            minerals: ["Gold", "Silver"],
+            location: "Central Province",
+            latitude: "-14.4333",
+            longitude: "28.2833",
+            status: "pending",
+            area: "800 hectares",
+            estimatedValue: "$75M - $200M",
+          },
+        ];
+
+        for (const project of projectsData) {
+          try {
+            await storage.createProject(project as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        // Seed marketplace listings
+        const listingsData = [
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "High-Grade Copper Ore - 5000 Tonnes",
+            description: "Premium quality copper ore from our Copperbelt operations. Consistent grade, ready for immediate shipment. Full documentation and certificates available.",
+            mineralType: "Copper",
+            grade: "25% Cu content",
+            location: "Kitwe, Copperbelt",
+            quantity: "5,000 tonnes",
+            price: "$4,500/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Premium Zambian Emeralds - Investment Grade",
+            description: "Exceptional quality emeralds suitable for jewelry and investment. Sourced from certified mines with full traceability.",
+            mineralType: "Emerald",
+            grade: "AAA Grade",
+            location: "Ndola, Copperbelt",
+            quantity: "500 carats",
+            price: "$8,000/carat",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Battery-Grade Cobalt Hydroxide",
+            description: "High-purity cobalt hydroxide perfect for battery manufacturing. Meets all international standards and certifications.",
+            mineralType: "Cobalt",
+            grade: "20% Co min",
+            location: "Copperbelt",
+            quantity: "2,000 tonnes",
+            price: "$35,000/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Gold Ore Concentrate",
+            description: "Gold concentrate from Northern Province operations. Ready for refining with excellent recovery rates.",
+            mineralType: "Gold",
+            grade: "45 g/t Au",
+            location: "Northern Province",
+            quantity: "100 tonnes",
+            price: "$1,200/tonne",
+            status: "pending",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "partnership",
+            title: "Joint Venture - Copper Mine Expansion",
+            description: "Seeking strategic partner for expanding existing copper mining operations. Proven reserves, established infrastructure, and experienced team in place.",
+            location: "Copperbelt",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "partnership",
+            title: "Emerald Processing Facility Partnership",
+            description: "Looking for technology and investment partner to establish state-of-the-art emerald cutting and processing facility in Zambia.",
+            location: "Lusaka",
+            status: "approved",
+          },
+        ];
+
+        for (const listing of listingsData) {
+          try {
+            await storage.createMarketplaceListing(listing as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        // Seed buyer requests
+        const requestsData = [
+          {
+            buyerId: "test-buyer-789",
+            title: "Seeking Regular Copper Ore Supply",
+            description: "International buyer seeking long-term copper ore supplier. Looking for 10,000+ tonnes monthly with consistent quality. Will provide advance payment for reliable suppliers.",
+            mineralType: "Copper",
+            quantity: "10,000 tonnes/month",
+            budget: "$40-45M annually",
+            location: "Any major mining region",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-789",
+            title: "High-Quality Emerald Procurement",
+            description: "Luxury jewelry company seeks premium grade emeralds. Looking for certified stones with excellent clarity and color. Long-term partnership preferred.",
+            mineralType: "Emerald",
+            quantity: "1,000+ carats quarterly",
+            budget: "$5-10M per quarter",
+            location: "Copperbelt preferred",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-789",
+            title: "Cobalt for Battery Manufacturing",
+            description: "Battery manufacturer requires sustainable cobalt supply chain. Looking for ethically sourced, battery-grade cobalt with full traceability.",
+            mineralType: "Cobalt",
+            quantity: "5,000 tonnes annually",
+            budget: "$150-200M annually",
+            location: "Any region with export capability",
+            status: "active",
+          },
+        ];
+
+        for (const request of requestsData) {
+          try {
+            await storage.createBuyerRequest(request as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        res.json({ message: "Sample data seeded successfully" });
+      } catch (error) {
+        console.error("Error seeding data:", error);
+        res.status(500).json({ message: "Failed to seed data" });
       }
     });
   }
