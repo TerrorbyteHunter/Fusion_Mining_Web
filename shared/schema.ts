@@ -234,6 +234,21 @@ export const videos = pgTable("videos", {
 });
 
 // ============================================================================
+// Contact Settings
+// ============================================================================
+export const contactSettings = pgTable("contact_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  officeAddress: text("office_address").notNull(),
+  phone: varchar("phone").notNull(),
+  email: varchar("email").notNull(),
+  supportEmail: varchar("support_email"),
+  mondayFriday: varchar("monday_friday").notNull().default('8:00 AM - 5:00 PM'),
+  saturday: varchar("saturday").default('9:00 AM - 1:00 PM'),
+  sunday: varchar("sunday").default('Closed'),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
 // Relations
 // ============================================================================
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -457,3 +472,13 @@ export const updateVideoSchema = createInsertSchema(videos).omit({
 export type InsertVideo = z.infer<typeof insertVideoSchema>;
 export type UpdateVideo = z.infer<typeof updateVideoSchema>;
 export type Video = typeof videos.$inferSelect;
+
+// Contact Settings schemas
+export const insertContactSettingsSchema = createInsertSchema(contactSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+export const updateContactSettingsSchema = insertContactSettingsSchema.partial().required({ id: true });
+export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
+export type UpdateContactSettings = z.infer<typeof updateContactSettingsSchema>;
+export type ContactSettings = typeof contactSettings.$inferSelect;
