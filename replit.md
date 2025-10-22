@@ -218,6 +218,19 @@ npm run db:studio
 
 ## Recent Changes
 
+- **October 22, 2025**: Admin Panel Enhancements & Sample Data
+  - Added DELETE endpoint for projects (`DELETE /api/projects/:id`)
+  - Added marketplace listing management endpoints for admin:
+    - `PATCH /api/marketplace/listings/:id` - Update listing status
+    - `DELETE /api/marketplace/listings/:id` - Delete listing
+  - Enhanced AdminCMS with marketplace management tab (6 tabs total: Blog, Videos, Contacts, Projects, Marketplace, Activity)
+  - Added persistent sample data to demonstrate platform features:
+    - 8 mining projects across Zambia (copper, emerald, cobalt, gold)
+    - 8 marketplace listings (minerals and partnerships)
+    - 8 published blog posts/news articles (industry news, sustainability, market analysis)
+  - Fixed critical TypeScript error in updateContactSettingsSchema that was blocking compilation
+  - All sample data is persistent and manageable through admin panel
+
 - **October 20, 2025**: Admin CMS & Enhanced User Features
   - Added comprehensive admin CMS at /admin/cms with tabs for blog management, contact submissions, projects, and activity logs
   - Implemented activity logging system tracking user logins, IPs, and actions to prevent spam
