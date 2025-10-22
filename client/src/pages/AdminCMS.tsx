@@ -22,6 +22,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -71,6 +78,22 @@ export default function AdminCMS() {
     videoUrl: "",
     thumbnailUrl: "",
     duration: "",
+  });
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projectForm, setProjectForm] = useState({
+    name: "",
+    description: "",
+    licenseType: "exploration" as "exploration" | "mining" | "processing",
+    minerals: [] as string[],
+    location: "",
+    latitude: "",
+    longitude: "",
+    status: "active" as "active" | "pending" | "completed" | "suspended",
+    imageUrl: "",
+    area: "",
+    estimatedValue: "",
   });
 
   useEffect(() => {
@@ -257,6 +280,87 @@ export default function AdminCMS() {
     },
   });
 
+  const createProjectMutation = useMutation({
+    mutationFn: async (data: typeof projectForm) => {
+      return await apiRequest("POST", "/api/projects", {
+        ...data,
+        latitude: data.latitude ? data.latitude : null,
+        longitude: data.longitude ? data.longitude : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setIsCreateProjectOpen(false);
+      setProjectForm({
+        name: "",
+        description: "",
+        licenseType: "exploration",
+        minerals: [],
+        location: "",
+        latitude: "",
+        longitude: "",
+        status: "active",
+        imageUrl: "",
+        area: "",
+        estimatedValue: "",
+      });
+      toast({ title: "Project created successfully" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Unauthorized", variant: "destructive" });
+        setTimeout(() => window.location.href = "/api/login", 500);
+        return;
+      }
+      toast({ title: "Error", description: "Failed to create project", variant: "destructive" });
+    },
+  });
+
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof projectForm }) => {
+      return await apiRequest("PATCH", `/api/projects/${id}`, {
+        ...data,
+        latitude: data.latitude ? data.latitude : null,
+        longitude: data.longitude ? data.longitude : null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      setIsEditProjectOpen(false);
+      setEditingProject(null);
+      setProjectForm({
+        name: "",
+        description: "",
+        licenseType: "exploration",
+        minerals: [],
+        location: "",
+        latitude: "",
+        longitude: "",
+        status: "active",
+        imageUrl: "",
+        area: "",
+        estimatedValue: "",
+      });
+      toast({ title: "Project updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update project", variant: "destructive" });
+    },
+  });
+
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/projects/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({ title: "Project deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete project", variant: "destructive" });
+    },
+  });
+
   const handleCreatePost = () => {
     if (!postForm.title || !postForm.slug || !postForm.content) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
@@ -292,6 +396,40 @@ export default function AdminCMS() {
       return;
     }
     updatePostMutation.mutate({ id: editingPost.id, data: postForm });
+  };
+
+  const handleCreateProject = () => {
+    if (!projectForm.name || !projectForm.description || !projectForm.location || projectForm.minerals.length === 0) {
+      toast({ title: "Error", description: "Please fill in all required fields (name, description, location, minerals)", variant: "destructive" });
+      return;
+    }
+    createProjectMutation.mutate(projectForm);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectForm({
+      name: project.name,
+      description: project.description,
+      licenseType: project.licenseType,
+      minerals: project.minerals,
+      location: project.location,
+      latitude: project.latitude || "",
+      longitude: project.longitude || "",
+      status: project.status,
+      imageUrl: project.imageUrl || "",
+      area: project.area || "",
+      estimatedValue: project.estimatedValue || "",
+    });
+    setIsEditProjectOpen(true);
+  };
+
+  const handleUpdateProject = () => {
+    if (!projectForm.name || !projectForm.description || !projectForm.location || projectForm.minerals.length === 0 || !editingProject) {
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    updateProjectMutation.mutate({ id: editingProject.id, data: projectForm });
   };
 
   return (
@@ -795,7 +933,13 @@ export default function AdminCMS() {
             </TabsContent>
 
             <TabsContent value="projects" className="mt-6">
-              <h2 className="text-2xl font-bold mb-6">Mining Projects</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Mining Projects</h2>
+                <Button onClick={() => setIsCreateProjectOpen(true)} data-testid="button-create-project">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Project
+                </Button>
+              </div>
               {loadingProjects ? (
                 <Skeleton className="h-96 w-full" />
               ) : projects && projects.length > 0 ? (
@@ -823,7 +967,7 @@ export default function AdminCMS() {
                             <p className="font-medium">{project.minerals.join(', ')}</p>
                           </div>
                         </div>
-                        <div className="flex gap-2 pt-4 border-t">
+                        <div className="flex gap-2 pt-4 border-t justify-between items-center">
                           <Select
                             value={project.status}
                             onValueChange={(status) => updateProjectStatusMutation.mutate({ id: project.id, status })}
@@ -838,6 +982,30 @@ export default function AdminCMS() {
                               <SelectItem value="suspended">Suspended</SelectItem>
                             </SelectContent>
                           </Select>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditProject(project)}
+                              data-testid={`button-edit-project-${project.id}`}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                if (confirm("Are you sure you want to delete this project?")) {
+                                  deleteProjectMutation.mutate(project.id);
+                                }
+                              }}
+                              disabled={deleteProjectMutation.isPending}
+                              data-testid={`button-delete-project-${project.id}`}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -892,6 +1060,168 @@ export default function AdminCMS() {
               )}
             </TabsContent>
           </Tabs>
+
+          {/* Create/Edit Project Dialog */}
+          <Dialog open={isCreateProjectOpen || isEditProjectOpen} onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateProjectOpen(false);
+              setIsEditProjectOpen(false);
+              setEditingProject(null);
+              setProjectForm({
+                name: "",
+                description: "",
+                licenseType: "exploration",
+                minerals: [],
+                location: "",
+                latitude: "",
+                longitude: "",
+                status: "active",
+                imageUrl: "",
+                area: "",
+                estimatedValue: "",
+              });
+            }
+          }}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingProject ? "Edit Project" : "Create New Project"}</DialogTitle>
+                <DialogDescription>
+                  {editingProject ? "Update project details" : "Add a new mining project to the platform"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="project-name">Project Name *</Label>
+                  <Input
+                    id="project-name"
+                    value={projectForm.name}
+                    onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
+                    placeholder="e.g., Konkola Copper Mine"
+                    data-testid="input-project-name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="project-description">Description *</Label>
+                  <Textarea
+                    id="project-description"
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                    placeholder="Detailed project description"
+                    className="min-h-32"
+                    data-testid="textarea-project-description"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-license">License Type *</Label>
+                    <Select
+                      value={projectForm.licenseType}
+                      onValueChange={(value: "exploration" | "mining" | "processing") => 
+                        setProjectForm({ ...projectForm, licenseType: value })
+                      }
+                    >
+                      <SelectTrigger data-testid="select-license-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="exploration">Exploration</SelectItem>
+                        <SelectItem value="mining">Mining</SelectItem>
+                        <SelectItem value="processing">Processing</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-location">Location *</Label>
+                    <Input
+                      id="project-location"
+                      value={projectForm.location}
+                      onChange={(e) => setProjectForm({ ...projectForm, location: e.target.value })}
+                      placeholder="e.g., Copperbelt Province"
+                      data-testid="input-project-location"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="project-minerals">Minerals * (comma-separated)</Label>
+                  <Input
+                    id="project-minerals"
+                    value={projectForm.minerals.join(", ")}
+                    onChange={(e) => setProjectForm({ 
+                      ...projectForm, 
+                      minerals: e.target.value.split(",").map(m => m.trim()).filter(m => m) 
+                    })}
+                    placeholder="e.g., Copper, Cobalt, Gold"
+                    data-testid="input-project-minerals"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-area">Area</Label>
+                    <Input
+                      id="project-area"
+                      value={projectForm.area}
+                      onChange={(e) => setProjectForm({ ...projectForm, area: e.target.value })}
+                      placeholder="e.g., 500 hectares"
+                      data-testid="input-project-area"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-value">Estimated Value</Label>
+                    <Input
+                      id="project-value"
+                      value={projectForm.estimatedValue}
+                      onChange={(e) => setProjectForm({ ...projectForm, estimatedValue: e.target.value })}
+                      placeholder="e.g., $50M"
+                      data-testid="input-project-value"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-lat">Latitude (optional)</Label>
+                    <Input
+                      id="project-lat"
+                      value={projectForm.latitude}
+                      onChange={(e) => setProjectForm({ ...projectForm, latitude: e.target.value })}
+                      placeholder="e.g., -12.9843"
+                      data-testid="input-project-latitude"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="project-lng">Longitude (optional)</Label>
+                    <Input
+                      id="project-lng"
+                      value={projectForm.longitude}
+                      onChange={(e) => setProjectForm({ ...projectForm, longitude: e.target.value })}
+                      placeholder="e.g., 28.6366"
+                      data-testid="input-project-longitude"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="project-image">Image URL</Label>
+                  <Input
+                    id="project-image"
+                    value={projectForm.imageUrl}
+                    onChange={(e) => setProjectForm({ ...projectForm, imageUrl: e.target.value })}
+                    placeholder="https://example.com/image.jpg"
+                    data-testid="input-project-image"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  onClick={editingProject ? handleUpdateProject : handleCreateProject}
+                  disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
+                  data-testid="button-submit-project"
+                >
+                  {(createProjectMutation.isPending || updateProjectMutation.isPending) 
+                    ? "Saving..." 
+                    : (editingProject ? "Update Project" : "Create Project")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </section>
     </div>

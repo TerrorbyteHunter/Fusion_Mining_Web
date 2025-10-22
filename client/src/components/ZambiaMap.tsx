@@ -6,124 +6,98 @@ interface ZambiaMapProps {
 }
 
 const provinces = [
-  {
-    id: "ZM08",
-    name: "Copperbelt",
-    path: "M250,120 L320,120 L340,140 L340,180 L320,200 L260,200 L240,180 L240,140 Z",
-    labelX: 290,
-    labelY: 160,
-  },
-  {
-    id: "ZM06",
-    name: "North-Western Province",
-    path: "M160,100 L250,100 L250,140 L240,160 L200,180 L160,180 L140,160 L140,120 Z",
-    labelX: 195,
-    labelY: 140,
-  },
-  {
-    id: "ZM05",
-    name: "Northern Province",
-    path: "M340,80 L420,80 L450,100 L470,140 L460,180 L420,200 L340,200 L340,140 L320,120 L340,100 Z",
-    labelX: 405,
-    labelY: 140,
-  },
-  {
-    id: "ZM04",
-    name: "Luapula Province",
-    path: "M470,140 L520,140 L540,160 L540,200 L520,220 L480,220 L460,200 L460,160 Z",
-    labelX: 500,
-    labelY: 180,
-  },
-  {
-    id: "ZM10",
-    name: "Muchinga Province",
-    path: "M420,200 L460,200 L480,220 L500,260 L480,280 L440,280 L420,260 L400,240 Z",
-    labelX: 450,
-    labelY: 240,
-  },
-  {
-    id: "ZM02",
-    name: "Central Province",
-    path: "M260,200 L340,200 L360,220 L380,260 L360,300 L320,320 L260,320 L240,300 L240,240 Z",
-    labelX: 310,
-    labelY: 260,
-  },
-  {
-    id: "ZM03",
-    name: "Eastern Province",
-    path: "M440,280 L500,280 L520,300 L540,340 L520,380 L480,380 L460,360 L440,320 Z",
-    labelX: 490,
-    labelY: 330,
-  },
-  {
-    id: "ZM09",
-    name: "Lusaka",
-    path: "M320,320 L360,320 L370,340 L360,360 L340,370 L320,360 L310,340 Z",
-    labelX: 340,
-    labelY: 345,
-  },
-  {
-    id: "ZM07",
-    name: "Southern Province",
-    path: "M260,320 L360,320 L380,340 L400,380 L380,420 L340,440 L280,440 L240,420 L220,380 L240,340 Z",
-    labelX: 320,
-    labelY: 380,
-  },
-  {
-    id: "ZM01",
-    name: "Western Province",
-    path: "M100,240 L200,240 L240,260 L240,340 L220,380 L180,400 L120,400 L100,380 L80,320 L80,280 Z",
-    labelX: 160,
-    labelY: 320,
-  },
+  { id: "lusaka", name: "Lusaka", x: 58, y: 71 },
+  { id: "central", name: "Central Province", x: 48, y: 64 },
+  { id: "eastern", name: "Eastern Province", x: 78, y: 60 },
+  { id: "copperbelt", name: "Copperbelt", x: 45, y: 47 },
+  { id: "muchinga", name: "Muchinga Province", x: 79, y: 40 },
+  { id: "northern", name: "Northern Province", x: 71, y: 24 },
+  { id: "luapula", name: "Luapula Province", x: 59, y: 40 },
+  { id: "southern", name: "Southern Province", x: 37, y: 86 },
+  { id: "north-western", name: "North-Western Province", x: 18, y: 53 },
+  { id: "western", name: "Western Province", x: 9, y: 74 },
 ];
 
 export function ZambiaMap({ onRegionClick, selectedRegion }: ZambiaMapProps) {
+  const handleRegionClick = (provinceName: string) => {
+    if (onRegionClick) {
+      onRegionClick(provinceName);
+    }
+  };
+
   return (
     <Card className="relative w-full aspect-video bg-gradient-to-br from-primary/5 to-chart-2/5 overflow-hidden">
       <div className="absolute inset-0 p-4 md:p-8">
         <div className="relative w-full h-full flex items-center justify-center">
+          {/* Map background with Zambia outline */}
           <svg
-            viewBox="0 0 620 520"
+            viewBox="0 0 100 100"
             className="w-full h-full"
             preserveAspectRatio="xMidYMid meet"
           >
-            {/* Zambia country outline (outer border) */}
+            {/* Simplified Zambia country outline */}
             <path
-              d="M140,120 L320,80 L450,80 L520,120 L560,180 L540,240 L500,300 L480,360 L400,440 L320,460 L240,460 L160,420 L100,360 L80,280 L100,200 Z"
+              d="M 15,25 L 40,20 L 60,20 L 75,25 L 85,35 L 85,50 L 80,65 L 70,80 L 55,90 L 35,90 L 20,85 L 10,70 L 8,50 L 10,35 Z"
               fill="hsl(var(--muted))"
-              fillOpacity="0.2"
+              fillOpacity="0.3"
               stroke="hsl(var(--primary))"
-              strokeWidth="2"
-              strokeOpacity="0.3"
+              strokeWidth="0.5"
+              strokeOpacity="0.4"
             />
 
-            {/* Province boundaries */}
+            {/* Province labels with interactive areas */}
             {provinces.map((province) => {
               const isSelected = selectedRegion === province.name;
               return (
                 <g key={province.id}>
-                  <path
-                    d={province.path}
-                    fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--background))"}
-                    fillOpacity={isSelected ? "0.6" : "0.4"}
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="2"
-                    strokeOpacity={isSelected ? "1" : "0.4"}
-                    className="transition-all duration-300 cursor-pointer hover:fill-opacity-70 hover:stroke-opacity-100"
-                    onClick={() => onRegionClick?.(province.name)}
-                    data-testid={`region-${province.name.toLowerCase().replace(/\s+/g, '-')}`}
+                  {/* Clickable circle area around each label */}
+                  <circle
+                    cx={province.x}
+                    cy={province.y}
+                    r="8"
+                    fill={isSelected ? "hsl(var(--primary))" : "transparent"}
+                    fillOpacity={isSelected ? "0.2" : "0"}
+                    stroke={isSelected ? "hsl(var(--primary))" : "transparent"}
+                    strokeWidth="0.5"
+                    strokeOpacity={isSelected ? "1" : "0"}
+                    className="transition-all duration-300 cursor-pointer hover:fill-opacity-30 hover:stroke-opacity-50"
+                    onClick={() => handleRegionClick(province.name)}
                   />
+                  
+                  {/* Province name */}
                   <text
-                    x={province.labelX}
-                    y={province.labelY}
+                    x={province.x}
+                    y={province.y}
                     textAnchor="middle"
-                    className="fill-current text-[10px] md:text-xs font-medium pointer-events-none select-none"
-                    fill={isSelected ? "hsl(var(--primary-foreground))" : "hsl(var(--foreground))"}
-                    fillOpacity={isSelected ? "1" : "0.7"}
+                    dominantBaseline="middle"
+                    className="text-[3px] md:text-[4px] font-semibold pointer-events-none select-none"
+                    fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))"}
+                    fillOpacity={isSelected ? "1" : "0.8"}
+                    fontFamily="system-ui, -apple-system, sans-serif"
                   >
                     {province.name.replace(" Province", "")}
                   </text>
+
+                  {/* Pin marker */}
+                  <circle
+                    cx={province.x}
+                    cy={province.y}
+                    r="1"
+                    fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--chart-2))"}
+                    className="pointer-events-none"
+                  />
+                  
+                  {/* Test ID marker (invisible) */}
+                  <rect
+                    x={province.x - 8}
+                    y={province.y - 8}
+                    width="16"
+                    height="16"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onClick={() => handleRegionClick(province.name)}
+                    data-testid={`region-${province.id}`}
+                  />
                 </g>
               );
             })}
@@ -146,9 +120,15 @@ export function ZambiaMap({ onRegionClick, selectedRegion }: ZambiaMapProps) {
           <div className="absolute bottom-2 left-2 md:bottom-4 md:left-4 bg-background/80 backdrop-blur-sm rounded-lg p-2 md:p-3 text-xs">
             <p className="font-semibold mb-1 md:mb-2">Zambia Mining Regions</p>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm border-2 border-primary/40 bg-background/40"></div>
-              <span className="text-muted-foreground text-[10px] md:text-xs">Click to filter</span>
+              <div className="w-3 h-3 rounded-full bg-chart-2"></div>
+              <span className="text-muted-foreground text-[10px] md:text-xs">Click region to filter</span>
             </div>
+            {selectedRegion && selectedRegion !== "all" && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-primary"></div>
+                <span className="text-primary text-[10px] md:text-xs font-medium">Selected</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

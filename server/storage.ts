@@ -9,6 +9,7 @@ import {
   messages,
   blogPosts,
   contactSubmissions,
+  contactSettings,
   verificationQueue,
   activityLogs,
   notifications,
@@ -32,6 +33,8 @@ import {
   type InsertBlogPost,
   type ContactSubmission,
   type InsertContactSubmission,
+  type ContactSettings,
+  type InsertContactSettings,
   type ActivityLog,
   type InsertActivityLog,
   type Notification,
@@ -94,6 +97,10 @@ export interface IStorage {
   createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission>;
   getContactSubmissions(): Promise<ContactSubmission[]>;
   updateContactSubmissionStatus(id: string, status: string): Promise<ContactSubmission>;
+
+  // Contact Settings operations
+  getContactSettings(): Promise<ContactSettings | undefined>;
+  updateContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings>;
 
   // Verification Queue operations
   getPendingListings(): Promise<MarketplaceListing[]>;
@@ -474,6 +481,57 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contactSubmissions.id, id))
       .returning();
     return submission;
+  }
+
+  // ========================================================================
+  // Contact Settings operations
+  // ========================================================================
+  async getContactSettings(): Promise<ContactSettings | undefined> {
+    const settings = await db
+      .select()
+      .from(contactSettings)
+      .limit(1);
+    
+    if (settings.length === 0) {
+      // Create default settings if none exist
+      const [defaultSettings] = await db
+        .insert(contactSettings)
+        .values({
+          officeAddress: "Fusion Mining Limited\nCentral Business District\nLusaka, Zambia",
+          phone: "+260 XXX XXX XXX",
+          email: "info@fusionmining.com",
+          supportEmail: "support@fusionmining.com",
+          mondayFriday: "8:00 AM - 5:00 PM",
+          saturday: "9:00 AM - 1:00 PM",
+          sunday: "Closed",
+        })
+        .returning();
+      return defaultSettings;
+    }
+    
+    return settings[0];
+  }
+
+  async updateContactSettings(settingsData: Partial<InsertContactSettings>): Promise<ContactSettings> {
+    const existing = await this.getContactSettings();
+    
+    if (!existing) {
+      const [newSettings] = await db
+        .insert(contactSettings)
+        .values(settingsData as InsertContactSettings)
+        .returning();
+      return newSettings;
+    }
+    
+    const [updated] = await db
+      .update(contactSettings)
+      .set({
+        ...settingsData,
+        updatedAt: new Date(),
+      })
+      .where(eq(contactSettings.id, existing.id))
+      .returning();
+    return updated;
   }
 
   // ========================================================================

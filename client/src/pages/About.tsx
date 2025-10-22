@@ -1,15 +1,22 @@
 // About Us page with company info, leadership, mission/vision
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
   Target, 
   Eye, 
   Award, 
   Users, 
   Download, 
-  FileText 
+  FileText,
+  ArrowRight,
+  Calendar
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useQuery } from "@tanstack/react-query";
+import type { BlogPost } from "@shared/schema";
+import { Link } from "wouter";
+import { format } from "date-fns";
 
 const leadership = [
   {
@@ -62,6 +69,12 @@ const values = [
 ];
 
 export default function About() {
+  const { data: posts } = useQuery<BlogPost[]>({
+    queryKey: ["/api/blog"],
+  });
+
+  const featuredPosts = posts?.filter(post => post.published).slice(0, 3);
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -206,6 +219,59 @@ export default function About() {
           </div>
         </div>
       </section>
+
+      {/* Featured Blog Posts */}
+      {featuredPosts && featuredPosts.length > 0 && (
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
+                Latest Insights
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Stay informed with our latest news and industry insights
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {featuredPosts.map((post) => (
+                <Link key={post.id} href={`/news/${post.slug}`}>
+                  <Card className="hover-elevate active-elevate-2 h-full cursor-pointer transition-all">
+                    <CardHeader>
+                      {post.category && (
+                        <Badge variant="secondary" className="mb-2 w-fit">{post.category}</Badge>
+                      )}
+                      <CardTitle className="text-xl line-clamp-2">{post.title}</CardTitle>
+                      <CardDescription className="line-clamp-3">
+                        {post.excerpt || post.content.substring(0, 150) + "..."}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                        <Calendar className="h-4 w-4" />
+                        <span>{format(new Date(post.createdAt), "MMM d, yyyy")}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-primary font-medium">
+                        Read More
+                        <ArrowRight className="h-4 w-4" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+
+            <div className="text-center mt-12">
+              <Link href="/news">
+                <Button size="lg">
+                  View All News & Insights
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

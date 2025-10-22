@@ -735,6 +735,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/contact/settings', async (req, res) => {
+    try {
+      const settings = await storage.getContactSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching contact settings:", error);
+      res.status(500).json({ message: "Failed to fetch contact settings" });
+    }
+  });
+
+  app.patch('/api/contact/settings', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateContactSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating contact settings:", error);
+      res.status(500).json({ message: "Failed to update contact settings" });
+    }
+  });
+
   // ========================================================================
   // Admin Routes
   // ========================================================================
