@@ -115,6 +115,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.post('/api/seed-data', async (req, res) => {
       try {
+        // Create test users first to avoid foreign key constraints
+        const testUsers = [
+          {
+            id: 'test-admin-123',
+            email: 'admin@fusionmining.com',
+            firstName: 'Admin',
+            lastName: 'User',
+            role: 'admin'
+          },
+          {
+            id: 'test-seller-456',
+            email: 'seller@fusionmining.com',
+            firstName: 'Sarah',
+            lastName: 'Seller',
+            role: 'seller'
+          },
+          {
+            id: 'test-buyer-789',
+            email: 'buyer@fusionmining.com',
+            firstName: 'Bob',
+            lastName: 'Buyer',
+            role: 'buyer'
+          },
+        ];
+
+        for (const userData of testUsers) {
+          try {
+            let user = await storage.getUser(userData.id);
+            if (!user) {
+              user = await storage.upsertUser({
+                id: userData.id,
+                email: userData.email,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+              });
+              await storage.updateUserRole(userData.id, userData.role);
+            }
+          } catch (error) {
+            console.error(`Error creating user ${userData.id}:`, error);
+          }
+        }
+
         // Seed projects using storage interface
         const projectsData = [
           {
