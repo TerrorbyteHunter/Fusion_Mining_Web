@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
+import { ImageSelector } from "@/components/ImageSelector";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1337,16 +1338,13 @@ export default function AdminCMS() {
                     />
                   </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="project-image">Image URL</Label>
-                  <Input
-                    id="project-image"
-                    value={projectForm.imageUrl}
-                    onChange={(e) => setProjectForm({ ...projectForm, imageUrl: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                    data-testid="input-project-image"
-                  />
-                </div>
+                <ImageSelector
+                  value={projectForm.imageUrl}
+                  onChange={(value) => setProjectForm({ ...projectForm, imageUrl: value })}
+                  label="Project Image"
+                  placeholder="https://example.com/project-image.jpg"
+                  testId="input-project-image"
+                />
               </div>
               <DialogFooter>
                 <Button 

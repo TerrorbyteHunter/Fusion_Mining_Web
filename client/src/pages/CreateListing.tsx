@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ImageSelector } from "@/components/ImageSelector";
 import { Package, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -233,18 +234,15 @@ export default function CreateListing() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input
-                    id="imageUrl"
-                    value={listingForm.imageUrl}
-                    onChange={(e) =>
-                      setListingForm({ ...listingForm, imageUrl: e.target.value })
-                    }
-                    placeholder="https://example.com/image.jpg"
-                    data-testid="input-image-url"
-                  />
-                </div>
+                <ImageSelector
+                  value={listingForm.imageUrl}
+                  onChange={(value) =>
+                    setListingForm({ ...listingForm, imageUrl: value })
+                  }
+                  label="Listing Image"
+                  placeholder="https://example.com/listing-image.jpg"
+                  testId="input-image-url"
+                />
 
                 <Button
                   type="submit"
