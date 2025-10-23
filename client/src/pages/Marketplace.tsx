@@ -23,6 +23,7 @@ import {
   Filter
 } from "lucide-react";
 import { Link } from "wouter";
+import { ImageDisplay } from "@/components/ImageDisplay";
 import {
   Select,
   SelectContent,
@@ -180,9 +181,11 @@ export default function Marketplace() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredListings.filter(l => l.type === 'mineral').map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-listing-${listing.id}`}>
-                      <div className="aspect-video bg-gradient-to-br from-chart-2/20 to-primary/20 flex items-center justify-center">
-                        <Gem className="h-16 w-16 text-chart-2" />
-                      </div>
+                      <ImageDisplay 
+                        imageUrl={listing.imageUrl}
+                        alt={listing.title}
+                        fallbackIcon={Gem}
+                      />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>

@@ -22,6 +22,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { ZambiaMap } from "@/components/ZambiaMap";
+import { ImageDisplay } from "@/components/ImageDisplay";
 import {
   Select,
   SelectContent,
@@ -225,9 +226,11 @@ export default function Projects() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProjects.map((project) => (
                 <Card key={project.id} className="hover-elevate transition-all" data-testid={`card-project-${project.id}`}>
-                  <div className="aspect-video bg-muted flex items-center justify-center">
-                    <Gem className="h-16 w-16 text-muted-foreground" />
-                  </div>
+                  <ImageDisplay 
+                    imageUrl={project.imageUrl}
+                    alt={project.name}
+                    fallbackIcon={Gem}
+                  />
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <CardTitle className="text-xl line-clamp-1">{project.name}</CardTitle>
