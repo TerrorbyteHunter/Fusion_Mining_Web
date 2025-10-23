@@ -305,7 +305,158 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        res.json({ message: "Sample data seeded successfully" });
+        // Seed blog posts
+        const blogPostsData = [
+          {
+            authorId: "test-admin-123",
+            title: "Zambia's Mining Sector: A Bright Future Ahead",
+            slug: "zambia-mining-sector-bright-future",
+            excerpt: "Exploring the opportunities and growth potential in Zambia's thriving mining industry.",
+            content: `<p>Zambia's mining sector continues to show remarkable growth, driven by increasing global demand for copper, cobalt, and precious stones. The country's strategic location and stable political environment make it an attractive destination for mining investments.</p>
+            
+            <h2>Key Growth Drivers</h2>
+            <p>Several factors are contributing to the sector's expansion:</p>
+            <ul>
+              <li>Growing demand for battery minerals, particularly cobalt</li>
+              <li>Infrastructure improvements in mining regions</li>
+              <li>Government support for sustainable mining practices</li>
+              <li>Increased international investment partnerships</li>
+            </ul>
+            
+            <h2>Investment Opportunities</h2>
+            <p>For investors looking to enter the Zambian mining market, there are numerous opportunities across exploration, mining, and processing operations. The Fusion Mining Limited platform connects investors with verified projects and partnerships.</p>`,
+            imageUrl: "",
+            category: "Industry News",
+            published: true,
+          },
+          {
+            authorId: "test-admin-123",
+            title: "Sustainable Mining Practices in Zambia",
+            slug: "sustainable-mining-practices-zambia",
+            excerpt: "How Zambian mining companies are embracing environmental responsibility and community development.",
+            content: `<p>Environmental sustainability has become a cornerstone of modern mining operations in Zambia. Companies are increasingly adopting practices that minimize environmental impact while maximizing community benefits.</p>
+            
+            <h2>Environmental Initiatives</h2>
+            <p>Leading mining operations in Zambia are implementing:</p>
+            <ul>
+              <li>Water recycling and conservation programs</li>
+              <li>Renewable energy integration in mining operations</li>
+              <li>Land rehabilitation and reforestation projects</li>
+              <li>Wildlife corridor preservation</li>
+            </ul>
+            
+            <h2>Community Development</h2>
+            <p>Mining companies are partnering with local communities to provide education, healthcare, and economic opportunities, creating shared value for all stakeholders.</p>`,
+            imageUrl: "",
+            category: "Sustainability",
+            published: true,
+          },
+          {
+            authorId: "test-admin-123",
+            title: "Copper Market Outlook 2025",
+            slug: "copper-market-outlook-2025",
+            excerpt: "Analysis of global copper demand trends and implications for Zambian producers.",
+            content: `<p>The global copper market is experiencing a significant transformation, driven by the green energy transition and electric vehicle revolution. Zambia, as Africa's second-largest copper producer, is well-positioned to benefit from these trends.</p>
+            
+            <h2>Market Dynamics</h2>
+            <p>Key trends shaping the copper market include:</p>
+            <ul>
+              <li>Surging demand from EV manufacturing sector</li>
+              <li>Renewable energy infrastructure expansion</li>
+              <li>Supply constraints in major producing regions</li>
+              <li>Rising copper prices benefiting producers</li>
+            </ul>
+            
+            <h2>Zambia's Advantage</h2>
+            <p>With established infrastructure, skilled workforce, and abundant reserves, Zambian copper producers are capitalizing on favorable market conditions.</p>`,
+            imageUrl: "",
+            category: "Market Analysis",
+            published: true,
+          },
+          {
+            authorId: "test-admin-123",
+            title: "Emerald Mining: Zambia's Hidden Gem",
+            slug: "emerald-mining-zambia-hidden-gem",
+            excerpt: "Discover why Zambian emeralds are among the finest in the world and the opportunities in this sector.",
+            content: `<p>Zambia produces some of the world's finest emeralds, with the Kagem Mine being the largest single emerald mine globally. These precious stones are prized for their exceptional clarity and rich green color.</p>
+            
+            <h2>Quality and Value</h2>
+            <p>Zambian emeralds are distinguished by:</p>
+            <ul>
+              <li>Superior clarity and color saturation</li>
+              <li>Excellent size and quality consistency</li>
+              <li>Ethical sourcing and full traceability</li>
+              <li>Growing market recognition and premium pricing</li>
+            </ul>
+            
+            <h2>Investment Potential</h2>
+            <p>The emerald sector offers unique opportunities for investors, from mining operations to processing and jewelry manufacturing partnerships.</p>`,
+            imageUrl: "",
+            category: "Industry News",
+            published: true,
+          },
+          {
+            authorId: "test-admin-123",
+            title: "Technology Revolution in African Mining",
+            slug: "technology-revolution-african-mining",
+            excerpt: "How digital transformation and innovation are reshaping mining operations across the continent.",
+            content: `<p>African mining operations are embracing cutting-edge technologies to improve efficiency, safety, and sustainability. From autonomous vehicles to AI-powered exploration, the industry is undergoing a digital transformation.</p>
+            
+            <h2>Key Technologies</h2>
+            <p>Innovations being adopted include:</p>
+            <ul>
+              <li>Drone surveying and mapping technologies</li>
+              <li>IoT sensors for real-time monitoring</li>
+              <li>AI and machine learning for resource optimization</li>
+              <li>Blockchain for supply chain transparency</li>
+            </ul>
+            
+            <h2>Benefits for Zambia</h2>
+            <p>These technological advances are helping Zambian miners increase productivity while reducing environmental footprint and improving worker safety.</p>`,
+            imageUrl: "",
+            category: "Mining Tips",
+            published: true,
+          },
+          {
+            authorId: "test-admin-123",
+            title: "Understanding Mining Licenses in Zambia",
+            slug: "understanding-mining-licenses-zambia",
+            excerpt: "A comprehensive guide to navigating the mining licensing process in Zambia.",
+            content: `<p>Understanding the licensing framework is crucial for anyone looking to invest in Zambian mining. This guide covers the different types of licenses and the application process.</p>
+            
+            <h2>License Types</h2>
+            <p>Zambia offers several mining license categories:</p>
+            <ul>
+              <li><strong>Exploration License:</strong> For initial prospecting and exploration activities</li>
+              <li><strong>Mining License:</strong> For commercial mining operations</li>
+              <li><strong>Processing License:</strong> For mineral processing facilities</li>
+            </ul>
+            
+            <h2>Application Process</h2>
+            <p>The licensing process involves geological surveys, environmental impact assessments, and community consultations. Working with experienced local partners can streamline the application process.</p>`,
+            imageUrl: "",
+            category: "Mining Tips",
+            published: true,
+          },
+        ];
+
+        for (const post of blogPostsData) {
+          try {
+            await storage.createBlogPost(post as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        res.json({ 
+          message: "Sample data seeded successfully",
+          details: {
+            projects: projectsData.length,
+            marketplaceListings: listingsData.length,
+            buyerRequests: requestsData.length,
+            blogPosts: blogPostsData.length,
+          }
+        });
       } catch (error) {
         console.error("Error seeding data:", error);
         res.status(500).json({ message: "Failed to seed data" });
