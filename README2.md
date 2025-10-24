@@ -20,8 +20,8 @@ Fusion Mining Limited is a comprehensive full-stack mining investment and tradin
 **Backend:**
 - Node.js with Express
 - TypeScript for type safety
-- Replit Auth (OpenID Connect) for authentication
-- PostgreSQL (Neon Serverless) for database
+- Simple credential-based login (testing phase: admin/admin123)
+- PostgreSQL (Neon) via DATABASE_URL
 - Drizzle ORM for database operations
 - Passport.js for session management
 
@@ -61,9 +61,10 @@ The application uses a normalized PostgreSQL database with the following main en
    - Contact form
 
 2. **Authentication & Authorization**
-   - Replit Auth integration with Google, GitHub, and email
+   - Simple credential-based login for testing (admin/admin123)
    - Role-based access control (Admin, Seller, Buyer)
    - Secure session management with PostgreSQL storage
+   - Test users available without database storage
 
 3. **Marketplace Portal**
    - Mineral listings with detailed specifications
@@ -93,10 +94,10 @@ The application uses a normalized PostgreSQL database with the following main en
 ## API Endpoints
 
 ### Authentication
-- `GET /api/auth/user` - Get current user
-- `GET /api/login` - Initiate login flow
-- `GET /api/logout` - Log out user
-- `GET /api/callback` - OAuth callback
+- `GET /api/auth/user` - Get current authenticated user
+- `POST /api/login` - Login with username/password (testing phase)
+- `GET /api/logout` - Log out current user  
+- `POST /api/test-login` - Test login with user ID (development only)
 
 ### Projects
 - `GET /api/projects` - List all projects
@@ -199,14 +200,19 @@ npm run db:generate
 npm run db:studio
 ```
 
-### Authentication Flow
+### Authentication Flow (Testing Phase)
 
-1. User clicks "Log In" button
-2. Redirected to Replit Auth provider
-3. User authenticates with Google, GitHub, or email
-4. Callback to `/api/callback` creates/updates user in database
-5. Session stored in PostgreSQL
-6. User redirected to dashboard or original page
+1. User navigates to `/login` or clicks "Log In" button
+2. User enters credentials (admin/admin123)
+3. POST request to `/api/login` validates credentials
+4. Passport.js creates session with hardcoded user data
+5. Session stored in memory (test users) or PostgreSQL (database users)
+6. User redirected to `/dashboard` on successful login
+
+**Test Credentials:**
+- Username: `admin`
+- Password: `admin123`
+- Role: Admin (full platform access)
 
 ### Design Principles
 
@@ -218,6 +224,15 @@ npm run db:studio
 
 ## Recent Changes
 
+- **October 24, 2025**: Simple Login System for Testing
+  - Added dedicated `/login` page with username/password form
+  - Configured hardcoded credentials (admin/admin123) for testing
+  - Removed duplicate login buttons (Test Login selector)
+  - Provisioned PostgreSQL database with DATABASE_URL
+  - Fixed database connection configuration
+  - Updated passport deserialization to handle test users without database
+  - Simplified authentication flow for development/testing phase
+  
 - **October 20, 2025**: Admin CMS & Enhanced User Features
   - Added comprehensive admin CMS at /admin/cms with tabs for blog management, contact submissions, projects, and activity logs
   - Implemented activity logging system tracking user logins, IPs, and actions to prevent spam

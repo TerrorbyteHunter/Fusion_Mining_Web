@@ -44,10 +44,10 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 ### Backend
 - **Node.js** with Express
 - **TypeScript** for type safety
-- **PostgreSQL** (Neon Serverless)
+- **PostgreSQL** (Neon) via DATABASE_URL
 - **Drizzle ORM** for database operations
-- **Replit Auth** (OpenID Connect)
-- **Passport.js** for sessions
+- **Simple Login** (testing phase - admin/admin123)
+- **Passport.js** for session management
 
 ### Design System
 - **Primary Color**: Deep mining blue (#0A2463)
@@ -64,10 +64,9 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 
 ### Environment Variables
 The following environment variables are automatically configured:
-- `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Session encryption secret
-- `REPLIT_DOMAINS` - Allowed domains for auth
-- `REPL_ID` - Replit app identifier
+- `DATABASE_URL` - PostgreSQL connection string (required)
+- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database credentials
+- `SESSION_SECRET` - Session encryption secret (auto-generated)
 
 ### Installation
 
@@ -99,27 +98,24 @@ The database includes:
 - Contact submissions
 - Verification queue
 
-## 👥 Test Credentials
+## 👥 Login Credentials
 
-For testing purposes, you can create accounts and assign roles through the admin panel. The first user to sign up can be manually promoted to admin via database query:
+### Testing Phase Login
+For the testing phase, a simple credential-based login is available:
 
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
-```
+**Admin Login:**
+- Navigate to `/login` or click "Log In" in the header
+- Username: `admin`
+- Password: `admin123`
 
-### Recommended Test Accounts
+This provides full admin access to the platform with no security restrictions (testing only).
 
-**Admin Account:**
-- Email: admin@fusionmining.com
-- Use Replit Auth to sign up, then promote via SQL
+### Test User IDs (Development)
+Alternative test login via API (development mode only):
+- Admin: `test-admin-123`
+- Buyer: `test-buyer-789`
 
-**Seller Account:**
-- Email: seller@fusionmining.com
-- Role: `seller`
-
-**Buyer Account:**
-- Email: buyer@fusionmining.com
-- Role: `buyer` (default)
+**Note:** These are hardcoded credentials for testing purposes. No database storage required for test users.
 
 ## 📁 Project Structure
 
@@ -216,9 +212,10 @@ npm run db:generate  # Generate migrations
 ## 📝 API Documentation
 
 ### Authentication Endpoints
-- `GET /api/login` - Initiate login
-- `GET /api/logout` - Log out
-- `GET /api/auth/user` - Get current user
+- `POST /api/login` - Login with username/password (testing phase)
+- `GET /api/logout` - Log out current user
+- `GET /api/auth/user` - Get current authenticated user
+- `POST /api/test-login` - Test login with user ID (development only)
 
 ### Public Endpoints
 - `GET /api/projects` - List projects
@@ -259,4 +256,4 @@ Proprietary - © 2024 Fusion Mining Limited
 - UI components from Shadcn
 - Icons from Lucide React
 - Database hosted on Neon
-- Authentication via Replit Auth
+- Simple credential-based login for testing

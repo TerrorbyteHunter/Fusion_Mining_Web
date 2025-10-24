@@ -79,8 +79,6 @@ export function Header() {
 
           {/* Auth & User Menu */}
           <div className="flex items-center gap-2">
-            {/* Development Test Login Selector */}
-            {import.meta.env.DEV && <TestLoginSelector />}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

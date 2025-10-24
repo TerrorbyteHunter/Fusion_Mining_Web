@@ -11,20 +11,20 @@ export function setupAuth(app: Express) {
   });
 
   passport.deserializeUser(async (id: string, done) => {
+    const testUsers: { [key: string]: any } = {
+      'test-admin-123': { id: 'test-admin-123', username: 'admin', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
+      'test-buyer-789': { id: 'test-buyer-789', username: 'user', role: 'buyer', email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer' },
+    };
+    
+    if (testUsers[id]) {
+      return done(null, testUsers[id]);
+    }
+    
     try {
-      const testUsers: { [key: string]: any } = {
-        'test-admin-123': { id: 'test-admin-123', username: 'admin', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-        'test-buyer-789': { id: 'test-buyer-789', username: 'user', role: 'buyer', email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer' },
-      };
-      
-      if (testUsers[id]) {
-        done(null, testUsers[id]);
-      } else {
-        const user = await storage.getUser(id);
-        done(null, user);
-      }
+      const user = await storage.getUser(id);
+      return done(null, user);
     } catch (error) {
-      done(error, null);
+      return done(null, false);
     }
   });
 }
