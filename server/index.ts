@@ -3,14 +3,25 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import passport from "passport";
+import pg from "pg";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Session setup
+// PostgreSQL session store setup
+const PgStore = connectPgSimple(session);
+const sessionStore = new PgStore({
+  conString: process.env.DATABASE_URL,
+  tableName: 'sessions',
+  createTableIfMissing: true,
+});
+
+// Session setup with PostgreSQL store
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'dev-secret-key',
   resave: false,
   saveUninitialized: false,

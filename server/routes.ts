@@ -113,6 +113,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Logout endpoint
+    app.post('/api/logout', (req, res) => {
+      req.logout(() => {
+        res.json({ message: "Logout successful" });
+      });
+    });
+
     app.post('/api/test-logout', (req, res) => {
       req.logout(() => {
         res.json({ message: "Test logout successful" });
@@ -121,11 +128,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Get current user endpoint
     app.get('/api/auth/user', async (req: any, res) => {
-      if (!req.session || !req.session.user) {
+      if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       try {
-        const user = await storage.getUser(req.session.user.id);
+        // For hardcoded test users, return them directly
+        if (req.user && req.user.id && req.user.id.startsWith('test-')) {
+          return res.json(req.user);
+        }
+        
+        // For database users, fetch from storage
+        const user = await storage.getUser(req.user.id);
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
