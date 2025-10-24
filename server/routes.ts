@@ -38,10 +38,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (process.env.NODE_ENV === 'development') {
       app.post('/api/login', async (req, res) => {
         const { username, password } = req.body;
-        // For demo: hardcoded users
+        // Simple hardcoded users for testing (NO SECURITY)
         const users = {
           admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-          user: { id: 'test-buyer-789', username: 'user', password: 'user123', role: 'buyer', email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer' },
+          james: { id: 'test-buyer-789', username: 'james', password: 'james123', role: 'buyer', email: 'james@fusionmining.com', firstName: 'James', lastName: 'Buyer' },
+          jane: { id: 'test-seller-456', username: 'jane', password: 'jane123', role: 'seller', email: 'jane@fusionmining.com', firstName: 'Jane', lastName: 'Seller' },
         };
         const user = Object.values(users).find(u => u.username === username && u.password === password);
         if (!user) {

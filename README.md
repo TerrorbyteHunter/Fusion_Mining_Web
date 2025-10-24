@@ -68,22 +68,50 @@ The following environment variables are automatically configured:
 - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database credentials
 - `SESSION_SECRET` - Session encryption secret (auto-generated)
 
-### Installation
+### Local Development Setup
 
-1. **Install Dependencies**
+1. **Clone the Repository**
+   ```bash
+   git clone <repository-url>
+   cd fusion-mining-platform
+   ```
+
+2. **Install Dependencies**
    ```bash
    npm install
    ```
 
-2. **Setup Database**
+3. **Configure Environment Variables**
+   Create a `.env` file in the root directory:
+   ```env
+   DATABASE_URL=postgresql://user:password@host:port/database
+   NODE_ENV=development
+   SESSION_SECRET=your-secret-key-here
+   ```
+
+4. **Setup Database**
    ```bash
    npm run db:push
    ```
+   This will create all necessary tables in your PostgreSQL database.
 
-3. **Start Development Server**
+5. **Start Development Server**
    ```bash
    npm run dev
    ```
+   The application will start on `http://localhost:5000`
+
+6. **Access the Application**
+   - Frontend: `http://localhost:5000`
+   - Login: `http://localhost:5000/login`
+   - Admin Panel: `http://localhost:5000/admin/cms` (after logging in as admin)
+
+### Quick Start with Replit
+On Replit, the setup is automatic:
+1. Fork or clone the project
+2. Click "Run" - dependencies install automatically
+3. Database is auto-provisioned
+4. Application starts at your Replit URL
 
 The application will be available at `https://<your-repl-url>.replit.dev`
 
@@ -98,24 +126,32 @@ The database includes:
 - Contact submissions
 - Verification queue
 
-## 👥 Login Credentials
+## 👥 Login Credentials (Testing Only - NO SECURITY)
 
-### Testing Phase Login
-For the testing phase, a simple credential-based login is available:
+### Simple Test Accounts
+For local development and testing, use these hardcoded credentials:
 
-**Admin Login:**
-- Navigate to `/login` or click "Log In" in the header
+**Admin Account (Full Access):**
 - Username: `admin`
 - Password: `admin123`
+- Access: Admin panel at `/admin/cms`
 
-This provides full admin access to the platform with no security restrictions (testing only).
+**Buyer Account:**
+- Username: `james`
+- Password: `james123`
+- Access: Buyer dashboard, create buyer requests
 
-### Test User IDs (Development)
-Alternative test login via API (development mode only):
-- Admin: `test-admin-123`
-- Buyer: `test-buyer-789`
+**Seller Account:**
+- Username: `jane`
+- Password: `jane123`
+- Access: Seller dashboard, create marketplace listings
 
-**Note:** These are hardcoded credentials for testing purposes. No database storage required for test users.
+**How to Login:**
+1. Navigate to `/login` or click "Log In" in the header
+2. Enter username and password
+3. Click "Login" button
+
+**⚠️ IMPORTANT:** These are hardcoded credentials with NO SECURITY for testing purposes only. Do not use in production!
 
 ## 📁 Project Structure
 

@@ -68,9 +68,9 @@ export default function Login() {
               </span>
             </div>
           </div>
-          <CardTitle className="text-2xl">Admin Login</CardTitle>
+          <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>
-            Enter your credentials to access the admin panel
+            Enter your credentials to access the platform
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,7 +109,10 @@ export default function Login() {
             </Button>
           </form>
           <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p>Test credentials: admin / admin123</p>
+            <p className="font-semibold mb-1">Test Accounts (No Security):</p>
+            <p>Admin: admin / admin123</p>
+            <p>Buyer: james / james123</p>
+            <p>Seller: jane / jane123</p>
           </div>
         </CardContent>
       </Card>
