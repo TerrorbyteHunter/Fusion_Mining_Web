@@ -13,7 +13,8 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: string, done) => {
     const testUsers: { [key: string]: any } = {
       'test-admin-123': { id: 'test-admin-123', username: 'admin', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-      'test-buyer-789': { id: 'test-buyer-789', username: 'user', role: 'buyer', email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer' },
+      'test-buyer-789': { id: 'test-buyer-789', username: 'james', role: 'buyer', email: 'james@fusionmining.com', firstName: 'James', lastName: 'Buyer' },
+      'test-seller-456': { id: 'test-seller-456', username: 'jane', role: 'seller', email: 'jane@fusionmining.com', firstName: 'Jane', lastName: 'Seller' },
     };
     
     if (testUsers[id]) {
