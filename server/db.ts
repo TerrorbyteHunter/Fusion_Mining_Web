@@ -1,15 +1,14 @@
-// Database connection for local PostgreSQL
+// Database connection for PostgreSQL
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
 
-const connectionConfig = {
-  host: 'localhost',
-  port: 5432,
-  database: 'fusion_mining',
-  user: 'postgres',
-  password: '1234'
-};
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not defined. Please provision a database.");
+}
 
-export const pool = new Pool(connectionConfig);
+export const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
 export const db = drizzle(pool, { schema });

@@ -134,10 +134,10 @@ export function Header() {
                 variant="default"
                 data-testid="button-login"
               >
-                <a href="/api/login">
+                <Link href="/login">
                   <User className="mr-2 h-4 w-4" />
                   Log In
-                </a>
+                </Link>
               </Button>
             )}
 

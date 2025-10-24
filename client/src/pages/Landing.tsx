@@ -71,7 +71,7 @@ const quickLinks = [
     title: "Get Started",
     description: "Create your account and begin trading",
     icon: Users,
-    href: "/api/login",
+    href: "/login",
     color: "text-chart-4"
   },
 ];
@@ -116,10 +116,10 @@ export default function Landing() {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                 data-testid="button-get-started"
               >
-                <a href="/api/login">
+                <Link href="/login">
                   Get Started
                   <ArrowRight className="ml-2 h-5 w-5" />
-                </a>
+                </Link>
               </Button>
               <Button 
                 asChild 

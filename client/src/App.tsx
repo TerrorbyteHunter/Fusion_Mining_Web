@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 // Import all pages
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
 import About from "@/pages/About";
 import Services from "@/pages/Services";
 import Sustainability from "@/pages/Sustainability";
@@ -36,6 +37,7 @@ function Router() {
         <Switch>
           {/* Public Routes */}
           <Route path="/" component={Landing} />
+          <Route path="/login" component={Login} />
           <Route path="/about" component={About} />
           <Route path="/services" component={Services} />
           <Route path="/sustainability" component={Sustainability} />
