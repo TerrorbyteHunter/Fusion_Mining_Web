@@ -52,7 +52,8 @@ import {
   Clock,
   Video as VideoIcon,
   Power,
-  Store
+  Store,
+  Settings
 } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -499,7 +500,7 @@ export default function AdminCMS() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs defaultValue="blog" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="blog" data-testid="tab-blog">
                 <Newspaper className="mr-2 h-4 w-4" />
                 Blog Posts
@@ -520,9 +521,9 @@ export default function AdminCMS() {
                 <Store className="mr-2 h-4 w-4" />
                 Marketplace
               </TabsTrigger>
-              <TabsTrigger value="activity" data-testid="tab-activity">
-                <Activity className="mr-2 h-4 w-4" />
-                Activity
+              <TabsTrigger value="contact-settings" onClick={() => setLocation('/admin/contact-settings')} data-testid="tab-contact-settings">
+                <Settings className="mr-2 h-4 w-4" />
+                Contact Info
               </TabsTrigger>
             </TabsList>
 

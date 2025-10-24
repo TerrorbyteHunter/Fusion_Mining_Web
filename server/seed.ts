@@ -1,6 +1,6 @@
 // Seed script for development testing
 import { db } from "./db";
-import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts } from "@shared/schema";
+import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function seed() {
@@ -450,6 +450,33 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
     ]).onConflictDoNothing();
 
     console.log("✓ Blog posts created");
+
+    // Upsert contact settings (idempotent) so contact info is persisted for the app
+    console.log("Upserting contact settings...");
+    await db.insert(contactSettings).values({
+      id: "default-contact-settings",
+      officeAddress: "Shaolin Temple, Ngwerere Road, Office # 1",
+      phone: "+260 978 838 939",
+      email: "support@fusionmining.com",
+      supportEmail: "support@fusionmining.com",
+      mondayFriday: "8:00 AM - 5:00 PM",
+      saturday: "9:00 AM - 1:00 PM",
+      sunday: "Closed",
+    }).onConflictDoUpdate({
+      target: [contactSettings.id],
+      set: {
+        officeAddress: sql`EXCLUDED.office_address`,
+        phone: sql`EXCLUDED.phone`,
+        email: sql`EXCLUDED.email`,
+        supportEmail: sql`EXCLUDED.support_email`,
+        mondayFriday: sql`EXCLUDED.monday_friday`,
+        saturday: sql`EXCLUDED.saturday`,
+        sunday: sql`EXCLUDED.sunday`,
+        updatedAt: sql`now()`,
+      },
+    });
+
+    console.log("✓ Contact settings upserted");
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log("\nTest Account Credentials:");

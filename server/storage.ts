@@ -543,7 +543,7 @@ export class DatabaseStorage implements IStorage {
         .insert(contactSettings)
         .values({
           officeAddress: "Fusion Mining Limited\nCentral Business District\nLusaka, Zambia",
-          phone: "+260 XXX XXX XXX",
+          phone: "+260 978 838 939",
           email: "info@fusionmining.com",
           supportEmail: "support@fusionmining.com",
           mondayFriday: "8:00 AM - 5:00 PM",

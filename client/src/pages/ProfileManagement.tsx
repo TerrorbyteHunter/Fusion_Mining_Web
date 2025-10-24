@@ -186,7 +186,7 @@ export default function ProfileManagement() {
                     onChange={(e) =>
                       setProfileForm({ ...profileForm, phoneNumber: e.target.value })
                     }
-                    placeholder="+260 XXX XXX XXX"
+                    placeholder="+260 978 838 939"
                     data-testid="input-phone"
                   />
                 </div>

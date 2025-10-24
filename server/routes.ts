@@ -2,7 +2,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isSeller } from "./replitAuth";
+import { setupAuth, isAuthenticated, isAdmin, isSeller } from "./localAuth";
 import { ZodError } from "zod";
 import {
   insertUserProfileSchema,
@@ -19,6 +19,7 @@ import {
   insertVideoSchema,
   updateVideoSchema,
 } from "@shared/schema";
+// import { getSession } from "./replitAuth";
 
 // Helper function to format Zod errors
 function formatZodError(error: ZodError): string {
@@ -27,10 +28,34 @@ function formatZodError(error: ZodError): string {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
-  // Auth Setup (Replit Auth integration)
+  // Auth Setup (Local Development)
   // ========================================================================
   await setupAuth(app);
 
+    // ========================================================================
+    // Username/Password Login (DEVELOPMENT ONLY)
+    // ========================================================================
+    if (process.env.NODE_ENV === 'development') {
+      app.post('/api/login', async (req, res) => {
+        const { username, password } = req.body;
+        // For demo: hardcoded users
+        const users = {
+          admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
+          user: { id: 'test-buyer-789', username: 'user', password: 'user123', role: 'buyer', email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer' },
+        };
+        const user = Object.values(users).find(u => u.username === username && u.password === password);
+        if (!user) {
+          return res.status(401).json({ message: 'Invalid credentials' });
+        }
+        // Use passport login to set session
+        req.login(user, (err) => {
+          if (err) {
+            return res.status(500).json({ message: 'Login failed' });
+          }
+          res.json({ success: true, user });
+        });
+      });
+    }
   // ========================================================================
   // Development Test Login (DEVELOPMENT ONLY)
   // ========================================================================
@@ -70,22 +95,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "User not found" });
         }
 
-        req.login({
-          claims: {
-            sub: user.id,
-            email: user.email,
-            first_name: user.firstName,
-            last_name: user.lastName,
-            profile_image_url: user.profileImageUrl,
-          },
-          access_token: 'test-token',
-          expires_at: Math.floor(Date.now() / 1000) + 86400,
-        }, (err: any) => {
+        // Use passport login
+        req.login(user, (err: any) => {
           if (err) {
-            console.error("Test login error:", err);
+            console.error("Login error:", err);
             return res.status(500).json({ message: "Failed to login" });
           }
-          res.json({ message: "Test login successful", user });
+          res.json({ 
+            message: "Test login successful", 
+            user 
+          });
         });
       } catch (error) {
         console.error("Error during test login:", error);
@@ -97,6 +116,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.logout(() => {
         res.json({ message: "Test logout successful" });
       });
+    });
+
+    // Get current user endpoint
+    app.get('/api/auth/user', async (req: any, res) => {
+      if (!req.session || !req.session.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      try {
+        const user = await storage.getUser(req.session.user.id);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.json(user);
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
     });
 
     app.get('/api/test-accounts', async (req, res) => {
@@ -112,6 +148,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to fetch test accounts" });
       }
     });
+
+    // Contact settings endpoint
+    app.get('/api/contact-settings', async (req, res) => {
+      try {
+        const settings = await storage.getContactSettings();
+        if (!settings) {
+          return res.status(404).json({ message: 'Contact settings not found' });
+        }
+        res.json(settings);
+      } catch (error) {
+        console.error('Error fetching contact settings:', error);
+        res.status(500).json({ message: 'Failed to fetch contact settings' });
+      }
+    });
+
+    // Development-only: update contact settings quickly
+    if (process.env.NODE_ENV === 'development') {
+      app.post('/api/contact-settings', async (req, res) => {
+        try {
+          const payload = req.body || {};
+          // Allow partial updates
+          const updated = await storage.updateContactSettings(payload);
+          res.json(updated);
+        } catch (error) {
+          console.error('Error updating contact settings:', error);
+          res.status(500).json({ message: 'Failed to update contact settings' });
+        }
+      });
+    }
 
     app.post('/api/seed-data', async (req, res) => {
       try {

@@ -25,6 +25,62 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useQuery } from '@tanstack/react-query';
+import { getQueryFn } from '@/lib/queryClient';
+
+function ContactInfo() {
+  const { data: contact } = useQuery<any>({
+    queryKey: ['/api/contact-settings'],
+    queryFn: getQueryFn({ on401: 'returnNull' }),
+  });
+
+  const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
+  const phone = (contact?.phone as string) ?? '+260 978 838 939';
+  const email = (contact?.email as string) ?? 'info@fusionmining.com';
+  const hoursMonFri = (contact?.mondayFriday as string) ?? '8:00 AM - 5:00 PM';
+
+  return (
+    <>
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-lg bg-primary/10">
+          <MapPin className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h3 className="font-semibold mb-1">Office Address</h3>
+          <p className="text-muted-foreground" style={{ whiteSpace: 'pre-line' }}>
+            {office}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-lg bg-chart-2/10">
+          <Phone className="h-6 w-6 text-chart-2" />
+        </div>
+        <div>
+          <h3 className="font-semibold mb-1">Phone</h3>
+          <p className="text-muted-foreground">
+            {phone}
+            <br />
+            Mon - Fri: {hoursMonFri}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-lg bg-chart-4/10">
+          <Mail className="h-6 w-6 text-chart-4" />
+        </div>
+        <div>
+          <h3 className="font-semibold mb-1">Email</h3>
+          <p className="text-muted-foreground">
+            {email}
+          </p>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function Contact() {
   const { toast } = useToast();
@@ -122,6 +178,7 @@ export default function Contact() {
                                 <Input 
                                   placeholder="Your full name" 
                                   {...field} 
+                                  value={field.value ?? ""}
                                   data-testid="input-name"
                                 />
                               </FormControl>
@@ -141,6 +198,7 @@ export default function Contact() {
                                   type="email" 
                                   placeholder="your.email@example.com" 
                                   {...field} 
+                                  value={field.value ?? ""}
                                   data-testid="input-email"
                                 />
                               </FormControl>
@@ -158,8 +216,9 @@ export default function Contact() {
                               <FormControl>
                                 <Input 
                                   type="tel" 
-                                  placeholder="+260 XXX XXX XXX" 
+                                  placeholder="+260 978 838 939" 
                                   {...field} 
+                                  value={field.value ?? ""}
                                   data-testid="input-phone"
                                 />
                               </FormControl>
@@ -178,6 +237,7 @@ export default function Contact() {
                                 <Input 
                                   placeholder="What is this about?" 
                                   {...field} 
+                                  value={field.value ?? ""}
                                   data-testid="input-subject"
                                 />
                               </FormControl>
@@ -197,6 +257,7 @@ export default function Contact() {
                                   placeholder="Tell us more about your inquiry..." 
                                   className="min-h-32"
                                   {...field} 
+                                  value={field.value ?? ""}
                                   data-testid="textarea-message"
                                 />
                               </FormControl>
@@ -237,45 +298,7 @@ export default function Contact() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10">
-                      <MapPin className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Office Address</h3>
-                      <p className="text-muted-foreground">
-                        Fusion Mining Limited<br />
-                        Central Business District<br />
-                        Lusaka, Zambia
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-chart-2/10">
-                      <Phone className="h-6 w-6 text-chart-2" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Phone</h3>
-                      <p className="text-muted-foreground">
-                        +260 XXX XXX XXX<br />
-                        Mon - Fri: 8:00 AM - 5:00 PM
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-chart-4/10">
-                      <Mail className="h-6 w-6 text-chart-4" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold mb-1">Email</h3>
-                      <p className="text-muted-foreground">
-                        info@fusionmining.com<br />
-                        support@fusionmining.com
-                      </p>
-                    </div>
-                  </div>
+                  <ContactInfo />
                 </CardContent>
               </Card>
 

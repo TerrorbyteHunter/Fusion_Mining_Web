@@ -1,8 +1,19 @@
 // Footer component with links and company info
 import { Link } from "wouter";
 import { Mountain, Mail, Phone, MapPin, Facebook, Twitter, Linkedin } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
 
 export function Footer() {
+  const { data: contact } = useQuery<any>({
+    queryKey: ['/api/contact-settings'],
+    queryFn: getQueryFn({ on401: 'returnNull' }),
+  });
+
+    const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
+  const phone = (contact?.phone as string) ?? '+260 978 838 939';
+  const email = (contact?.email as string) ?? 'info@fusionmining.com';
+
   return (
     <footer className="border-t bg-card/50">
       <div className="container mx-auto px-4 py-12">
@@ -109,16 +120,16 @@ export function Footer() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <span>Lusaka, Zambia</span>
+                <span style={{ whiteSpace: 'pre-line' }}>{office}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 flex-shrink-0" />
-                <span>+260 XXX XXX XXX</span>
+                <span>{phone}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 flex-shrink-0" />
-                <a href="mailto:info@fusionmining.com" className="hover:text-foreground transition-colors">
-                  info@fusionmining.com
+                <a href={`mailto:${email}`} className="hover:text-foreground transition-colors">
+                  {email}
                 </a>
               </li>
             </ul>

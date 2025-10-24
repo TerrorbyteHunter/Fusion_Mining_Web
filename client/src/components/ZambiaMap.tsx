@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import mapSvg from "../../../attached_assets/generated_images/zambia-provinces-label.svg";
 
 interface ZambiaMapProps {
   onRegionClick?: (region: string) => void;
@@ -25,83 +26,70 @@ export function ZambiaMap({ onRegionClick, selectedRegion }: ZambiaMapProps) {
     }
   };
 
+
   return (
-    <Card className="relative w-full aspect-video bg-gradient-to-br from-primary/5 to-chart-2/5 overflow-hidden">
+    <Card className="relative w-full aspect-square bg-gradient-to-br from-primary/5 to-chart-2/5 overflow-hidden">
       <div className="absolute inset-0 p-4 md:p-8">
         <div className="relative w-full h-full flex items-center justify-center">
-          {/* Map background with Zambia outline */}
-          <svg
-            viewBox="0 0 100 100"
-            className="w-full h-full"
-            preserveAspectRatio="xMidYMid meet"
+          {/* Map background using external SVG file (responsive) */}
+          <div
+            className="w-full h-full relative"
+            style={{
+              backgroundImage: `url(${mapSvg})`,
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "contain",
+            }}
           >
-            {/* Simplified Zambia country outline */}
-            <path
-              d="M 15,25 L 40,20 L 60,20 L 75,25 L 85,35 L 85,50 L 80,65 L 70,80 L 55,90 L 35,90 L 20,85 L 10,70 L 8,50 L 10,35 Z"
-              fill="hsl(var(--muted))"
-              fillOpacity="0.3"
-              stroke="hsl(var(--primary))"
-              strokeWidth="0.5"
-              strokeOpacity="0.4"
-            />
+            {/* Interactive overlay (absolute positioned) */}
+            <svg
+              viewBox="0 0 100 100"
+              className="absolute inset-0 w-full h-full"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {provinces.map((province) => {
+                const isSelected = selectedRegion === province.name;
+                return (
+                  <g key={province.id}>
+                    {/* Clickable circle area around each label */}
+                    <circle
+                      cx={province.x}
+                      cy={province.y}
+                      r="8"
+                      fill={isSelected ? "hsl(var(--primary))" : "transparent"}
+                      fillOpacity={isSelected ? "0.2" : "0"}
+                      stroke={isSelected ? "hsl(var(--primary))" : "transparent"}
+                      strokeWidth="0.5"
+                      strokeOpacity={isSelected ? "1" : "0"}
+                      className="transition-all duration-300 cursor-pointer hover:fill-opacity-30 hover:stroke-opacity-50"
+                      onClick={() => handleRegionClick(province.name)}
+                    />
+                    
+                    {/* Province labels removed – map SVG already contains labels. Only dots remain. */}
 
-            {/* Province labels with interactive areas */}
-            {provinces.map((province) => {
-              const isSelected = selectedRegion === province.name;
-              return (
-                <g key={province.id}>
-                  {/* Clickable circle area around each label */}
-                  <circle
-                    cx={province.x}
-                    cy={province.y}
-                    r="8"
-                    fill={isSelected ? "hsl(var(--primary))" : "transparent"}
-                    fillOpacity={isSelected ? "0.2" : "0"}
-                    stroke={isSelected ? "hsl(var(--primary))" : "transparent"}
-                    strokeWidth="0.5"
-                    strokeOpacity={isSelected ? "1" : "0"}
-                    className="transition-all duration-300 cursor-pointer hover:fill-opacity-30 hover:stroke-opacity-50"
-                    onClick={() => handleRegionClick(province.name)}
-                  />
-                  
-                  {/* Province name */}
-                  <text
-                    x={province.x}
-                    y={province.y}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="text-[3px] md:text-[4px] font-semibold pointer-events-none select-none"
-                    fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--foreground))"}
-                    fillOpacity={isSelected ? "1" : "0.8"}
-                    fontFamily="system-ui, -apple-system, sans-serif"
-                  >
-                    {province.name.replace(" Province", "")}
-                  </text>
+                    <circle
+                      cx={province.x}
+                      cy={province.y}
+                      r="1"
+                      fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--chart-2))"}
+                      className="pointer-events-none"
+                    />
 
-                  {/* Pin marker */}
-                  <circle
-                    cx={province.x}
-                    cy={province.y}
-                    r="1"
-                    fill={isSelected ? "hsl(var(--primary))" : "hsl(var(--chart-2))"}
-                    className="pointer-events-none"
-                  />
-                  
-                  {/* Test ID marker (invisible) */}
-                  <rect
-                    x={province.x - 8}
-                    y={province.y - 8}
-                    width="16"
-                    height="16"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onClick={() => handleRegionClick(province.name)}
-                    data-testid={`region-${province.id}`}
-                  />
-                </g>
-              );
-            })}
-          </svg>
+                    <rect
+                      x={province.x - 8}
+                      y={province.y - 8}
+                      width="16"
+                      height="16"
+                      fill="transparent"
+                      className="cursor-pointer"
+                      onClick={() => handleRegionClick(province.name)}
+                      data-testid={`region-${province.id}`}
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
 
           {/* Compass */}
           <div className="absolute top-2 right-2 md:top-4 md:right-4 bg-background/80 backdrop-blur-sm rounded-lg p-2 md:p-3 text-xs">
