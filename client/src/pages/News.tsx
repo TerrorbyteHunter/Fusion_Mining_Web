@@ -5,7 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { BlogPost } from "@shared/schema";
 import { Link } from "wouter";
-import { Calendar, User, ArrowRight, FileText } from "lucide-react";
+import { Calendar, ArrowRight } from "lucide-react";
+// user-provided news images (preferred)
+import copperrise from "../../../attached_assets/files/Newsinsghts/copperrise.jpg";
+import emeraldzambia from "../../../attached_assets/files/Newsinsghts/emeraldzambia.png";
+import investmentguide from "../../../attached_assets/files/Newsinsghts/investmentguide.jpg";
+import user_news1 from "../../../attached_assets/files/Newsinsghts/news1.jpeg";
 import { format } from "date-fns";
 
 export default function News() {
@@ -48,11 +53,11 @@ export default function News() {
             </div>
           ) : publishedPosts && publishedPosts.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {publishedPosts.map((post) => (
+              {publishedPosts.map((post, idx) => (
                 <Link key={post.id} href={`/news/${post.slug}`}>
                   <Card className="hover-elevate active-elevate-2 h-full cursor-pointer transition-all" data-testid={`card-post-${post.id}`}>
-                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-chart-2/20 flex items-center justify-center">
-                      <FileText className="h-16 w-16 text-primary" />
+                    <div className="aspect-video bg-gradient-to-br from-primary/20 to-chart-2/20 flex items-center justify-center overflow-hidden">
+                      <img src={[copperrise, emeraldzambia, investmentguide, user_news1][idx % 4]} alt={post.title} className="w-full h-full object-cover" />
                     </div>
                     <CardHeader>
                       <div className="flex items-center gap-2 mb-2">
@@ -82,9 +87,9 @@ export default function News() {
               ))}
             </div>
           ) : (
-            <Card className="text-center py-16">
+              <Card className="text-center py-16">
               <CardContent>
-                <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <img src={user_news1} className="h-24 w-24 mx-auto mb-4 object-cover rounded" alt="no-posts" />
                 <h3 className="text-2xl font-semibold mb-2">No Posts Yet</h3>
                 <p className="text-muted-foreground">
                   Check back soon for industry news and insights

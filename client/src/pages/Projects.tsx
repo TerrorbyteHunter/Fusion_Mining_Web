@@ -16,13 +16,16 @@ import type { Project } from "@shared/schema";
 import { 
   MapPin, 
   FileText, 
-  Gem, 
   Search, 
-  Heart,
-  ArrowRight
+  Heart
 } from "lucide-react";
 import { ZambiaMap } from "@/components/ZambiaMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
+// image imports from repository attached_assets
+import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
+import copper1Img from "../../../attached_assets/files/copper1.jpg";
+import gold1Img from "../../../attached_assets/files/gold1.jpg";
+import green1Img from "../../../attached_assets/files/green-emerald1.jpg";
 import {
   Select,
   SelectContent,
@@ -33,7 +36,7 @@ import {
 
 export default function Projects() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedMineral, setSelectedMineral] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -229,7 +232,18 @@ export default function Projects() {
                   <ImageDisplay 
                     imageUrl={project.imageUrl}
                     alt={project.name}
-                    fallbackIcon={Gem}
+                    // use a contextual fallback image from attached_assets
+                    fallbackImage={
+                      project.minerals && project.minerals.length > 0
+                        ? (function getMineralImage(mineral: string) {
+                            const m = mineral.toLowerCase();
+                            if (m.includes('copper')) return copper1Img;
+                            if (m.includes('gold')) return gold1Img;
+                            if (m.includes('emerald') || m.includes('green')) return green1Img;
+                            return catalogueImg;
+                          })(project.minerals[0])
+                        : catalogueImg
+                    }
                   />
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2 mb-2">
@@ -252,7 +266,7 @@ export default function Projects() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {project.minerals.map((mineral, idx) => (
+                      {project.minerals.map((mineral: string, idx: number) => (
                         <Badge key={idx} variant="secondary">
                           {mineral}
                         </Badge>
@@ -273,9 +287,9 @@ export default function Projects() {
               ))}
             </div>
           ) : (
-            <Card className="text-center py-12">
+                <Card className="text-center py-12">
               <CardContent>
-                <Gem className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <img src={catalogueImg} className="h-24 w-24 mx-auto mb-4 object-cover rounded" alt="no-projects" />
                 <h3 className="text-xl font-semibold mb-2">No Projects Found</h3>
                 <p className="text-muted-foreground mb-4">
                   {searchQuery || selectedRegion || selectedMineral
