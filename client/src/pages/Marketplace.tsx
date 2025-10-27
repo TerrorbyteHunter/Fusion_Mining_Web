@@ -13,17 +13,20 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import type { MarketplaceListing, BuyerRequest } from "@shared/schema";
 import { 
-  Gem, 
   Search, 
   MapPin, 
   Package, 
-  DollarSign,
   Users,
   Plus,
-  Filter
 } from "lucide-react";
 import { Link } from "wouter";
 import { ImageDisplay } from "@/components/ImageDisplay";
+// image imports from repository attached_assets
+import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
+import copper2Img from "../../../attached_assets/files/copper2.jpg";
+import gold2Img from "../../../attached_assets/files/gold2.jpg";
+import gold3Img from "../../../attached_assets/files/gold3.png";
+import green2Img from "../../../attached_assets/files/green-emerald2.jpg";
 import {
   Select,
   SelectContent,
@@ -118,7 +121,7 @@ export default function Marketplace() {
           <Tabs defaultValue="minerals" className="w-full">
             <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-8">
               <TabsTrigger value="minerals" data-testid="tab-minerals">
-                <Gem className="mr-2 h-4 w-4" />
+                <img src={gold3Img} className="mr-2 h-4 w-4 object-cover rounded" alt="minerals" />
                 Minerals
               </TabsTrigger>
               <TabsTrigger value="requests" data-testid="tab-requests">
@@ -184,7 +187,17 @@ export default function Marketplace() {
                       <ImageDisplay 
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
-                        fallbackIcon={Gem}
+                        fallbackImage={
+                          listing.mineralType
+                            ? (function getMineralImage(mineral: string) {
+                                const m = mineral.toLowerCase();
+                                if (m.includes('copper')) return copper2Img;
+                                if (m.includes('gold')) return gold2Img;
+                                if (m.includes('emerald') || m.includes('green')) return green2Img;
+                                return catalogueImg;
+                              })(listing.mineralType)
+                            : catalogueImg
+                        }
                       />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -240,7 +253,7 @@ export default function Marketplace() {
               ) : (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <Gem className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <img src={catalogueImg} className="h-24 w-24 mx-auto mb-4 object-cover rounded" alt="no-listings" />
                     <h3 className="text-xl font-semibold mb-2">No Listings Found</h3>
                     <p className="text-muted-foreground">
                       Try adjusting your filters or check back later

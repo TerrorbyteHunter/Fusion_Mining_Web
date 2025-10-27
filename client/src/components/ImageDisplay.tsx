@@ -61,6 +61,8 @@ interface ImageDisplayProps {
   className?: string;
   iconClassName?: string;
   fallbackIcon?: React.ComponentType<{ className?: string }>;
+  // optional fallback image path (resolved via Vite alias @assets)
+  fallbackImage?: string;
 }
 
 export function ImageDisplay({ 
@@ -68,7 +70,8 @@ export function ImageDisplay({
   alt = "Image",
   className = "aspect-video bg-muted flex items-center justify-center",
   iconClassName = "h-16 w-16",
-  fallbackIcon: FallbackIcon = Gem
+  fallbackIcon: FallbackIcon = Gem,
+  fallbackImage
 }: ImageDisplayProps) {
   // Handle icon: prefix
   if (imageUrl && imageUrl.startsWith("icon:")) {
@@ -92,12 +95,20 @@ export function ImageDisplay({
           alt={alt} 
           className="w-full h-full object-cover"
           onError={(e) => {
-            // Fallback to icon if image fails to load
+            // If image fails to load, replace with fallback image or icon
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             const parent = target.parentElement;
             if (parent) {
               parent.innerHTML = '';
+              if (fallbackImage) {
+                const img = document.createElement('img');
+                img.src = fallbackImage;
+                img.alt = alt;
+                img.className = 'w-full h-full object-cover';
+                parent.appendChild(img);
+                return;
+              }
               const iconDiv = document.createElement('div');
               iconDiv.className = 'flex items-center justify-center w-full h-full';
               parent.appendChild(iconDiv);
@@ -108,7 +119,16 @@ export function ImageDisplay({
     );
   }
 
-  // Fallback to default icon
+  // Fallback to image (if provided) then icon
+  if (fallbackImage) {
+    return (
+      <div className={className}>
+        <img src={fallbackImage} alt={alt} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  // final fallback to default icon
   return (
     <div className={className}>
       <FallbackIcon className={`${iconClassName} text-muted-foreground`} />

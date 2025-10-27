@@ -8,11 +8,13 @@ import {
   Award, 
   Users, 
   Download, 
-  FileText,
   ArrowRight,
   Calendar
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+// assets for About page
+import companyProfilePdf from "../../../attached_assets/files/about-us/Company-Profile.pdf";
+import fusionImage from "../../../attached_assets/files/about-us/fusionimage.png";
 import { useQuery } from "@tanstack/react-query";
 import type { BlogPost } from "@shared/schema";
 import { Link } from "wouter";
@@ -110,13 +112,20 @@ export default function About() {
                   With a strong presence across Zambia's key mining regions and partnerships with international investors, we're uniquely positioned to unlock the full potential of Africa's mineral wealth while ensuring sustainable, responsible practices.
                 </p>
               </div>
-              <Button className="mt-6" data-testid="button-download-brochure">
-                <Download className="mr-2 h-4 w-4" />
-                Download Company Brochure
-              </Button>
+              <a
+                className="inline-block mt-6"
+                href={companyProfilePdf}
+                download
+                data-testid="button-download-profile"
+              >
+                <Button>
+                  <Download className="mr-2 h-4 w-4" />
+                  Download Company Profile
+                </Button>
+              </a>
             </div>
-            <div className="bg-muted rounded-xl h-96 flex items-center justify-center">
-              <FileText className="h-24 w-24 text-muted-foreground" />
+            <div className="bg-muted rounded-xl h-96 flex items-center justify-center overflow-hidden">
+              <img src={fusionImage} alt="Company" className="w-full h-full object-cover" />
             </div>
           </div>
         </div>
