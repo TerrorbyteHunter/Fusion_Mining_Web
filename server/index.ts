@@ -26,7 +26,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // set to true in production
+    secure: process.env.NODE_ENV === 'production', // use secure cookies in production
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
@@ -82,16 +82,27 @@ app.use((req, res, next) => {
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
+    
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    const port = parseInt(process.env.PORT || '5000', 10);
+    server.listen(port, () => {
+      log(`Server running at http://localhost:${port}`);
+    });
   } else {
+    // Production: serve static files
     serveStatic(app);
+    
+    // Only listen on port if NOT on Vercel or Replit
+    // Vercel and Replit don't need us to call server.listen()
+    if (!process.env.VERCEL && !process.env.REPL_ID) {
+      const port = parseInt(process.env.PORT || '5000', 10);
+      server.listen(port, () => {
+        log(`Server running at http://localhost:${port}`);
+      });
+    }
   }
-
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen(port, () => {
-    log(`Server running at http://localhost:${port}`);
-  });
 })();
+
+// Export the app for Vercel serverless
+export default app;
