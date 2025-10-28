@@ -38,7 +38,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { BlogPost, ContactSubmission, ActivityLog, Project, Video, MarketplaceListing } from "@shared/schema";
+import type { BlogPost, ContactSubmission, ActivityLog, Project, Video, MarketplaceListing, User } from "@shared/schema";
+import { MessageDialog } from "@/components/MessageDialog";
 import { 
   Newspaper, 
   Mail, 
@@ -53,7 +54,8 @@ import {
   Video as VideoIcon,
   Power,
   Store,
-  Settings
+  Settings,
+  Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { useLocation } from "wouter";
@@ -114,6 +116,13 @@ export default function AdminCMS() {
     imageUrl: "",
     status: "approved" as "pending" | "approved" | "rejected" | "inactive",
   });
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<{
+    id: string;
+    name?: string;
+    subject?: string;
+    context?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -164,6 +173,20 @@ export default function AdminCMS() {
   const { data: marketplaceListings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
     queryKey: ["/api/marketplace/listings"],
   });
+
+  const { data: users, isLoading: loadingUsers } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+  });
+
+  const handleMessageUser = (userId: string, userName: string, context?: string, subject?: string) => {
+    setSelectedRecipient({
+      id: userId,
+      name: userName,
+      subject: subject || "Admin Message",
+      context: context,
+    });
+    setMessageDialogOpen(true);
+  };
 
   const createPostMutation = useMutation({
     mutationFn: async (data: typeof postForm) => {
@@ -500,7 +523,7 @@ export default function AdminCMS() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs defaultValue="blog" className="w-full">
-            <TabsList className="grid w-full grid-cols-7">
+            <TabsList className="grid w-full grid-cols-8">
               <TabsTrigger value="blog" data-testid="tab-blog">
                 <Newspaper className="mr-2 h-4 w-4" />
                 Blog Posts
@@ -520,6 +543,10 @@ export default function AdminCMS() {
               <TabsTrigger value="marketplace" data-testid="tab-marketplace">
                 <Store className="mr-2 h-4 w-4" />
                 Marketplace
+              </TabsTrigger>
+              <TabsTrigger value="messages" data-testid="tab-messages">
+                <Send className="mr-2 h-4 w-4" />
+                Messages
               </TabsTrigger>
               <TabsTrigger value="contact-settings" onClick={() => setLocation('/admin/contact-settings')} data-testid="tab-contact-settings">
                 <Settings className="mr-2 h-4 w-4" />
@@ -1200,7 +1227,85 @@ export default function AdminCMS() {
                 </Card>
               )}
             </TabsContent>
+
+            <TabsContent value="messages" className="mt-6">
+              <h2 className="text-2xl font-bold mb-6">Message Users</h2>
+              <p className="text-muted-foreground mb-6">
+                Send messages to users about projects, listings, or general inquiries
+              </p>
+              {loadingUsers ? (
+                <Skeleton className="h-96 w-full" />
+              ) : users && users.length > 0 ? (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.filter(u => u.role !== 'admin').map((user) => (
+                        <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                          <TableCell className="font-medium">
+                            {user.firstName} {user.lastName}
+                          </TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{user.role}</Badge>
+                          </TableCell>
+                          <TableCell>{format(new Date(user.createdAt), "MMM d, yyyy")}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleMessageUser(
+                                user.id,
+                                `${user.firstName} ${user.lastName}`,
+                                undefined,
+                                "Message from Admin"
+                              )}
+                              data-testid={`button-message-${user.id}`}
+                            >
+                              <Send className="mr-2 h-4 w-4" />
+                              Send Message
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Users</h3>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
           </Tabs>
+
+          {/* Message Dialog for Admin */}
+          {selectedRecipient && (
+            <MessageDialog
+              open={messageDialogOpen}
+              onOpenChange={(open) => {
+                setMessageDialogOpen(open);
+                if (!open) {
+                  setSelectedRecipient(null);
+                }
+              }}
+              recipientId={selectedRecipient.id}
+              recipientName={selectedRecipient.name}
+              defaultSubject={selectedRecipient.subject}
+              listingTitle={selectedRecipient.context}
+            />
+          )}
 
           {/* Create/Edit Project Dialog */}
           <Dialog open={isCreateProjectOpen || isEditProjectOpen} onOpenChange={(open) => {
