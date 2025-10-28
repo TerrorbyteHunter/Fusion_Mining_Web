@@ -20,7 +20,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { TestLoginSelector } from "@/components/TestLoginSelector";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -37,6 +38,16 @@ export function Header() {
   const [location] = useLocation();
   const { user, isAuthenticated, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/logout", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      window.location.href = "/";
+    },
+  });
 
   const getUserInitials = () => {
     if (!user) return "U";
@@ -118,11 +129,14 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <a href="/api/logout" className="flex items-center gap-2 text-destructive">
-                      <LogOut className="h-4 w-4" />
-                      Log Out
-                    </a>
+                  <DropdownMenuItem
+                    onClick={() => logoutMutation.mutate()}
+                    disabled={logoutMutation.isPending}
+                    className="flex items-center gap-2 text-destructive cursor-pointer"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

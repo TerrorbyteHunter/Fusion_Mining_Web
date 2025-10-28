@@ -718,7 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', isAuthenticated, isAdmin, async (req, res) => {
+  app.post('/api/projects', isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(validatedData);
@@ -758,7 +758,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/projects/:id/close', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/projects/:id/close', isAuthenticated, async (req, res) => {
     try {
       const project = await storage.closeProject(req.params.id);
       res.json(project);
