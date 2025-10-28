@@ -25,7 +25,7 @@ export default function CreateListing() {
   const { isAuthenticated, isSeller, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [listingForm, setListingForm] = useState({
-    type: "mineral" as "mineral" | "partnership",
+    type: "mineral" as "mineral" | "partnership" | "project",
     title: "",
     description: "",
     mineralType: "",
@@ -104,7 +104,7 @@ export default function CreateListing() {
             </h1>
           </div>
           <p className="text-muted-foreground">
-            List your minerals or partnership opportunities on the marketplace
+            List your minerals, projects, or partnership opportunities on the marketplace
           </p>
         </div>
       </section>
@@ -124,7 +124,7 @@ export default function CreateListing() {
                   <Label htmlFor="type">Listing Type *</Label>
                   <Select
                     value={listingForm.type}
-                    onValueChange={(value: "mineral" | "partnership") =>
+                    onValueChange={(value: "mineral" | "partnership" | "project") =>
                       setListingForm({ ...listingForm, type: value })
                     }
                   >
@@ -134,6 +134,7 @@ export default function CreateListing() {
                     <SelectContent>
                       <SelectItem value="mineral">Mineral</SelectItem>
                       <SelectItem value="partnership">Partnership</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

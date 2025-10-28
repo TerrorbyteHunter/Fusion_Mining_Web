@@ -631,7 +631,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -645,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const profile = await storage.getUserProfile(userId);
       res.json(profile);
     } catch (error) {
@@ -656,7 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const validatedData = insertUserProfileSchema.parse({
         ...req.body,
         userId,
@@ -675,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/profile', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const validatedData = updateUserProfileSchema.parse({
         ...req.body,
         userId,
@@ -770,7 +770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId } = req.body;
 
       if (projectId) {
@@ -897,7 +897,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/projects/:id/has-interest', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const projectId = req.params.id;
       const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
       res.json({ hasInterest });
@@ -926,7 +926,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/marketplace/listings', isAuthenticated, isSeller, async (req: any, res) => {
     try {
-      const sellerId = req.user.claims.sub;
+      const sellerId = req.user.claims?.sub || req.user.id;
       const validatedData = insertMarketplaceListingSchema.parse({
         ...req.body,
         sellerId,
@@ -955,7 +955,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
     try {
-      const buyerId = req.user.claims.sub;
+      const buyerId = req.user.claims?.sub || req.user.id;
       const validatedData = insertBuyerRequestSchema.parse({
         ...req.body,
         buyerId,
@@ -974,7 +974,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
     try {
-      const sellerId = req.user.claims.sub;
+      const sellerId = req.user.claims?.sub || req.user.id;
       const listings = await storage.getListingsBySellerId(sellerId);
       res.json(listings);
     } catch (error) {
@@ -1010,7 +1010,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/marketplace/listings/:id/close', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const user = await storage.getUserById(userId);
       const listing = await storage.getMarketplaceListingById(req.params.id);
       
@@ -1035,7 +1035,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const messages = await storage.getMessagesByUserId(userId);
       res.json(messages);
     } catch (error) {
@@ -1046,7 +1046,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
-      const senderId = req.user.claims.sub;
+      const senderId = req.user.claims?.sub || req.user.id;
       const receiverId = req.body.receiverId;
       
       const sender = await storage.getUserById(senderId);
@@ -1089,7 +1089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/conversations/:userId', isAuthenticated, async (req: any, res) => {
     try {
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = req.user.claims?.sub || req.user.id;
       const otherUserId = req.params.userId;
       const messages = await storage.getConversation(currentUserId, otherUserId);
       res.json(messages);
@@ -1127,7 +1127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/blog', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const authorId = req.user.claims.sub;
+      const authorId = req.user.claims?.sub || req.user.id;
       const validatedData = insertBlogPostSchema.parse({
         ...req.body,
         authorId,
@@ -1266,7 +1266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/verify/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const reviewerId = req.user.claims.sub;
+      const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
       await storage.approveListing(listingId, reviewerId);
       res.json({ message: "Listing approved successfully" });
@@ -1278,7 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/reject/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const reviewerId = req.user.claims.sub;
+      const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
       await storage.rejectListing(listingId, reviewerId);
       res.json({ message: "Listing rejected successfully" });
@@ -1338,7 +1338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/activity-logs/me', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       const logs = await storage.getUserActivityLogs(userId, limit);
       res.json(logs);
@@ -1353,7 +1353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -1364,7 +1364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/notifications/unread-count', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const count = await storage.getUnreadNotificationCount(userId);
       res.json({ count });
     } catch (error) {
@@ -1385,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/notifications/mark-all-read', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       await storage.markAllNotificationsAsRead(userId);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
@@ -1399,7 +1399,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
         storage.getUserListingsCount(userId),
         storage.getUserUnreadMessagesCount(userId),

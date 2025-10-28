@@ -97,7 +97,7 @@ export const expressInterest = pgTable("express_interest", {
 // ============================================================================
 // Marketplace
 // ============================================================================
-export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership']);
+export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership', 'project']);
 export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed']);
 
 export const marketplaceListings = pgTable("marketplace_listings", {
