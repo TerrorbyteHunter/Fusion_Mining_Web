@@ -1,6 +1,6 @@
 // Marketplace portal with mineral listings, buyer requests, and partnerships
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,7 @@ export default function Marketplace() {
     subject?: string;
     listingTitle?: string;
   } | null>(null);
+  const [contactedListings, setContactedListings] = useState<Set<string>>(new Set());
 
   // Fetch admin contact (public lightweight endpoint)
   const { data: adminContact, isLoading: loadingAdminContact } = useQuery<any>({
@@ -95,6 +96,36 @@ export default function Marketplace() {
   const { data: buyerRequests, isLoading: loadingRequests } = useQuery<BuyerRequest[]>({
     queryKey: ["/api/marketplace/buyer-requests"],
   });
+
+  // Check contact status for all listings when they load
+  useEffect(() => {
+    if (!isAuthenticated || !listings) return;
+
+    const checkContactStatus = async () => {
+      const contacted = new Set<string>();
+      
+      for (const listing of listings) {
+        try {
+          const response = await fetch(
+            `/api/messages/check-contact?listingId=${listing.id}`,
+            { credentials: 'include' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            if (data.hasContacted) {
+              contacted.add(listing.id);
+            }
+          }
+        } catch (error) {
+          // Silently fail - don't disrupt UX
+        }
+      }
+      
+      setContactedListings(contacted);
+    };
+
+    checkContactStatus();
+  }, [listings, isAuthenticated]);
 
   const filteredListings = listings?.filter((listing) => {
     const matchesMineralType = selectedMineralType === "all" || listing.mineralType === selectedMineralType;
@@ -260,22 +291,47 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button 
-                          className="w-full" 
-                          data-testid={`button-contact-seller-${listing.id}`}
-                          onClick={() => handleContactSeller(listing)}
-                          disabled={loadingAdminContact}
-                          title={loadingAdminContact ? 'Loading contact...' : undefined}
-                        >
-                          {loadingAdminContact ? (
-                            <>
-                              <Spinner size="sm" className="mr-2" />
-                              Preparing...
-                            </>
-                          ) : (
-                            'Contact Seller'
-                          )}
-                        </Button>
+                        {contactedListings.has(listing.id) ? (
+                          <div className="space-y-2">
+                            <Badge variant="secondary" className="w-full justify-center py-2" data-testid={`badge-contacted-${listing.id}`}>
+                              Already Contacted
+                            </Badge>
+                            <Button 
+                              variant="outline"
+                              className="w-full" 
+                              data-testid={`button-contact-seller-${listing.id}`}
+                              onClick={() => handleContactSeller(listing)}
+                              disabled={loadingAdminContact}
+                              title="Send another message"
+                            >
+                              {loadingAdminContact ? (
+                                <>
+                                  <Spinner size="sm" className="mr-2" />
+                                  Preparing...
+                                </>
+                              ) : (
+                                'Contact Again'
+                              )}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button 
+                            className="w-full" 
+                            data-testid={`button-contact-seller-${listing.id}`}
+                            onClick={() => handleContactSeller(listing)}
+                            disabled={loadingAdminContact}
+                            title={loadingAdminContact ? 'Loading contact...' : undefined}
+                          >
+                            {loadingAdminContact ? (
+                              <>
+                                <Spinner size="sm" className="mr-2" />
+                                Preparing...
+                              </>
+                            ) : (
+                              'Contact Seller'
+                            )}
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
