@@ -209,6 +209,34 @@
 
 ---
 
+## 📬 Communication System Overhaul - October 28, 2025
+
+### 15. Restricted Messaging & Deal Closing Implementation
+- [x] Updated database schema with 'closed' status for projects and listings
+- [x] Added message templates table for auto-relay functionality
+- [x] Implemented messaging restrictions (Buyer-Admin and Seller-Admin only)
+- [x] Added deal closing functionality for both admin and seller roles
+- [x] Implemented auto-notifications when buyers express interest
+- [x] Created auto-relay message system with templates
+- [x] Added getUserById and getAdminUser storage methods
+- [x] Updated express interest endpoint to support projects and listings
+- [x] Created seed endpoint for default message templates
+- [x] Database schema changes pushed successfully
+
+**Backend Changes**:
+✅ Messaging now restricted to Buyer-Admin and Seller-Admin communication
+✅ Both sellers and admin can close deals (projects/listings)
+✅ Automatic notifications sent to admin and seller when buyer shows interest
+✅ Auto-relay messages sent using pre-defined templates
+✅ Three message templates created:
+   - Buyer confirmation message
+   - Admin notification
+   - Seller notification
+
+**Status**: ✅ BACKEND IMPLEMENTATION COMPLETE
+
+---
+
 ## 🔧 Session Persistence Fix - October 24, 2025
 
 ### 13. PostgreSQL Session Storage Configuration

@@ -7,6 +7,7 @@ import {
   marketplaceListings,
   buyerRequests,
   messages,
+  messageTemplates,
   blogPosts,
   contactSubmissions,
   contactSettings,
@@ -29,6 +30,8 @@ import {
   type InsertBuyerRequest,
   type Message,
   type InsertMessage,
+  type MessageTemplate,
+  type InsertMessageTemplate,
   type BlogPost,
   type InsertBlogPost,
   type ContactSubmission,
@@ -49,6 +52,8 @@ import { eq, and, desc, or, sql } from "drizzle-orm";
 export interface IStorage {
   // User operations (Required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  getAdminUser(): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<User>;
@@ -65,6 +70,7 @@ export interface IStorage {
   getProjectById(id: string): Promise<Project | undefined>;
   updateProject(id: string, data: Partial<InsertProject>): Promise<Project>;
   deleteProject(id: string): Promise<void>;
+  closeProject(id: string): Promise<Project>;
   expressProjectInterest(interest: InsertExpressInterest): Promise<ExpressInterest>;
 
   // Marketplace Listing operations
@@ -74,6 +80,7 @@ export interface IStorage {
   updateListingStatus(id: string, status: string): Promise<MarketplaceListing>;
   updateMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing>;
   deleteMarketplaceListing(id: string): Promise<void>;
+  closeMarketplaceListing(id: string): Promise<MarketplaceListing>;
   getListingsBySellerId(sellerId: string): Promise<MarketplaceListing[]>;
 
   // Buyer Request operations
@@ -135,6 +142,11 @@ export interface IStorage {
   updateVideo(video: UpdateVideo): Promise<Video>;
   toggleVideoActive(id: string): Promise<Video>;
   deleteVideo(id: string): Promise<void>;
+
+  // Message Template operations
+  createMessageTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
+  getMessageTemplates(activeOnly?: boolean): Promise<MessageTemplate[]>;
+  getMessageTemplateByType(type: string): Promise<MessageTemplate | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -144,6 +156,15 @@ export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.getUser(id);
+  }
+
+  async getAdminUser(): Promise<User | undefined> {
+    const [admin] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
+    return admin;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -273,6 +294,15 @@ export class DatabaseStorage implements IStorage {
     await db.delete(projects).where(eq(projects.id, id));
   }
 
+  async closeProject(id: string): Promise<Project> {
+    const [project] = await db
+      .update(projects)
+      .set({ status: 'closed', updatedAt: new Date() })
+      .where(eq(projects.id, id))
+      .returning();
+    return project;
+  }
+
   async expressProjectInterest(interestData: InsertExpressInterest): Promise<ExpressInterest> {
     const [interest] = await db
       .insert(expressInterest)
@@ -348,6 +378,15 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMarketplaceListing(id: string): Promise<void> {
     await db.delete(marketplaceListings).where(eq(marketplaceListings.id, id));
+  }
+
+  async closeMarketplaceListing(id: string): Promise<MarketplaceListing> {
+    const [listing] = await db
+      .update(marketplaceListings)
+      .set({ status: 'closed', updatedAt: new Date() })
+      .where(eq(marketplaceListings.id, id))
+      .returning();
+    return listing;
   }
 
   async getListingsBySellerId(sellerId: string): Promise<MarketplaceListing[]> {
@@ -828,6 +867,40 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVideo(id: string): Promise<void> {
     await db.delete(videos).where(eq(videos.id, id));
+  }
+
+  // ========================================================================
+  // Message Template operations
+  // ========================================================================
+  async createMessageTemplate(templateData: InsertMessageTemplate): Promise<MessageTemplate> {
+    const [template] = await db
+      .insert(messageTemplates)
+      .values(templateData)
+      .returning();
+    return template;
+  }
+
+  async getMessageTemplates(activeOnly: boolean = false): Promise<MessageTemplate[]> {
+    if (activeOnly) {
+      return await db
+        .select()
+        .from(messageTemplates)
+        .where(eq(messageTemplates.active, true))
+        .orderBy(messageTemplates.type);
+    }
+    return await db.select().from(messageTemplates).orderBy(messageTemplates.type);
+  }
+
+  async getMessageTemplateByType(type: string): Promise<MessageTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(messageTemplates)
+      .where(and(
+        eq(messageTemplates.type, type as any),
+        eq(messageTemplates.active, true)
+      ))
+      .limit(1);
+    return template;
   }
 }
 
