@@ -496,6 +496,49 @@ export class DatabaseStorage implements IStorage {
       .where(eq(messages.id, id));
   }
 
+  async checkUserHasContactedAboutProject(userId: string, projectId: string): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.senderId, userId),
+          eq(messages.relatedProjectId, projectId)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async checkUserHasContactedAboutListing(userId: string, listingId: string): Promise<boolean> {
+    const result = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.senderId, userId),
+          eq(messages.relatedListingId, listingId)
+        )
+      )
+      .limit(1);
+    return result.length > 0;
+  }
+
+  async getMessageWithSenderDetails(messageId: string): Promise<any> {
+    const result = await db
+      .select({
+        message: messages,
+        sender: users,
+        senderProfile: userProfiles,
+      })
+      .from(messages)
+      .leftJoin(users, eq(messages.senderId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .where(eq(messages.id, messageId))
+      .limit(1);
+    return result[0] || null;
+  }
+
   // ========================================================================
   // Blog Post operations
   // ========================================================================

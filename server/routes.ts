@@ -1121,6 +1121,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/messages/:id/details', isAuthenticated, async (req, res) => {
+    try {
+      const messageDetails = await storage.getMessageWithSenderDetails(req.params.id);
+      if (!messageDetails) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+      res.json(messageDetails);
+    } catch (error) {
+      console.error("Error fetching message details:", error);
+      res.status(500).json({ message: "Failed to fetch message details" });
+    }
+  });
+
+  app.get('/api/messages/check-contact', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.query;
+
+      if (projectId) {
+        const hasContacted = await storage.checkUserHasContactedAboutProject(userId, projectId as string);
+        return res.json({ hasContacted });
+      }
+
+      if (listingId) {
+        const hasContacted = await storage.checkUserHasContactedAboutListing(userId, listingId as string);
+        return res.json({ hasContacted });
+      }
+
+      res.status(400).json({ message: "Either projectId or listingId is required" });
+    } catch (error) {
+      console.error("Error checking contact status:", error);
+      res.status(500).json({ message: "Failed to check contact status" });
+    }
+  });
+
   // ========================================================================
   // Blog Routes
   // ========================================================================
