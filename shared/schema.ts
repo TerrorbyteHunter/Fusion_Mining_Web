@@ -66,7 +66,7 @@ export const userProfiles = pgTable("user_profiles", {
 // Projects
 // ============================================================================
 export const licenseTypeEnum = pgEnum('license_type', ['exploration', 'mining', 'processing']);
-export const projectStatusEnum = pgEnum('project_status', ['active', 'pending', 'completed', 'suspended']);
+export const projectStatusEnum = pgEnum('project_status', ['active', 'pending', 'completed', 'suspended', 'closed']);
 
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -87,7 +87,8 @@ export const projects = pgTable("projects", {
 
 export const expressInterest = pgTable("express_interest", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: 'cascade' }),
+  listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   message: text("message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -97,7 +98,7 @@ export const expressInterest = pgTable("express_interest", {
 // Marketplace
 // ============================================================================
 export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership']);
-export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive']);
+export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed']);
 
 export const marketplaceListings = pgTable("marketplace_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -140,7 +141,23 @@ export const messages = pgTable("messages", {
   subject: varchar("subject", { length: 255 }),
   content: text("content").notNull(),
   read: boolean("read").notNull().default(false),
+  relatedProjectId: varchar("related_project_id").references(() => projects.id, { onDelete: 'set null' }),
+  relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: 'set null' }),
+  isAutoRelay: boolean("is_auto_relay").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const templateTypeEnum = pgEnum('template_type', ['buyer_interest_to_buyer', 'buyer_interest_to_seller', 'buyer_interest_to_admin']);
+
+export const messageTemplates = pgTable("message_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: templateTypeEnum("type").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // ============================================================================
@@ -484,3 +501,17 @@ export const updateContactSettingsSchema = createInsertSchema(contactSettings).o
 export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
 export type UpdateContactSettings = z.infer<typeof updateContactSettingsSchema>;
 export type ContactSettings = typeof contactSettings.$inferSelect;
+
+// Message Template schemas
+export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
+export type UpdateMessageTemplate = z.infer<typeof updateMessageTemplateSchema>;
+export type MessageTemplate = typeof messageTemplates.$inferSelect;

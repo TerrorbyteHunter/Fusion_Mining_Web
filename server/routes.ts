@@ -12,6 +12,7 @@ import {
   insertMarketplaceListingSchema,
   insertBuyerRequestSchema,
   insertMessageSchema,
+  insertMessageTemplateSchema,
   insertBlogPostSchema,
   insertContactSubmissionSchema,
   insertActivityLogSchema,
@@ -583,6 +584,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to seed data" });
       }
     });
+
+    app.post('/api/seed-message-templates', async (req, res) => {
+      try {
+        const templates = [
+          {
+            name: 'Buyer Interest Confirmation',
+            type: 'buyer_interest_to_buyer',
+            subject: 'Thank you for your interest in {project_name}',
+            content: 'Hello {buyer_name},\n\nThank you for expressing interest in {project_name}. Our admin team has been notified and will review your request shortly. We will get back to you with more information soon.\n\nBest regards,\nFusion Mining Limited',
+            active: true,
+          },
+          {
+            name: 'Admin Interest Notification',
+            type: 'buyer_interest_to_admin',
+            subject: 'New buyer interest in {project_name}',
+            content: 'A new buyer ({buyer_name}) has expressed interest in {project_name}. Please review and respond accordingly.\n\nYou can view the details in your admin panel.',
+            active: true,
+          },
+          {
+            name: 'Seller Interest Notification',
+            type: 'buyer_interest_to_seller',
+            subject: 'New buyer interest in {listing_title}',
+            content: 'Good news! A buyer ({buyer_name}) has expressed interest in your listing: {listing_title}.\n\nThe admin team will coordinate with them and keep you informed about the next steps.\n\nBest regards,\nFusion Mining Limited',
+            active: true,
+          },
+        ];
+
+        for (const template of templates) {
+          await storage.createMessageTemplate(template as any);
+        }
+
+        res.json({ 
+          message: "Message templates seeded successfully",
+          count: templates.length
+        });
+      } catch (error) {
+        console.error("Error seeding templates:", error);
+        res.status(500).json({ message: "Failed to seed message templates" });
+      }
+    });
   }
 
   // ========================================================================
@@ -717,14 +758,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/projects/:id/close', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const project = await storage.closeProject(req.params.id);
+      res.json(project);
+    } catch (error) {
+      console.error("Error closing project:", error);
+      res.status(500).json({ message: "Failed to close project" });
+    }
+  });
+
   app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const { projectId } = req.body;
+      const { projectId, listingId } = req.body;
 
-      const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
-      if (hasInterest) {
-        return res.status(400).json({ message: "You have already expressed interest in this project" });
+      if (projectId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+        if (hasInterest) {
+          return res.status(400).json({ message: "You have already expressed interest in this project" });
+        }
       }
 
       const validatedData = insertExpressInterestSchema.parse({
@@ -733,10 +786,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const interest = await storage.expressProjectInterest(validatedData);
 
+      const buyer = await storage.getUserById(userId);
+      const adminUser = await storage.getAdminUser();
+      
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        
+        if (adminUser && project && buyer) {
+          await storage.createNotification({
+            userId: adminUser.id,
+            type: 'interest_received',
+            title: 'New Interest in Project',
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+            link: `/admin/projects/${projectId}`,
+          });
+
+          const buyerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_buyer');
+          const adminTemplate = await storage.getMessageTemplateByType('buyer_interest_to_admin');
+
+          if (buyerTemplate && adminUser) {
+            await storage.createMessage({
+              senderId: adminUser.id,
+              receiverId: userId,
+              subject: buyerTemplate.subject.replace('{project_name}', project.name),
+              content: buyerTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', buyer.firstName || 'there'),
+              relatedProjectId: projectId,
+              isAutoRelay: true,
+            });
+          }
+
+          if (adminTemplate) {
+            await storage.createMessage({
+              senderId: userId,
+              receiverId: adminUser.id,
+              subject: adminTemplate.subject.replace('{project_name}', project.name),
+              content: adminTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              relatedProjectId: projectId,
+              isAutoRelay: true,
+            });
+          }
+        }
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
+        
+        if (adminUser && listing && buyer) {
+          await storage.createNotification({
+            userId: adminUser.id,
+            type: 'interest_received',
+            title: 'New Interest in Listing',
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+            link: `/admin/marketplace/${listingId}`,
+          });
+
+          if (seller) {
+            await storage.createNotification({
+              userId: seller.id,
+              type: 'interest_received',
+              title: 'New Interest in Your Listing',
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+              link: `/marketplace/${listingId}`,
+            });
+          }
+
+          const buyerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_buyer');
+          const sellerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_seller');
+
+          if (buyerTemplate && adminUser) {
+            await storage.createMessage({
+              senderId: adminUser.id,
+              receiverId: userId,
+              subject: buyerTemplate.subject.replace('{project_name}', listing.title),
+              content: buyerTemplate.content.replace('{project_name}', listing.title).replace('{buyer_name}', buyer.firstName || 'there'),
+              relatedListingId: listingId,
+              isAutoRelay: true,
+            });
+          }
+
+          if (sellerTemplate && seller && adminUser) {
+            await storage.createMessage({
+              senderId: adminUser.id,
+              receiverId: seller.id,
+              subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
+              content: sellerTemplate.content.replace('{listing_title}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              relatedListingId: listingId,
+              isAutoRelay: true,
+            });
+          }
+        }
+      }
+
       await storage.createActivityLog({
         userId,
         activityType: 'interest_expressed',
-        description: `User expressed interest in project ${projectId}`,
+        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
@@ -865,6 +1008,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/marketplace/listings/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUserById(userId);
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      if (user?.role !== 'admin' && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller or admin can close this listing" });
+      }
+      
+      const closedListing = await storage.closeMarketplaceListing(req.params.id);
+      res.json(closedListing);
+    } catch (error) {
+      console.error("Error closing listing:", error);
+      res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+
   // ========================================================================
   // Message Routes
   // ========================================================================
@@ -882,6 +1047,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
       const senderId = req.user.claims.sub;
+      const receiverId = req.body.receiverId;
+      
+      const sender = await storage.getUserById(senderId);
+      const receiver = await storage.getUserById(receiverId);
+      
+      if (!sender || !receiver) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const adminUser = await storage.getAdminUser();
+      const adminId = adminUser?.id;
+      
+      const isAllowed = 
+        sender.role === 'admin' ||
+        receiver.role === 'admin' ||
+        (sender.role === 'buyer' && receiverId === adminId) ||
+        (sender.role === 'seller' && receiverId === adminId);
+      
+      if (!isAllowed) {
+        return res.status(403).json({ 
+          message: "You can only send messages to administrators. For inquiries about listings or projects, please contact admin." 
+        });
+      }
+      
       const validatedData = insertMessageSchema.parse({
         ...req.body,
         senderId,
