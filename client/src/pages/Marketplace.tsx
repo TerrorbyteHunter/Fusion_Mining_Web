@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import type { MarketplaceListing, BuyerRequest, User } from "@shared/schema";
+import type { MarketplaceListing, BuyerRequest } from "@shared/schema";
 import { 
   Search, 
   MapPin, 
@@ -85,10 +85,6 @@ export default function Marketplace() {
     setMessageDialogOpen(true);
   };
 
-  // Fetch contact settings for admin info
-  const { data: contactSettings } = useQuery<any>({
-    queryKey: ['/api/contact-settings'],
-  });
 
   // Fetch listings
   const { data: listings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
