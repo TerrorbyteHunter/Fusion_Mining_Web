@@ -427,11 +427,34 @@ export class DatabaseStorage implements IStorage {
   // Message operations
   // ========================================================================
   async createMessage(messageData: InsertMessage): Promise<Message> {
-    const [message] = await db
-      .insert(messages)
-      .values(messageData)
-      .returning();
-    return message;
+    try {
+      const [message] = await db
+        .insert(messages)
+        .values(messageData)
+        .returning();
+      return message;
+    } catch (err: any) {
+      // If the database table is missing newly added columns (common during
+      // iterative development), attempt a fallback insert with a reduced
+      // column set. This makes the API more tolerant to mismatched schema vs DB.
+      // Specifically handle Postgres undefined-column error (42703).
+      if (err?.cause?.code === '42703' || err?.code === '42703') {
+        // Build a minimal payload that excludes optional relation columns
+        const minimalPayload: any = {
+          senderId: messageData.senderId,
+          receiverId: messageData.receiverId,
+          subject: messageData.subject,
+          content: messageData.content,
+          isAutoRelay: messageData.isAutoRelay ?? false,
+        };
+        const [message] = await db
+          .insert(messages)
+          .values(minimalPayload)
+          .returning();
+        return message;
+      }
+      throw err;
+    }
   }
 
   async getMessagesByUserId(userId: string): Promise<Message[]> {

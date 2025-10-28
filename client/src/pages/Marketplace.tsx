@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
-import type { MarketplaceListing, BuyerRequest } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import type { MarketplaceListing, BuyerRequest, User } from "@shared/schema";
 import { 
   Search, 
   MapPin, 
@@ -19,6 +20,7 @@ import {
   Users,
   Plus,
 } from "lucide-react";
+import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
 import { ImageDisplay } from "@/components/ImageDisplay";
 // image imports from repository attached_assets
@@ -37,19 +39,37 @@ import {
 
 export default function Marketplace() {
   const { isAuthenticated, isSeller } = useAuth();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMineralType, setSelectedMineralType] = useState("all");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     id: string;
     name?: string;
+    email?: string;
     subject?: string;
     listingTitle?: string;
   } | null>(null);
 
+  // Fetch admin contact (public lightweight endpoint)
+  const { data: adminContact, isLoading: loadingAdminContact } = useQuery<any>({
+    queryKey: ['/api/admin/contact-user'],
+  });
+
   const handleContactSeller = (listing: MarketplaceListing) => {
+    if (!adminContact?.id) {
+      toast({
+        title: "Error",
+        description: "Could not contact administrator. Please try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedRecipient({
-      id: listing.sellerId,
+      id: adminContact.id,
+      name: adminContact.name || 'Administrator',
+      email: adminContact.email,
       subject: `Inquiry about: ${listing.title}`,
       listingTitle: listing.title,
     });
@@ -64,6 +84,11 @@ export default function Marketplace() {
     });
     setMessageDialogOpen(true);
   };
+
+  // Fetch contact settings for admin info
+  const { data: contactSettings } = useQuery<any>({
+    queryKey: ['/api/contact-settings'],
+  });
 
   // Fetch listings
   const { data: listings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
@@ -243,8 +268,17 @@ export default function Marketplace() {
                           className="w-full" 
                           data-testid={`button-contact-seller-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
+                          disabled={loadingAdminContact}
+                          title={loadingAdminContact ? 'Loading contact...' : undefined}
                         >
-                          Contact Seller
+                          {loadingAdminContact ? (
+                            <>
+                              <Spinner size="sm" className="mr-2" />
+                              Preparing...
+                            </>
+                          ) : (
+                            'Contact Seller'
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
@@ -401,6 +435,7 @@ export default function Marketplace() {
           onOpenChange={setMessageDialogOpen}
           recipientId={selectedRecipient.id}
           recipientName={selectedRecipient.name}
+          recipientEmail={selectedRecipient.email}
           defaultSubject={selectedRecipient.subject}
           listingTitle={selectedRecipient.listingTitle}
         />

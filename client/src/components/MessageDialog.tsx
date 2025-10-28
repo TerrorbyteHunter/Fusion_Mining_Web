@@ -17,12 +17,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { Send } from "lucide-react";
+import Spinner from "@/components/Spinner";
 
 interface MessageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   recipientId: string;
   recipientName?: string;
+  recipientEmail?: string;
   defaultSubject?: string;
   listingTitle?: string;
 }
@@ -31,7 +33,8 @@ export function MessageDialog({
   open,
   onOpenChange,
   recipientId,
-  recipientName,
+  recipientName: _recipientName,
+  recipientEmail: _recipientEmail,
   defaultSubject,
   listingTitle,
 }: MessageDialogProps) {
@@ -49,10 +52,15 @@ export function MessageDialog({
 
   const sendMessageMutation = useMutation({
     mutationFn: async () => {
+      // Always include listing context when available — admins expect context
+      const messageContent = listingTitle
+        ? `Inquiry about listing: ${listingTitle}\n\nMessage:\n${content}`
+        : content;
+
       return await apiRequest("POST", "/api/messages", {
         receiverId: recipientId,
         subject: subject || `Re: ${listingTitle || "Marketplace Inquiry"}`,
-        content,
+        content: messageContent,
       });
     },
     onSuccess: () => {
@@ -102,11 +110,7 @@ export function MessageDialog({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Send Message</DialogTitle>
-          <DialogDescription>
-            {recipientName
-              ? `Send a message to ${recipientName}`
-              : "Send a message about this listing"}
-          </DialogDescription>
+          <DialogDescription>Send Message</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -116,6 +120,7 @@ export function MessageDialog({
               placeholder="Enter subject..."
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
+              disabled={sendMessageMutation.isPending}
             />
           </div>
           <div className="space-y-2">
@@ -126,6 +131,7 @@ export function MessageDialog({
               rows={6}
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              disabled={sendMessageMutation.isPending}
             />
           </div>
         </div>
@@ -141,8 +147,17 @@ export function MessageDialog({
             onClick={handleSend}
             disabled={sendMessageMutation.isPending}
           >
-            <Send className="mr-2 h-4 w-4" />
-            {sendMessageMutation.isPending ? "Sending..." : "Send Message"}
+            {sendMessageMutation.isPending ? (
+              <>
+                <Spinner size="sm" className="mr-2" />
+                Sending...
+              </>
+            ) : (
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                Send Message
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -86,6 +86,32 @@ app.use((req, res, next) => {
     // ALWAYS serve the app on the port specified in the environment variable PORT
     // Other ports are firewalled. Default to 5000 if not specified.
     const port = parseInt(process.env.PORT || '5000', 10);
+
+    // Development-time schema sanity check: verify important columns exist
+    // This helps developers who haven't run migrations yet get a friendly
+    // suggestion to run `npm run db:push` when the DB is out-of-sync.
+    (async function schemaCheck() {
+      try {
+        const requiredColumns = ['related_project_id', 'related_listing_id'];
+        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+        const res = await pool.query(
+          `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
+          [requiredColumns]
+        );
+        await pool.end();
+
+        const present = (res.rows || []).map((r: any) => r.column_name);
+        const missing = requiredColumns.filter(c => !present.includes(c));
+        if (missing.length) {
+          log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(', ')}`);
+          log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
+        }
+      } catch (err) {
+        // Don't block server start for this check; just log the error.
+        log(`Schema check failed: ${(err as Error).message}`);
+      }
+    })();
+
     server.listen(port, () => {
       log(`Server running at http://localhost:${port}`);
     });
