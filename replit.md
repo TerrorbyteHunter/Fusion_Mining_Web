@@ -218,6 +218,15 @@ npm run db:studio
 
 ## Recent Changes
 
+- **October 28, 2025**: Project Listing Type & Test User Authentication Fix
+  - Added "project" as a new marketplace listing type (alongside minerals and partnerships)
+  - Updated database schema enum to support project listings
+  - Enhanced CreateListing form UI to include project option
+  - Fixed critical authentication bug affecting test users (localAuth.ts users)
+  - All authenticated API routes now properly handle both Replit OAuth users (req.user.claims.sub) and test users (req.user.id)
+  - Updated listing creation endpoints to use fallback pattern: `req.user.claims?.sub || req.user.id`
+  - Verified listing creation functionality works for all three types
+
 - **October 22, 2025**: Admin Panel Enhancements & Sample Data
   - Added DELETE endpoint for projects (`DELETE /api/projects/:id`)
   - Added marketplace listing management endpoints for admin:
