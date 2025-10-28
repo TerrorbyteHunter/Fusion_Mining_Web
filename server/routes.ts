@@ -178,6 +178,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    // Public endpoint to fetch a lightweight admin contact (id, name, email)
+    // This allows the client to address in-app messages to the admin without
+    // exposing the admin-only user listing endpoints.
+    app.get('/api/admin/contact-user', async (req, res) => {
+      try {
+        const adminUser = await storage.getAdminUser();
+        if (!adminUser) {
+          return res.status(404).json({ message: 'Admin user not found' });
+        }
+        res.json({
+          id: adminUser.id,
+          email: adminUser.email,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          name: `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim(),
+        });
+      } catch (error) {
+        console.error('Error fetching admin contact user:', error);
+        res.status(500).json({ message: 'Failed to fetch admin contact' });
+      }
+    });
+
     // Development-only: update contact settings quickly
     if (process.env.NODE_ENV === 'development') {
       app.post('/api/contact-settings', async (req, res) => {
