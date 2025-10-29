@@ -7,6 +7,7 @@ import {
   marketplaceListings,
   buyerRequests,
   messages,
+  messageIdempotency,
   messageTemplates,
   blogPosts,
   contactSubmissions,
@@ -93,6 +94,11 @@ export interface IStorage {
   getMessagesByUserId(userId: string): Promise<Message[]>;
   getConversation(user1Id: string, user2Id: string): Promise<Message[]>;
   markMessageAsRead(id: string): Promise<void>;
+  // Mark all messages in a two-way conversation (based on a message id) as closed
+  closeConversationByMessageId(messageId: string): Promise<void>;
+  // Idempotency helpers
+  getMessageByIdempotencyKey(key: string): Promise<Message | undefined>;
+  createMessageWithIdempotency(key: string | null, message: InsertMessage): Promise<Message>;
 
   // Blog Post operations
   createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
@@ -457,17 +463,87 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMessagesByUserId(userId: string): Promise<Message[]> {
-    return await db
+  async getMessageByIdempotencyKey(key: string): Promise<Message | undefined> {
+    const [row] = await db
+      .select({ id: messageIdempotency.messageId })
+      .from(messageIdempotency)
+      .where(eq(messageIdempotency.key, key))
+      .limit(1);
+    if (!row) return undefined;
+    const messageId = (row as any).id;
+    const [message] = await db
       .select()
       .from(messages)
+      .where(eq(messages.id, messageId))
+      .limit(1);
+    return message;
+  }
+
+  async createMessageWithIdempotency(key: string | null, messageData: InsertMessage): Promise<Message> {
+    // If no key provided, fallback to regular create
+    if (!key) {
+      return await this.createMessage(messageData);
+    }
+
+    // Check existing mapping
+    const existing = await this.getMessageByIdempotencyKey(key);
+    if (existing) return existing;
+
+    // Create message first
+    const message = await this.createMessage(messageData);
+
+    try {
+      await db.insert(messageIdempotency).values({
+        key,
+        messageId: message.id,
+      });
+      return message;
+    } catch (err: any) {
+      // Unique violation on key means another process created the mapping concurrently
+      if (err?.cause?.code === '23505' || err?.code === '23505') {
+        const mapped = await this.getMessageByIdempotencyKey(key);
+        if (mapped) return mapped;
+      }
+      throw err;
+    }
+  }
+
+  async getMessagesByUserId(userId: string): Promise<Message[]> {
+    const results = await db
+      .select({
+        message: messages,
+        senderFirstName: users.firstName,
+        senderLastName: users.lastName,
+        listing: marketplaceListings,
+        sellerFirstName: sql<string>`seller.first_name`,
+        sellerLastName: sql<string>`seller.last_name`,
+      })
+      .from(messages)
+      .leftJoin(users, eq(messages.senderId, users.id))
+      .leftJoin(marketplaceListings, eq(messages.relatedListingId, marketplaceListings.id))
+      .leftJoin(
+        sql`users as seller`, 
+        eq(marketplaceListings.sellerId, sql`seller.id`)
+      )
       .where(
         or(
           eq(messages.senderId, userId),
           eq(messages.receiverId, userId)
         )
       )
-      .orderBy(desc(messages.createdAt));
+      .orderBy(messages.createdAt);
+
+    // Transform the results to include full names and maintain the Message type
+    return results.map(result => ({
+      ...result.message,
+      senderName: result.senderFirstName && result.senderLastName 
+        ? `${result.senderFirstName} ${result.senderLastName}` 
+        : undefined,
+      listing: result.listing,
+      sellerName: result.sellerFirstName && result.sellerLastName 
+        ? `${result.sellerFirstName} ${result.sellerLastName}` 
+        : undefined,
+    }));
   }
 
   async getConversation(user1Id: string, user2Id: string): Promise<Message[]> {
@@ -494,6 +570,22 @@ export class DatabaseStorage implements IStorage {
       .update(messages)
       .set({ read: true })
       .where(eq(messages.id, id));
+  }
+
+  async closeConversationByMessageId(messageId: string): Promise<void> {
+    // fetch the main message to determine the two participants
+    const [main] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+    if (!main) return;
+
+    await db
+      .update(messages)
+      .set({ closed: true })
+      .where(
+        or(
+          and(eq(messages.senderId, main.senderId), eq(messages.receiverId, main.receiverId)),
+          and(eq(messages.senderId, main.receiverId), eq(messages.receiverId, main.senderId))
+        )
+      );
   }
 
   async checkUserHasContactedAboutProject(userId: string, projectId: string): Promise<boolean> {
@@ -525,6 +617,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessageWithSenderDetails(messageId: string): Promise<any> {
+    // First, get the main message with sender details
     const result = await db
       .select({
         message: messages,
@@ -536,7 +629,40 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(messages.id, messageId))
       .limit(1);
-    return result[0] || null;
+
+    if (!result[0]) return null;
+
+    // Get the conversation chain (messages between these two users)
+    const mainMessage = result[0].message;
+    const conversationMessages = await db
+      .select({
+        message: messages,
+        sender: users,
+        senderProfile: userProfiles,
+      })
+      .from(messages)
+      .leftJoin(users, eq(messages.senderId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .where(
+        and(
+          or(
+            and(
+              eq(messages.senderId, mainMessage.senderId),
+              eq(messages.receiverId, mainMessage.receiverId)
+            ),
+            and(
+              eq(messages.senderId, mainMessage.receiverId),
+              eq(messages.receiverId, mainMessage.senderId)
+            )
+          )
+        )
+      )
+      .orderBy(desc(messages.createdAt));
+
+    return {
+      ...result[0],
+      conversation: conversationMessages
+    };
   }
 
   // ========================================================================
