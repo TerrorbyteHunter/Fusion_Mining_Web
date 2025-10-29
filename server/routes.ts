@@ -946,6 +946,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Return a single listing including basic seller info (used by client when messages
+  // don't include the listing payload).
+  app.get('/api/marketplace/listings/:id', async (req, res) => {
+    try {
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) return res.status(404).json({ message: 'Listing not found' });
+      const seller = listing.sellerId ? await storage.getUserById(listing.sellerId) : null;
+      res.json({
+        ...listing,
+        sellerName: seller ? `${seller.firstName || ''} ${seller.lastName || ''}`.trim() : undefined,
+      });
+    } catch (error) {
+      console.error('Error fetching listing:', error);
+      res.status(500).json({ message: 'Failed to fetch listing' });
+    }
+  });
+
   app.post('/api/marketplace/listings', isAuthenticated, isSeller, async (req: any, res) => {
     try {
       const sellerId = req.user.claims?.sub || req.user.id;
@@ -1080,16 +1098,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const adminUser = await storage.getAdminUser();
       const adminId = adminUser?.id;
-      
-      const isAllowed = 
+
+      // Allow cases:
+      // - admin can send to anyone
+      // - messages to admin are allowed
+      // - buyers/sellers can message admin
+      // Additionally allow buyer -> listing.seller when the message references a listing
+      let isAllowed =
         sender.role === 'admin' ||
         receiver.role === 'admin' ||
         (sender.role === 'buyer' && receiverId === adminId) ||
         (sender.role === 'seller' && receiverId === adminId);
-      
+
+      // If this message is intended to contact a listing seller, allow buyer -> seller
+      const relatedListingId = req.body?.relatedListingId;
+      if (!isAllowed && relatedListingId) {
+        try {
+          const listing = await storage.getMarketplaceListingById(relatedListingId);
+          if (listing && listing.sellerId === receiverId) {
+            // Allow buyer to message the listing's seller
+            isAllowed = true;
+          }
+        } catch (err) {
+          // don't block on listing lookup errors here; validation will catch missing fields
+          console.warn('Failed to lookup listing for message authorization', err);
+        }
+      }
+
       if (!isAllowed) {
         return res.status(403).json({ 
-          message: "You can only send messages to administrators. For inquiries about listings or projects, please contact admin." 
+          message: "You are not authorized to send this message. For inquiries about listings or projects, contact the listing seller or admin." 
         });
       }
       
@@ -1097,7 +1135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         senderId,
       });
-      const message = await storage.createMessage(validatedData);
+      const idempotencyKey = req.header('Idempotency-Key') || req.header('idempotency-key') || null;
+      const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
       res.json(message);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -1123,10 +1162,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/messages/:id/details', isAuthenticated, async (req, res) => {
     try {
-      const messageDetails = await storage.getMessageWithSenderDetails(req.params.id);
+  const messageId = req.params.id;
+  const currentUserId = (req as any).user?.claims?.sub || (req as any).user?.id;
+  console.log(`Fetching message details for id=${messageId} (user=${currentUserId})`);
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
       if (!messageDetails) {
+        console.warn(`Message not found: id=${messageId}`);
         return res.status(404).json({ message: "Message not found" });
       }
+
+      // Mark message as read for the current user if it's addressed to them
+      try {
+        if (messageDetails.message && messageDetails.message.receiverId === currentUserId) {
+          await storage.markMessageAsRead(messageId);
+        }
+      } catch (err) {
+        console.error(`Failed to mark message read for id=${messageId}:`, err);
+      }
+
+      // Log minimal details for debugging and return the payload the client expects
+      console.log(`Returning message details for id=${messageId}: sender=${messageDetails.sender?.id}`);
       res.json(messageDetails);
     } catch (error) {
       console.error("Error fetching message details:", error);
@@ -1134,10 +1189,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Close a conversation (mark all messages between the two participants as closed)
+  app.patch('/api/messages/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user.claims?.sub || req.user.id;
+
+      // Load message details to ensure user is participant or admin
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) return res.status(404).json({ message: 'Message not found' });
+
+      const main = messageDetails.message;
+      const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
+      const user = await storage.getUser(currentUserId);
+      const isAdminUser = user?.role === 'admin';
+
+      if (!isParticipant && !isAdminUser) {
+        return res.status(403).json({ message: 'Not authorized to close this conversation' });
+      }
+
+      await storage.closeConversationByMessageId(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error closing conversation:', error);
+      res.status(500).json({ message: 'Failed to close conversation' });
+    }
+  });
+
   app.get('/api/messages/check-contact', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
 
       if (projectId) {
         const hasContacted = await storage.checkUserHasContactedAboutProject(userId, projectId as string);
@@ -1148,10 +1234,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const hasContacted = await storage.checkUserHasContactedAboutListing(userId, listingId as string);
         return res.json({ hasContacted });
       }
-
-      res.status(400).json({ message: "Either projectId or listingId is required" });
+      
+      return res.status(400).json({ error: 'Either projectId or listingId is required' });
     } catch (error) {
       console.error("Error checking contact status:", error);
+      return res.status(500).json({ error: 'Internal server error while checking contact status' });
       res.status(500).json({ message: "Failed to check contact status" });
     }
   });
@@ -1376,6 +1463,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting user:", error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Return marketplace listings for a specific user (admin only)
+  app.get('/api/admin/users/:id/listings', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const sellerId = req.params.id;
+      const listings = await storage.getListingsBySellerId(sellerId);
+      res.json(listings);
+    } catch (error) {
+      console.error('Error fetching user listings (admin):', error);
+      res.status(500).json({ message: 'Failed to fetch user listings' });
     }
   });
 

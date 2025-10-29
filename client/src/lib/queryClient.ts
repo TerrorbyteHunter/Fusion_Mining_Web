@@ -11,16 +11,42 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  extraHeaders?: Record<string, string> | undefined,
 ): Promise<Response> {
+  const baseHeaders: Record<string, string> = {};
+  if (data) baseHeaders["Content-Type"] = "application/json";
+  const headers = { ...baseHeaders, ...(extraHeaders || {}) };
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
   await throwIfResNotOk(res);
   return res;
+}
+
+// Utility: generate an idempotency key. Uses crypto.randomUUID when available.
+export function generateIdempotencyKey(): string {
+  try {
+    // modern browsers
+    // @ts-ignore
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      // @ts-ignore
+      return crypto.randomUUID();
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // fallback UUID v4 generator
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

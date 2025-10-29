@@ -266,6 +266,27 @@ npm run db:generate  # Generate migrations
 - `POST /api/marketplace/listings` - Create listing (sellers)
 - `POST /api/messages` - Send message
 
+### Message creation idempotency
+
+To prevent duplicate messages from being created when a client retries requests (for example due to network timeouts or accidental double-clicks), the server implements idempotency for message creation.
+
+- Clients should send an `Idempotency-Key` header with `POST /api/messages`. The server will create the message only once for a given key and return the existing message on subsequent requests with the same key.
+- The codebase includes a Drizzle schema/table called `message_idempotency` and server-side helpers to atomically create a message and map the idempotency key to the created message.
+
+If you need to add the table manually (for example before running `npm run db:push`), here's the SQL used to create the mapping table:
+
+```sql
+-- SQL migration: add message_idempotency table
+CREATE TABLE IF NOT EXISTS message_idempotency (
+   id BIGSERIAL PRIMARY KEY,
+   key VARCHAR(255) NOT NULL UNIQUE,
+   message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE,
+   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
+
+After adding the table, the existing message creation endpoint will accept `Idempotency-Key` headers and perform idempotent creation.
+
 ### Admin Endpoints
 - `GET /api/admin/verification-queue` - Pending listings
 - `POST /api/admin/verify/:id` - Approve listing

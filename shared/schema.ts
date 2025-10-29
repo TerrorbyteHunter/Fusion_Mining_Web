@@ -141,9 +141,20 @@ export const messages = pgTable("messages", {
   subject: varchar("subject", { length: 255 }),
   content: text("content").notNull(),
   read: boolean("read").notNull().default(false),
+  closed: boolean("closed").notNull().default(false),
   relatedProjectId: varchar("related_project_id").references(() => projects.id, { onDelete: 'set null' }),
   relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: 'set null' }),
   isAutoRelay: boolean("is_auto_relay").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Idempotency mapping to prevent duplicate message creation when clients
+// retry requests. The key should be provided by the client as an Idempotency-Key
+// header and is unique.
+export const messageIdempotency = pgTable("message_idempotency", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  messageId: varchar("message_id").notNull().references(() => messages.id, { onDelete: 'cascade' }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

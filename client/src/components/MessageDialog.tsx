@@ -1,5 +1,5 @@
 // Message dialog for contacting sellers and buyers
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   Dialog,
@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { Send } from "lucide-react";
 import Spinner from "@/components/Spinner";
+import { generateIdempotencyKey } from "@/lib/queryClient";
 
 interface MessageDialogProps {
   open: boolean;
@@ -57,11 +58,17 @@ export function MessageDialog({
         ? `Inquiry about listing: ${listingTitle}\n\nMessage:\n${content}`
         : content;
 
-      return await apiRequest("POST", "/api/messages", {
-        receiverId: recipientId,
-        subject: subject || `Re: ${listingTitle || "Marketplace Inquiry"}`,
-        content: messageContent,
-      });
+      const idKey = generateIdempotencyKey();
+      return await apiRequest(
+        "POST",
+        "/api/messages",
+        {
+          receiverId: recipientId,
+          subject: subject || `Re: ${listingTitle || "Marketplace Inquiry"}`,
+          content: messageContent,
+        },
+        { "Idempotency-Key": idKey }
+      );
     },
     onSuccess: () => {
       toast({
@@ -80,8 +87,9 @@ export function MessageDialog({
       });
     },
   });
+  const sendingRef = useRef(false);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!content.trim()) {
       toast({
         title: "Error",
@@ -102,7 +110,15 @@ export function MessageDialog({
       return;
     }
 
-    sendMessageMutation.mutate();
+    if (sendingRef.current || sendMessageMutation.isPending) return;
+    sendingRef.current = true;
+    try {
+      await sendMessageMutation.mutateAsync();
+    } catch (err) {
+      // mutation displays toast on error
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   return (
