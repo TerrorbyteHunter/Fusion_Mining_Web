@@ -1,607 +1,378 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import type { Message } from "@shared/schema";
-import { MessageSquare, Mail, MailOpen, Reply, Heart } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck } from "lucide-react";
 import { format } from "date-fns";
-import { MessageDetailDialog } from "@/components/MessageDetailDialog";
-import { MessageDialog } from "@/components/MessageDialog";
+import type { MessageThread, Message, User } from "@shared/schema";
 
 export default function Messages() {
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  const [messageDetailOpen, setMessageDetailOpen] = useState(false);
-  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
-  const [selectedRecipient, setSelectedRecipient] = useState<{
-    id: string;
-    name?: string;
-    subject?: string;
-    context?: string;
-  } | null>(null);
+  const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
+  const [messageContent, setMessageContent] = useState("");
+  const [activeTab, setActiveTab] = useState("inbox");
+  const [usersSubTab, setUsersSubTab] = useState("sellers");
 
-  const { data: messages, isLoading } = useQuery<Message[]>({
-    queryKey: ["/api/messages"],
+  // Fetch threads
+  const { data: threads, isLoading: threadsLoading, refetch: refetchThreads } = useQuery<MessageThread[]>({
+    queryKey: ["/api/threads"],
     enabled: isAuthenticated,
   });
 
-  // Admin-only: list of users for Buyers tab
-  const { data: usersList } = useQuery<any[]>({
-    queryKey: ['/api/admin/users'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/users', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch users');
-      return res.json();
-    },
-    enabled: !!user && user.role === 'admin',
+  // Fetch messages for selected thread
+  const { data: threadMessages, isLoading: messagesLoading } = useQuery<Message[]>({
+    queryKey: ["/api/threads", selectedThread?.id || "", "messages"],
+    enabled: !!selectedThread,
   });
 
-  const [activeTab, setActiveTab] = useState<'inbox'|'outbox'|'buyers'|'projectsInterest'>('inbox');
-  const [selectedBuyer, setSelectedBuyer] = useState<any | null>(null);
-  const { data: selectedBuyerListings, refetch: refetchBuyerListings } = useQuery({
-    queryKey: selectedBuyer ? ['/api/admin/users', selectedBuyer.id, 'listings'] : ['/api/admin/users', 'listings'],
-    queryFn: async () => {
-      if (!selectedBuyer) return [];
-      const res = await fetch(`/api/admin/users/${selectedBuyer.id}/listings`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch buyer listings');
-      return res.json();
-    },
-    enabled: !!selectedBuyer && !!user && user.role === 'admin',
+  // Fetch users list (for admin)
+  const { data: allUsers } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    enabled: user?.role === "admin",
   });
 
-  // Admin-only: fetch expressed interests
-  const { data: expressedInterests, isLoading: interestsLoading } = useQuery<any[]>({
-    queryKey: ['/api/admin/projects-interest'],
-    queryFn: async () => {
-      const res = await fetch('/api/admin/projects-interest', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch expressed interests');
-      return res.json();
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ threadId, content }: { threadId: string; content: string }) => {
+      return await apiRequest("POST", `/api/threads/${threadId}/messages`, { content });
     },
-    enabled: !!user && user.role === 'admin',
-  });
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
+    onSuccess: (_data, variables) => {
+      setMessageContent("");
+      refetchThreads();
+      queryClient.invalidateQueries({ queryKey: ["/api/threads", variables.threadId, "messages"] });
+    },
+    onError: () => {
       toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
+        title: "Error",
+        description: "Failed to send message",
         variant: "destructive",
       });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, authLoading, toast]);
+    },
+  });
 
-  if (authLoading || !isAuthenticated) {
-    return null;
-  }
-
-  const receivedMessages = messages?.filter(m => m.receiverId === user?.id) || [];
-  const sentMessages = messages?.filter(m => m.senderId === user?.id) || [];
-
-  // Group messages into threads by deal/project and participant
-  const groupMessages = (msgs: any[], isSent: boolean) => {
-    const map: Record<string, any> = {};
-    for (const msg of msgs) {
-      // Group by listing/project and participant
-      const participantId = isSent ? msg.receiverId : msg.senderId;
-      // Include both listing and project in key if they exist
-      const dealKey = msg.relatedListingId 
-        ? `listing:${msg.relatedListingId}`
-        : msg.relatedProjectId 
-          ? `project:${msg.relatedProjectId}`
-          : 'general';
-      const key = `${dealKey}::${participantId}`;
-      const existing = map[key];
-
-      const participantName = isSent 
-        ? msg.receiverName || msg.receiverId
-        : msg.senderName || msg.senderId;
-
-      const threadTitle = msg.relatedListingId
-        ? `Listing: ${msg.listing?.title || msg.subject || 'Untitled Listing'}`
-        : msg.relatedProjectId
-          ? `Project: ${msg.project?.title || msg.subject || 'Untitled Project'}`
-          : msg.subject || 'General Inquiry';
-
-      if (!existing) {
-        map[key] = {
-          id: key,
-          subject: threadTitle,
-          participantId,
-          participantName,
-          relatedListingId: msg.relatedListingId,
-          relatedProjectId: msg.relatedProjectId,
-          dealType: msg.relatedListingId ? 'listing' : msg.relatedProjectId ? 'project' : 'general',
-          lastMessage: msg,
-          firstMessage: msg,
-          unreadCount: !isSent && !msg.read ? 1 : 0,
-          count: 1,
-        };
-      } else {
-        if (!isSent && !msg.read) existing.unreadCount += 1;
-        if (msg.createdAt > existing.lastMessage.createdAt) {
-          existing.lastMessage = msg;
-        }
-        if (msg.createdAt < existing.firstMessage.createdAt) {
-          existing.firstMessage = msg;
-        }
-        existing.count += 1;
-      }
-    }
-    return Object.values(map).sort((a: any, b: any) => 
-      b.lastMessage.createdAt.localeCompare(a.lastMessage.createdAt)
-    );
+  const handleSendMessage = () => {
+    if (!selectedThread || !messageContent.trim()) return;
+    sendMessageMutation.mutate({ threadId: selectedThread.id, content: messageContent });
   };
 
-  const sentThreads = (() => {
-    return groupMessages(sentMessages, true);
-  })();
+  // Filter threads based on active tab
+  const filteredThreads = () => {
+    if (!threads) return [];
+    
+    if (activeTab === "inbox") {
+      return threads;
+    } else if (activeTab === "projects") {
+      return threads.filter((t) => t.projectId);
+    }
+    return [];
+  };
 
-  const receivedThreads = (() => {
-    return groupMessages(receivedMessages, false);
-  })();
+  // Filter users by role for Users tab
+  const filteredUsers = () => {
+    if (!allUsers) return [];
+    
+    if (usersSubTab === "sellers") {
+      return allUsers.filter((u) => u.role === "seller");
+    } else if (usersSubTab === "buyers") {
+      return allUsers.filter((u) => u.role === "buyer");
+    } else if (usersSubTab === "admins") {
+      return allUsers.filter((u) => u.role === "admin");
+    }
+    return [];
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <p>Please log in to view messages</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col">
-      <section className="py-8 border-b bg-card/50">
+    <div className="flex flex-col min-h-screen bg-background">
+      {/* Header */}
+      <section className="py-8 border-b bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3">
             <MessageSquare className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold font-display" data-testid="text-page-title">
               Messages
             </h1>
           </div>
-          <p className="text-muted-foreground">
-            View and manage your conversations
+          <p className="text-muted-foreground mt-2">
+            Manage your conversations about projects and listings
           </p>
         </div>
       </section>
 
-      <section className="py-12">
-        <div className="container mx-auto px-4 max-w-4xl">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-6">
-            <button className={`px-4 py-2 rounded ${activeTab === 'inbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('inbox')} data-testid="button-tab-inbox">Inbox</button>
-            {user?.role === 'admin' ? (
-              <button className={`px-4 py-2 rounded ${activeTab === 'projectsInterest' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('projectsInterest')} data-testid="button-tab-projects-interest">Projects Interest</button>
-            ) : (
-              <button className={`px-4 py-2 rounded ${activeTab === 'outbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('outbox')} data-testid="button-tab-outbox">Sent</button>
-            )}
-            {user?.role === 'admin' && (
-              <button className={`px-4 py-2 rounded ${activeTab === 'buyers' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('buyers')} data-testid="button-tab-buyers">Buyers</button>
-            )}
-          </div>
-          
-          <div className="space-y-8">
-            {activeTab === 'inbox' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Received Messages</h2>
-                {isLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <Card key={i}>
-                        <CardHeader>
-                          <Skeleton className="h-6 w-1/2" />
-                          <Skeleton className="h-4 w-full" />
+      {/* Main Content */}
+      <section className="flex-1 py-8">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-16rem)]">
+            {/* Sidebar - Threads List */}
+            <div className="lg:col-span-4 space-y-4 overflow-auto">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3" data-testid="tabs-messages">
+                  <TabsTrigger value="inbox" data-testid="tab-inbox">
+                    Inbox
+                  </TabsTrigger>
+                  <TabsTrigger value="projects" data-testid="tab-projects">
+                    Projects Interest
+                  </TabsTrigger>
+                  {user?.role === "admin" && (
+                    <TabsTrigger value="users" data-testid="tab-users">
+                      Users
+                    </TabsTrigger>
+                  )}
+                </TabsList>
+
+                <TabsContent value="inbox" className="mt-4 space-y-2">
+                  {threadsLoading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <Skeleton key={i} className="h-24 w-full rounded-lg" />
+                    ))
+                  ) : filteredThreads().length > 0 ? (
+                    filteredThreads().map((thread) => (
+                      <Card
+                        key={thread.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""
+                        }`}
+                        onClick={() => setSelectedThread(thread)}
+                        data-testid={`thread-${thread.id}`}
+                      >
+                        <CardHeader className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}
+                              </p>
+                            </div>
+                            {thread.projectId && (
+                              <Badge variant="secondary" className="ml-2">
+                                Project
+                              </Badge>
+                            )}
+                            {thread.listingId && (
+                              <Badge variant="outline" className="ml-2">
+                                Listing
+                              </Badge>
+                            )}
+                          </div>
                         </CardHeader>
                       </Card>
-                    ))}
-                  </div>
-                ) : receivedThreads.length > 0 ? (
-                <div className="space-y-4">
-                  {receivedThreads.map((thread) => (
-                    <Card key={thread.id} data-testid={`card-thread-${thread.id}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                                                          <CardTitle className="flex items-center gap-2">
-                              {thread.unreadCount > 0 ? (
-                                <Mail className="h-4 w-4 text-primary" />
-                              ) : (
-                                <MailOpen className="h-4 w-4 text-muted-foreground" />
-                              )}
-                              {thread.subject}
-                            </CardTitle>
-                            <CardDescription className="flex flex-col gap-1">
-                              <div className="flex items-center gap-2">
-                                <span>From: {thread.participantName || "Unknown"}</span>
-                                {thread.dealType === 'listing' && (
-                                  <Badge variant="secondary">Listing Inquiry</Badge>
-                                )}
-                                {thread.dealType === 'project' && (
-                                  <Badge variant="secondary">Project Discussion</Badge>
-                                )}
-                              </div>
-                              <div className="flex flex-col text-xs text-muted-foreground">
-                                <span>Started: {format(new Date(thread.firstMessage.createdAt), "MMM d, yyyy")}</span>
-                                <span>Last activity: {format(new Date(thread.lastMessage.createdAt), "MMM d, yyyy HH:mm")}</span>
-                              </div>
-                            </CardDescription>
-                          </div>
-                          <div className="flex flex-col items-end gap-2">
-                            {thread.unreadCount > 0 && (
-                              <Badge>{thread.unreadCount} New</Badge>
-                            )}
-                            {thread.count > 1 && (
-                              <span className="text-xs text-muted-foreground">{thread.count} messages</span>
-                            )}
-                          </div>
-                        </div>
-                      </CardHeader>
+                    ))
+                  ) : (
+                    <Card className="text-center py-8">
                       <CardContent>
-                        <div className="space-y-4">
-                          <p className="text-sm">{thread.lastMessage.content}</p>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedMessageId(thread.lastMessage.id);
-                                setMessageDetailOpen(true);
-                              }}
-                              data-testid={`button-view-thread-${thread.id}`}
-                            >
-                              View Details
-                            </Button>
-                            {(thread.lastMessage.relatedListingId || thread.lastMessage.relatedProjectId) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  try {
-                                    // Prefer listing (mineral) seller
-                                    if (thread.lastMessage.relatedListingId) {
-                                      let sellerId = thread.lastMessage.listing?.sellerId;
-                                      let sellerName = thread.lastMessage.listing?.sellerName;
-                                      if (!sellerId) {
-                                        const res = await fetch(`/api/marketplace/listings/${thread.lastMessage.relatedListingId}`, { credentials: 'include' });
-                                        if (res.ok) {
-                                          const listing = await res.json();
-                                          sellerId = listing.sellerId;
-                                          sellerName = listing.sellerName || undefined;
-                                        }
-                                      }
-
-                                      if (!sellerId) {
-                                        toast({ title: 'Seller not found', description: 'Unable to locate the seller for this listing', variant: 'destructive' });
-                                        return;
-                                      }
-
-                                      setSelectedRecipient({
-                                        id: sellerId,
-                                        name: sellerName,
-                                        subject: `Inquiry about: ${thread.lastMessage.listing?.title || thread.lastMessage.subject || 'Listing'}`,
-                                      });
-                                      setMessageDialogOpen(true);
-                                      return;
-                                    }
-
-                                    // If it's a project-related message, try to fetch project details
-                                    if (thread.lastMessage.relatedProjectId) {
-                                      const res = await fetch(`/api/projects/${thread.lastMessage.relatedProjectId}`, { credentials: 'include' });
-                                      if (!res.ok) {
-                                        toast({ title: 'Project not found', description: 'Unable to locate the project for this message', variant: 'destructive' });
-                                        return;
-                                      }
-                                      await res.json();
-                                      // Projects don't have a seller by default; fallback to replying to the original sender
-                                      toast({ title: 'Project message', description: 'No direct seller for projects — replying to the sender instead.' });
-                                      setSelectedRecipient({
-                                        id: thread.lastMessage.senderId,
-                                        subject: `Re: ${thread.lastMessage.subject || 'Project Inquiry'}`,
-                                      });
-                                      setMessageDialogOpen(true);
-                                    }
-                                  } catch (err) {
-                                    toast({ title: 'Error', description: 'Failed to contact seller', variant: 'destructive' });
-                                  }
-                                }}
-                                data-testid={`button-contact-seller-${thread.id}`}
-                              >
-                                Contact Seller
-                              </Button>
-                            )}
-                            <Button
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedRecipient({
-                                  id: thread.participantId,
-                                  name: thread.participantName,
-                                  subject: `Re: ${thread.lastMessage.subject || 'Your message'}`,
-                                });
-                                setMessageDialogOpen(true);
-                              }}
-                              data-testid={`button-reply-thread-${thread.id}`}
-                            >
-                              <Reply className="h-4 w-4 mr-2" />
-                              Reply
-                            </Button>
-                          </div>
-                        </div>
+                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No messages yet</p>
                       </CardContent>
                     </Card>
-                  ))}
-                </div>
-                ) : (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Messages</h3>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="projects" className="mt-4 space-y-2">
+                  {threadsLoading ? (
+                    Array(3).fill(0).map((_, i) => (
+                      <Skeleton key={i} className="h-24 w-full rounded-lg" />
+                    ))
+                  ) : threads?.filter((t) => t.projectId).length ? (
+                    threads.filter((t) => t.projectId).map((thread) => (
+                      <Card
+                        key={thread.id}
+                        className={`cursor-pointer transition-all hover:shadow-md ${
+                          selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""
+                        }`}
+                        onClick={() => setSelectedThread(thread)}
+                        data-testid={`thread-${thread.id}`}
+                      >
+                        <CardHeader className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}
+                              </p>
+                            </div>
+                            <Badge variant="secondary" className="ml-2">
+                              Project
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))
+                  ) : (
+                    <Card className="text-center py-8">
+                      <CardContent>
+                        <Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No project inquiries yet</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </TabsContent>
+
+                {user?.role === "admin" && (
+                  <TabsContent value="users" className="mt-4 space-y-4">
+                    <Tabs value={usersSubTab} onValueChange={setUsersSubTab}>
+                      <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="sellers" data-testid="tab-sellers">
+                          Sellers
+                        </TabsTrigger>
+                        <TabsTrigger value="buyers" data-testid="tab-buyers">
+                          Buyers
+                        </TabsTrigger>
+                        <TabsTrigger value="admins" data-testid="tab-admins">
+                          Admins
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value={usersSubTab} className="mt-4 space-y-2">
+                        {filteredUsers().map((usr) => (
+                          <Card key={usr.id} className="hover:shadow-md transition-all" data-testid={`user-${usr.id}`}>
+                            <CardHeader className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {usr.role === "seller" && <Users className="h-4 w-4 text-blue-500" />}
+                                  {usr.role === "buyer" && <UserCircle className="h-4 w-4 text-green-500" />}
+                                  {usr.role === "admin" && <ShieldCheck className="h-4 w-4 text-purple-500" />}
+                                  <span className="font-medium text-sm">
+                                    {usr.firstName} {usr.lastName}
+                                  </span>
+                                </div>
+                                <Badge variant="outline">{usr.role}</Badge>
+                              </div>
+                            </CardHeader>
+                          </Card>
+                        ))}
+                        {filteredUsers().length === 0 && (
+                          <Card className="text-center py-8">
+                            <CardContent>
+                              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                              <p className="text-muted-foreground">No {usersSubTab} found</p>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </TabsContent>
+                    </Tabs>
+                  </TabsContent>
+                )}
+              </Tabs>
+            </div>
+
+            {/* Main Panel - Thread Messages */}
+            <div className="lg:col-span-8">
+              {selectedThread ? (
+                <Card className="h-full flex flex-col">
+                  <CardHeader className="border-b">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{selectedThread.title}</CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedThread.status === "open" ? "Active conversation" : "Closed"}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedThread(null)}
+                        data-testid="button-close-thread"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardHeader>
+
+                  {/* Messages */}
+                  <CardContent className="flex-1 overflow-auto p-6 space-y-4">
+                    {messagesLoading ? (
+                      Array(3).fill(0).map((_, i) => (
+                        <Skeleton key={i} className="h-20 w-full" />
+                      ))
+                    ) : threadMessages && threadMessages.length > 0 ? (
+                      threadMessages.map((msg: Message) => {
+                        const isFromMe = msg.senderId === user?.id;
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex ${isFromMe ? "justify-end" : "justify-start"}`}
+                            data-testid={`message-${msg.id}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg p-4 ${
+                                isFromMe
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              <p className={`text-xs mt-2 ${isFromMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                                {format(new Date(msg.createdAt), "MMM d, HH:mm")}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-12">
+                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No messages in this thread</p>
+                      </div>
+                    )}
+                  </CardContent>
+
+                  {/* Message Input */}
+                  <div className="border-t p-4">
+                    <div className="flex gap-2">
+                      <Textarea
+                        placeholder="Type your message..."
+                        value={messageContent}
+                        onChange={(e) => setMessageContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
+                        className="flex-1 resize-none"
+                        rows={3}
+                        data-testid="input-message"
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!messageContent.trim() || sendMessageMutation.isPending}
+                        data-testid="button-send-message"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="h-full flex items-center justify-center">
+                  <CardContent className="text-center py-12">
+                    <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No thread selected</h3>
                     <p className="text-muted-foreground">
-                      You haven't received any messages yet
+                      Select a conversation from the list to view messages
                     </p>
                   </CardContent>
                 </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'outbox' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Sent Messages</h2>
-                {isLoading ? (
-                  <Skeleton className="h-64 w-full" />
-                ) : sentThreads.length > 0 ? (
-                  <div className="space-y-4">
-                    {sentThreads.map((thread: any) => (
-                      <Card key={thread.id} data-testid={`card-sent-thread-${thread.id}`}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <CardTitle>{thread.subject}</CardTitle>
-                              <CardDescription className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
-                                  <span>To: {thread.participantName || thread.participantId}</span>
-                                  {thread.dealType === 'listing' && (
-                                    <Badge variant="secondary">Listing Inquiry</Badge>
-                                  )}
-                                  {thread.dealType === 'project' && (
-                                    <Badge variant="secondary">Project Discussion</Badge>
-                                  )}
-                                </div>
-                                <div className="flex flex-col text-xs text-muted-foreground">
-                                  <span>Started: {format(new Date(thread.firstMessage.createdAt), "MMM d, yyyy")}</span>
-                                  <span>Last activity: {format(new Date(thread.lastMessage.createdAt), "MMM d, yyyy HH:mm")}</span>
-                                </div>
-                              </CardDescription>
-                            </div>
-                            {thread.count > 1 && (
-                              <span className="text-xs text-muted-foreground">{thread.count} messages</span>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            <p className="text-sm">{thread.lastMessage.content}</p>
-                            <div className="flex justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedMessageId(thread.lastMessage.id);
-                                  setMessageDetailOpen(true);
-                                }}
-                                data-testid={`button-view-sent-thread-${thread.id}`}
-                              >
-                                View Details
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <MessageSquare className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-xl font-semibold mb-2">No Sent Messages</h3>
-                      <p className="text-muted-foreground">
-                        You haven't sent any messages yet
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'projectsInterest' && user?.role === 'admin' && (
-              <div>
-                <h2 className="text-2xl font-bold mb-4">Projects Interest</h2>
-                {interestsLoading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <Card key={i}>
-                        <CardHeader>
-                          <Skeleton className="h-6 w-1/2" />
-                          <Skeleton className="h-4 w-full" />
-                        </CardHeader>
-                      </Card>
-                    ))}
-                  </div>
-                ) : expressedInterests && expressedInterests.length > 0 ? (
-                  <div className="space-y-4">
-                    {expressedInterests.map((interest: any) => (
-                      <Card key={interest.id} data-testid={`card-interest-${interest.id}`}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <CardTitle className="flex items-center gap-2">
-                                <Heart className="h-4 w-4 text-primary" />
-                                {interest.projectName || interest.listingTitle || 'Unknown'}
-                              </CardTitle>
-                              <CardDescription className="flex flex-col gap-1 mt-2">
-                                <div className="flex items-center gap-2">
-                                  <span>Interested Party: {interest.userName || interest.userEmail || "Unknown"}</span>
-                                  {interest.projectId && (
-                                    <Badge variant="secondary">Project</Badge>
-                                  )}
-                                  {interest.listingId && (
-                                    <Badge variant="secondary">Listing</Badge>
-                                  )}
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                  Expressed: {format(new Date(interest.createdAt), "MMM d, yyyy HH:mm")}
-                                </span>
-                                {interest.message && (
-                                  <p className="text-sm mt-2">{interest.message}</p>
-                                )}
-                              </CardDescription>
-                            </div>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedRecipient({
-                                  id: interest.userId,
-                                  name: interest.userName || interest.userEmail,
-                                  subject: `Re: Interest in ${interest.projectName || interest.listingTitle}`,
-                                  context: interest.projectId ? `project:${interest.projectId}` : `listing:${interest.listingId}`
-                                });
-                                setMessageDialogOpen(true);
-                              }}
-                              data-testid={`button-contact-buyer-${interest.id}`}
-                            >
-                              <Reply className="mr-2 h-4 w-4" />
-                              Contact Buyer
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-xl font-semibold mb-2">No Expressed Interests</h3>
-                      <p className="text-muted-foreground">
-                        No one has expressed interest in projects or listings yet
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'buyers' && user?.role === 'admin' && (
-              <div>
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold">Buyers</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4">
-                    {usersList?.map((u: any) => (
-                      <Card key={u.id}>
-                        <CardHeader>
-                          <CardTitle>{u.firstName} {u.lastName} {u.role ? `(${u.role})` : ''}</CardTitle>
-                          <CardDescription>{u.email}</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Projects / Listings:</p>
-                              <div className="mt-2">
-                                {/* If this user is selected, show their listings */}
-                                {selectedBuyer?.id === u.id ? (
-                                  <div className="space-y-2">
-                                    {selectedBuyerListings?.length ? (
-                                      selectedBuyerListings.map((l: any) => (
-                                        <div key={l.id} className="p-2 border rounded">
-                                          <div className="font-medium">{l.title}</div>
-                                          <div className="text-sm text-muted-foreground">{l.location} • {l.quantity}</div>
-                                        </div>
-                                      ))
-                                    ) : (
-                                      <div className="text-sm text-muted-foreground">No listings</div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div className="text-sm text-muted-foreground">Select to view</div>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                  setSelectedBuyer(selectedBuyer?.id === u.id ? null : u);
-                                  if (selectedBuyer?.id !== u.id) {
-                                    setTimeout(() => refetchBuyerListings && refetchBuyerListings(), 10);
-                                  }
-                                }}
-                              >
-                                {selectedBuyer?.id === u.id ? 'Hide' : 'View'}
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  // Start chat with this user
-                                  setSelectedRecipient({ id: u.id, name: `${u.firstName || ''} ${u.lastName || ''}`.trim(), subject: `Hello ${u.firstName || ''}` });
-                                  setMessageDialogOpen(true);
-                                }}
-                              >
-                                Start Chat
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>
-
-      {/* Message Detail Dialog */}
-      <MessageDetailDialog
-        messageId={selectedMessageId}
-        open={messageDetailOpen}
-        onOpenChange={(open) => {
-          setMessageDetailOpen(open);
-          if (!open) {
-            setSelectedMessageId(null);
-          }
-        }}
-      />
-
-      {/* Reply Dialog */}
-      {selectedRecipient && (
-        <MessageDialog
-          open={messageDialogOpen}
-          onOpenChange={(open) => {
-            setMessageDialogOpen(open);
-            if (!open) {
-              setSelectedRecipient(null);
-            }
-          }}
-          recipientId={selectedRecipient.id}
-          recipientName={selectedRecipient.name}
-          defaultSubject={selectedRecipient.subject}
-        />
-      )}
     </div>
   );
 }

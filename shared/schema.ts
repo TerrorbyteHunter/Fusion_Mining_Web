@@ -134,8 +134,28 @@ export const buyerRequests = pgTable("buyer_requests", {
 // ============================================================================
 // Messaging
 // ============================================================================
+export const threadStatusEnum = pgEnum('thread_status', ['open', 'closed']);
+
+export const messageThreads = pgTable("message_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: 'cascade' }),
+  listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
+  buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sellerId: varchar("seller_id").references(() => users.id, { onDelete: 'cascade' }),
+  status: threadStatusEnum("status").notNull().default('open'),
+  lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_thread_buyer_id").on(table.buyerId),
+  index("IDX_thread_seller_id").on(table.sellerId),
+  index("IDX_thread_project_id").on(table.projectId),
+  index("IDX_thread_listing_id").on(table.listingId),
+]);
+
 export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").references(() => messageThreads.id, { onDelete: 'cascade' }),
   senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   receiverId: varchar("receiver_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   subject: varchar("subject", { length: 255 }),
@@ -146,7 +166,9 @@ export const messages = pgTable("messages", {
   relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: 'set null' }),
   isAutoRelay: boolean("is_auto_relay").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("IDX_message_thread_id").on(table.threadId),
+]);
 
 // Idempotency mapping to prevent duplicate message creation when clients
 // retry requests. The key should be provided by the client as an Idempotency-Key
@@ -286,6 +308,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   listings: many(marketplaceListings),
   buyerRequests: many(buyerRequests),
+  buyerThreads: many(messageThreads, { relationName: 'buyerThreads' }),
+  sellerThreads: many(messageThreads, { relationName: 'sellerThreads' }),
   sentMessages: many(messages, { relationName: 'sentMessages' }),
   receivedMessages: many(messages, { relationName: 'receivedMessages' }),
   blogPosts: many(blogPosts),
@@ -334,7 +358,33 @@ export const buyerRequestsRelations = relations(buyerRequests, ({ one }) => ({
   }),
 }));
 
+export const messageThreadsRelations = relations(messageThreads, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [messageThreads.projectId],
+    references: [projects.id],
+  }),
+  listing: one(marketplaceListings, {
+    fields: [messageThreads.listingId],
+    references: [marketplaceListings.id],
+  }),
+  buyer: one(users, {
+    fields: [messageThreads.buyerId],
+    references: [users.id],
+    relationName: 'buyerThreads',
+  }),
+  seller: one(users, {
+    fields: [messageThreads.sellerId],
+    references: [users.id],
+    relationName: 'sellerThreads',
+  }),
+  messages: many(messages),
+}));
+
 export const messagesRelations = relations(messages, ({ one }) => ({
+  thread: one(messageThreads, {
+    fields: [messages.threadId],
+    references: [messageThreads.id],
+  }),
   sender: one(users, {
     fields: [messages.senderId],
     references: [users.id],
@@ -441,6 +491,15 @@ export const insertBuyerRequestSchema = createInsertSchema(buyerRequests).omit({
 });
 export type InsertBuyerRequest = z.infer<typeof insertBuyerRequestSchema>;
 export type BuyerRequest = typeof buyerRequests.$inferSelect;
+
+// Message Thread schemas
+export const insertMessageThreadSchema = createInsertSchema(messageThreads).omit({
+  id: true,
+  lastMessageAt: true,
+  createdAt: true,
+});
+export type InsertMessageThread = z.infer<typeof insertMessageThreadSchema>;
+export type MessageThread = typeof messageThreads.$inferSelect;
 
 // Message schemas
 export const insertMessageSchema = createInsertSchema(messages).omit({
