@@ -218,6 +218,21 @@ npm run db:studio
 
 ## Recent Changes
 
+- **October 30, 2025**: Deal-Based Threading & Admin Messaging Improvements
+  - Added 5 new example projects with varied statuses (10 total projects now) for comprehensive testing
+  - Implemented status-based filtering for content security:
+    - Non-admin users only see "active" projects (pending projects hidden)
+    - Non-admin users only see "approved" marketplace listings (pending/rejected listings hidden)
+    - Admin users see all content regardless of status
+  - Replaced "Outbox" tab with "Projects Interest" tab for admin users
+  - Added `getAllExpressedInterests()` storage method to fetch all user interests with full details
+  - Created new admin endpoint `GET /api/admin/projects-interest` to retrieve expressed interests
+  - Implemented "Contact Buyer" buttons in Projects Interest tab - allows admin to initiate deal-specific conversations
+  - Enhanced message threading: messages already grouped by deal (project/listing ID) + participants
+  - Each project or listing creates its own separate message thread automatically
+  - Idempotency protection in place: generateIdempotencyKey() and sendingRef prevent duplicate messages
+  - Express interest auto-relay creates 2 messages intentionally (buyer confirmation + admin notification)
+
 - **October 28, 2025**: Project Listing Type & Test User Authentication Fix
   - Added "project" as a new marketplace listing type (alongside minerals and partnerships)
   - Updated database schema enum to support project listings
