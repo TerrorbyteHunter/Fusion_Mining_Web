@@ -73,6 +73,7 @@ export interface IStorage {
   deleteProject(id: string): Promise<void>;
   closeProject(id: string): Promise<Project>;
   expressProjectInterest(interest: InsertExpressInterest): Promise<ExpressInterest>;
+  getAllExpressedInterests(): Promise<any[]>;
 
   // Marketplace Listing operations
   createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
@@ -315,6 +316,29 @@ export class DatabaseStorage implements IStorage {
       .values(interestData)
       .returning();
     return interest;
+  }
+
+  async getAllExpressedInterests(): Promise<any[]> {
+    const interests = await db
+      .select({
+        id: expressInterest.id,
+        projectId: expressInterest.projectId,
+        listingId: expressInterest.listingId,
+        userId: expressInterest.userId,
+        message: expressInterest.message,
+        createdAt: expressInterest.createdAt,
+        userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`.as('userName'),
+        userEmail: users.email,
+        projectName: projects.name,
+        listingTitle: marketplaceListings.title,
+      })
+      .from(expressInterest)
+      .leftJoin(users, eq(expressInterest.userId, users.id))
+      .leftJoin(projects, eq(expressInterest.projectId, projects.id))
+      .leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id))
+      .orderBy(desc(expressInterest.createdAt));
+    
+    return interests;
   }
 
   // ========================================================================
