@@ -717,10 +717,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Project Routes
   // ========================================================================
-  app.get('/api/projects', async (req, res) => {
+  app.get('/api/projects', async (req: any, res) => {
     try {
       const projects = await storage.getProjects();
-      res.json(projects);
+      const isAdmin = req.user && req.user.role === 'admin';
+      
+      const filteredProjects = isAdmin 
+        ? projects 
+        : projects.filter(p => p.status === 'active');
+      
+      res.json(filteredProjects);
     } catch (error) {
       console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
@@ -929,17 +935,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/admin/projects-interest', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const interests = await storage.getAllExpressedInterests();
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching expressed interests:", error);
+      res.status(500).json({ message: "Failed to fetch expressed interests" });
+    }
+  });
+
   // ========================================================================
   // Marketplace Routes
   // ========================================================================
-  app.get('/api/marketplace/listings', async (req, res) => {
+  app.get('/api/marketplace/listings', async (req: any, res) => {
     try {
       const { type, status } = req.query;
+      const isAdmin = req.user && req.user.role === 'admin';
       const listings = await storage.getMarketplaceListings({
         type: type as string,
         status: status as string,
       });
-      res.json(listings);
+      
+      const filteredListings = isAdmin 
+        ? listings 
+        : listings.filter(l => l.status === 'approved');
+      
+      res.json(filteredListings);
     } catch (error) {
       console.error("Error fetching listings:", error);
       res.status(500).json({ message: "Failed to fetch listings" });

@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Message } from "@shared/schema";
-import { MessageSquare, Mail, MailOpen, Reply } from "lucide-react";
+import { MessageSquare, Mail, MailOpen, Reply, Heart } from "lucide-react";
 import { format } from "date-fns";
 import { MessageDetailDialog } from "@/components/MessageDetailDialog";
 import { MessageDialog } from "@/components/MessageDialog";
@@ -41,10 +41,10 @@ export default function Messages() {
     enabled: !!user && user.role === 'admin',
   });
 
-  const [activeTab, setActiveTab] = useState<'inbox'|'outbox'|'buyers'>('inbox');
+  const [activeTab, setActiveTab] = useState<'inbox'|'outbox'|'buyers'|'projectsInterest'>('inbox');
   const [selectedBuyer, setSelectedBuyer] = useState<any | null>(null);
   const { data: selectedBuyerListings, refetch: refetchBuyerListings } = useQuery({
-    queryKey: selectedBuyer ? ['/api/admin/users', selectedBuyer.id, 'listings'] : null,
+    queryKey: selectedBuyer ? ['/api/admin/users', selectedBuyer.id, 'listings'] : ['/api/admin/users', 'listings'],
     queryFn: async () => {
       if (!selectedBuyer) return [];
       const res = await fetch(`/api/admin/users/${selectedBuyer.id}/listings`, { credentials: 'include' });
@@ -52,6 +52,17 @@ export default function Messages() {
       return res.json();
     },
     enabled: !!selectedBuyer && !!user && user.role === 'admin',
+  });
+
+  // Admin-only: fetch expressed interests
+  const { data: expressedInterests, isLoading: interestsLoading } = useQuery<any[]>({
+    queryKey: ['/api/admin/projects-interest'],
+    queryFn: async () => {
+      const res = await fetch('/api/admin/projects-interest', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch expressed interests');
+      return res.json();
+    },
+    enabled: !!user && user.role === 'admin',
   });
 
   useEffect(() => {
@@ -158,10 +169,14 @@ export default function Messages() {
         <div className="container mx-auto px-4 max-w-4xl">
           {/* Tabs */}
           <div className="flex gap-2 mb-6">
-            <button className={`px-4 py-2 rounded ${activeTab === 'inbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('inbox')}>Inbox</button>
-            <button className={`px-4 py-2 rounded ${activeTab === 'outbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('outbox')}>Outbox</button>
+            <button className={`px-4 py-2 rounded ${activeTab === 'inbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('inbox')} data-testid="button-tab-inbox">Inbox</button>
+            {user?.role === 'admin' ? (
+              <button className={`px-4 py-2 rounded ${activeTab === 'projectsInterest' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('projectsInterest')} data-testid="button-tab-projects-interest">Projects Interest</button>
+            ) : (
+              <button className={`px-4 py-2 rounded ${activeTab === 'outbox' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('outbox')} data-testid="button-tab-outbox">Sent</button>
+            )}
             {user?.role === 'admin' && (
-              <button className={`px-4 py-2 rounded ${activeTab === 'buyers' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('buyers')}>Buyers</button>
+              <button className={`px-4 py-2 rounded ${activeTab === 'buyers' ? 'bg-primary text-white' : 'bg-muted/20'}`} onClick={() => setActiveTab('buyers')} data-testid="button-tab-buyers">Buyers</button>
             )}
           </div>
           
@@ -395,6 +410,89 @@ export default function Messages() {
                       <h3 className="text-xl font-semibold mb-2">No Sent Messages</h3>
                       <p className="text-muted-foreground">
                         You haven't sent any messages yet
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'projectsInterest' && user?.role === 'admin' && (
+              <div>
+                <h2 className="text-2xl font-bold mb-4">Projects Interest</h2>
+                {interestsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i}>
+                        <CardHeader>
+                          <Skeleton className="h-6 w-1/2" />
+                          <Skeleton className="h-4 w-full" />
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                ) : expressedInterests && expressedInterests.length > 0 ? (
+                  <div className="space-y-4">
+                    {expressedInterests.map((interest: any) => (
+                      <Card key={interest.id} data-testid={`card-interest-${interest.id}`}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <CardTitle className="flex items-center gap-2">
+                                <Heart className="h-4 w-4 text-primary" />
+                                {interest.projectName || interest.listingTitle || 'Unknown'}
+                              </CardTitle>
+                              <CardDescription className="flex flex-col gap-1 mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span>Interested Party: {interest.userName || interest.userEmail || "Unknown"}</span>
+                                  {interest.projectId && (
+                                    <Badge variant="secondary">Project</Badge>
+                                  )}
+                                  {interest.listingId && (
+                                    <Badge variant="secondary">Listing</Badge>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  Expressed: {format(new Date(interest.createdAt), "MMM d, yyyy HH:mm")}
+                                </span>
+                                {interest.message && (
+                                  <p className="text-sm mt-2">{interest.message}</p>
+                                )}
+                              </CardDescription>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedRecipient({
+                                  id: interest.userId,
+                                  name: interest.userName || interest.userEmail,
+                                  subject: `Re: Interest in ${interest.projectName || interest.listingTitle}`,
+                                  context: interest.projectId ? `project:${interest.projectId}` : `listing:${interest.listingId}`
+                                });
+                                setMessageDialogOpen(true);
+                              }}
+                              data-testid={`button-contact-buyer-${interest.id}`}
+                            >
+                              <Reply className="mr-2 h-4 w-4" />
+                              Contact Buyer
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <Heart className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-xl font-semibold mb-2">No Expressed Interests</h3>
+                      <p className="text-muted-foreground">
+                        No one has expressed interest in projects or listings yet
                       </p>
                     </CardContent>
                   </Card>
