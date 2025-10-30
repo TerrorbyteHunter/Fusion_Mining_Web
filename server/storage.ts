@@ -6,6 +6,7 @@ import {
   expressInterest,
   marketplaceListings,
   buyerRequests,
+  messageThreads,
   messages,
   messageIdempotency,
   messageTemplates,
@@ -29,6 +30,8 @@ import {
   type InsertMarketplaceListing,
   type BuyerRequest,
   type InsertBuyerRequest,
+  type MessageThread,
+  type InsertMessageThread,
   type Message,
   type InsertMessage,
   type MessageTemplate,
@@ -90,8 +93,18 @@ export interface IStorage {
   getBuyerRequests(): Promise<BuyerRequest[]>;
   getBuyerRequestById(id: string): Promise<BuyerRequest | undefined>;
 
+  // Message Thread operations
+  createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
+  getThreadById(id: string): Promise<MessageThread | undefined>;
+  getThreadsByUserId(userId: string): Promise<MessageThread[]>;
+  getThreadsByBuyerId(buyerId: string): Promise<MessageThread[]>;
+  getThreadsBySellerId(sellerId: string): Promise<MessageThread[]>;
+  updateThreadLastMessage(threadId: string): Promise<void>;
+  closeThread(threadId: string): Promise<MessageThread>;
+  
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
+  getMessagesByThreadId(threadId: string): Promise<Message[]>;
   getMessagesByUserId(userId: string): Promise<Message[]>;
   getConversation(user1Id: string, user2Id: string): Promise<Message[]>;
   markMessageAsRead(id: string): Promise<void>;
@@ -454,8 +467,80 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ========================================================================
+  // Message Thread operations
+  // ========================================================================
+  async createMessageThread(threadData: InsertMessageThread): Promise<MessageThread> {
+    const [thread] = await db
+      .insert(messageThreads)
+      .values(threadData)
+      .returning();
+    return thread;
+  }
+
+  async getThreadById(id: string): Promise<MessageThread | undefined> {
+    const [thread] = await db
+      .select()
+      .from(messageThreads)
+      .where(eq(messageThreads.id, id));
+    return thread;
+  }
+
+  async getThreadsByUserId(userId: string): Promise<MessageThread[]> {
+    return await db
+      .select()
+      .from(messageThreads)
+      .where(
+        or(
+          eq(messageThreads.buyerId, userId),
+          eq(messageThreads.sellerId, userId)
+        )
+      )
+      .orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  async getThreadsByBuyerId(buyerId: string): Promise<MessageThread[]> {
+    return await db
+      .select()
+      .from(messageThreads)
+      .where(eq(messageThreads.buyerId, buyerId))
+      .orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  async getThreadsBySellerId(sellerId: string): Promise<MessageThread[]> {
+    return await db
+      .select()
+      .from(messageThreads)
+      .where(eq(messageThreads.sellerId, sellerId))
+      .orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  async updateThreadLastMessage(threadId: string): Promise<void> {
+    await db
+      .update(messageThreads)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(messageThreads.id, threadId));
+  }
+
+  async closeThread(threadId: string): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({ status: 'closed' })
+      .where(eq(messageThreads.id, threadId))
+      .returning();
+    return thread;
+  }
+
+  // ========================================================================
   // Message operations
   // ========================================================================
+  async getMessagesByThreadId(threadId: string): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.threadId, threadId))
+      .orderBy(messages.createdAt);
+  }
+
   async createMessage(messageData: InsertMessage): Promise<Message> {
     try {
       const [message] = await db

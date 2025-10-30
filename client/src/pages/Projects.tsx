@@ -11,13 +11,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { StatusBadge } from "@/components/StatusBadge";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import type { Project } from "@shared/schema";
 import { 
   MapPin, 
   FileText, 
   Search, 
-  Heart
+  Heart,
+  MessageCircle
 } from "lucide-react";
 import { ZambiaMap } from "@/components/ZambiaMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
@@ -104,6 +105,38 @@ export default function Projects() {
     },
   });
 
+  // Contact seller mutation (creates a new thread)
+  const contactSellerMutation = useMutation({
+    mutationFn: async (projectId: string) => {
+      return await apiRequest("POST", "/api/threads", { projectId });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Thread Created",
+        description: "You can now message about this project",
+      });
+      window.location.href = "/messages";
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create conversation. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleExpressInterest = (projectId: string) => {
     if (!isAuthenticated) {
       toast({
@@ -116,6 +149,20 @@ export default function Projects() {
       return;
     }
     expressInterestMutation.mutate(projectId);
+  };
+
+  const handleContactSeller = (projectId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to contact about projects",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 1000);
+      return;
+    }
+    contactSellerMutation.mutate(projectId);
   };
 
   // Filter projects
@@ -272,16 +319,26 @@ export default function Projects() {
                         </Badge>
                       ))}
                     </div>
-                    <Button 
-                      className="w-full"
-                      onClick={() => handleExpressInterest(project.id)}
-                      disabled={expressInterestMutation.isPending || expressedInterests.has(project.id)}
-                      variant={expressedInterests.has(project.id) ? "secondary" : "default"}
-                      data-testid={`button-express-interest-${project.id}`}
-                    >
-                      <Heart className={`mr-2 h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current' : ''}`} />
-                      {expressedInterests.has(project.id) ? 'Interest Expressed' : 'Express Interest'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        className="flex-1"
+                        onClick={() => handleExpressInterest(project.id)}
+                        disabled={expressInterestMutation.isPending || expressedInterests.has(project.id)}
+                        variant={expressedInterests.has(project.id) ? "secondary" : "default"}
+                        data-testid={`button-express-interest-${project.id}`}
+                      >
+                        <Heart className={`mr-2 h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current' : ''}`} />
+                        {expressedInterests.has(project.id) ? 'Interested' : 'Interest'}
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        onClick={() => handleContactSeller(project.id)}
+                        disabled={contactSellerMutation.isPending}
+                        data-testid={`button-contact-seller-${project.id}`}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

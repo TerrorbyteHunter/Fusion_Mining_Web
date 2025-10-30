@@ -821,6 +821,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const project = await storage.getProjectById(projectId);
         
         if (adminUser && project && buyer) {
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${project.name}`,
+            projectId,
+            buyerId: userId,
+            sellerId: adminUser.id,
+            status: 'open',
+          });
+
           await storage.createNotification({
             userId: adminUser.id,
             type: 'interest_received',
@@ -834,6 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (buyerTemplate && adminUser) {
             await storage.createMessage({
+              threadId: thread.id,
               senderId: adminUser.id,
               receiverId: userId,
               subject: buyerTemplate.subject.replace('{project_name}', project.name),
@@ -845,6 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (adminTemplate) {
             await storage.createMessage({
+              threadId: thread.id,
               senderId: userId,
               receiverId: adminUser.id,
               subject: adminTemplate.subject.replace('{project_name}', project.name),
@@ -858,7 +868,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const listing = await storage.getMarketplaceListingById(listingId);
         const seller = listing ? await storage.getUserById(listing.sellerId) : null;
         
-        if (adminUser && listing && buyer) {
+        if (adminUser && listing && buyer && seller) {
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${listing.title}`,
+            listingId,
+            buyerId: userId,
+            sellerId: seller.id,
+            status: 'open',
+          });
+
           await storage.createNotification({
             userId: adminUser.id,
             type: 'interest_received',
@@ -882,6 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (buyerTemplate && adminUser) {
             await storage.createMessage({
+              threadId: thread.id,
               senderId: adminUser.id,
               receiverId: userId,
               subject: buyerTemplate.subject.replace('{project_name}', listing.title),
@@ -893,6 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (sellerTemplate && seller && adminUser) {
             await storage.createMessage({
+              threadId: thread.id,
               senderId: adminUser.id,
               receiverId: seller.id,
               subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
@@ -1089,6 +1109,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error closing listing:", error);
       res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+
+  // ========================================================================
+  // Message Thread Routes
+  // ========================================================================
+  app.post('/api/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, title } = req.body;
+
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+
+      let sellerId = null;
+      let threadTitle = title;
+
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        const adminUser = await storage.getAdminUser();
+        sellerId = adminUser?.id || null;
+        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        sellerId = listing.sellerId;
+        threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+      }
+
+      const thread = await storage.createMessageThread({
+        title: threadTitle,
+        projectId,
+        listingId,
+        buyerId: userId,
+        sellerId,
+        status: 'open',
+      });
+
+      res.json(thread);
+    } catch (error: any) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+
+  app.get('/api/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const threads = await storage.getThreadsByUserId(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+
+  app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.getThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+
+  app.get('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const messages = await storage.getMessagesByThreadId(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const threadId = req.params.id;
+
+      const thread = await storage.getThreadById(threadId);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+
+      const sender = await storage.getUserById(senderId);
+      if (!sender) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const receiverId = senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+
+      const validatedData = insertMessageSchema.parse({
+        threadId,
+        senderId,
+        receiverId,
+        subject: req.body.subject || thread.title,
+        content: req.body.content,
+        relatedProjectId: thread.projectId,
+        relatedListingId: thread.listingId,
+      });
+
+      const message = await storage.createMessage(validatedData);
+      await storage.updateThreadLastMessage(threadId);
+
+      res.json(message);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.patch('/api/threads/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.closeThread(req.params.id);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error closing thread:", error);
+      res.status(500).json({ message: "Failed to close thread" });
     }
   });
 
