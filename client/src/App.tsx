@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { useAuth } from "@/hooks/useAuth";
+// useAuth removed from this file (not used here)
 
 // Import all pages
 import Landing from "@/pages/Landing";
@@ -22,6 +22,7 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
 import ProfileManagement from "@/pages/ProfileManagement";
+import ProfileView from "@/pages/ProfileView";
 import CreateListing from "@/pages/CreateListing";
 import Messages from "@/pages/Messages";
 import LegalTerms from "@/pages/LegalTerms";
@@ -49,6 +50,7 @@ function Router() {
           {/* Protected Routes */}
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/dashboard/profile" component={ProfileManagement} />
+          <Route path="/profile/:id" component={ProfileView} />
           <Route path="/dashboard/create-listing" component={CreateListing} />
           <Route path="/dashboard/messages" component={Messages} />
           <Route path="/dashboard/:section" component={Dashboard} />

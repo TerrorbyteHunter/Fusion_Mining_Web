@@ -22,6 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { NotificationBell } from "@/components/ui/notification-bell";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -90,6 +91,7 @@ export function Header() {
 
           {/* Auth & User Menu */}
           <div className="flex items-center gap-2">
+            {isAuthenticated && isAdmin && <NotificationBell />}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

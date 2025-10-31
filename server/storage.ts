@@ -51,7 +51,7 @@ import {
   type UpdateVideo,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, sql } from "drizzle-orm";
+import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (Required for Replit Auth)
@@ -99,6 +99,7 @@ export interface IStorage {
   getThreadsByUserId(userId: string): Promise<MessageThread[]>;
   getThreadsByBuyerId(buyerId: string): Promise<MessageThread[]>;
   getThreadsBySellerId(sellerId: string): Promise<MessageThread[]>;
+  getThreadWithParticipants(id: string): Promise<any>;
   updateThreadLastMessage(threadId: string): Promise<void>;
   closeThread(threadId: string): Promise<MessageThread>;
   
@@ -185,6 +186,13 @@ export class DatabaseStorage implements IStorage {
   async getAdminUser(): Promise<User | undefined> {
     const [admin] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
     return admin;
+  }
+
+  async getUsersByRole(role: 'admin' | 'buyer' | 'seller'): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.role, role));
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
@@ -485,6 +493,31 @@ export class DatabaseStorage implements IStorage {
     return thread;
   }
 
+  async getThreadWithParticipants(id: string): Promise<any> {
+    // Simpler implementation: fetch the thread, then load buyer/seller users and profiles
+    const thread = await this.getThreadById(id);
+    if (!thread) return null;
+
+    const [listing] = thread.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread.listingId)).limit(1) : [null];
+    const [project] = thread.projectId ? await db.select().from(projects).where(eq(projects.id, thread.projectId)).limit(1) : [null];
+
+    const buyer = thread.buyerId ? await this.getUserById(thread.buyerId) : null;
+    const buyerProfile = thread.buyerId ? await this.getUserProfile(thread.buyerId) : null;
+
+    const seller = thread.sellerId ? await this.getUserById(thread.sellerId) : null;
+    const sellerProfile = thread.sellerId ? await this.getUserProfile(thread.sellerId) : null;
+
+    return {
+      thread,
+      listing: listing || null,
+      project: project || null,
+      buyer: buyer || null,
+      buyerProfile: buyerProfile || null,
+      seller: seller || null,
+      sellerProfile: sellerProfile || null,
+    };
+  }
+
   async getThreadsByUserId(userId: string): Promise<MessageThread[]> {
     return await db
       .select()
@@ -504,6 +537,38 @@ export class DatabaseStorage implements IStorage {
       .from(messageThreads)
       .where(eq(messageThreads.buyerId, buyerId))
       .orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  async getAllMessageThreads(): Promise<MessageThread[]> {
+    return await db
+      .select({
+        thread: messageThreads,
+        listing: marketplaceListings,
+        project: projects,
+        buyerFirstName: sql<string>`buyer.first_name`,
+        buyerLastName: sql<string>`buyer.last_name`,
+        sellerFirstName: sql<string>`seller.first_name`,
+        sellerLastName: sql<string>`seller.last_name`,
+      })
+      .from(messageThreads)
+      .leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id))
+      .leftJoin(projects, eq(messageThreads.projectId, projects.id))
+      .leftJoin(
+        sql`users as buyer`,
+        eq(messageThreads.buyerId, sql`buyer.id`)
+      )
+      .leftJoin(
+        sql`users as seller`,
+        eq(messageThreads.sellerId, sql`seller.id`)
+      )
+      .orderBy(desc(messageThreads.lastMessageAt))
+      .then(results => results.map(r => ({
+        ...r.thread,
+        listing: r.listing,
+        project: r.project,
+        buyerName: r.buyerFirstName && r.buyerLastName ? `${r.buyerFirstName} ${r.buyerLastName}` : undefined,
+        sellerName: r.sellerFirstName && r.sellerLastName ? `${r.sellerFirstName} ${r.sellerLastName}` : undefined,
+      })));
   }
 
   async getThreadsBySellerId(sellerId: string): Promise<MessageThread[]> {
@@ -618,40 +683,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMessagesByUserId(userId: string): Promise<Message[]> {
+    // First get all threads involving the user
+    const threads = await db
+      .select({
+        thread: messageThreads,
+      })
+      .from(messageThreads)
+      .where(
+        or(
+          eq(messageThreads.buyerId, userId),
+          eq(messageThreads.sellerId, userId)
+        )
+      );
+
+    if (threads.length === 0) return [];
+
+    // Then get all messages from these threads with rich metadata
+    const threadIds = threads.map(t => t.thread.id);
     const results = await db
       .select({
         message: messages,
+        thread: messageThreads,
         senderFirstName: users.firstName,
         senderLastName: users.lastName,
         listing: marketplaceListings,
-        sellerFirstName: sql<string>`seller.first_name`,
-        sellerLastName: sql<string>`seller.last_name`,
+        project: projects,
       })
       .from(messages)
+      .innerJoin(messageThreads, eq(messages.threadId, messageThreads.id))
       .leftJoin(users, eq(messages.senderId, users.id))
-      .leftJoin(marketplaceListings, eq(messages.relatedListingId, marketplaceListings.id))
-      .leftJoin(
-        sql`users as seller`, 
-        eq(marketplaceListings.sellerId, sql`seller.id`)
-      )
-      .where(
-        or(
-          eq(messages.senderId, userId),
-          eq(messages.receiverId, userId)
-        )
-      )
+      .leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id))
+      .leftJoin(projects, eq(messageThreads.projectId, projects.id))
+      .where(inArray(messages.threadId, threadIds))
       .orderBy(messages.createdAt);
 
-    // Transform the results to include full names and maintain the Message type
+    // Transform the results to include thread context and maintain the Message type
     return results.map(result => ({
       ...result.message,
       senderName: result.senderFirstName && result.senderLastName 
         ? `${result.senderFirstName} ${result.senderLastName}` 
         : undefined,
-      listing: result.listing,
-      sellerName: result.sellerFirstName && result.sellerLastName 
-        ? `${result.sellerFirstName} ${result.sellerLastName}` 
-        : undefined,
+      thread: {
+        ...result.thread,
+        listing: result.listing,
+        project: result.project
+      },
+      context: result.listing 
+        ? `Listing: ${result.listing.title}`
+        : result.project
+          ? `Project: ${result.project.name}`
+          : undefined
     }));
   }
 
@@ -677,8 +758,32 @@ export class DatabaseStorage implements IStorage {
   async markMessageAsRead(id: string): Promise<void> {
     await db
       .update(messages)
-      .set({ read: true })
+      .set({ read: true, unread: false })
       .where(eq(messages.id, id));
+  }
+
+  // Helper to get a message by id (used by some admin routes)
+  async getMessageById(id: string): Promise<Message | undefined> {
+    const [message] = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.id, id))
+      .limit(1);
+    return message;
+  }
+
+  // Return count of unread messages for a given user (receiver)
+  async getUnreadMessagesCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(
+        and(
+          eq(messages.receiverId, userId),
+          eq(messages.unread, true)
+        )
+      );
+    return result[0]?.count || 0;
   }
 
   async closeConversationByMessageId(messageId: string): Promise<void> {
@@ -1057,15 +1162,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserUnreadMessagesCount(userId: string): Promise<number> {
+    // First get all threads where user is buyer or seller
+    const threads = await db
+      .select({ id: messageThreads.id })
+      .from(messageThreads)
+      .where(
+        or(
+          eq(messageThreads.buyerId, userId),
+          eq(messageThreads.sellerId, userId)
+        )
+      );
+    
+    if (threads.length === 0) return 0;
+
+    // Then count unread messages in those threads where the user is the receiver
+    const threadIds = threads.map(t => t.id);
     const result = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(messages)
       .where(
         and(
+          inArray(messages.threadId, threadIds),
           eq(messages.receiverId, userId),
           eq(messages.read, false)
         )
       );
+    
     return result[0]?.count || 0;
   }
 

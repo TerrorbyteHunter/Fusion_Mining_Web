@@ -6,9 +6,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { StatusBadge } from "@/components/StatusBadge";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -22,7 +19,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -35,18 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MarketplaceListing, User } from "@shared/schema";
-import { 
-  ShieldCheck, 
-  CheckCircle, 
-  XCircle, 
-  Users, 
-  FileText,
-  Clock,
-  Newspaper,
-  Activity,
-  Edit,
-  Trash
-} from "lucide-react";
+import { ShieldCheck, Users, Newspaper, Activity, Edit, Trash } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 
@@ -55,6 +40,8 @@ export default function Admin() {
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [userMgmtOpen, setUserMgmtOpen] = useState(false);
+  const [userMgmtTab, setUserMgmtTab] = useState("sellers");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -79,15 +66,23 @@ export default function Admin() {
   }, [isAuthenticated, authLoading, isAdmin, toast]);
 
   // Fetch verification queue
-  const { data: verificationQueue, isLoading: loadingQueue } = useQuery<MarketplaceListing[]>({
+  const { data: verificationQueue } = useQuery<MarketplaceListing[]>({
     queryKey: ["/api/admin/verification-queue"],
-    enabled: isAdmin,
+    enabled: !!isAdmin,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/verification-queue");
+      return (await res.json()) as MarketplaceListing[];
+    },
   });
 
   // Fetch all users
-  const { data: users, isLoading: loadingUsers } = useQuery<User[]>({
+  const { data: users } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
-    enabled: isAdmin,
+    enabled: !!isAdmin,
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/users");
+      return (await res.json()) as User[];
+    },
   });
 
   // Approve listing mutation
@@ -97,28 +92,7 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/verification-queue"] });
-      toast({
-        title: "Listing Approved",
-        description: "The listing has been verified and is now live.",
-      });
-    },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to approve listing. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Listing Approved", description: "The listing has been verified and is now live." });
     },
   });
 
@@ -129,28 +103,7 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/verification-queue"] });
-      toast({
-        title: "Listing Rejected",
-        description: "The listing has been rejected.",
-      });
-    },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to reject listing. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Listing Rejected", description: "The listing has been rejected." });
     },
   });
 
@@ -162,17 +115,7 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setEditingUser(null);
-      toast({
-        title: "User role updated",
-        description: "The user's role has been updated successfully.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: "Failed to update user role. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "User role updated", description: "The user's role has been updated successfully." });
     },
   });
 
@@ -183,17 +126,7 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      toast({
-        title: "User deleted",
-        description: "The user has been deleted successfully.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: "Failed to delete user. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "User deleted", description: "The user has been deleted successfully." });
     },
   });
 
@@ -201,12 +134,12 @@ export default function Admin() {
     return null;
   }
 
-  const pendingListings = verificationQueue?.filter(l => l.status === 'pending') || [];
+  const pendingListings = verificationQueue?.filter((l) => l.status === "pending") || [];
   const stats = {
     totalUsers: users?.length || 0,
-    admins: users?.filter(u => u.role === 'admin').length || 0,
-    sellers: users?.filter(u => u.role === 'seller').length || 0,
-    buyers: users?.filter(u => u.role === 'buyer').length || 0,
+    admins: users?.filter((u) => u.role === "admin").length || 0,
+    sellers: users?.filter((u) => u.role === "seller").length || 0,
+    buyers: users?.filter((u) => u.role === "buyer").length || 0,
     pendingVerifications: pendingListings.length,
   };
 
@@ -221,9 +154,7 @@ export default function Admin() {
               Admin Panel
             </h1>
           </div>
-          <p className="text-muted-foreground">
-            Manage users, verify listings, and oversee platform operations
-          </p>
+          <p className="text-muted-foreground">Manage users, verify listings, and oversee platform operations</p>
         </div>
       </section>
 
@@ -238,9 +169,7 @@ export default function Admin() {
                     <Newspaper className="h-8 w-8 text-primary" />
                     <div>
                       <CardTitle>Content Management</CardTitle>
-                      <CardDescription>
-                        Manage blog posts, contacts, projects, and activity logs
-                      </CardDescription>
+                      <CardDescription>Manage blog posts, contacts, projects, and activity logs</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -252,9 +181,7 @@ export default function Admin() {
                   <Activity className="h-8 w-8 text-chart-3" />
                   <div>
                     <CardTitle>Platform Analytics</CardTitle>
-                    <CardDescription>
-                      View detailed analytics and user activity
-                    </CardDescription>
+                    <CardDescription>View detailed analytics and user activity</CardDescription>
                   </div>
                 </div>
               </CardHeader>
@@ -267,309 +194,136 @@ export default function Admin() {
       <section className="py-8 border-b bg-card/50">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Admins</CardTitle>
-                <ShieldCheck className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.admins}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Sellers</CardTitle>
-                <FileText className="h-4 w-4 text-chart-2" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.sellers}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Buyers</CardTitle>
-                <Users className="h-4 w-4 text-chart-4" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.buyers}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending</CardTitle>
-                <Clock className="h-4 w-4 text-chart-5" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.pendingVerifications}</div>
-              </CardContent>
-            </Card>
+            <button onClick={() => setUserMgmtOpen(true)} className="w-full text-left">
+              <Card className="hover:shadow-lg cursor-pointer">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalUsers}</div>
+                </CardContent>
+              </Card>
+            </button>
           </div>
         </div>
+
+        {/* User Management Modal */}
+        <Dialog open={userMgmtOpen} onOpenChange={setUserMgmtOpen}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>User Management</DialogTitle>
+              <div className="text-sm text-muted-foreground">View, filter, and edit users by role</div>
+            </DialogHeader>
+            <Tabs value={userMgmtTab} onValueChange={setUserMgmtTab} className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="sellers">Sellers</TabsTrigger>
+                <TabsTrigger value="buyers">Buyers</TabsTrigger>
+                <TabsTrigger value="admins">Admins</TabsTrigger>
+              </TabsList>
+              <TabsContent value="sellers">
+                <UserTable users={users?.filter((u) => u.role === "seller") || []} onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }} onDelete={(u) => { if (u.id === user?.id) { toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" }); return; } if (confirm(`Are you sure you want to delete user ${u.email}?`)) { deleteUserMutation.mutate(u.id); } }} />
+              </TabsContent>
+              <TabsContent value="buyers">
+                <UserTable users={users?.filter((u) => u.role === "buyer") || []} onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }} onDelete={(u) => { if (u.id === user?.id) { toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" }); return; } if (confirm(`Are you sure you want to delete user ${u.email}?`)) { deleteUserMutation.mutate(u.id); } }} />
+              </TabsContent>
+              <TabsContent value="admins">
+                <UserTable users={users?.filter((u) => u.role === "admin") || []} onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }} onDelete={(u) => { if (u.id === user?.id) { toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" }); return; } if (confirm(`Are you sure you want to delete user ${u.email}?`)) { deleteUserMutation.mutate(u.id); } }} />
+              </TabsContent>
+            </Tabs>
+
+            {/* Edit User Role Dialog (reused) */}
+            <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit User Role</DialogTitle>
+                  <div className="text-sm text-muted-foreground">Change the role for {editingUser?.email}</div>
+                </DialogHeader>
+                <div className="py-4">
+                  <label className="block mb-2 font-medium">Role</label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger data-testid="select-user-role">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="seller">Seller</SelectItem>
+                      <SelectItem value="buyer">Buyer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditingUser(null)} data-testid="button-cancel-edit-user">Cancel</Button>
+                  <Button onClick={() => { if (editingUser) { updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole }); } }} disabled={updateUserRoleMutation.isPending} data-testid="button-save-user-role">{updateUserRoleMutation.isPending ? "Saving..." : "Save Changes"}</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </DialogContent>
+        </Dialog>
       </section>
-
-      {/* Main Content */}
-      <section className="py-12">
+      {/* Verification Queue */}
+      <section className="py-6">
         <div className="container mx-auto px-4">
-          <Tabs defaultValue="verification" className="w-full">
-            <TabsList>
-              <TabsTrigger value="verification" data-testid="tab-verification">
-                <Clock className="mr-2 h-4 w-4" />
-                Verification Queue ({stats.pendingVerifications})
-              </TabsTrigger>
-              <TabsTrigger value="users" data-testid="tab-users">
-                <Users className="mr-2 h-4 w-4" />
-                User Management
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="verification" className="mt-6">
-              {loadingQueue ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader>
-                        <Skeleton className="h-6 w-1/2" />
-                        <Skeleton className="h-4 w-full" />
-                      </CardHeader>
-                    </Card>
-                  ))}
-                </div>
-              ) : pendingListings.length > 0 ? (
-                <div className="space-y-4">
-                  {pendingListings.map((listing) => (
-                    <Card key={listing.id} data-testid={`card-verification-${listing.id}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <CardTitle className="text-xl">{listing.title}</CardTitle>
-                              <StatusBadge status={listing.status} />
-                              <Badge variant="outline">{listing.type}</Badge>
-                            </div>
-                            <CardDescription className="text-base">
-                              {listing.description}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <h4 className="font-semibold text-sm text-muted-foreground">Listing Details</h4>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              {listing.mineralType && (
-                                <div>
-                                  <p className="text-muted-foreground">Mineral</p>
-                                  <p className="font-medium">{listing.mineralType}</p>
-                                </div>
-                              )}
-                              {listing.grade && (
-                                <div>
-                                  <p className="text-muted-foreground">Grade</p>
-                                  <p className="font-medium">{listing.grade}</p>
-                                </div>
-                              )}
-                              {listing.quantity && (
-                                <div>
-                                  <p className="text-muted-foreground">Quantity</p>
-                                  <p className="font-medium">{listing.quantity}</p>
-                                </div>
-                              )}
-                              {listing.price && (
-                                <div>
-                                  <p className="text-muted-foreground">Price</p>
-                                  <p className="font-medium">{listing.price}</p>
-                                </div>
-                              )}
-                              <div>
-                                <p className="text-muted-foreground">Location</p>
-                                <p className="font-medium">{listing.location}</p>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground">Submitted</p>
-                                <p className="font-medium">
-                                  {format(new Date(listing.createdAt), "MMM d, yyyy")}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-3">
-                            <h4 className="font-semibold text-sm text-muted-foreground">Actions</h4>
-                            <Button
-                              className="w-full"
-                              onClick={() => approveMutation.mutate(listing.id)}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
-                              data-testid={`button-approve-${listing.id}`}
-                            >
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Approve Listing
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              className="w-full"
-                              onClick={() => rejectMutation.mutate(listing.id)}
-                              disabled={approveMutation.isPending || rejectMutation.isPending}
-                              data-testid={`button-reject-${listing.id}`}
-                            >
-                              <XCircle className="mr-2 h-4 w-4" />
-                              Reject Listing
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <CheckCircle className="h-16 w-16 mx-auto mb-4 text-chart-3" />
-                    <h3 className="text-xl font-semibold mb-2">All Caught Up!</h3>
-                    <p className="text-muted-foreground">
-                      No listings pending verification
-                    </p>
-                  </CardContent>
+          <h2 className="text-xl font-semibold mb-4">Verification Queue ({stats.pendingVerifications})</h2>
+          {pendingListings.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No pending listings</div>
+          ) : (
+            <div className="grid gap-4">
+              {pendingListings.map((l) => (
+                <Card key={l.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>{(l as any).title || "Untitled"}</CardTitle>
+                        <CardDescription>{(l as any).summary || ""}</CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button onClick={() => approveMutation.mutate(l.id)}>Approve</Button>
+                        <Button variant="destructive" onClick={() => rejectMutation.mutate(l.id)}>Reject</Button>
+                      </div>
+                    </div>
+                  </CardHeader>
                 </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="users" className="mt-6">
-              {loadingUsers ? (
-                <Skeleton className="h-96 w-full" />
-              ) : users && users.length > 0 ? (
-                <Card>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((u) => (
-                        <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
-                          <TableCell className="font-medium">{u.email}</TableCell>
-                          <TableCell>
-                            {u.firstName && u.lastName 
-                              ? `${u.firstName} ${u.lastName}` 
-                              : '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={u.role === 'admin' ? 'destructive' : 'secondary'}
-                            >
-                              {u.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(u.createdAt), "MMM d, yyyy")}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingUser(u);
-                                  setSelectedRole(u.role);
-                                }}
-                                data-testid={`button-edit-user-${u.id}`}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  if (u.id === user?.id) {
-                                    toast({
-                                      title: "Cannot delete yourself",
-                                      description: "You cannot delete your own account.",
-                                      variant: "destructive",
-                                    });
-                                    return;
-                                  }
-                                  if (confirm(`Are you sure you want to delete user ${u.email}?`)) {
-                                    deleteUserMutation.mutate(u.id);
-                                  }
-                                }}
-                                disabled={deleteUserMutation.isPending || u.id === user?.id}
-                                data-testid={`button-delete-user-${u.id}`}
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Card>
-              ) : (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Users Found</h3>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Edit User Role Dialog */}
-              <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Edit User Role</DialogTitle>
-                    <DialogDescription>
-                      Change the role for {editingUser?.email}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <label className="block mb-2 font-medium">Role</label>
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
-                      <SelectTrigger data-testid="select-user-role">
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="seller">Seller</SelectItem>
-                        <SelectItem value="buyer">Buyer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setEditingUser(null)} data-testid="button-cancel-edit-user">
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        if (editingUser) {
-                          updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole });
-                        }
-                      }}
-                      disabled={updateUserRoleMutation.isPending}
-                      data-testid="button-save-user-role"
-                    >
-                      {updateUserRoleMutation.isPending ? "Saving..." : "Save Changes"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </TabsContent>
-          </Tabs>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>
   );
 }
+
+function UserTable({ users, onEdit, onDelete }: { users: User[]; onEdit: (u: User) => void; onDelete: (u: User) => void; }) {
+  return (
+    <Card>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Email</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Joined</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {users.map((u) => (
+            <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
+              <TableCell className="font-medium">{u.email}</TableCell>
+              <TableCell>{u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : '-'}</TableCell>
+              <TableCell><Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'}>{u.role}</Badge></TableCell>
+              <TableCell>{u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-'}</TableCell>
+              <TableCell className="text-right">
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => onEdit(u)} data-testid={`button-edit-user-${u.id}`}><Edit className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}><Trash className="h-4 w-4" /></Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
+}
+
