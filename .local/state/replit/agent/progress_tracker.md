@@ -586,3 +586,41 @@ All migration tasks from Replit Agent to standard Replit environment have been c
 **Ready for**: Development, testing, and production deployment
 
 🎉 **All migration tasks successfully completed!**
+
+---
+
+## 📋 Admin Panel Enhancements - October 31, 2025
+
+### 24. Verification Queue Enhancement & Message Routing Fixes
+Successfully enhanced admin panel with detailed verification queue and fixed message routing:
+
+#### Verification Queue Enhancement ✅
+- [x] Added ImageDisplay component for listing images
+- [x] Enhanced marketplace tab with detailed listing information
+- [x] Visual highlighting for pending listings (amber border + pulsing badge)
+- [x] Quick approve/reject buttons for pending items
+- [x] Display grade, quantity, price, and submission date
+- [x] Better grid layout for easier review
+
+#### Admin Message Inbox Enhancement ✅
+- [x] Display sender's full name instead of senderId
+- [x] Show context about related projects or listings
+- [x] Better message preview with project/listing chips
+- [x] Improved readability and UX
+
+#### Message Routing Fixes ✅
+- [x] Fixed marketplace listing interest to route to admin (was routing to seller)
+- [x] Updated auto-relay messages to send to admin for marketplace inquiries
+- [x] All buyer inquiries now route to admin inbox:
+  - Contact Seller on marketplace → admin inbox ✓
+  - Express Interest on projects → admin inbox ✓
+  - Express Interest on listings → admin inbox ✓ (FIXED)
+
+**Files Modified**:
+- client/src/pages/AdminCMS.tsx (verification queue UI + message display)
+- server/routes.ts (message routing logic)
+
+**Status**: ✅ COMPLETE - Admin now receives all buyer inquiries with enhanced UI
+**Ready for**: User testing and verification
+
+**Note**: Message templates must be seeded via `/api/seed-message-templates` endpoint if not already done.

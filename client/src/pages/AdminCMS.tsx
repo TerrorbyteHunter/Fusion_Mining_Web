@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/StatusBadge";
 import { ImageSelector } from "@/components/ImageSelector";
+import { ImageDisplay } from "@/components/ImageDisplay";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1131,46 +1132,80 @@ export default function AdminCMS() {
 
             <TabsContent value="marketplace" className="mt-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Marketplace Listings</h2>
+                <h2 className="text-2xl font-bold">Marketplace Listings & Verification Queue</h2>
               </div>
               {loadingListings ? (
                 <Skeleton className="h-96 w-full" />
               ) : marketplaceListings && marketplaceListings.length > 0 ? (
                 <div className="grid gap-4">
                   {marketplaceListings.map((listing) => (
-                    <Card key={listing.id} data-testid={`card-listing-${listing.id}`}>
+                    <Card key={listing.id} data-testid={`card-listing-${listing.id}`} className={listing.status === 'pending' ? 'border-amber-500 border-2' : ''}>
                       <CardHeader>
                         <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle>{listing.title}</CardTitle>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <CardTitle>{listing.title}</CardTitle>
+                              {listing.status === 'pending' && (
+                                <Badge variant="destructive" className="animate-pulse">
+                                  <Clock className="mr-1 h-3 w-3" />
+                                  Needs Review
+                                </Badge>
+                              )}
+                            </div>
                             <CardDescription>{listing.location}</CardDescription>
                           </div>
                           <StatusBadge status={listing.status} />
                         </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="mb-4">{listing.description}</p>
-                        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                          <div>
-                            <p className="text-muted-foreground">Type</p>
-                            <p className="font-medium capitalize">{listing.type}</p>
-                          </div>
-                          <div>
-                            <p className="text-muted-foreground">Mineral</p>
-                            <p className="font-medium">{listing.mineralType || '-'}</p>
-                          </div>
-                          {listing.price && (
-                            <div>
-                              <p className="text-muted-foreground">Price</p>
-                              <p className="font-medium">{listing.price}</p>
+                        <div className="grid md:grid-cols-[200px_1fr] gap-6 mb-4">
+                          {listing.imageUrl && (
+                            <div className="aspect-square rounded-lg overflow-hidden bg-muted">
+                              <ImageDisplay
+                                imageUrl={listing.imageUrl}
+                                alt={listing.title}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                           )}
-                          {listing.quantity && (
+                          <div className="space-y-4">
                             <div>
-                              <p className="text-muted-foreground">Quantity</p>
-                              <p className="font-medium">{listing.quantity}</p>
+                              <p className="text-sm font-semibold text-muted-foreground mb-1">Description</p>
+                              <p className="text-sm">{listing.description}</p>
                             </div>
-                          )}
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="text-muted-foreground">Type</p>
+                                <p className="font-medium capitalize">{listing.type}</p>
+                              </div>
+                              <div>
+                                <p className="text-muted-foreground">Mineral</p>
+                                <p className="font-medium">{listing.mineralType || '-'}</p>
+                              </div>
+                              {listing.grade && (
+                                <div>
+                                  <p className="text-muted-foreground">Grade</p>
+                                  <p className="font-medium">{listing.grade}</p>
+                                </div>
+                              )}
+                              {listing.price && (
+                                <div>
+                                  <p className="text-muted-foreground">Price</p>
+                                  <p className="font-medium">{listing.price}</p>
+                                </div>
+                              )}
+                              {listing.quantity && (
+                                <div>
+                                  <p className="text-muted-foreground">Quantity</p>
+                                  <p className="font-medium">{listing.quantity}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-muted-foreground">Submitted</p>
+                                <p className="font-medium">{format(new Date(listing.createdAt), "MMM d, yyyy")}</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex gap-2 pt-4 border-t justify-between items-center">
                           <Select
@@ -1188,6 +1223,30 @@ export default function AdminCMS() {
                             </SelectContent>
                           </Select>
                           <div className="flex gap-2">
+                            {listing.status === 'pending' && (
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => updateListingStatusMutation.mutate({ id: listing.id, status: 'approved' })}
+                                  disabled={updateListingStatusMutation.isPending}
+                                  data-testid={`button-approve-listing-${listing.id}`}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => updateListingStatusMutation.mutate({ id: listing.id, status: 'rejected' })}
+                                  disabled={updateListingStatusMutation.isPending}
+                                  data-testid={`button-reject-listing-${listing.id}`}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1281,7 +1340,7 @@ export default function AdminCMS() {
                         {adminMessages
                           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                           .slice(0, 50)
-                          .map((message) => (
+                          .map((message: any) => (
                           <TableRow 
                             key={message.id} 
                             data-testid={`row-message-${message.id}`}
@@ -1289,10 +1348,19 @@ export default function AdminCMS() {
                             onClick={() => handleViewMessage(message.id)}
                           >
                             <TableCell className="font-medium">
-                              {message.subject || 'No subject'}
+                              <div className="flex flex-col gap-1">
+                                <span>{message.subject || 'No subject'}</span>
+                                {(message.project || message.listing) && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {message.project ? `Project: ${message.project.name}` : `Listing: ${message.listing.title}`}
+                                  </span>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              {message.senderId}
+                              {message.senderFirstName || message.senderLastName 
+                                ? `${message.senderFirstName || ''} ${message.senderLastName || ''}`.trim()
+                                : message.senderId}
                             </TableCell>
                             <TableCell className="max-w-md truncate text-muted-foreground">
                               {message.content}

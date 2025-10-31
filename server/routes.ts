@@ -954,12 +954,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const listing = await storage.getMarketplaceListingById(listingId);
         const seller = listing ? await storage.getUserById(listing.sellerId) : null;
         
-        if (adminUser && listing && buyer && seller) {
+        if (adminUser && listing && buyer) {
           const thread = await storage.createMessageThread({
             title: `Inquiry about: ${listing.title}`,
             listingId,
             buyerId: userId,
-            sellerId: seller.id,
+            sellerId: adminUser.id,
             context: 'marketplace',
             status: 'open',
           });
@@ -983,7 +983,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
 
           const buyerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_buyer');
-          const sellerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_seller');
+          const adminTemplate = await storage.getMessageTemplateByType('buyer_interest_to_admin');
 
           if (buyerTemplate && adminUser) {
             await storage.createMessage({
@@ -998,13 +998,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
 
-          if (sellerTemplate && seller && adminUser) {
+          if (adminTemplate) {
             await storage.createMessage({
               threadId: thread.id,
-              senderId: adminUser.id,
-              receiverId: seller.id,
-              subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
-              content: sellerTemplate.content.replace('{listing_title}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              senderId: userId,
+              receiverId: adminUser.id,
+              subject: adminTemplate.subject.replace('{project_name}', listing.title),
+              content: adminTemplate.content.replace('{project_name}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
               context: 'marketplace',
               relatedListingId: listingId,
               isAutoRelay: true,
