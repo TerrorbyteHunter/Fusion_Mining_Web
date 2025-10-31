@@ -135,6 +135,7 @@ export const buyerRequests = pgTable("buyer_requests", {
 // Messaging
 // ============================================================================
 export const threadStatusEnum = pgEnum('thread_status', ['open', 'closed']);
+export const messageContextEnum = pgEnum('message_context', ['marketplace', 'project_interest', 'general']);
 
 export const messageThreads = pgTable("message_threads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -143,6 +144,7 @@ export const messageThreads = pgTable("message_threads", {
   listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
   buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   sellerId: varchar("seller_id").references(() => users.id, { onDelete: 'cascade' }),
+  context: messageContextEnum("context").default('general'),
   status: threadStatusEnum("status").notNull().default('open'),
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -151,6 +153,7 @@ export const messageThreads = pgTable("message_threads", {
   index("IDX_thread_seller_id").on(table.sellerId),
   index("IDX_thread_project_id").on(table.projectId),
   index("IDX_thread_listing_id").on(table.listingId),
+  index("IDX_thread_context").on(table.context),
 ]);
 
 export const messages = pgTable("messages", {
@@ -160,6 +163,7 @@ export const messages = pgTable("messages", {
   receiverId: varchar("receiver_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   subject: varchar("subject", { length: 255 }),
   content: text("content").notNull(),
+  context: messageContextEnum("context").default('general'),
   read: boolean("read").notNull().default(false),
   closed: boolean("closed").notNull().default(false),
    unread: boolean("unread").notNull().default(true),
@@ -169,6 +173,7 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("IDX_message_thread_id").on(table.threadId),
+  index("IDX_message_context").on(table.context),
 ]);
 
 // Idempotency mapping to prevent duplicate message creation when clients
