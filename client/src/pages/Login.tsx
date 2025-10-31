@@ -111,8 +111,8 @@ export default function Login() {
           <div className="mt-4 text-center text-sm text-muted-foreground">
             <p className="font-semibold mb-1">Test Accounts (No Security):</p>
             <p>Admin: admin / admin123</p>
-            <p>Buyer: james / james123</p>
-            <p>Seller: jane / jane123</p>
+            <p>Buyer: henry / henry123</p>
+            <p>Seller: ray / ray123</p>
           </div>
         </CardContent>
       </Card>

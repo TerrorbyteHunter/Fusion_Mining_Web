@@ -49,6 +49,7 @@ export default function Marketplace() {
     email?: string;
     subject?: string;
     listingTitle?: string;
+    listingId?: string;
   } | null>(null);
   const [contactedListings, setContactedListings] = useState<Set<string>>(new Set());
 
@@ -73,6 +74,7 @@ export default function Marketplace() {
       email: adminContact.email,
       subject: `Inquiry about: ${listing.title}`,
       listingTitle: listing.title,
+      listingId: listing.id,
     });
     setMessageDialogOpen(true);
   };
@@ -253,7 +255,12 @@ export default function Marketplace() {
                       />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
+                            {listing.itemId && (
+                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
+                            )}
+                          </div>
                           <StatusBadge status={listing.status} />
                         </div>
                         <CardDescription className="line-clamp-2">
@@ -367,7 +374,12 @@ export default function Marketplace() {
                     <Card key={request.id} className="hover-elevate transition-all" data-testid={`card-request-${request.id}`}>
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <CardTitle className="text-xl line-clamp-1">{request.title}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl line-clamp-1">{request.title}</CardTitle>
+                            {request.itemId && (
+                              <Badge variant="secondary" className="uppercase text-xs">{request.itemId}</Badge>
+                            )}
+                          </div>
                           <Badge variant="secondary">{request.status}</Badge>
                         </div>
                         <CardDescription className="line-clamp-2">
@@ -440,8 +452,13 @@ export default function Marketplace() {
                   {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
                       <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <CardTitle className="text-xl">{listing.title}</CardTitle>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            {listing.itemId && (
+                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
+                            )}
+                          </div>
                           <StatusBadge status={listing.status} />
                         </div>
                         <CardDescription className="line-clamp-3">

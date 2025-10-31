@@ -70,6 +70,8 @@ export const projectStatusEnum = pgEnum('project_status', ['active', 'pending', 
 
 export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id shown when project is published/active
+  itemId: varchar("item_id", { length: 5 }),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   licenseType: licenseTypeEnum("license_type").notNull(),
@@ -102,6 +104,8 @@ export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved'
 
 export const marketplaceListings = pgTable("marketplace_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id assigned when listing is approved
+  itemId: varchar("item_id", { length: 5 }),
   sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: listingTypeEnum("type").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -119,6 +123,8 @@ export const marketplaceListings = pgTable("marketplace_listings", {
 
 export const buyerRequests = pgTable("buyer_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id for buyer requests
+  itemId: varchar("item_id", { length: 5 }),
   buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),

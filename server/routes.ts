@@ -42,8 +42,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Simple hardcoded users for testing (NO SECURITY)
         const users = {
           admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-          james: { id: 'test-buyer-789', username: 'james', password: 'james123', role: 'buyer', email: 'james@fusionmining.com', firstName: 'James', lastName: 'Buyer' },
-          jane: { id: 'test-seller-456', username: 'jane', password: 'jane123', role: 'seller', email: 'jane@fusionmining.com', firstName: 'Jane', lastName: 'Seller' },
+          henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass' },
+          ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass' },
         };
         const user = Object.values(users).find(u => u.username === username && u.password === password);
         if (!user) {
@@ -76,8 +76,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) {
           const testUsers: { [key: string]: { email: string; firstName: string; lastName: string; role: string } } = {
             'test-admin-123': { email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User', role: 'admin' },
-            'test-seller-456': { email: 'seller@fusionmining.com', firstName: 'Sarah', lastName: 'Seller', role: 'seller' },
-            'test-buyer-789': { email: 'buyer@fusionmining.com', firstName: 'Bob', lastName: 'Buyer', role: 'buyer' },
+            'test-seller-456': { email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass', role: 'seller' },
+            'test-buyer-789': { email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass', role: 'buyer' },
           };
 
           const testUserData = testUsers[userId];
@@ -177,8 +177,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const testAccounts = [
           { id: 'test-admin-123', email: 'admin@fusionmining.com', role: 'admin', name: 'Admin User' },
-          { id: 'test-seller-456', email: 'seller@fusionmining.com', role: 'seller', name: 'Sarah Seller' },
-          { id: 'test-buyer-789', email: 'buyer@fusionmining.com', role: 'buyer', name: 'Bob Buyer' },
+          { id: 'test-seller-456', email: 'ray@fusionmining.com', role: 'seller', name: 'Ray Pass' },
+          { id: 'test-buyer-789', email: 'henry@fusionmining.com', role: 'buyer', name: 'Henry Pass' },
         ];
         res.json(testAccounts);
       } catch (error) {
@@ -251,16 +251,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           {
             id: 'test-seller-456',
-            email: 'seller@fusionmining.com',
-            firstName: 'Sarah',
-            lastName: 'Seller',
+            email: 'ray@fusionmining.com',
+            firstName: 'Ray',
+            lastName: 'Pass',
             role: 'seller'
           },
           {
             id: 'test-buyer-789',
-            email: 'buyer@fusionmining.com',
-            firstName: 'Bob',
-            lastName: 'Buyer',
+            email: 'henry@fusionmining.com',
+            firstName: 'Henry',
+            lastName: 'Pass',
             role: 'buyer'
           },
         ];
@@ -1252,7 +1252,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!listing) {
           return res.status(404).json({ message: "Listing not found" });
         }
-        sellerId = listing.sellerId;
+        // Always set admin as the seller for buyer inquiries
+        const adminUser = await storage.getAdminUser();
+        sellerId = adminUser?.id || null;
         threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
       }
 

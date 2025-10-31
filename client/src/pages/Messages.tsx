@@ -142,6 +142,13 @@ export default function Messages() {
     }
   }, [threadMessages, isAuthenticated, user]);
 
+  // If the current user is a buyer, ensure the Sellers tab is not active
+  useEffect(() => {
+    if (user?.role === 'buyer' && activeTab === 'sellers') {
+      setActiveTab('inbox');
+    }
+  }, [user?.role, activeTab]);
+
   // Compute unread count per thread and total
   const processedThreads = useMemo(() => {
     if (!threads) return [] as (MessageThread & { unreadCount?: number })[];
@@ -264,49 +271,53 @@ export default function Messages() {
                 <TabsList className="flex w-full items-center gap-1" data-testid="tabs-messages">
                   <TabsTrigger value="inbox" data-testid="tab-inbox">Inbox</TabsTrigger>
                   <TabsTrigger value="projects" data-testid="tab-projects">Projects Interest</TabsTrigger>
-                  <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
+                  {user?.role !== "buyer" && (
+                    <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
+                  )}
                   {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
                 </TabsList>
 
-                <TabsContent value="sellers" className="space-y-2">
-                  {threadsLoading ? (
-                    Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                  ) : filteredThreads().length > 0 ? (
-                    filteredThreads().map((thread: MessageThread & { unreadCount?: number }) => (
-                      <Card key={thread.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""} ${(thread.unreadCount || 0) > 0 ? "bg-primary/5" : ""}`} onClick={() => setSelectedThread(thread)} data-testid={`thread-${thread.id}`}>
-                        <CardHeader className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
-                                {(thread.unreadCount || 0) > 0 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">{thread.unreadCount}</span>
-                                )}
+                {user?.role !== "buyer" && (
+                  <TabsContent value="sellers" className="space-y-2">
+                    {threadsLoading ? (
+                      Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
+                    ) : filteredThreads().length > 0 ? (
+                      filteredThreads().map((thread: MessageThread & { unreadCount?: number }) => (
+                        <Card key={thread.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""} ${(thread.unreadCount || 0) > 0 ? "bg-primary/5" : ""}`} onClick={() => setSelectedThread(thread)} data-testid={`thread-${thread.id}`}>
+                          <CardHeader className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
+                                  {(thread.unreadCount || 0) > 0 && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">{thread.unreadCount || 0}</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
+                              <div className="flex items-center gap-2">
+                                {thread.projectId && (<Badge variant="secondary" className="ml-2">Project Interest</Badge>)}
+                                {thread.listingId && (<Badge variant="outline" className="ml-2">Listing Inquiry</Badge>)}
+                                {/* Show user type (either buyer/seller/admin) if available */}
+                                <Badge variant={`${selectedThread?.id === thread.id ? "default" : "secondary"}`} className="ml-2">
+                                  {thread.sellerId === user?.id ? "Buyer" : "Seller"}
+                                </Badge>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {thread.projectId && (<Badge variant="secondary" className="ml-2">Project Interest</Badge>)}
-                              {thread.listingId && (<Badge variant="outline" className="ml-2">Listing Inquiry</Badge>)}
-                              {/* Show user type (either buyer/seller/admin) if available */}
-                              <Badge variant={`${selectedThread?.id === thread.id ? "default" : "secondary"}`} className="ml-2">
-                                {thread.sellerId === user?.id ? "Buyer" : "Seller"}
-                              </Badge>
-                            </div>
-                          </div>
-                        </CardHeader>
+                          </CardHeader>
+                        </Card>
+                      ))
+                    ) : (
+                      <Card className="text-center py-8">
+                        <CardContent>
+                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No seller conversations yet</p>
+                          <p className="text-sm text-muted-foreground mt-2">Conversations where you are the seller will appear here.</p>
+                        </CardContent>
                       </Card>
-                    ))
-                  ) : (
-                    <Card className="text-center py-8">
-                      <CardContent>
-                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">No seller conversations yet</p>
-                        <p className="text-sm text-muted-foreground mt-2">Conversations where you are the seller will appear here.</p>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
+                    )}
+                  </TabsContent>
+                )}
 
                 <TabsContent value="inbox" className="mt-4 space-y-2">
                   {threadsLoading ? (
@@ -389,7 +400,9 @@ export default function Messages() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
-                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                  {user?.role !== 'buyer' && (
+                                    <Eye className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground" />
+                                  )}
                                 </div>
                               </div>
                             </CardHeader>
@@ -431,7 +444,7 @@ export default function Messages() {
                             <div className="flex items-center mb-4">
                               <CardTitle className="text-lg truncate flex-1">{selectedThread.title}</CardTitle>
                               <div className="flex justify-end ml-8">
-                                {otherParticipant?.user && (
+                                {otherParticipant?.user && user?.role !== 'buyer' && (
                                   <Button
                                     variant="secondary"
                                     size="sm"
