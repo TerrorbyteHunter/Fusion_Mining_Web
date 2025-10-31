@@ -114,6 +114,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+      app.post('/api/messages/mark-read', isAuthenticated, async (req: any, res) => {
+        try {
+          const userId = req.user.claims?.sub || req.user.id;
+          const { messageIds } = req.body;
+      
+          if (!Array.isArray(messageIds)) {
+            return res.status(400).json({ message: "messageIds must be an array" });
+          }
+
+          // Only mark messages as read if the user is the receiver
+          for (const messageId of messageIds) {
+            const message = await storage.getMessageById(messageId);
+            if (message && message.receiverId === userId) {
+              await storage.markMessageAsRead(messageId);
+            }
+          }
+
+          res.json({ success: true });
+        } catch (error) {
+          console.error("Error marking messages as read:", error);
+          res.status(500).json({ message: "Failed to mark messages as read" });
+        }
+      });
     // Logout endpoint
     app.post('/api/logout', (req, res) => {
       req.logout(() => {
@@ -924,6 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Create activity log
       await storage.createActivityLog({
         userId,
         activityType: 'interest_expressed',
@@ -931,6 +955,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
+
+      // Notify all admin users (use 'interest_received' notification type)
+      const adminUsers = await storage.getUsersByRole('admin');
+      // Resolve a short title for the target (project or listing)
+      let titleText = '';
+      if (projectId) {
+        const proj = await storage.getProjectById(projectId);
+        titleText = proj?.name || projectId;
+      } else if (listingId) {
+        const list = await storage.getMarketplaceListingById(listingId);
+        titleText = list?.title || listingId;
+      }
+
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: 'interest_received',
+          title: 'New Interest Expression',
+          message: `${buyer?.firstName || ''} ${buyer?.lastName || ''} expressed interest in ${projectId ? 'project' : 'listing'}: ${titleText}`,
+          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`,
+        });
+      }
 
       res.json(interest);
     } catch (error: any) {
@@ -1171,6 +1217,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to get all threads
+  app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const threads = await storage.getAllMessageThreads();
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching all threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+
   app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
     try {
       const thread = await storage.getThreadById(req.params.id);
@@ -1181,6 +1238,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching thread:", error);
       res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+
+  // Return thread and participant (buyer/seller) details for UI header
+  app.get('/api/threads/:id/details', isAuthenticated, async (req: any, res) => {
+    try {
+      const threadId = req.params.id;
+      const details = await storage.getThreadWithParticipants(threadId);
+      if (!details) return res.status(404).json({ message: 'Thread not found' });
+      res.json(details);
+    } catch (error) {
+      console.error('Error fetching thread details:', error);
+      res.status(500).json({ message: 'Failed to fetch thread details' });
     }
   });
 
@@ -1415,6 +1485,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error checking contact status:", error);
       return res.status(500).json({ error: 'Internal server error while checking contact status' });
       res.status(500).json({ message: "Failed to check contact status" });
+    }
+  });
+
+  // Return a user's public details (admins can view any user; users can view themselves)
+  app.get('/api/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      const targetId = req.params.id;
+
+      // Allow if requesting own profile or admin
+      const requestingUser = await storage.getUser(currentUserId);
+      const isAdminUser = requestingUser?.role === 'admin';
+      if (!isAdminUser && currentUserId !== targetId) {
+        return res.status(403).json({ message: 'Not authorized to view this user' });
+      }
+
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const profile = await storage.getUserProfile(targetId);
+
+      // Include listings and recent messages when admin or requesting own profile
+      let listings = null;
+      let recentMessages = null;
+      try {
+        listings = await storage.getListingsBySellerId(targetId);
+      } catch (err) {
+        listings = null;
+      }
+
+      // Only include message previews for admin users or the owner
+      if (isAdminUser || currentUserId === targetId) {
+        try {
+          const msgs = await storage.getMessagesByUserId(targetId);
+          // provide a small preview: last 5 messages
+          recentMessages = (msgs || []).slice(0, 5).map(m => ({ id: m.id, content: m.content, createdAt: m.createdAt, senderId: m.senderId, receiverId: m.receiverId }));
+        } catch (err) {
+          recentMessages = null;
+        }
+      }
+
+      res.json({ user, profile, listings, recentMessages });
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // Public profile endpoint (no authentication) with limited fields and public listings
+  app.get('/api/public/users/:id', async (req: any, res) => {
+    try {
+      const targetId = req.params.id;
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const profile = await storage.getUserProfile(targetId);
+
+  // Public listings: only return listings with status 'active' or published
+  let publicListings: any[] = [];
+      try {
+        const allListings = await storage.getListingsBySellerId(targetId);
+        publicListings = (allListings || []).filter(l => (l.status || '').toLowerCase() === 'active');
+      } catch (err) {
+        publicListings = [];
+      }
+
+      // Build public payload (exclude email/phone)
+      const publicUser = { id: user.id, firstName: user.firstName, lastName: user.lastName, role: user.role };
+      const publicProfile = { companyName: profile?.companyName, location: profile?.location, bio: profile?.bio };
+
+      res.json({ user: publicUser, profile: publicProfile, listings: publicListings });
+    } catch (error) {
+      console.error('Error fetching public user profile:', error);
+      res.status(500).json({ message: 'Failed to fetch public profile' });
     }
   });
 

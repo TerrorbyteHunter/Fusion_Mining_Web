@@ -1,0 +1,92 @@
+{
+  "id": "f9f61149-3031-4cd6-a6a5-f02d0b172535",
+  "prevId": "e3ee222a-bd65-4c64-82c0-236a4028faa3",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "express_interest": {
+      "name": "express_interest",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "listing_id": {
+          "name": "listing_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "IDX_express_interest_listing_id": {
+          "name": "IDX_express_interest_listing_id",
+          "columns": ["listing_id"],
+          "isUnique": false
+        },
+        "IDX_express_interest_project_id": {
+          "name": "IDX_express_interest_project_id",
+          "columns": ["project_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "express_interest_user_id_users_id_fk": {
+          "name": "express_interest_user_id_users_id_fk",
+          "tableFrom": "express_interest",
+          "tableTo": "users",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "express_interest_listing_id_marketplace_listings_id_fk": {
+          "name": "express_interest_listing_id_marketplace_listings_id_fk",
+          "tableFrom": "express_interest",
+          "tableTo": "marketplace_listings",
+          "columnsFrom": ["listing_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "express_interest_project_id_projects_id_fk": {
+          "name": "express_interest_project_id_projects_id_fk",
+          "tableFrom": "express_interest",
+          "tableTo": "projects",
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      }
+    }
+  }
+}

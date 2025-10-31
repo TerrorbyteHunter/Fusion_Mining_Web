@@ -49,7 +49,7 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
   // actual listing seller (even when an admin posted on behalf of the seller).
   const listingId = messageDetails?.message?.relatedListingId;
   const { data: listingData } = useQuery({
-    queryKey: listingId ? ['/api/marketplace/listings', listingId] : null,
+    queryKey: ['/api/marketplace/listings', listingId],
     queryFn: async () => {
       if (!listingId) return null;
       const resp = await fetch(`/api/marketplace/listings/${listingId}`, { credentials: 'include' });
@@ -164,13 +164,54 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <User className="h-6 w-6 text-primary" />
               </div>
+
               <div>
                 <h3 className="font-semibold">
                   {sellerDisplayName ? sellerDisplayName : `${sender?.firstName || ''} ${sender?.lastName || ''}`.trim() || sender?.email || 'User'}
                 </h3>
+
                 <p className="text-sm text-muted-foreground">
                   {message.subject || 'No subject'}
                 </p>
+
+                {/* Sender quick details shown in the header */}
+                <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
+                  {sender?.email && (
+                    <div className="flex items-center gap-1">
+                      <Mail className="h-4 w-4" />
+                      <span className="truncate max-w-[220px]">{sender.email}</span>
+                    </div>
+                  )}
+
+                  {senderProfile?.phoneNumber && (
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-4 w-4" />
+                      <span>{senderProfile.phoneNumber}</span>
+                    </div>
+                  )}
+
+                  {senderProfile?.companyName && (
+                    <div className="flex items-center gap-1">
+                      <Building2 className="h-4 w-4" />
+                      <span className="truncate max-w-[160px]">{senderProfile.companyName}</span>
+                    </div>
+                  )}
+
+                  {senderProfile?.location && (
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      <span>{senderProfile.location}</span>
+                    </div>
+                  )}
+
+                  {sender?.role && (
+                    <div className="ml-1">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted">
+                        {sender.role}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </DialogTitle>
@@ -180,7 +221,8 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
           {/* Conversation Chain */}
           <div className="space-y-3 px-4">
             {sortedConversation?.map((msg: any) => {
-              const isSentByMe = msg.message.senderId === (user?.id || user?.claims?.sub);
+              const currentUserId = user?.id || (user as any)?.claims?.sub;
+              const isSentByMe = msg.message.senderId === currentUserId;
 
               // Normalize display content: if messages were auto-wrapped with an "Inquiry about...\n\nMessage:\n" prefix,
               // strip that header so the bubble only shows the actual message body. Keep the subject in the header.

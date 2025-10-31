@@ -162,6 +162,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   read: boolean("read").notNull().default(false),
   closed: boolean("closed").notNull().default(false),
+   unread: boolean("unread").notNull().default(true),
   relatedProjectId: varchar("related_project_id").references(() => projects.id, { onDelete: 'set null' }),
   relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: 'set null' }),
   isAutoRelay: boolean("is_auto_relay").notNull().default(false),
@@ -499,7 +500,9 @@ export const insertMessageThreadSchema = createInsertSchema(messageThreads).omit
   createdAt: true,
 });
 export type InsertMessageThread = z.infer<typeof insertMessageThreadSchema>;
-export type MessageThread = typeof messageThreads.$inferSelect;
+export type MessageThread = typeof messageThreads.$inferSelect & {
+  unread?: boolean;
+};
 
 // Message schemas
 export const insertMessageSchema = createInsertSchema(messages).omit({

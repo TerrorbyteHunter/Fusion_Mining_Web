@@ -8,6 +8,20 @@
       "when": 1761652996127,
       "tag": "0000_organic_the_renegades",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761652996128,
+      "tag": "0001_add_message_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761652996129,
+      "tag": "0002_add_express_interest_columns",
+      "breakpoints": true
     }
   ]
 }
