@@ -12,6 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone, MapPin, Building2, Copy, Eye, MessageCircle } from "lucide-react";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { MessageThread, Message, User } from "@shared/schema";
 
@@ -29,6 +30,8 @@ export default function Messages() {
     subject?: string;
     context?: string;
   } | null>(null);
+  const [userDetailsDialogOpen, setUserDetailsDialogOpen] = useState(false);
+  const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
 
   // Fetch threads
   const { data: threads, isLoading: threadsLoading, refetch: refetchThreads } = useQuery<MessageThread[]>({
@@ -157,29 +160,37 @@ export default function Messages() {
   const filteredThreads = () => {
     if (!processedThreads) return [] as any[];
     const currentUserId = user?.id || (user as any)?.claims?.sub;
+    const isAdmin = user?.role === 'admin';
 
     switch (activeTab) {
       case "inbox":
-        // Only show marketplace/listing related threads (no project threads)
+        // Only show marketplace/listing related threads (marketplace context)
         return processedThreads.filter(t => 
-          !!t.listingId && !t.projectId
+          (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
         ).sort((a, b) => 
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
 
       case "projects":
-        // Show all project interest related threads
+        // Show all project interest related threads (project_interest context)
         return processedThreads.filter(t => 
-          !!t.projectId
+          (t as any).context === 'project_interest' || !!t.projectId
         ).sort((a, b) => 
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
 
       case "sellers":
-        // Show all threads where the other party is a seller (we are the buyer)
-        return processedThreads.filter(t => 
-          !!t.sellerId && t.buyerId === currentUserId
-        ).sort((a, b) => 
+        // Admin sees all threads with sellers
+        // Sellers see threads where they are the seller
+        // Buyers see threads where they are talking to a seller
+        return processedThreads.filter(t => {
+          if (isAdmin) return !!t.sellerId;
+          // If current user is the seller, show their threads
+          if (t.sellerId === currentUserId) return true;
+          // If current user is a buyer talking to a seller, show the thread
+          if (t.buyerId === currentUserId && !!t.sellerId) return true;
+          return false;
+        }).sort((a, b) => 
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
 
@@ -204,6 +215,22 @@ export default function Messages() {
     },
     enabled: user?.role === "admin",
   });
+
+  // Fetch selected user profile for details modal
+  const { data: selectedUserProfile } = useQuery<any>({
+    queryKey: ["/api/user-profiles", selectedUserDetails?.id],
+    queryFn: async () => {
+      if (!selectedUserDetails) return null;
+      const res = await apiRequest("GET", `/api/user-profiles/${selectedUserDetails.id}`);
+      return res.json();
+    },
+    enabled: !!selectedUserDetails,
+  });
+
+  const handleViewUserDetails = (user: User) => {
+    setSelectedUserDetails(user);
+    setUserDetailsDialogOpen(true);
+  };
 
   if (!isAuthenticated) {
     return (
@@ -344,7 +371,7 @@ export default function Messages() {
 
                       <TabsContent value={usersSubTab} className="space-y-2">
                         {filteredUsers().map((usr) => (
-                          <Card key={usr.id} className="hover:shadow-md transition-all" data-testid={`user-${usr.id}`}>
+                          <Card key={usr.id} className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50" data-testid={`user-${usr.id}`} onClick={() => handleViewUserDetails(usr)}>
                             <CardHeader className="py-3 px-4">
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
@@ -360,7 +387,10 @@ export default function Messages() {
                                     )}
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                </div>
                               </div>
                             </CardHeader>
                           </Card>
@@ -557,6 +587,129 @@ export default function Messages() {
           listingTitle={selectedRecipient.context}
         />
       )}
+
+      {/* User Details Dialog */}
+      <Dialog open={userDetailsDialogOpen} onOpenChange={setUserDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              View detailed information about this user
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUserDetails && (
+            <div className="space-y-6">
+              {/* User Basic Info */}
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16">
+                  {selectedUserDetails.profileImageUrl ? (
+                    <AvatarImage src={selectedUserDetails.profileImageUrl} alt={selectedUserDetails.firstName || 'User'} />
+                  ) : (
+                    <AvatarFallback className="text-2xl">{(selectedUserDetails.firstName || selectedUserDetails.email || 'U').charAt(0)}</AvatarFallback>
+                  )}
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{selectedUserDetails.firstName} {selectedUserDetails.lastName}</h3>
+                  <Badge variant="outline" className="capitalize mt-1">{selectedUserDetails.role}</Badge>
+                </div>
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {selectedUserDetails.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <a href={`mailto:${selectedUserDetails.email}`} className="text-sm hover:underline truncate">{selectedUserDetails.email}</a>
+                    </div>
+                  )}
+                  {selectedUserProfile?.phoneNumber && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">{selectedUserProfile.phoneNumber}</span>
+                    </div>
+                  )}
+                  {selectedUserProfile?.location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">{selectedUserProfile.location}</span>
+                    </div>
+                  )}
+                  {selectedUserProfile?.companyName && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm">{selectedUserProfile.companyName}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Profile Information */}
+              {selectedUserProfile && (
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm text-muted-foreground">Profile Information</h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Profile Type:</span>
+                      <p className="font-medium capitalize">{selectedUserProfile.profileType || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Verified:</span>
+                      <p className="font-medium">{selectedUserProfile.verified ? 'Yes' : 'No'}</p>
+                    </div>
+                    {selectedUserProfile.interests && selectedUserProfile.interests.length > 0 && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Interests:</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {selectedUserProfile.interests.map((interest: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">{interest}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {selectedUserProfile.bio && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Bio:</span>
+                        <p className="mt-1 text-sm">{selectedUserProfile.bio}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-4 border-t">
+                <Button variant="outline" className="flex-1" onClick={() => {
+                  setMessageDialogOpen(true);
+                  setSelectedRecipient({
+                    id: selectedUserDetails.id,
+                    name: `${selectedUserDetails.firstName || ''} ${selectedUserDetails.lastName || ''}`.trim(),
+                  });
+                  setUserDetailsDialogOpen(false);
+                }} data-testid="button-message-user">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Send Message
+                </Button>
+                {selectedUserDetails.email && (
+                  <Button variant="outline" onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(selectedUserDetails.email!);
+                      toast({ title: 'Copied', description: 'Email copied to clipboard' });
+                    } catch (err) {
+                      toast({ title: 'Error', description: 'Failed to copy email', variant: 'destructive' });
+                    }
+                  }} data-testid="button-copy-email">
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy Email
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

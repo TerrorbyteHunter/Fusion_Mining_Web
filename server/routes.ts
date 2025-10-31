@@ -344,6 +344,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
             area: "800 hectares",
             estimatedValue: "$75M - $200M",
           },
+          {
+            name: "Kabwe Lead and Zinc Mine",
+            description: "Historic mining site with significant lead and zinc deposits. Environmental remediation completed, ready for modern extraction methods.",
+            licenseType: "mining",
+            minerals: ["Lead", "Zinc", "Silver"],
+            location: "Central Province",
+            latitude: "-14.4469",
+            longitude: "28.4469",
+            status: "active",
+            area: "950 hectares",
+            estimatedValue: "$120M - $250M",
+          },
+          {
+            name: "Mufulira Copper Expansion",
+            description: "Expansion opportunity for established copper mining operations. Includes access to processing facilities and skilled workforce.",
+            licenseType: "mining",
+            minerals: ["Copper"],
+            location: "Copperbelt",
+            latitude: "-12.5500",
+            longitude: "28.2667",
+            status: "active",
+            area: "1,500 hectares",
+            estimatedValue: "$400M - $800M",
+          },
+          {
+            name: "Solwezi Copper-Gold Project",
+            description: "Combined copper and gold mining project in Northwestern Province. High-grade ore bodies with excellent exploration potential.",
+            licenseType: "exploration",
+            minerals: ["Copper", "Gold"],
+            location: "Northwestern Province",
+            latitude: "-12.1833",
+            longitude: "26.3833",
+            status: "active",
+            area: "2,000 hectares",
+            estimatedValue: "$300M - $600M",
+          },
+          {
+            name: "Copperbelt Manganese Processing",
+            description: "Modern manganese processing facility with export capabilities. Strategic location near major transport routes.",
+            licenseType: "processing",
+            minerals: ["Manganese"],
+            location: "Copperbelt",
+            latitude: "-12.8000",
+            longitude: "28.2000",
+            status: "active",
+            area: "150 hectares",
+            estimatedValue: "$80M - $150M",
+          },
+          {
+            name: "Kafue Amethyst Mine",
+            description: "High-quality amethyst deposits suitable for jewelry and collectors market. Eco-friendly mining practices in place.",
+            licenseType: "mining",
+            minerals: ["Amethyst", "Quartz"],
+            location: "Southern Province",
+            latitude: "-15.7667",
+            longitude: "28.1833",
+            status: "active",
+            area: "300 hectares",
+            estimatedValue: "$25M - $60M",
+          },
         ];
 
         for (const project of projectsData) {
@@ -849,6 +909,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             projectId,
             buyerId: userId,
             sellerId: adminUser.id,
+            context: 'project_interest',
             status: 'open',
           });
 
@@ -870,6 +931,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: userId,
               subject: buyerTemplate.subject.replace('{project_name}', project.name),
               content: buyerTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', buyer.firstName || 'there'),
+              context: 'project_interest',
               relatedProjectId: projectId,
               isAutoRelay: true,
             });
@@ -882,6 +944,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: adminUser.id,
               subject: adminTemplate.subject.replace('{project_name}', project.name),
               content: adminTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              context: 'project_interest',
               relatedProjectId: projectId,
               isAutoRelay: true,
             });
@@ -897,6 +960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             listingId,
             buyerId: userId,
             sellerId: seller.id,
+            context: 'marketplace',
             status: 'open',
           });
 
@@ -928,6 +992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: userId,
               subject: buyerTemplate.subject.replace('{project_name}', listing.title),
               content: buyerTemplate.content.replace('{project_name}', listing.title).replace('{buyer_name}', buyer.firstName || 'there'),
+              context: 'marketplace',
               relatedListingId: listingId,
               isAutoRelay: true,
             });
@@ -940,6 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: seller.id,
               subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
               content: sellerTemplate.content.replace('{listing_title}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              context: 'marketplace',
               relatedListingId: listingId,
               isAutoRelay: true,
             });
