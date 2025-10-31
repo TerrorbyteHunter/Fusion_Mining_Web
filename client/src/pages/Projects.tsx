@@ -294,7 +294,14 @@ export default function Projects() {
                   />
                   <CardHeader>
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <CardTitle className="text-xl line-clamp-1">{project.name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-xl line-clamp-1">{project.name}</CardTitle>
+                        {project.itemId ? (
+                          <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
+                            {project.itemId}
+                          </span>
+                        ) : null}
+                      </div>
                       <StatusBadge status={project.status} />
                     </div>
                     <CardDescription className="line-clamp-2">

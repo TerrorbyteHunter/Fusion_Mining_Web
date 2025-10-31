@@ -53,6 +53,43 @@ import {
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
 
+// Helper: generate a short (5 char) human-friendly item id and ensure uniqueness
+async function generateUniqueItemId(db: any, length = 5) {
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const maxAttempts = 20;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let id = '';
+    for (let i = 0; i < length; i++) id += CHARS[Math.floor(Math.random() * CHARS.length)];
+
+    // check uniqueness across tables we care about
+    const exists = await db
+      .select()
+      .from(marketplaceListings)
+      .where(eq(marketplaceListings.itemId, id))
+      .limit(1);
+    if (exists.length > 0) continue;
+
+    const exists2 = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.itemId, id))
+      .limit(1);
+    if (exists2.length > 0) continue;
+
+    const exists3 = await db
+      .select()
+      .from(buyerRequests)
+      .where(eq(buyerRequests.itemId, id))
+      .limit(1);
+    if (exists3.length > 0) continue;
+
+    return id;
+  }
+
+  throw new Error('Failed to generate unique item id');
+}
+
 export interface IStorage {
   // User operations (Required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
@@ -287,6 +324,11 @@ export class DatabaseStorage implements IStorage {
   // Project operations
   // ========================================================================
   async createProject(projectData: InsertProject): Promise<Project> {
+    // If created active immediately, assign an item id; otherwise will be assigned when activated
+    if (!projectData.itemId && projectData.status === 'active') {
+      projectData.itemId = await generateUniqueItemId(db);
+    }
+
     const [project] = await db
       .insert(projects)
       .values(projectData)
@@ -310,6 +352,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateProject(id: string, data: Partial<InsertProject>): Promise<Project> {
+    // If status is being changed to active and itemId is missing, generate one
+    if (data.status === 'active') {
+      const [existing] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+      if (existing && !existing.itemId) {
+        data.itemId = await generateUniqueItemId(db);
+      }
+    }
+
     const [project] = await db
       .update(projects)
       .set({ ...data, updatedAt: new Date() })
@@ -448,10 +498,44 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(marketplaceListings.createdAt));
   }
 
+  // When approving a listing, assign itemId if missing
+  async approveListing(listingId: string, reviewerId: string): Promise<void> {
+    // Update listing status and set itemId if not present
+    const [existing] = await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, listingId)).limit(1);
+
+    let itemId = existing?.itemId || null;
+    if (!itemId) {
+      itemId = await generateUniqueItemId(db);
+    }
+
+    await db
+      .update(marketplaceListings)
+      .set({
+        status: 'approved',
+        itemId,
+        updatedAt: new Date(),
+      })
+      .where(eq(marketplaceListings.id, listingId));
+
+    // Update verification queue
+    await db
+      .update(verificationQueue)
+      .set({
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId,
+      })
+      .where(eq(verificationQueue.listingId, listingId));
+  }
+
   // ========================================================================
   // Buyer Request operations
   // ========================================================================
   async createBuyerRequest(requestData: InsertBuyerRequest): Promise<BuyerRequest> {
+    // assign an itemId for easy reference
+    if (!requestData.itemId) {
+      requestData.itemId = await generateUniqueItemId(db);
+    }
+
     const [request] = await db
       .insert(buyerRequests)
       .values(requestData)
@@ -540,7 +624,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllMessageThreads(): Promise<MessageThread[]> {
-    return await db
+    const results = await db
       .select({
         thread: messageThreads,
         listing: marketplaceListings,
@@ -561,14 +645,32 @@ export class DatabaseStorage implements IStorage {
         sql`users as seller`,
         eq(messageThreads.sellerId, sql`seller.id`)
       )
-      .orderBy(desc(messageThreads.lastMessageAt))
-      .then(results => results.map(r => ({
-        ...r.thread,
-        listing: r.listing,
-        project: r.project,
-        buyerName: r.buyerFirstName && r.buyerLastName ? `${r.buyerFirstName} ${r.buyerLastName}` : undefined,
-        sellerName: r.sellerFirstName && r.sellerLastName ? `${r.sellerFirstName} ${r.sellerLastName}` : undefined,
-      })));
+      .orderBy(desc(messageThreads.lastMessageAt));
+
+    return results.map(r => {
+      const { thread, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
+      const thread_without_context = { 
+        ...thread,
+        // Explicitly omit the context field
+        id: thread.id,
+        title: thread.title,
+        projectId: thread.projectId,
+        listingId: thread.listingId,
+        buyerId: thread.buyerId,
+        sellerId: thread.sellerId,
+        status: thread.status,
+        lastMessageAt: thread.lastMessageAt,
+        createdAt: thread.createdAt
+      };
+
+      return {
+        ...thread_without_context,
+        listing,
+        project,
+        buyerName: buyerFirstName && buyerLastName ? `${buyerFirstName} ${buyerLastName}` : undefined,
+        sellerName: sellerFirstName && sellerLastName ? `${sellerFirstName} ${sellerLastName}` : undefined,
+      };
+    });
   }
 
   async getThreadsBySellerId(sellerId: string): Promise<MessageThread[]> {
@@ -686,7 +788,7 @@ export class DatabaseStorage implements IStorage {
     // First get all threads involving the user
     const threads = await db
       .select({
-        thread: messageThreads,
+        threadId: messageThreads.id,
       })
       .from(messageThreads)
       .where(
@@ -699,13 +801,25 @@ export class DatabaseStorage implements IStorage {
     if (threads.length === 0) return [];
 
     // Then get all messages from these threads with rich metadata
-    const threadIds = threads.map(t => t.thread.id);
+    const threadIds = threads.map(t => t.threadId);
     const results = await db
       .select({
-        message: messages,
-        thread: messageThreads,
+        // Message fields
+        id: messages.id,
+        threadId: messages.threadId,
+        senderId: messages.senderId,
+        receiverId: messages.receiverId,
+        subject: messages.subject,
+        content: messages.content,
+        read: messages.read,
+        closed: messages.closed,
+        unread: messages.unread,
+        isAutoRelay: messages.isAutoRelay,
+        createdAt: messages.createdAt,
+        // Sender info
         senderFirstName: users.firstName,
         senderLastName: users.lastName,
+        // Context info
         listing: marketplaceListings,
         project: projects,
       })
@@ -717,23 +831,30 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(messages.threadId, threadIds))
       .orderBy(messages.createdAt);
 
-    // Transform the results to include thread context and maintain the Message type
+    // Transform the results to maintain the Message type
     return results.map(result => ({
-      ...result.message,
+      id: result.id,
+      threadId: result.threadId,
+      senderId: result.senderId,
+      receiverId: result.receiverId,
+      subject: result.subject,
+      content: result.content,
+      read: result.read,
+      closed: result.closed,
+      unread: result.unread,
+      isAutoRelay: result.isAutoRelay,
+      createdAt: result.createdAt,
+      relatedProjectId: result.project?.id || null,
+      relatedListingId: result.listing?.id || null,
       senderName: result.senderFirstName && result.senderLastName 
         ? `${result.senderFirstName} ${result.senderLastName}` 
         : undefined,
-      thread: {
-        ...result.thread,
-        listing: result.listing,
-        project: result.project
-      },
       context: result.listing 
-        ? `Listing: ${result.listing.title}`
+        ? 'marketplace' as const
         : result.project
-          ? `Project: ${result.project.name}`
-          : undefined
-    }));
+          ? 'project_interest' as const
+          : 'general' as const
+    } as Message));
   }
 
   async getConversation(user1Id: string, user2Id: string): Promise<Message[]> {
@@ -1034,26 +1155,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(marketplaceListings.status, 'pending'))
       .orderBy(desc(marketplaceListings.createdAt));
   }
-
-  async approveListing(listingId: string, reviewerId: string): Promise<void> {
-    // Update listing status
-    await db
-      .update(marketplaceListings)
-      .set({
-        status: 'approved',
-        updatedAt: new Date(),
-      })
-      .where(eq(marketplaceListings.id, listingId));
-
-    // Update verification queue
-    await db
-      .update(verificationQueue)
-      .set({
-        reviewedAt: new Date(),
-        reviewedBy: reviewerId,
-      })
-      .where(eq(verificationQueue.listingId, listingId));
-  }
+  
 
   async rejectListing(listingId: string, reviewerId: string): Promise<void> {
     // Update listing status

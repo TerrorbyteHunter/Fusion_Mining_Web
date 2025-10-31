@@ -137,13 +137,13 @@ For local development and testing, use these hardcoded credentials:
 - Access: Admin panel at `/admin/cms`
 
 **Buyer Account:**
-- Username: `james`
-- Password: `james123`
+- Username: `henry`
+- Password: `henry123`
 - Access: Buyer dashboard, create buyer requests
 
 **Seller Account:**
-- Username: `jane`
-- Password: `jane123`
+- Username: `ray`
+- Password: `ray123`
 - Access: Seller dashboard, create marketplace listings
 
 **How to Login:**

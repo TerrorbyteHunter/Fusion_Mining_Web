@@ -28,6 +28,7 @@ interface MessageDialogProps {
   recipientEmail?: string;
   defaultSubject?: string;
   listingTitle?: string;
+  listingId?: string;
 }
 
 export function MessageDialog({
@@ -38,6 +39,7 @@ export function MessageDialog({
   recipientEmail: _recipientEmail,
   defaultSubject,
   listingTitle,
+  listingId,
 }: MessageDialogProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -53,7 +55,18 @@ export function MessageDialog({
 
   const sendMessageMutation = useMutation({
     mutationFn: async () => {
-      // Always include listing context when available — admins expect context
+      // If listingId is provided, create or reuse a thread for that listing
+      if (listingId) {
+        // Create thread tied to listing (server will set seller/buyer appropriately)
+        const threadResp = await apiRequest("POST", "/api/threads", { listingId, title: subject || `Inquiry about: ${listingTitle || ''}` });
+        const thread = await threadResp.json();
+
+        // Post the message to the thread (server infers receiver)
+        const postResp = await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
+        return postResp.json();
+      }
+
+      // Fallback: send regular direct message
       const messageContent = listingTitle
         ? `Inquiry about listing: ${listingTitle}\n\nMessage:\n${content}`
         : content;

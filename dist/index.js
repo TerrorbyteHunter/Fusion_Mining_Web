@@ -33,6 +33,8 @@ __export(schema_exports, {
   insertExpressInterestSchema: () => insertExpressInterestSchema,
   insertMarketplaceListingSchema: () => insertMarketplaceListingSchema,
   insertMessageSchema: () => insertMessageSchema,
+  insertMessageTemplateSchema: () => insertMessageTemplateSchema,
+  insertMessageThreadSchema: () => insertMessageThreadSchema,
   insertNotificationSchema: () => insertNotificationSchema,
   insertProjectSchema: () => insertProjectSchema,
   insertUserProfileSchema: () => insertUserProfileSchema,
@@ -42,6 +44,11 @@ __export(schema_exports, {
   listingTypeEnum: () => listingTypeEnum,
   marketplaceListings: () => marketplaceListings,
   marketplaceListingsRelations: () => marketplaceListingsRelations,
+  messageContextEnum: () => messageContextEnum,
+  messageIdempotency: () => messageIdempotency,
+  messageTemplates: () => messageTemplates,
+  messageThreads: () => messageThreads,
+  messageThreadsRelations: () => messageThreadsRelations,
   messages: () => messages,
   messagesRelations: () => messagesRelations,
   notificationTypeEnum: () => notificationTypeEnum,
@@ -52,7 +59,10 @@ __export(schema_exports, {
   projects: () => projects,
   projectsRelations: () => projectsRelations,
   sessions: () => sessions,
+  templateTypeEnum: () => templateTypeEnum,
+  threadStatusEnum: () => threadStatusEnum,
   updateContactSettingsSchema: () => updateContactSettingsSchema,
+  updateMessageTemplateSchema: () => updateMessageTemplateSchema,
   updateUserProfileSchema: () => updateUserProfileSchema,
   updateVideoSchema: () => updateVideoSchema,
   upsertUserSchema: () => upsertUserSchema,
@@ -114,9 +124,11 @@ var userProfiles = pgTable("user_profiles", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 var licenseTypeEnum = pgEnum("license_type", ["exploration", "mining", "processing"]);
-var projectStatusEnum = pgEnum("project_status", ["active", "pending", "completed", "suspended"]);
+var projectStatusEnum = pgEnum("project_status", ["active", "pending", "completed", "suspended", "closed"]);
 var projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id shown when project is published/active
+  itemId: varchar("item_id", { length: 5 }),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   licenseType: licenseTypeEnum("license_type").notNull(),
@@ -135,15 +147,18 @@ var projects = pgTable("projects", {
 });
 var expressInterest = pgTable("express_interest", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   message: text("message"),
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
-var listingTypeEnum = pgEnum("listing_type", ["mineral", "partnership"]);
-var listingStatusEnum = pgEnum("listing_status", ["pending", "approved", "rejected", "inactive"]);
+var listingTypeEnum = pgEnum("listing_type", ["mineral", "partnership", "project"]);
+var listingStatusEnum = pgEnum("listing_status", ["pending", "approved", "rejected", "inactive", "closed"]);
 var marketplaceListings = pgTable("marketplace_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id assigned when listing is approved
+  itemId: varchar("item_id", { length: 5 }),
   sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   type: listingTypeEnum("type").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
@@ -164,6 +179,8 @@ var marketplaceListings = pgTable("marketplace_listings", {
 });
 var buyerRequests = pgTable("buyer_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // short human-friendly item id for buyer requests
+  itemId: varchar("item_id", { length: 5 }),
   buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
@@ -176,14 +193,61 @@ var buyerRequests = pgTable("buyer_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
+var threadStatusEnum = pgEnum("thread_status", ["open", "closed"]);
+var messageContextEnum = pgEnum("message_context", ["marketplace", "project_interest", "general"]);
+var messageThreads = pgTable("message_threads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  projectId: varchar("project_id").references(() => projects.id, { onDelete: "cascade" }),
+  listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: "cascade" }),
+  buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  sellerId: varchar("seller_id").references(() => users.id, { onDelete: "cascade" }),
+  context: messageContextEnum("context").default("general"),
+  status: threadStatusEnum("status").notNull().default("open"),
+  lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => [
+  index("IDX_thread_buyer_id").on(table.buyerId),
+  index("IDX_thread_seller_id").on(table.sellerId),
+  index("IDX_thread_project_id").on(table.projectId),
+  index("IDX_thread_listing_id").on(table.listingId),
+  index("IDX_thread_context").on(table.context)
+]);
 var messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  threadId: varchar("thread_id").references(() => messageThreads.id, { onDelete: "cascade" }),
   senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   receiverId: varchar("receiver_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   subject: varchar("subject", { length: 255 }),
   content: text("content").notNull(),
+  context: messageContextEnum("context").default("general"),
   read: boolean("read").notNull().default(false),
+  closed: boolean("closed").notNull().default(false),
+  unread: boolean("unread").notNull().default(true),
+  relatedProjectId: varchar("related_project_id").references(() => projects.id, { onDelete: "set null" }),
+  relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: "set null" }),
+  isAutoRelay: boolean("is_auto_relay").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull()
+}, (table) => [
+  index("IDX_message_thread_id").on(table.threadId),
+  index("IDX_message_context").on(table.context)
+]);
+var messageIdempotency = pgTable("message_idempotency", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 255 }).notNull().unique(),
+  messageId: varchar("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+var templateTypeEnum = pgEnum("template_type", ["buyer_interest_to_buyer", "buyer_interest_to_seller", "buyer_interest_to_admin"]);
+var messageTemplates = pgTable("message_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: templateTypeEnum("type").notNull(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  content: text("content").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 var blogPosts = pgTable("blog_posts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -269,6 +333,8 @@ var usersRelations = relations(users, ({ one, many }) => ({
   }),
   listings: many(marketplaceListings),
   buyerRequests: many(buyerRequests),
+  buyerThreads: many(messageThreads, { relationName: "buyerThreads" }),
+  sellerThreads: many(messageThreads, { relationName: "sellerThreads" }),
   sentMessages: many(messages, { relationName: "sentMessages" }),
   receivedMessages: many(messages, { relationName: "receivedMessages" }),
   blogPosts: many(blogPosts),
@@ -311,7 +377,32 @@ var buyerRequestsRelations = relations(buyerRequests, ({ one }) => ({
     references: [users.id]
   })
 }));
+var messageThreadsRelations = relations(messageThreads, ({ one, many }) => ({
+  project: one(projects, {
+    fields: [messageThreads.projectId],
+    references: [projects.id]
+  }),
+  listing: one(marketplaceListings, {
+    fields: [messageThreads.listingId],
+    references: [marketplaceListings.id]
+  }),
+  buyer: one(users, {
+    fields: [messageThreads.buyerId],
+    references: [users.id],
+    relationName: "buyerThreads"
+  }),
+  seller: one(users, {
+    fields: [messageThreads.sellerId],
+    references: [users.id],
+    relationName: "sellerThreads"
+  }),
+  messages: many(messages)
+}));
 var messagesRelations = relations(messages, ({ one }) => ({
+  thread: one(messageThreads, {
+    fields: [messages.threadId],
+    references: [messageThreads.id]
+  }),
   sender: one(users, {
     fields: [messages.senderId],
     references: [users.id],
@@ -385,6 +476,11 @@ var insertBuyerRequestSchema = createInsertSchema(buyerRequests).omit({
   createdAt: true,
   updatedAt: true
 });
+var insertMessageThreadSchema = createInsertSchema(messageThreads).omit({
+  id: true,
+  lastMessageAt: true,
+  createdAt: true
+});
 var insertMessageSchema = createInsertSchema(messages).omit({
   id: true,
   read: true,
@@ -426,22 +522,45 @@ var insertContactSettingsSchema = createInsertSchema(contactSettings).omit({
 var updateContactSettingsSchema = createInsertSchema(contactSettings).omit({
   updatedAt: true
 }).partial().required({ id: true });
+var insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+var updateMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  createdAt: true,
+  updatedAt: true
+}).partial().required({ id: true });
 
 // server/db.ts
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
-var connectionConfig = {
-  host: "localhost",
-  port: 5432,
-  database: "fusion_mining",
-  user: "postgres",
-  password: "1234"
-};
-var pool = new Pool(connectionConfig);
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is not defined. Please provision a database.");
+}
+var pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
 var db = drizzle(pool, { schema: schema_exports });
 
 // server/storage.ts
-import { eq, and, desc, or, sql as sql2 } from "drizzle-orm";
+import { eq, and, desc, or, sql as sql2, inArray } from "drizzle-orm";
+async function generateUniqueItemId(db2, length = 5) {
+  const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const maxAttempts = 20;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let id = "";
+    for (let i = 0; i < length; i++) id += CHARS[Math.floor(Math.random() * CHARS.length)];
+    const exists = await db2.select().from(marketplaceListings).where(eq(marketplaceListings.itemId, id)).limit(1);
+    if (exists.length > 0) continue;
+    const exists2 = await db2.select().from(projects).where(eq(projects.itemId, id)).limit(1);
+    if (exists2.length > 0) continue;
+    const exists3 = await db2.select().from(buyerRequests).where(eq(buyerRequests.itemId, id)).limit(1);
+    if (exists3.length > 0) continue;
+    return id;
+  }
+  throw new Error("Failed to generate unique item id");
+}
 var DatabaseStorage = class {
   // ========================================================================
   // User operations
@@ -449,6 +568,16 @@ var DatabaseStorage = class {
   async getUser(id) {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
+  }
+  async getUserById(id) {
+    return this.getUser(id);
+  }
+  async getAdminUser() {
+    const [admin] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
+    return admin;
+  }
+  async getUsersByRole(role) {
+    return await db.select().from(users).where(eq(users.role, role));
   }
   async upsertUser(userData) {
     if (userData.email) {
@@ -504,6 +633,9 @@ var DatabaseStorage = class {
   // Project operations
   // ========================================================================
   async createProject(projectData) {
+    if (!projectData.itemId && projectData.status === "active") {
+      projectData.itemId = await generateUniqueItemId(db);
+    }
     const [project] = await db.insert(projects).values(projectData).returning();
     return project;
   }
@@ -515,15 +647,40 @@ var DatabaseStorage = class {
     return project;
   }
   async updateProject(id, data) {
+    if (data.status === "active") {
+      const [existing] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+      if (existing && !existing.itemId) {
+        data.itemId = await generateUniqueItemId(db);
+      }
+    }
     const [project] = await db.update(projects).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(projects.id, id)).returning();
     return project;
   }
   async deleteProject(id) {
     await db.delete(projects).where(eq(projects.id, id));
   }
+  async closeProject(id) {
+    const [project] = await db.update(projects).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(projects.id, id)).returning();
+    return project;
+  }
   async expressProjectInterest(interestData) {
     const [interest] = await db.insert(expressInterest).values(interestData).returning();
     return interest;
+  }
+  async getAllExpressedInterests() {
+    const interests = await db.select({
+      id: expressInterest.id,
+      projectId: expressInterest.projectId,
+      listingId: expressInterest.listingId,
+      userId: expressInterest.userId,
+      message: expressInterest.message,
+      createdAt: expressInterest.createdAt,
+      userName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("userName"),
+      userEmail: users.email,
+      projectName: projects.name,
+      listingTitle: marketplaceListings.title
+    }).from(expressInterest).leftJoin(users, eq(expressInterest.userId, users.id)).leftJoin(projects, eq(expressInterest.projectId, projects.id)).leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id)).orderBy(desc(expressInterest.createdAt));
+    return interests;
   }
   // ========================================================================
   // Marketplace Listing operations
@@ -569,13 +726,37 @@ var DatabaseStorage = class {
   async deleteMarketplaceListing(id) {
     await db.delete(marketplaceListings).where(eq(marketplaceListings.id, id));
   }
+  async closeMarketplaceListing(id) {
+    const [listing] = await db.update(marketplaceListings).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(marketplaceListings.id, id)).returning();
+    return listing;
+  }
   async getListingsBySellerId(sellerId) {
     return await db.select().from(marketplaceListings).where(eq(marketplaceListings.sellerId, sellerId)).orderBy(desc(marketplaceListings.createdAt));
+  }
+  // When approving a listing, assign itemId if missing
+  async approveListing(listingId, reviewerId) {
+    const [existing] = await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, listingId)).limit(1);
+    let itemId = existing?.itemId || null;
+    if (!itemId) {
+      itemId = await generateUniqueItemId(db);
+    }
+    await db.update(marketplaceListings).set({
+      status: "approved",
+      itemId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(marketplaceListings.id, listingId));
+    await db.update(verificationQueue).set({
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId
+    }).where(eq(verificationQueue.listingId, listingId));
   }
   // ========================================================================
   // Buyer Request operations
   // ========================================================================
   async createBuyerRequest(requestData) {
+    if (!requestData.itemId) {
+      requestData.itemId = await generateUniqueItemId(db);
+    }
     const [request] = await db.insert(buyerRequests).values(requestData).returning();
     return request;
   }
@@ -587,19 +768,197 @@ var DatabaseStorage = class {
     return request;
   }
   // ========================================================================
+  // Message Thread operations
+  // ========================================================================
+  async createMessageThread(threadData) {
+    const [thread] = await db.insert(messageThreads).values(threadData).returning();
+    return thread;
+  }
+  async getThreadById(id) {
+    const [thread] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
+    return thread;
+  }
+  async getThreadWithParticipants(id) {
+    const thread = await this.getThreadById(id);
+    if (!thread) return null;
+    const [listing] = thread.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread.listingId)).limit(1) : [null];
+    const [project] = thread.projectId ? await db.select().from(projects).where(eq(projects.id, thread.projectId)).limit(1) : [null];
+    const buyer = thread.buyerId ? await this.getUserById(thread.buyerId) : null;
+    const buyerProfile = thread.buyerId ? await this.getUserProfile(thread.buyerId) : null;
+    const seller = thread.sellerId ? await this.getUserById(thread.sellerId) : null;
+    const sellerProfile = thread.sellerId ? await this.getUserProfile(thread.sellerId) : null;
+    return {
+      thread,
+      listing: listing || null,
+      project: project || null,
+      buyer: buyer || null,
+      buyerProfile: buyerProfile || null,
+      seller: seller || null,
+      sellerProfile: sellerProfile || null
+    };
+  }
+  async getThreadsByUserId(userId) {
+    return await db.select().from(messageThreads).where(
+      or(
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
+      )
+    ).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async getThreadsByBuyerId(buyerId) {
+    return await db.select().from(messageThreads).where(eq(messageThreads.buyerId, buyerId)).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async getAllMessageThreads() {
+    const results = await db.select({
+      thread: messageThreads,
+      listing: marketplaceListings,
+      project: projects,
+      buyerFirstName: sql2`buyer.first_name`,
+      buyerLastName: sql2`buyer.last_name`,
+      sellerFirstName: sql2`seller.first_name`,
+      sellerLastName: sql2`seller.last_name`
+    }).from(messageThreads).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).leftJoin(
+      sql2`users as buyer`,
+      eq(messageThreads.buyerId, sql2`buyer.id`)
+    ).leftJoin(
+      sql2`users as seller`,
+      eq(messageThreads.sellerId, sql2`seller.id`)
+    ).orderBy(desc(messageThreads.lastMessageAt));
+    return results.map((r) => {
+      const { thread, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
+      const thread_without_context = {
+        ...thread,
+        // Explicitly omit the context field
+        id: thread.id,
+        title: thread.title,
+        projectId: thread.projectId,
+        listingId: thread.listingId,
+        buyerId: thread.buyerId,
+        sellerId: thread.sellerId,
+        status: thread.status,
+        lastMessageAt: thread.lastMessageAt,
+        createdAt: thread.createdAt
+      };
+      return {
+        ...thread_without_context,
+        listing,
+        project,
+        buyerName: buyerFirstName && buyerLastName ? `${buyerFirstName} ${buyerLastName}` : void 0,
+        sellerName: sellerFirstName && sellerLastName ? `${sellerFirstName} ${sellerLastName}` : void 0
+      };
+    });
+  }
+  async getThreadsBySellerId(sellerId) {
+    return await db.select().from(messageThreads).where(eq(messageThreads.sellerId, sellerId)).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async updateThreadLastMessage(threadId) {
+    await db.update(messageThreads).set({ lastMessageAt: /* @__PURE__ */ new Date() }).where(eq(messageThreads.id, threadId));
+  }
+  async closeThread(threadId) {
+    const [thread] = await db.update(messageThreads).set({ status: "closed" }).where(eq(messageThreads.id, threadId)).returning();
+    return thread;
+  }
+  // ========================================================================
   // Message operations
   // ========================================================================
+  async getMessagesByThreadId(threadId) {
+    return await db.select().from(messages).where(eq(messages.threadId, threadId)).orderBy(messages.createdAt);
+  }
   async createMessage(messageData) {
-    const [message] = await db.insert(messages).values(messageData).returning();
+    try {
+      const [message] = await db.insert(messages).values(messageData).returning();
+      return message;
+    } catch (err) {
+      if (err?.cause?.code === "42703" || err?.code === "42703") {
+        const minimalPayload = {
+          senderId: messageData.senderId,
+          receiverId: messageData.receiverId,
+          subject: messageData.subject,
+          content: messageData.content,
+          isAutoRelay: messageData.isAutoRelay ?? false
+        };
+        const [message] = await db.insert(messages).values(minimalPayload).returning();
+        return message;
+      }
+      throw err;
+    }
+  }
+  async getMessageByIdempotencyKey(key) {
+    const [row] = await db.select({ id: messageIdempotency.messageId }).from(messageIdempotency).where(eq(messageIdempotency.key, key)).limit(1);
+    if (!row) return void 0;
+    const messageId = row.id;
+    const [message] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
     return message;
   }
+  async createMessageWithIdempotency(key, messageData) {
+    if (!key) {
+      return await this.createMessage(messageData);
+    }
+    const existing = await this.getMessageByIdempotencyKey(key);
+    if (existing) return existing;
+    const message = await this.createMessage(messageData);
+    try {
+      await db.insert(messageIdempotency).values({
+        key,
+        messageId: message.id
+      });
+      return message;
+    } catch (err) {
+      if (err?.cause?.code === "23505" || err?.code === "23505") {
+        const mapped = await this.getMessageByIdempotencyKey(key);
+        if (mapped) return mapped;
+      }
+      throw err;
+    }
+  }
   async getMessagesByUserId(userId) {
-    return await db.select().from(messages).where(
+    const threads = await db.select({
+      threadId: messageThreads.id
+    }).from(messageThreads).where(
       or(
-        eq(messages.senderId, userId),
-        eq(messages.receiverId, userId)
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
       )
-    ).orderBy(desc(messages.createdAt));
+    );
+    if (threads.length === 0) return [];
+    const threadIds = threads.map((t) => t.threadId);
+    const results = await db.select({
+      // Message fields
+      id: messages.id,
+      threadId: messages.threadId,
+      senderId: messages.senderId,
+      receiverId: messages.receiverId,
+      subject: messages.subject,
+      content: messages.content,
+      read: messages.read,
+      closed: messages.closed,
+      unread: messages.unread,
+      isAutoRelay: messages.isAutoRelay,
+      createdAt: messages.createdAt,
+      // Sender info
+      senderFirstName: users.firstName,
+      senderLastName: users.lastName,
+      // Context info
+      listing: marketplaceListings,
+      project: projects
+    }).from(messages).innerJoin(messageThreads, eq(messages.threadId, messageThreads.id)).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).where(inArray(messages.threadId, threadIds)).orderBy(messages.createdAt);
+    return results.map((result) => ({
+      id: result.id,
+      threadId: result.threadId,
+      senderId: result.senderId,
+      receiverId: result.receiverId,
+      subject: result.subject,
+      content: result.content,
+      read: result.read,
+      closed: result.closed,
+      unread: result.unread,
+      isAutoRelay: result.isAutoRelay,
+      createdAt: result.createdAt,
+      relatedProjectId: result.project?.id || null,
+      relatedListingId: result.listing?.id || null,
+      senderName: result.senderFirstName && result.senderLastName ? `${result.senderFirstName} ${result.senderLastName}` : void 0,
+      context: result.listing ? "marketplace" : result.project ? "project_interest" : "general"
+    }));
   }
   async getConversation(user1Id, user2Id) {
     return await db.select().from(messages).where(
@@ -616,7 +975,81 @@ var DatabaseStorage = class {
     ).orderBy(messages.createdAt);
   }
   async markMessageAsRead(id) {
-    await db.update(messages).set({ read: true }).where(eq(messages.id, id));
+    await db.update(messages).set({ read: true, unread: false }).where(eq(messages.id, id));
+  }
+  // Helper to get a message by id (used by some admin routes)
+  async getMessageById(id) {
+    const [message] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+    return message;
+  }
+  // Return count of unread messages for a given user (receiver)
+  async getUnreadMessagesCount(userId) {
+    const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
+      and(
+        eq(messages.receiverId, userId),
+        eq(messages.unread, true)
+      )
+    );
+    return result[0]?.count || 0;
+  }
+  async closeConversationByMessageId(messageId) {
+    const [main] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+    if (!main) return;
+    await db.update(messages).set({ closed: true }).where(
+      or(
+        and(eq(messages.senderId, main.senderId), eq(messages.receiverId, main.receiverId)),
+        and(eq(messages.senderId, main.receiverId), eq(messages.receiverId, main.senderId))
+      )
+    );
+  }
+  async checkUserHasContactedAboutProject(userId, projectId) {
+    const result = await db.select().from(messages).where(
+      and(
+        eq(messages.senderId, userId),
+        eq(messages.relatedProjectId, projectId)
+      )
+    ).limit(1);
+    return result.length > 0;
+  }
+  async checkUserHasContactedAboutListing(userId, listingId) {
+    const result = await db.select().from(messages).where(
+      and(
+        eq(messages.senderId, userId),
+        eq(messages.relatedListingId, listingId)
+      )
+    ).limit(1);
+    return result.length > 0;
+  }
+  async getMessageWithSenderDetails(messageId) {
+    const result = await db.select({
+      message: messages,
+      sender: users,
+      senderProfile: userProfiles
+    }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(messages.id, messageId)).limit(1);
+    if (!result[0]) return null;
+    const mainMessage = result[0].message;
+    const conversationMessages = await db.select({
+      message: messages,
+      sender: users,
+      senderProfile: userProfiles
+    }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(
+      and(
+        or(
+          and(
+            eq(messages.senderId, mainMessage.senderId),
+            eq(messages.receiverId, mainMessage.receiverId)
+          ),
+          and(
+            eq(messages.senderId, mainMessage.receiverId),
+            eq(messages.receiverId, mainMessage.senderId)
+          )
+        )
+      )
+    ).orderBy(desc(messages.createdAt));
+    return {
+      ...result[0],
+      conversation: conversationMessages
+    };
   }
   // ========================================================================
   // Blog Post operations
@@ -708,16 +1141,6 @@ var DatabaseStorage = class {
   async getPendingListings() {
     return await db.select().from(marketplaceListings).where(eq(marketplaceListings.status, "pending")).orderBy(desc(marketplaceListings.createdAt));
   }
-  async approveListing(listingId, reviewerId) {
-    await db.update(marketplaceListings).set({
-      status: "approved",
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(marketplaceListings.id, listingId));
-    await db.update(verificationQueue).set({
-      reviewedAt: /* @__PURE__ */ new Date(),
-      reviewedBy: reviewerId
-    }).where(eq(verificationQueue.listingId, listingId));
-  }
   async rejectListing(listingId, reviewerId) {
     await db.update(marketplaceListings).set({
       status: "rejected",
@@ -774,8 +1197,17 @@ var DatabaseStorage = class {
     return result[0]?.count || 0;
   }
   async getUserUnreadMessagesCount(userId) {
+    const threads = await db.select({ id: messageThreads.id }).from(messageThreads).where(
+      or(
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
+      )
+    );
+    if (threads.length === 0) return 0;
+    const threadIds = threads.map((t) => t.id);
     const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
       and(
+        inArray(messages.threadId, threadIds),
         eq(messages.receiverId, userId),
         eq(messages.read, false)
       )
@@ -833,6 +1265,26 @@ var DatabaseStorage = class {
   async deleteVideo(id) {
     await db.delete(videos).where(eq(videos.id, id));
   }
+  // ========================================================================
+  // Message Template operations
+  // ========================================================================
+  async createMessageTemplate(templateData) {
+    const [template] = await db.insert(messageTemplates).values(templateData).returning();
+    return template;
+  }
+  async getMessageTemplates(activeOnly = false) {
+    if (activeOnly) {
+      return await db.select().from(messageTemplates).where(eq(messageTemplates.active, true)).orderBy(messageTemplates.type);
+    }
+    return await db.select().from(messageTemplates).orderBy(messageTemplates.type);
+  }
+  async getMessageTemplateByType(type) {
+    const [template] = await db.select().from(messageTemplates).where(and(
+      eq(messageTemplates.type, type),
+      eq(messageTemplates.active, true)
+    )).limit(1);
+    return template;
+  }
 };
 var storage = new DatabaseStorage();
 
@@ -845,11 +1297,19 @@ function setupAuth(app2) {
     done(null, user.id);
   });
   passport.deserializeUser(async (id, done) => {
+    const testUsers = {
+      "test-admin-123": { id: "test-admin-123", username: "admin", role: "admin", email: "admin@fusionmining.com", firstName: "Admin", lastName: "User" },
+      "test-buyer-789": { id: "test-buyer-789", username: "henry", role: "buyer", email: "henry@fusionmining.com", firstName: "Henry", lastName: "Pass" },
+      "test-seller-456": { id: "test-seller-456", username: "ray", role: "seller", email: "ray@fusionmining.com", firstName: "Ray", lastName: "Pass" }
+    };
+    if (testUsers[id]) {
+      return done(null, testUsers[id]);
+    }
     try {
       const user = await storage.getUser(id);
-      done(null, user);
+      return done(null, user);
     } catch (error) {
-      done(error, null);
+      return done(null, false);
     }
   });
 }
@@ -884,7 +1344,8 @@ async function registerRoutes(app2) {
       const { username, password } = req.body;
       const users2 = {
         admin: { id: "test-admin-123", username: "admin", password: "admin123", role: "admin", email: "admin@fusionmining.com", firstName: "Admin", lastName: "User" },
-        user: { id: "test-buyer-789", username: "user", password: "user123", role: "buyer", email: "buyer@fusionmining.com", firstName: "Bob", lastName: "Buyer" }
+        henry: { id: "test-buyer-789", username: "henry", password: "henry123", role: "buyer", email: "henry@fusionmining.com", firstName: "Henry", lastName: "Pass" },
+        ray: { id: "test-seller-456", username: "ray", password: "ray123", role: "seller", email: "ray@fusionmining.com", firstName: "Ray", lastName: "Pass" }
       };
       const user = Object.values(users2).find((u) => u.username === username && u.password === password);
       if (!user) {
@@ -909,8 +1370,8 @@ async function registerRoutes(app2) {
         if (!user) {
           const testUsers = {
             "test-admin-123": { email: "admin@fusionmining.com", firstName: "Admin", lastName: "User", role: "admin" },
-            "test-seller-456": { email: "seller@fusionmining.com", firstName: "Sarah", lastName: "Seller", role: "seller" },
-            "test-buyer-789": { email: "buyer@fusionmining.com", firstName: "Bob", lastName: "Buyer", role: "buyer" }
+            "test-seller-456": { email: "ray@fusionmining.com", firstName: "Ray", lastName: "Pass", role: "seller" },
+            "test-buyer-789": { email: "henry@fusionmining.com", firstName: "Henry", lastName: "Pass", role: "buyer" }
           };
           const testUserData = testUsers[userId];
           if (testUserData) {
@@ -942,17 +1403,44 @@ async function registerRoutes(app2) {
         res.status(500).json({ message: "Failed to login" });
       }
     });
+    app2.post("/api/messages/mark-read", isAuthenticated, async (req, res) => {
+      try {
+        const userId = req.user.claims?.sub || req.user.id;
+        const { messageIds } = req.body;
+        if (!Array.isArray(messageIds)) {
+          return res.status(400).json({ message: "messageIds must be an array" });
+        }
+        for (const messageId of messageIds) {
+          const message = await storage.getMessageById(messageId);
+          if (message && message.receiverId === userId) {
+            await storage.markMessageAsRead(messageId);
+          }
+        }
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+        res.status(500).json({ message: "Failed to mark messages as read" });
+      }
+    });
+    app2.post("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.json({ message: "Logout successful" });
+      });
+    });
     app2.post("/api/test-logout", (req, res) => {
       req.logout(() => {
         res.json({ message: "Test logout successful" });
       });
     });
     app2.get("/api/auth/user", async (req, res) => {
-      if (!req.session || !req.session.user) {
+      if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       try {
-        const user = await storage.getUser(req.session.user.id);
+        if (req.user && req.user.id && req.user.id.startsWith("test-")) {
+          return res.json(req.user);
+        }
+        const user = await storage.getUser(req.user.id);
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
@@ -966,8 +1454,8 @@ async function registerRoutes(app2) {
       try {
         const testAccounts = [
           { id: "test-admin-123", email: "admin@fusionmining.com", role: "admin", name: "Admin User" },
-          { id: "test-seller-456", email: "seller@fusionmining.com", role: "seller", name: "Sarah Seller" },
-          { id: "test-buyer-789", email: "buyer@fusionmining.com", role: "buyer", name: "Bob Buyer" }
+          { id: "test-seller-456", email: "ray@fusionmining.com", role: "seller", name: "Ray Pass" },
+          { id: "test-buyer-789", email: "henry@fusionmining.com", role: "buyer", name: "Henry Pass" }
         ];
         res.json(testAccounts);
       } catch (error) {
@@ -985,6 +1473,24 @@ async function registerRoutes(app2) {
       } catch (error) {
         console.error("Error fetching contact settings:", error);
         res.status(500).json({ message: "Failed to fetch contact settings" });
+      }
+    });
+    app2.get("/api/admin/contact-user", async (req, res) => {
+      try {
+        const adminUser = await storage.getAdminUser();
+        if (!adminUser) {
+          return res.status(404).json({ message: "Admin user not found" });
+        }
+        res.json({
+          id: adminUser.id,
+          email: adminUser.email,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          name: `${adminUser.firstName || ""} ${adminUser.lastName || ""}`.trim()
+        });
+      } catch (error) {
+        console.error("Error fetching admin contact user:", error);
+        res.status(500).json({ message: "Failed to fetch admin contact" });
       }
     });
     if (process.env.NODE_ENV === "development") {
@@ -1011,16 +1517,16 @@ async function registerRoutes(app2) {
           },
           {
             id: "test-seller-456",
-            email: "seller@fusionmining.com",
-            firstName: "Sarah",
-            lastName: "Seller",
+            email: "ray@fusionmining.com",
+            firstName: "Ray",
+            lastName: "Pass",
             role: "seller"
           },
           {
             id: "test-buyer-789",
-            email: "buyer@fusionmining.com",
-            firstName: "Bob",
-            lastName: "Buyer",
+            email: "henry@fusionmining.com",
+            firstName: "Henry",
+            lastName: "Pass",
             role: "buyer"
           }
         ];
@@ -1100,6 +1606,66 @@ async function registerRoutes(app2) {
             status: "pending",
             area: "800 hectares",
             estimatedValue: "$75M - $200M"
+          },
+          {
+            name: "Kabwe Lead and Zinc Mine",
+            description: "Historic mining site with significant lead and zinc deposits. Environmental remediation completed, ready for modern extraction methods.",
+            licenseType: "mining",
+            minerals: ["Lead", "Zinc", "Silver"],
+            location: "Central Province",
+            latitude: "-14.4469",
+            longitude: "28.4469",
+            status: "active",
+            area: "950 hectares",
+            estimatedValue: "$120M - $250M"
+          },
+          {
+            name: "Mufulira Copper Expansion",
+            description: "Expansion opportunity for established copper mining operations. Includes access to processing facilities and skilled workforce.",
+            licenseType: "mining",
+            minerals: ["Copper"],
+            location: "Copperbelt",
+            latitude: "-12.5500",
+            longitude: "28.2667",
+            status: "active",
+            area: "1,500 hectares",
+            estimatedValue: "$400M - $800M"
+          },
+          {
+            name: "Solwezi Copper-Gold Project",
+            description: "Combined copper and gold mining project in Northwestern Province. High-grade ore bodies with excellent exploration potential.",
+            licenseType: "exploration",
+            minerals: ["Copper", "Gold"],
+            location: "Northwestern Province",
+            latitude: "-12.1833",
+            longitude: "26.3833",
+            status: "active",
+            area: "2,000 hectares",
+            estimatedValue: "$300M - $600M"
+          },
+          {
+            name: "Copperbelt Manganese Processing",
+            description: "Modern manganese processing facility with export capabilities. Strategic location near major transport routes.",
+            licenseType: "processing",
+            minerals: ["Manganese"],
+            location: "Copperbelt",
+            latitude: "-12.8000",
+            longitude: "28.2000",
+            status: "active",
+            area: "150 hectares",
+            estimatedValue: "$80M - $150M"
+          },
+          {
+            name: "Kafue Amethyst Mine",
+            description: "High-quality amethyst deposits suitable for jewelry and collectors market. Eco-friendly mining practices in place.",
+            licenseType: "mining",
+            minerals: ["Amethyst", "Quartz"],
+            location: "Southern Province",
+            latitude: "-15.7667",
+            longitude: "28.1833",
+            status: "active",
+            area: "300 hectares",
+            estimatedValue: "$25M - $60M"
           }
         ];
         for (const project of projectsData) {
@@ -1371,10 +1937,47 @@ async function registerRoutes(app2) {
         res.status(500).json({ message: "Failed to seed data" });
       }
     });
+    app2.post("/api/seed-message-templates", async (req, res) => {
+      try {
+        const templates = [
+          {
+            name: "Buyer Interest Confirmation",
+            type: "buyer_interest_to_buyer",
+            subject: "Thank you for your interest in {project_name}",
+            content: "Hello {buyer_name},\n\nThank you for expressing interest in {project_name}. Our admin team has been notified and will review your request shortly. We will get back to you with more information soon.\n\nBest regards,\nFusion Mining Limited",
+            active: true
+          },
+          {
+            name: "Admin Interest Notification",
+            type: "buyer_interest_to_admin",
+            subject: "New buyer interest in {project_name}",
+            content: "A new buyer ({buyer_name}) has expressed interest in {project_name}. Please review and respond accordingly.\n\nYou can view the details in your admin panel.",
+            active: true
+          },
+          {
+            name: "Seller Interest Notification",
+            type: "buyer_interest_to_seller",
+            subject: "New buyer interest in {listing_title}",
+            content: "Good news! A buyer ({buyer_name}) has expressed interest in your listing: {listing_title}.\n\nThe admin team will coordinate with them and keep you informed about the next steps.\n\nBest regards,\nFusion Mining Limited",
+            active: true
+          }
+        ];
+        for (const template of templates) {
+          await storage.createMessageTemplate(template);
+        }
+        res.json({
+          message: "Message templates seeded successfully",
+          count: templates.length
+        });
+      } catch (error) {
+        console.error("Error seeding templates:", error);
+        res.status(500).json({ message: "Failed to seed message templates" });
+      }
+    });
   }
   app2.get("/api/auth/user", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -1384,7 +1987,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/profile", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const profile = await storage.getUserProfile(userId);
       res.json(profile);
     } catch (error) {
@@ -1394,7 +1997,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/profile", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const validatedData = insertUserProfileSchema.parse({
         ...req.body,
         userId
@@ -1412,7 +2015,7 @@ async function registerRoutes(app2) {
   });
   app2.patch("/api/profile", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const validatedData = updateUserProfileSchema.parse({
         ...req.body,
         userId
@@ -1431,7 +2034,9 @@ async function registerRoutes(app2) {
   app2.get("/api/projects", async (req, res) => {
     try {
       const projects2 = await storage.getProjects();
-      res.json(projects2);
+      const isAdmin2 = req.user && req.user.role === "admin";
+      const filteredProjects = isAdmin2 ? projects2 : projects2.filter((p) => p.status === "active");
+      res.json(filteredProjects);
     } catch (error) {
       console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
@@ -1449,7 +2054,7 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch project" });
     }
   });
-  app2.post("/api/projects", isAuthenticated, isAdmin, async (req, res) => {
+  app2.post("/api/projects", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(validatedData);
@@ -1486,26 +2091,158 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to delete project" });
     }
   });
+  app2.patch("/api/projects/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.closeProject(req.params.id);
+      res.json(project);
+    } catch (error) {
+      console.error("Error closing project:", error);
+      res.status(500).json({ message: "Failed to close project" });
+    }
+  });
   app2.post("/api/projects/interest", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
-      const { projectId } = req.body;
-      const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
-      if (hasInterest) {
-        return res.status(400).json({ message: "You have already expressed interest in this project" });
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.body;
+      if (projectId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+        if (hasInterest) {
+          return res.status(400).json({ message: "You have already expressed interest in this project" });
+        }
       }
       const validatedData = insertExpressInterestSchema.parse({
         ...req.body,
         userId
       });
       const interest = await storage.expressProjectInterest(validatedData);
+      const buyer = await storage.getUserById(userId);
+      const adminUser = await storage.getAdminUser();
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (adminUser && project && buyer) {
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${project.name}`,
+            projectId,
+            buyerId: userId,
+            sellerId: adminUser.id,
+            context: "project_interest",
+            status: "open"
+          });
+          await storage.createNotification({
+            userId: adminUser.id,
+            type: "interest_received",
+            title: "New Interest in Project",
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+            link: `/admin/projects/${projectId}`
+          });
+          const buyerTemplate = await storage.getMessageTemplateByType("buyer_interest_to_buyer");
+          const adminTemplate = await storage.getMessageTemplateByType("buyer_interest_to_admin");
+          if (buyerTemplate && adminUser) {
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: adminUser.id,
+              receiverId: userId,
+              subject: buyerTemplate.subject.replace("{project_name}", project.name),
+              content: buyerTemplate.content.replace("{project_name}", project.name).replace("{buyer_name}", buyer.firstName || "there"),
+              context: "project_interest",
+              relatedProjectId: projectId,
+              isAutoRelay: true
+            });
+          }
+          if (adminTemplate) {
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: userId,
+              receiverId: adminUser.id,
+              subject: adminTemplate.subject.replace("{project_name}", project.name),
+              content: adminTemplate.content.replace("{project_name}", project.name).replace("{buyer_name}", `${buyer.firstName} ${buyer.lastName}`),
+              context: "project_interest",
+              relatedProjectId: projectId,
+              isAutoRelay: true
+            });
+          }
+        }
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
+        if (adminUser && listing && buyer && seller) {
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${listing.title}`,
+            listingId,
+            buyerId: userId,
+            sellerId: seller.id,
+            context: "marketplace",
+            status: "open"
+          });
+          await storage.createNotification({
+            userId: adminUser.id,
+            type: "interest_received",
+            title: "New Interest in Listing",
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+            link: `/admin/marketplace/${listingId}`
+          });
+          if (seller) {
+            await storage.createNotification({
+              userId: seller.id,
+              type: "interest_received",
+              title: "New Interest in Your Listing",
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+              link: `/marketplace/${listingId}`
+            });
+          }
+          const buyerTemplate = await storage.getMessageTemplateByType("buyer_interest_to_buyer");
+          const sellerTemplate = await storage.getMessageTemplateByType("buyer_interest_to_seller");
+          if (buyerTemplate && adminUser) {
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: adminUser.id,
+              receiverId: userId,
+              subject: buyerTemplate.subject.replace("{project_name}", listing.title),
+              content: buyerTemplate.content.replace("{project_name}", listing.title).replace("{buyer_name}", buyer.firstName || "there"),
+              context: "marketplace",
+              relatedListingId: listingId,
+              isAutoRelay: true
+            });
+          }
+          if (sellerTemplate && seller && adminUser) {
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: adminUser.id,
+              receiverId: seller.id,
+              subject: sellerTemplate.subject.replace("{listing_title}", listing.title),
+              content: sellerTemplate.content.replace("{listing_title}", listing.title).replace("{buyer_name}", `${buyer.firstName} ${buyer.lastName}`),
+              context: "marketplace",
+              relatedListingId: listingId,
+              isAutoRelay: true
+            });
+          }
+        }
+      }
       await storage.createActivityLog({
         userId,
         activityType: "interest_expressed",
-        description: `User expressed interest in project ${projectId}`,
+        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
         ipAddress: req.ip,
         userAgent: req.get("user-agent")
       });
+      const adminUsers = await storage.getUsersByRole("admin");
+      let titleText = "";
+      if (projectId) {
+        const proj = await storage.getProjectById(projectId);
+        titleText = proj?.name || projectId;
+      } else if (listingId) {
+        const list = await storage.getMarketplaceListingById(listingId);
+        titleText = list?.title || listingId;
+      }
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "interest_received",
+          title: "New Interest Expression",
+          message: `${buyer?.firstName || ""} ${buyer?.lastName || ""} expressed interest in ${projectId ? "project" : "listing"}: ${titleText}`,
+          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`
+        });
+      }
       res.json(interest);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -1518,7 +2255,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/projects/:id/has-interest", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const projectId = req.params.id;
       const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
       res.json({ hasInterest });
@@ -1527,22 +2264,48 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to check interest" });
     }
   });
+  app2.get("/api/admin/projects-interest", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const interests = await storage.getAllExpressedInterests();
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching expressed interests:", error);
+      res.status(500).json({ message: "Failed to fetch expressed interests" });
+    }
+  });
   app2.get("/api/marketplace/listings", async (req, res) => {
     try {
       const { type, status } = req.query;
+      const isAdmin2 = req.user && req.user.role === "admin";
       const listings = await storage.getMarketplaceListings({
         type,
         status
       });
-      res.json(listings);
+      const filteredListings = isAdmin2 ? listings : listings.filter((l) => l.status === "approved");
+      res.json(filteredListings);
     } catch (error) {
       console.error("Error fetching listings:", error);
       res.status(500).json({ message: "Failed to fetch listings" });
     }
   });
+  app2.get("/api/marketplace/listings/:id", async (req, res) => {
+    try {
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+      const seller = listing.sellerId ? await storage.getUserById(listing.sellerId) : null;
+      res.json({
+        ...listing,
+        sellerName: seller ? `${seller.firstName || ""} ${seller.lastName || ""}`.trim() : void 0
+      });
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ message: "Failed to fetch listing" });
+    }
+  });
   app2.post("/api/marketplace/listings", isAuthenticated, isSeller, async (req, res) => {
     try {
-      const sellerId = req.user.claims.sub;
+      const sellerId = req.user.claims?.sub || req.user.id;
       const validatedData = insertMarketplaceListingSchema.parse({
         ...req.body,
         sellerId
@@ -1569,7 +2332,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/marketplace/buyer-requests", isAuthenticated, async (req, res) => {
     try {
-      const buyerId = req.user.claims.sub;
+      const buyerId = req.user.claims?.sub || req.user.id;
       const validatedData = insertBuyerRequestSchema.parse({
         ...req.body,
         buyerId
@@ -1587,7 +2350,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/dashboard/listings", isAuthenticated, async (req, res) => {
     try {
-      const sellerId = req.user.claims.sub;
+      const sellerId = req.user.claims?.sub || req.user.id;
       const listings = await storage.getListingsBySellerId(sellerId);
       res.json(listings);
     } catch (error) {
@@ -1618,9 +2381,161 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to delete listing" });
     }
   });
+  app2.patch("/api/marketplace/listings/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUserById(userId);
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (user?.role !== "admin" && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller or admin can close this listing" });
+      }
+      const closedListing = await storage.closeMarketplaceListing(req.params.id);
+      res.json(closedListing);
+    } catch (error) {
+      console.error("Error closing listing:", error);
+      res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+  app2.post("/api/threads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, title } = req.body;
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+      let sellerId = null;
+      let threadTitle = title;
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        const adminUser = await storage.getAdminUser();
+        sellerId = adminUser?.id || null;
+        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        const adminUser = await storage.getAdminUser();
+        sellerId = adminUser?.id || null;
+        threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+      }
+      const thread = await storage.createMessageThread({
+        title: threadTitle,
+        projectId,
+        listingId,
+        buyerId: userId,
+        sellerId,
+        status: "open"
+      });
+      res.json(thread);
+    } catch (error) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+  app2.get("/api/threads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const threads = await storage.getThreadsByUserId(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+  app2.get("/api/threads/all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const threads = await storage.getAllMessageThreads();
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching all threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+  app2.get("/api/threads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const thread = await storage.getThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+  app2.get("/api/threads/:id/details", isAuthenticated, async (req, res) => {
+    try {
+      const threadId = req.params.id;
+      const details = await storage.getThreadWithParticipants(threadId);
+      if (!details) return res.status(404).json({ message: "Thread not found" });
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching thread details:", error);
+      res.status(500).json({ message: "Failed to fetch thread details" });
+    }
+  });
+  app2.get("/api/threads/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const messages2 = await storage.getMessagesByThreadId(req.params.id);
+      res.json(messages2);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  app2.post("/api/threads/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const threadId = req.params.id;
+      const thread = await storage.getThreadById(threadId);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      const sender = await storage.getUserById(senderId);
+      if (!sender) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const receiverId = senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+      const validatedData = insertMessageSchema.parse({
+        threadId,
+        senderId,
+        receiverId,
+        subject: req.body.subject || thread.title,
+        content: req.body.content,
+        relatedProjectId: thread.projectId,
+        relatedListingId: thread.listingId
+      });
+      const message = await storage.createMessage(validatedData);
+      await storage.updateThreadLastMessage(threadId);
+      res.json(message);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  app2.patch("/api/threads/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const thread = await storage.closeThread(req.params.id);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error closing thread:", error);
+      res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
   app2.get("/api/messages", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const messages2 = await storage.getMessagesByUserId(userId);
       res.json(messages2);
     } catch (error) {
@@ -1630,12 +2545,38 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/messages", isAuthenticated, async (req, res) => {
     try {
-      const senderId = req.user.claims.sub;
+      const senderId = req.user.claims?.sub || req.user.id;
+      const receiverId = req.body.receiverId;
+      const sender = await storage.getUserById(senderId);
+      const receiver = await storage.getUserById(receiverId);
+      if (!sender || !receiver) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const adminUser = await storage.getAdminUser();
+      const adminId = adminUser?.id;
+      let isAllowed = sender.role === "admin" || receiver.role === "admin" || sender.role === "buyer" && receiverId === adminId || sender.role === "seller" && receiverId === adminId;
+      const relatedListingId = req.body?.relatedListingId;
+      if (!isAllowed && relatedListingId) {
+        try {
+          const listing = await storage.getMarketplaceListingById(relatedListingId);
+          if (listing && listing.sellerId === receiverId) {
+            isAllowed = true;
+          }
+        } catch (err) {
+          console.warn("Failed to lookup listing for message authorization", err);
+        }
+      }
+      if (!isAllowed) {
+        return res.status(403).json({
+          message: "You are not authorized to send this message. For inquiries about listings or projects, contact the listing seller or admin."
+        });
+      }
       const validatedData = insertMessageSchema.parse({
         ...req.body,
         senderId
       });
-      const message = await storage.createMessage(validatedData);
+      const idempotencyKey = req.header("Idempotency-Key") || req.header("idempotency-key") || null;
+      const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
       res.json(message);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -1648,13 +2589,133 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/conversations/:userId", isAuthenticated, async (req, res) => {
     try {
-      const currentUserId = req.user.claims.sub;
+      const currentUserId = req.user.claims?.sub || req.user.id;
       const otherUserId = req.params.userId;
       const messages2 = await storage.getConversation(currentUserId, otherUserId);
       res.json(messages2);
     } catch (error) {
       console.error("Error fetching conversation:", error);
       res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+  app2.get("/api/messages/:id/details", isAuthenticated, async (req, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      console.log(`Fetching message details for id=${messageId} (user=${currentUserId})`);
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) {
+        console.warn(`Message not found: id=${messageId}`);
+        return res.status(404).json({ message: "Message not found" });
+      }
+      try {
+        if (messageDetails.message && messageDetails.message.receiverId === currentUserId) {
+          await storage.markMessageAsRead(messageId);
+        }
+      } catch (err) {
+        console.error(`Failed to mark message read for id=${messageId}:`, err);
+      }
+      console.log(`Returning message details for id=${messageId}: sender=${messageDetails.sender?.id}`);
+      res.json(messageDetails);
+    } catch (error) {
+      console.error("Error fetching message details:", error);
+      res.status(500).json({ message: "Failed to fetch message details" });
+    }
+  });
+  app2.patch("/api/messages/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user.claims?.sub || req.user.id;
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) return res.status(404).json({ message: "Message not found" });
+      const main = messageDetails.message;
+      const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
+      const user = await storage.getUser(currentUserId);
+      const isAdminUser = user?.role === "admin";
+      if (!isParticipant && !isAdminUser) {
+        return res.status(403).json({ message: "Not authorized to close this conversation" });
+      }
+      await storage.closeConversationByMessageId(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error closing conversation:", error);
+      res.status(500).json({ message: "Failed to close conversation" });
+    }
+  });
+  app2.get("/api/messages/check-contact", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.query;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      if (projectId) {
+        const hasContacted = await storage.checkUserHasContactedAboutProject(userId, projectId);
+        return res.json({ hasContacted });
+      }
+      if (listingId) {
+        const hasContacted = await storage.checkUserHasContactedAboutListing(userId, listingId);
+        return res.json({ hasContacted });
+      }
+      return res.status(400).json({ error: "Either projectId or listingId is required" });
+    } catch (error) {
+      console.error("Error checking contact status:", error);
+      return res.status(500).json({ error: "Internal server error while checking contact status" });
+      res.status(500).json({ message: "Failed to check contact status" });
+    }
+  });
+  app2.get("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      const targetId = req.params.id;
+      const requestingUser = await storage.getUser(currentUserId);
+      const isAdminUser = requestingUser?.role === "admin";
+      if (!isAdminUser && currentUserId !== targetId) {
+        return res.status(403).json({ message: "Not authorized to view this user" });
+      }
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const profile = await storage.getUserProfile(targetId);
+      let listings = null;
+      let recentMessages = null;
+      try {
+        listings = await storage.getListingsBySellerId(targetId);
+      } catch (err) {
+        listings = null;
+      }
+      if (isAdminUser || currentUserId === targetId) {
+        try {
+          const msgs = await storage.getMessagesByUserId(targetId);
+          recentMessages = (msgs || []).slice(0, 5).map((m) => ({ id: m.id, content: m.content, createdAt: m.createdAt, senderId: m.senderId, receiverId: m.receiverId }));
+        } catch (err) {
+          recentMessages = null;
+        }
+      }
+      res.json({ user, profile, listings, recentMessages });
+    } catch (error) {
+      console.error("Error fetching user details:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+  app2.get("/api/public/users/:id", async (req, res) => {
+    try {
+      const targetId = req.params.id;
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const profile = await storage.getUserProfile(targetId);
+      let publicListings = [];
+      try {
+        const allListings = await storage.getListingsBySellerId(targetId);
+        publicListings = (allListings || []).filter((l) => (l.status || "").toLowerCase() === "active");
+      } catch (err) {
+        publicListings = [];
+      }
+      const publicUser = { id: user.id, firstName: user.firstName, lastName: user.lastName, role: user.role };
+      const publicProfile = { companyName: profile?.companyName, location: profile?.location, bio: profile?.bio };
+      res.json({ user: publicUser, profile: publicProfile, listings: publicListings });
+    } catch (error) {
+      console.error("Error fetching public user profile:", error);
+      res.status(500).json({ message: "Failed to fetch public profile" });
     }
   });
   app2.get("/api/blog", async (req, res) => {
@@ -1680,7 +2741,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/blog", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const authorId = req.user.claims.sub;
+      const authorId = req.user.claims?.sub || req.user.id;
       const validatedData = insertBlogPostSchema.parse({
         ...req.body,
         authorId
@@ -1802,7 +2863,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/admin/verify/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const reviewerId = req.user.claims.sub;
+      const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
       await storage.approveListing(listingId, reviewerId);
       res.json({ message: "Listing approved successfully" });
@@ -1813,7 +2874,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/admin/reject/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const reviewerId = req.user.claims.sub;
+      const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
       await storage.rejectListing(listingId, reviewerId);
       res.json({ message: "Listing rejected successfully" });
@@ -1853,6 +2914,16 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to delete user" });
     }
   });
+  app2.get("/api/admin/users/:id/listings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const sellerId = req.params.id;
+      const listings = await storage.getListingsBySellerId(sellerId);
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching user listings (admin):", error);
+      res.status(500).json({ message: "Failed to fetch user listings" });
+    }
+  });
   app2.get("/api/admin/activity-logs", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit) : 100;
@@ -1865,7 +2936,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/activity-logs/me", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const limit = req.query.limit ? parseInt(req.query.limit) : 50;
       const logs = await storage.getUserActivityLogs(userId, limit);
       res.json(logs);
@@ -1876,7 +2947,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/notifications", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const notifications2 = await storage.getUserNotifications(userId);
       res.json(notifications2);
     } catch (error) {
@@ -1886,7 +2957,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const count = await storage.getUnreadNotificationCount(userId);
       res.json({ count });
     } catch (error) {
@@ -1905,7 +2976,7 @@ async function registerRoutes(app2) {
   });
   app2.post("/api/notifications/mark-all-read", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       await storage.markAllNotificationsAsRead(userId);
       res.json({ message: "All notifications marked as read" });
     } catch (error) {
@@ -1915,7 +2986,7 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.claims?.sub || req.user.id;
       const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
         storage.getUserListingsCount(userId),
         storage.getUserUnreadMessagesCount(userId),
@@ -2011,6 +3082,20 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 var vite_config_default = defineConfig({
+  server: {
+    port: 7001,
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
   plugins: [
     react(),
     runtimeErrorOverlay(),
@@ -2023,23 +3108,10 @@ var vite_config_default = defineConfig({
       )
     ] : []
   ],
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets")
-    }
-  },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"]
-    }
   }
 });
 
@@ -2112,11 +3184,20 @@ function serveStatic(app2) {
 
 // server/index.ts
 import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 import passport2 from "passport";
+import pg from "pg";
 var app = express2();
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
+var PgStore = connectPgSimple(session);
+var sessionStore = new PgStore({
+  conString: process.env.DATABASE_URL,
+  tableName: "sessions",
+  createTableIfMissing: true
+});
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || "dev-secret-key",
   resave: false,
   saveUninitialized: false,
@@ -2165,6 +3246,25 @@ app.use((req, res, next) => {
   if (app.get("env") === "development") {
     await setupVite(app, server);
     const port = parseInt(process.env.PORT || "5000", 10);
+    (async function schemaCheck() {
+      try {
+        const requiredColumns = ["related_project_id", "related_listing_id"];
+        const pool2 = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+        const res = await pool2.query(
+          `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
+          [requiredColumns]
+        );
+        await pool2.end();
+        const present = (res.rows || []).map((r) => r.column_name);
+        const missing = requiredColumns.filter((c) => !present.includes(c));
+        if (missing.length) {
+          log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(", ")}`);
+          log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
+        }
+      } catch (err) {
+        log(`Schema check failed: ${err.message}`);
+      }
+    })();
     server.listen(port, () => {
       log(`Server running at http://localhost:${port}`);
     });
