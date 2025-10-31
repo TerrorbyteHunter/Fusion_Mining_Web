@@ -270,19 +270,87 @@ export default function Admin() {
           ) : (
             <div className="grid gap-4">
               {pendingListings.map((l) => (
-                <Card key={l.id}>
+                <Card key={l.id} data-testid={`card-verification-${l.id}`}>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{(l as any).title || "Untitled"}</CardTitle>
-                        <CardDescription>{(l as any).summary || ""}</CardDescription>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CardTitle className="text-lg">{l.title}</CardTitle>
+                          <Badge variant={l.type === 'mineral' ? 'default' : 'secondary'}>
+                            {l.type}
+                          </Badge>
+                        </div>
+                        <CardDescription className="text-xs text-muted-foreground">
+                          Submitted {format(new Date(l.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                        </CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button onClick={() => approveMutation.mutate(l.id)}>Approve</Button>
-                        <Button variant="destructive" onClick={() => rejectMutation.mutate(l.id)}>Reject</Button>
+                        <Button 
+                          onClick={() => approveMutation.mutate(l.id)} 
+                          disabled={approveMutation.isPending}
+                          data-testid={`button-approve-${l.id}`}
+                        >
+                          Approve
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => rejectMutation.mutate(l.id)}
+                          disabled={rejectMutation.isPending}
+                          data-testid={`button-reject-${l.id}`}
+                        >
+                          Reject
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-1">Description:</p>
+                        <p className="text-sm">{l.description}</p>
+                      </div>
+                      
+                      {l.type === 'mineral' && (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
+                          {l.mineralType && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Mineral</p>
+                              <p className="text-sm font-medium">{l.mineralType}</p>
+                            </div>
+                          )}
+                          {l.grade && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Grade</p>
+                              <p className="text-sm font-medium">{l.grade}</p>
+                            </div>
+                          )}
+                          {l.quantity && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Quantity</p>
+                              <p className="text-sm font-medium">{l.quantity}</p>
+                            </div>
+                          )}
+                          {l.price && (
+                            <div>
+                              <p className="text-xs text-muted-foreground">Price</p>
+                              <p className="text-sm font-medium">{l.price}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Location</p>
+                          <p className="text-sm font-medium">{l.location}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Seller ID</p>
+                          <p className="text-sm font-mono text-xs">{l.sellerId}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>

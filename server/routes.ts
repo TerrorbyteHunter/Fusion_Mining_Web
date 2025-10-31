@@ -1010,6 +1010,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
               isAutoRelay: true,
             });
           }
+
+          // Send automatic message to seller
+          const sellerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_seller');
+          if (sellerTemplate && seller) {
+            // Create a separate thread for admin-seller communication
+            const adminSellerThread = await storage.createMessageThread({
+              title: `Interest in your listing: ${listing.title}`,
+              listingId,
+              buyerId: adminUser.id,
+              sellerId: seller.id,
+              context: 'marketplace',
+              status: 'open',
+            });
+
+            await storage.createMessage({
+              threadId: adminSellerThread.id,
+              senderId: adminUser.id,
+              receiverId: seller.id,
+              subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
+              content: sellerTemplate.content.replace('{listing_title}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              context: 'marketplace',
+              relatedListingId: listingId,
+              isAutoRelay: true,
+            });
+          }
         }
       }
 
