@@ -1316,138 +1316,301 @@ export default function AdminCMS() {
             </TabsContent>
 
             <TabsContent value="messages" className="mt-6">
-              {/* Received Messages Section */}
-              <div className="mb-12">
-                <h2 className="text-2xl font-bold mb-2">Received Messages</h2>
-                <p className="text-muted-foreground mb-6">
-                  Click on any message to view full details and reply
-                </p>
-                {loadingMessages ? (
-                  <Skeleton className="h-96 w-full" />
-                ) : adminMessages && adminMessages.length > 0 ? (
-                  <Card>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Subject</TableHead>
-                          <TableHead>From</TableHead>
-                          <TableHead>Preview</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Date</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {adminMessages
-                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                          .slice(0, 50)
-                          .map((message: any) => (
-                          <TableRow 
-                            key={message.id} 
-                            data-testid={`row-message-${message.id}`}
-                            className="cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => handleViewMessage(message.id)}
-                          >
-                            <TableCell className="font-medium">
-                              <div className="flex flex-col gap-1">
-                                <span>{message.subject || 'No subject'}</span>
-                                {(message.project || message.listing) && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {message.project ? `Project: ${message.project.name}` : `Listing: ${message.listing.title}`}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {message.senderFirstName || message.senderLastName 
-                                ? `${message.senderFirstName || ''} ${message.senderLastName || ''}`.trim()
-                                : message.senderId}
-                            </TableCell>
-                            <TableCell className="max-w-md truncate text-muted-foreground">
-                              {message.content}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={message.read ? "outline" : "default"}>
-                                {message.read ? "Read" : "Unread"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{format(new Date(message.createdAt), "MMM d, yyyy")}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Card>
-                ) : (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-xl font-semibold mb-2">No Messages</h3>
-                      <p className="text-muted-foreground">You haven't received any messages yet</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+              <Tabs defaultValue="inbox" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="inbox" data-testid="tab-inbox">
+                    <Mail className="mr-2 h-4 w-4" />
+                    Inbox
+                  </TabsTrigger>
+                  <TabsTrigger value="project-interest" data-testid="tab-project-interest">
+                    <MapPin className="mr-2 h-4 w-4" />
+                    Project Interest
+                  </TabsTrigger>
+                  <TabsTrigger value="sellers" data-testid="tab-sellers">
+                    <Store className="mr-2 h-4 w-4" />
+                    Sellers
+                  </TabsTrigger>
+                </TabsList>
 
-              {/* Send New Message Section */}
-              <div>
-                <h2 className="text-2xl font-bold mb-2">Send New Message</h2>
-                <p className="text-muted-foreground mb-6">
-                  Send messages to users about projects, listings, or general inquiries
-                </p>
-                {loadingUsers ? (
-                  <Skeleton className="h-96 w-full" />
-                ) : users && users.length > 0 ? (
-                  <Card>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Role</TableHead>
-                          <TableHead>Joined</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {users.filter(u => u.role !== 'admin').map((user) => (
-                          <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                            <TableCell className="font-medium">
-                              {user.firstName} {user.lastName}
-                            </TableCell>
-                            <TableCell>{user.email}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{user.role}</Badge>
-                            </TableCell>
-                            <TableCell>{format(new Date(user.createdAt), "MMM d, yyyy")}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleMessageUser(
-                                  user.id,
-                                  `${user.firstName} ${user.lastName}`,
-                                  undefined,
-                                  "Message from Admin"
-                                )}
-                                data-testid={`button-message-${user.id}`}
-                              >
-                                <Send className="mr-2 h-4 w-4" />
-                                Send Message
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </Card>
-                ) : (
-                  <Card className="text-center py-12">
-                    <CardContent>
-                      <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                      <h3 className="text-xl font-semibold mb-2">No Users</h3>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
+                {/* Inbox Tab - Marketplace & General Inquiries */}
+                <TabsContent value="inbox">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold mb-2">Marketplace & General Inquiries</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Messages from buyers about marketplace listings and general inquiries (excludes admin-seller communication)
+                    </p>
+                    {loadingMessages ? (
+                      <Skeleton className="h-96 w-full" />
+                    ) : adminMessages && adminMessages.filter((m: any) => 
+                      (m.context === 'marketplace' || m.context === 'general' || !m.context) && 
+                      !m.isAutoRelay && 
+                      m.senderId !== m.receiverId
+                    ).length > 0 ? (
+                      <Card>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Subject</TableHead>
+                              <TableHead>From</TableHead>
+                              <TableHead>Preview</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Date</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {adminMessages
+                              .filter((m: any) => 
+                                (m.context === 'marketplace' || m.context === 'general' || !m.context) && 
+                                !m.isAutoRelay &&
+                                m.senderId !== m.receiverId
+                              )
+                              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .slice(0, 50)
+                              .map((message: any) => (
+                                <TableRow 
+                                  key={message.id} 
+                                  data-testid={`row-message-inbox-${message.id}`}
+                                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                  onClick={() => handleViewMessage(message.id)}
+                                >
+                                  <TableCell className="font-medium">
+                                    <div className="flex flex-col gap-1">
+                                      <span>{message.subject || 'No subject'}</span>
+                                      {message.listing && (
+                                        <span className="text-xs text-muted-foreground">
+                                          Listing: {message.listing.title}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {message.senderFirstName || message.senderLastName 
+                                      ? `${message.senderFirstName || ''} ${message.senderLastName || ''}`.trim()
+                                      : message.senderId}
+                                  </TableCell>
+                                  <TableCell className="max-w-md truncate text-muted-foreground">
+                                    {message.content}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={message.read ? "outline" : "default"}>
+                                      {message.read ? "Read" : "Unread"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{format(new Date(message.createdAt), "MMM d, yyyy")}</TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </Card>
+                    ) : (
+                      <Card className="text-center py-12">
+                        <CardContent>
+                          <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                          <h3 className="text-xl font-semibold mb-2">No Marketplace Inquiries</h3>
+                          <p className="text-muted-foreground">No marketplace or general messages yet</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Project Interest Tab */}
+                <TabsContent value="project-interest">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold mb-2">Project Interest Messages</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Messages from buyers expressing interest in mining projects
+                    </p>
+                    {loadingMessages ? (
+                      <Skeleton className="h-96 w-full" />
+                    ) : adminMessages && adminMessages.filter((m: any) => m.context === 'project_interest').length > 0 ? (
+                      <Card>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Subject</TableHead>
+                              <TableHead>From</TableHead>
+                              <TableHead>Preview</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Date</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {adminMessages
+                              .filter((m: any) => m.context === 'project_interest')
+                              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .slice(0, 50)
+                              .map((message: any) => (
+                                <TableRow 
+                                  key={message.id} 
+                                  data-testid={`row-message-project-${message.id}`}
+                                  className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                  onClick={() => handleViewMessage(message.id)}
+                                >
+                                  <TableCell className="font-medium">
+                                    <div className="flex flex-col gap-1">
+                                      <span>{message.subject || 'No subject'}</span>
+                                      {message.project && (
+                                        <span className="text-xs text-muted-foreground">
+                                          Project: {message.project.name}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    {message.senderFirstName || message.senderLastName 
+                                      ? `${message.senderFirstName || ''} ${message.senderLastName || ''}`.trim()
+                                      : message.senderId}
+                                  </TableCell>
+                                  <TableCell className="max-w-md truncate text-muted-foreground">
+                                    {message.content}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant={message.read ? "outline" : "default"}>
+                                      {message.read ? "Read" : "Unread"}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>{format(new Date(message.createdAt), "MMM d, yyyy")}</TableCell>
+                                </TableRow>
+                              ))}
+                          </TableBody>
+                        </Table>
+                      </Card>
+                    ) : (
+                      <Card className="text-center py-12">
+                        <CardContent>
+                          <MapPin className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                          <h3 className="text-xl font-semibold mb-2">No Project Interest Messages</h3>
+                          <p className="text-muted-foreground">No project interest expressions yet</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Sellers Tab */}
+                <TabsContent value="sellers">
+                  <div className="mb-6">
+                    <h2 className="text-xl font-bold mb-2">Seller Communication</h2>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Auto-relay messages to sellers and direct admin-seller communication
+                    </p>
+                    {loadingMessages ? (
+                      <Skeleton className="h-96 w-full" />
+                    ) : adminMessages && adminMessages.filter((m: any) => m.isAutoRelay && (m.receiverId !== m.senderId)).length > 0 ? (
+                      <Card className="mb-6">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Auto-Relay Messages to Sellers</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Subject</TableHead>
+                                <TableHead>To Seller</TableHead>
+                                <TableHead>Preview</TableHead>
+                                <TableHead>Date</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {adminMessages
+                                .filter((m: any) => m.isAutoRelay && (m.receiverId !== m.senderId))
+                                .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                .slice(0, 50)
+                                .map((message: any) => (
+                                  <TableRow 
+                                    key={message.id} 
+                                    data-testid={`row-message-seller-${message.id}`}
+                                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                                    onClick={() => handleViewMessage(message.id)}
+                                  >
+                                    <TableCell className="font-medium">
+                                      <div className="flex flex-col gap-1">
+                                        <span>{message.subject || 'No subject'}</span>
+                                        {message.listing && (
+                                          <span className="text-xs text-muted-foreground">
+                                            Re: {message.listing.title}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      {message.receiverFirstName || message.receiverLastName 
+                                        ? `${message.receiverFirstName || ''} ${message.receiverLastName || ''}`.trim()
+                                        : message.receiverId}
+                                    </TableCell>
+                                    <TableCell className="max-w-md truncate text-muted-foreground">
+                                      {message.content}
+                                    </TableCell>
+                                    <TableCell>{format(new Date(message.createdAt), "MMM d, yyyy")}</TableCell>
+                                  </TableRow>
+                                ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    ) : null}
+
+                    {/* List of Sellers for Direct Messaging */}
+                    <h3 className="text-lg font-semibold mb-4">Send Messages to Sellers</h3>
+                    {loadingUsers ? (
+                      <Skeleton className="h-96 w-full" />
+                    ) : users && users.filter((u: User) => u.role === 'seller').length > 0 ? (
+                      <Card>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Seller Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Listings</TableHead>
+                              <TableHead>Joined</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {users.filter((u: User) => u.role === 'seller').map((seller: User) => (
+                              <TableRow key={seller.id} data-testid={`row-seller-${seller.id}`}>
+                                <TableCell className="font-medium">
+                                  {seller.firstName} {seller.lastName}
+                                </TableCell>
+                                <TableCell>{seller.email}</TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">View Listings</Badge>
+                                </TableCell>
+                                <TableCell>{format(new Date(seller.createdAt), "MMM d, yyyy")}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleMessageUser(
+                                      seller.id,
+                                      `${seller.firstName} ${seller.lastName}`,
+                                      undefined,
+                                      "Message from Admin"
+                                    )}
+                                    data-testid={`button-message-seller-${seller.id}`}
+                                  >
+                                    <Send className="mr-2 h-4 w-4" />
+                                    Send Message
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </Card>
+                    ) : (
+                      <Card className="text-center py-12">
+                        <CardContent>
+                          <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                          <h3 className="text-xl font-semibold mb-2">No Sellers</h3>
+                          <p className="text-muted-foreground">No sellers registered yet</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
 
