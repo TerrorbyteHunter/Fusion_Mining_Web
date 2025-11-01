@@ -142,14 +142,18 @@ export const buyerRequests = pgTable("buyer_requests", {
 // ============================================================================
 export const threadStatusEnum = pgEnum('thread_status', ['open', 'closed']);
 export const messageContextEnum = pgEnum('message_context', ['marketplace', 'project_interest', 'general']);
+export const threadTypeEnum = pgEnum('thread_type', ['project_interest', 'marketplace_inquiry', 'admin_to_seller', 'admin_to_buyer', 'general']);
 
 export const messageThreads = pgTable("message_threads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: varchar("title", { length: 255 }).notNull(),
+  type: threadTypeEnum("type").notNull().default('general'),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: 'cascade' }),
   listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
-  buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  buyerId: varchar("buyer_id").references(() => users.id, { onDelete: 'cascade' }),
   sellerId: varchar("seller_id").references(() => users.id, { onDelete: 'cascade' }),
+  adminId: varchar("admin_id").references(() => users.id, { onDelete: 'cascade' }),
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: 'cascade' }),
   context: messageContextEnum("context").default('general'),
   status: threadStatusEnum("status").notNull().default('open'),
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
@@ -157,9 +161,12 @@ export const messageThreads = pgTable("message_threads", {
 }, (table) => [
   index("IDX_thread_buyer_id").on(table.buyerId),
   index("IDX_thread_seller_id").on(table.sellerId),
+  index("IDX_thread_admin_id").on(table.adminId),
+  index("IDX_thread_created_by").on(table.createdBy),
   index("IDX_thread_project_id").on(table.projectId),
   index("IDX_thread_listing_id").on(table.listingId),
   index("IDX_thread_context").on(table.context),
+  index("IDX_thread_type").on(table.type),
 ]);
 
 export const messages = pgTable("messages", {
@@ -322,6 +329,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   buyerRequests: many(buyerRequests),
   buyerThreads: many(messageThreads, { relationName: 'buyerThreads' }),
   sellerThreads: many(messageThreads, { relationName: 'sellerThreads' }),
+  adminThreads: many(messageThreads, { relationName: 'adminThreads' }),
+  createdThreads: many(messageThreads, { relationName: 'createdThreads' }),
   sentMessages: many(messages, { relationName: 'sentMessages' }),
   receivedMessages: many(messages, { relationName: 'receivedMessages' }),
   blogPosts: many(blogPosts),
@@ -388,6 +397,16 @@ export const messageThreadsRelations = relations(messageThreads, ({ one, many })
     fields: [messageThreads.sellerId],
     references: [users.id],
     relationName: 'sellerThreads',
+  }),
+  admin: one(users, {
+    fields: [messageThreads.adminId],
+    references: [users.id],
+    relationName: 'adminThreads',
+  }),
+  creator: one(users, {
+    fields: [messageThreads.createdBy],
+    references: [users.id],
+    relationName: 'createdThreads',
   }),
   messages: many(messages),
 }));
