@@ -906,9 +906,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (adminUser && project && buyer) {
           const thread = await storage.createMessageThread({
             title: `Inquiry about: ${project.name}`,
+            type: 'project_interest',
             projectId,
             buyerId: userId,
             sellerId: adminUser.id,
+            adminId: adminUser.id,
+            createdBy: userId,
             context: 'project_interest',
             status: 'open',
           });
@@ -957,9 +960,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (adminUser && listing && buyer) {
           const thread = await storage.createMessageThread({
             title: `Inquiry about: ${listing.title}`,
+            type: 'marketplace_inquiry',
             listingId,
             buyerId: userId,
-            sellerId: adminUser.id,
+            sellerId: listing.sellerId,
+            adminId: adminUser.id,
+            createdBy: userId,
             context: 'marketplace',
             status: 'open',
           });
@@ -1017,9 +1023,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Create a separate thread for admin-seller communication
             const adminSellerThread = await storage.createMessageThread({
               title: `Interest in your listing: ${listing.title}`,
+              type: 'admin_to_seller',
               listingId,
-              buyerId: adminUser.id,
+              buyerId: null,
               sellerId: seller.id,
+              adminId: adminUser.id,
+              createdBy: adminUser.id,
               context: 'marketplace',
               status: 'open',
             });
@@ -1285,10 +1294,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const thread = await storage.createMessageThread({
         title: threadTitle,
+        type: projectId ? 'project_interest' : 'marketplace_inquiry',
         projectId,
         listingId,
         buyerId: userId,
         sellerId,
+        createdBy: userId,
         status: 'open',
       });
 
@@ -1318,6 +1329,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching all threads:", error);
       res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+
+  // Admin endpoint to get categorized threads
+  app.get('/api/admin/threads/categorized', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const allThreads = await storage.getAllMessageThreads();
+      
+      const projectInquiries = allThreads.filter(t => t.type === 'project_interest');
+      const marketplaceInquiries = allThreads.filter(t => t.type === 'marketplace_inquiry');
+      const sellerCommunication = allThreads.filter(t => t.type === 'admin_to_seller');
+      const adminToBuyer = allThreads.filter(t => t.type === 'admin_to_buyer');
+      
+      res.json({
+        projectInquiries,
+        marketplaceInquiries,
+        sellerCommunication,
+        adminToBuyer,
+      });
+    } catch (error) {
+      console.error("Error fetching categorized threads:", error);
+      res.status(500).json({ message: "Failed to fetch categorized threads" });
     }
   });
 
@@ -1483,6 +1516,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating message:", error);
       res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Admin endpoint to contact seller about a project or listing
+  app.post('/api/messages/contact-seller', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, sellerId } = req.body;
+
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+
+      if (!sellerId) {
+        return res.status(400).json({ message: "sellerId is required" });
+      }
+
+      // Get admin user to verify
+      const admin = await storage.getUserById(adminId);
+      if (!admin || admin.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can use this endpoint" });
+      }
+
+      // Check if thread already exists
+      const existingThreads = await storage.getAllMessageThreads();
+      let existingThread = existingThreads.find(t => 
+        t.type === 'admin_to_seller' &&
+        t.adminId === adminId &&
+        t.sellerId === sellerId &&
+        (projectId ? t.projectId === projectId : t.listingId === listingId)
+      );
+
+      if (existingThread) {
+        // Thread exists, return it
+        return res.json({ thread: existingThread, existed: true });
+      }
+
+      // Create new thread
+      let threadTitle = '';
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        threadTitle = `Admin inquiry about project: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        threadTitle = `Admin inquiry about listing: ${listing.title}`;
+      }
+
+      const newThread = await storage.createMessageThread({
+        title: threadTitle,
+        type: 'admin_to_seller',
+        projectId: projectId || null,
+        listingId: listingId || null,
+        buyerId: null,
+        sellerId,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+      });
+
+      res.json({ thread: newThread, existed: false });
+    } catch (error: any) {
+      console.error("Error creating admin-seller thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
     }
   });
 
