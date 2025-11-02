@@ -102,6 +102,15 @@ export const expressInterest = pgTable("express_interest", {
 export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership', 'project']);
 export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed']);
 
+// Main categories matching B2B Mineral structure
+export const mainCategoryEnum = pgEnum('main_category', ['minerals', 'mining_tools', 'mining_services', 'mining_ppe']);
+
+// Subcategories for each main category
+export const mineralSubcategoryEnum = pgEnum('mineral_subcategory', ['metallic', 'non_metallic', 'marble_natural_stone', 'gravel_sand_aggregate', 'coal_peat', 'other_minerals']);
+export const toolSubcategoryEnum = pgEnum('tool_subcategory', ['drilling_equipment', 'energy_machines', 'engineering_devices', 'heavy_equipment', 'industrial_equipment', 'marble_machinery', 'ore_processing', 'underground_mining', 'other_tools']);
+export const serviceSubcategoryEnum = pgEnum('service_subcategory', ['analysis_services', 'consulting_advisory', 'drilling_blasting', 'exploration_surveying', 'freight_services', 'mine_extraction', 'mineral_processing', 'supply_chain', 'other_services']);
+export const ppeSubcategoryEnum = pgEnum('ppe_subcategory', ['head_face_protection', 'respiratory_protection', 'hand_foot_protection', 'fall_protection', 'protective_clothing', 'other_ppe']);
+
 export const marketplaceListings = pgTable("marketplace_listings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   // short human-friendly item id assigned when listing is approved
@@ -110,6 +119,16 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   type: listingTypeEnum("type").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
+  
+  // Hierarchical categorization (B2B Mineral style)
+  mainCategory: mainCategoryEnum("main_category"),
+  mineralSubcategory: mineralSubcategoryEnum("mineral_subcategory"),
+  toolSubcategory: toolSubcategoryEnum("tool_subcategory"),
+  serviceSubcategory: serviceSubcategoryEnum("service_subcategory"),
+  ppeSubcategory: ppeSubcategoryEnum("ppe_subcategory"),
+  specificType: varchar("specific_type"), // e.g., "Copper Ore", "Excavator", "Freight Forwarding"
+  
+  // Legacy field for backward compatibility
   mineralType: varchar("mineral_type"), // e.g., "Copper", "Emerald"
   grade: varchar("grade"), // e.g., "High Grade", "25% purity"
   location: varchar("location").notNull(),
@@ -123,15 +142,31 @@ export const marketplaceListings = pgTable("marketplace_listings", {
 
 export const buyerRequests = pgTable("buyer_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  // short human-friendly item id for buyer requests
+  // short human-friendly item id for buyer requests/RFQs
   itemId: varchar("item_id", { length: 5 }),
   buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
-  mineralType: varchar("mineral_type").notNull(),
+  
+  // Hierarchical categorization (same as listings)
+  mainCategory: mainCategoryEnum("main_category"),
+  mineralSubcategory: mineralSubcategoryEnum("mineral_subcategory"),
+  toolSubcategory: toolSubcategoryEnum("tool_subcategory"),
+  serviceSubcategory: serviceSubcategoryEnum("service_subcategory"),
+  ppeSubcategory: ppeSubcategoryEnum("ppe_subcategory"),
+  specificType: varchar("specific_type"),
+  
+  // Legacy field for backward compatibility
+  mineralType: varchar("mineral_type"),
   quantity: varchar("quantity"),
   budget: varchar("budget"),
   location: varchar("location"),
+  country: varchar("country", { length: 100 }), // Country code or name for flag display
+  
+  // RFQ-specific fields
+  verified: boolean("verified").notNull().default(false), // Admin verification badge
+  expiryDate: timestamp("expiry_date"), // When the RFQ expires
+  
   status: varchar("status").notNull().default('active'), // active, closed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
