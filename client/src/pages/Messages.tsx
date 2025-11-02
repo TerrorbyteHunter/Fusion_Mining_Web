@@ -459,7 +459,7 @@ export default function Messages() {
                                     }}
                                   >
                                     <MessageCircle className="h-4 w-4 mr-2" />
-                                    Contact Seller
+                                    Inquire
                                   </Button>
                                 )}
                               </div>

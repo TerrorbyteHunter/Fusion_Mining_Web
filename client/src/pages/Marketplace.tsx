@@ -317,7 +317,7 @@ export default function Marketplace() {
                                   Preparing...
                                 </>
                               ) : (
-                                'Contact Again'
+                                'Inquire Again'
                               )}
                             </Button>
                           </div>
@@ -335,7 +335,7 @@ export default function Marketplace() {
                                 Preparing...
                               </>
                             ) : (
-                              'Contact Seller'
+                              'Inquire'
                             )}
                           </Button>
                         )}

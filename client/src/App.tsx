@@ -25,6 +25,8 @@ import ProfileManagement from "@/pages/ProfileManagement";
 import ProfileView from "@/pages/ProfileView";
 import CreateListing from "@/pages/CreateListing";
 import Messages from "@/pages/Messages";
+import LMEPrices from "@/pages/LMEPrices";
+import Compliance from "@/pages/Compliance";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
@@ -46,6 +48,8 @@ function Router() {
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/news" component={News} />
           <Route path="/contact" component={Contact} />
+          <Route path="/lme-prices" component={LMEPrices} />
+          <Route path="/compliance" component={Compliance} />
 
           {/* Protected Routes */}
           <Route path="/dashboard" component={Dashboard} />
