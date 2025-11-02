@@ -29,6 +29,7 @@ import ServicesCompliance from "@/pages/ServicesCompliance";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
+import CategoryBrowse from "@/pages/CategoryBrowse";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -58,6 +59,9 @@ function Router() {
           <Route path="/dashboard/:section" component={Dashboard} />
           <Route path="/admin" component={Admin} />
           <Route path="/admin/cms" component={AdminCMS} />
+
+          {/* Category Browsing Routes */}
+          <Route path="/categories/:mainCategory/:subcategory?" component={CategoryBrowse} />
 
           {/* Legal Routes */}
           <Route path="/legal/terms" component={LegalTerms} />
