@@ -31,6 +31,8 @@ const navItems = [
   { label: "Sustainability", path: "/sustainability" },
   { label: "Projects", path: "/projects" },
   { label: "Marketplace", path: "/marketplace" },
+  { label: "LME Prices", path: "/lme-prices" },
+  { label: "Compliance", path: "/compliance" },
   { label: "News", path: "/news" },
   { label: "Contact", path: "/contact" },
 ];
