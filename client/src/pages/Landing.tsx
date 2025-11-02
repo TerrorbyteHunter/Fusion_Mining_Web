@@ -1,8 +1,9 @@
-// Landing page with hero, quick links, project highlights, and video
+// Landing page with hero, category cards, latest RFQs, and video
 import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
   Mountain, 
   TrendingUp, 
@@ -12,10 +13,19 @@ import {
   Gem, 
   Shield, 
   ArrowRight,
-  Play
+  Play,
+  Wrench,
+  Briefcase,
+  ShieldCheck,
+  CheckCircle2
 } from "lucide-react";
+import { format } from "date-fns";
 import heroImage from "@assets/generated_images/Zambian_copper_mining_operation_aerial_46e06322.png";
-import type { Video } from "@shared/schema";
+import mineralsImg from "@assets/stock_images/mining_minerals_copp_a83cbefb.jpg";
+import toolsImg from "@assets/stock_images/mining_heavy_equipme_90ded174.jpg";
+import servicesImg from "@assets/stock_images/mining_engineer_serv_7e4e30bf.jpg";
+import ppeImg from "@assets/stock_images/mining_safety_helmet_b557deed.jpg";
+import type { Video, BuyerRequest } from "@shared/schema";
 
 // Convert YouTube URL to embed format
 function getEmbedUrl(url: string): string {
@@ -45,33 +55,37 @@ function getEmbedUrl(url: string): string {
   return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
 }
 
-const quickLinks = [
+const categoryCards = [
   {
-    title: "Explore Projects",
-    description: "Browse active mining projects across Zambia",
-    icon: Mountain,
-    href: "/projects",
+    title: "Minerals",
+    description: "Metallic and non-metallic minerals, natural stones",
+    icon: Gem,
+    image: mineralsImg,
+    href: "/marketplace?category=minerals",
     color: "text-chart-1"
   },
   {
-    title: "Marketplace",
-    description: "Trade minerals and find partnerships",
-    icon: Gem,
-    href: "/marketplace",
+    title: "Mining Tools",
+    description: "Equipment and machinery for mining operations",
+    icon: Wrench,
+    image: toolsImg,
+    href: "/marketplace?category=mining_tools",
     color: "text-chart-2"
   },
   {
-    title: "Investment Opportunities",
-    description: "Discover profitable mining ventures",
-    icon: TrendingUp,
-    href: "/services",
+    title: "Mining & Engineering Services",
+    description: "Professional services for mining operations",
+    icon: Briefcase,
+    image: servicesImg,
+    href: "/marketplace?category=mining_services",
     color: "text-chart-3"
   },
   {
-    title: "Get Started",
-    description: "Create your account and begin trading",
-    icon: Users,
-    href: "/login",
+    title: "Mining PPE",
+    description: "Personal Protective Equipment for mining safety",
+    icon: ShieldCheck,
+    image: ppeImg,
+    href: "/marketplace?category=mining_ppe",
     color: "text-chart-4"
   },
 ];
@@ -86,6 +100,10 @@ const stats = [
 export default function Landing() {
   const { data: activeVideos } = useQuery<Video[]>({
     queryKey: ["/api/videos/active"],
+  });
+
+  const { data: latestRFQs } = useQuery<BuyerRequest[]>({
+    queryKey: ["/api/buyer-requests/latest"],
   });
 
   return (
@@ -156,26 +174,34 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Quick Links Section */}
+      {/* Category Cards Section */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-              What Would You Like To Do?
+              All Categories
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Access our comprehensive platform services designed for mining professionals
+              Browse our comprehensive marketplace for mining minerals, equipment, services, and safety gear
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {quickLinks.map((link, index) => (
-              <Link key={index} href={link.href}>
-                <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer" data-testid={`card-quicklink-${index}`}>
+            {categoryCards.map((category, index) => (
+              <Link key={index} href={category.href}>
+                <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer overflow-hidden group" data-testid={`card-category-${index}`}>
+                  <div className="relative h-40 overflow-hidden">
+                    <img 
+                      src={category.image} 
+                      alt={category.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <category.icon className={`absolute bottom-3 right-3 h-8 w-8 text-white ${category.color}`} />
+                  </div>
                   <CardHeader>
-                    <link.icon className={`h-12 w-12 mb-4 ${link.color}`} />
-                    <CardTitle className="text-xl">{link.title}</CardTitle>
-                    <CardDescription>{link.description}</CardDescription>
+                    <CardTitle className="text-xl">{category.title}</CardTitle>
+                    <CardDescription>{category.description}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ArrowRight className="h-5 w-5 text-primary" />
@@ -186,6 +212,70 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* Latest RFQs Section */}
+      {latestRFQs && latestRFQs.length > 0 && (
+        <section className="py-16 bg-card/50 border-y">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
+                Latest RFQs
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Recent requests for quotation from verified buyers
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {latestRFQs.slice(0, 6).map((rfq, index) => (
+                <Link key={rfq.id} href={`/marketplace?tab=requests`}>
+                  <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer" data-testid={`card-rfq-${index}`}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          {rfq.country && (
+                            <img
+                              src={`https://flagsapi.com/${rfq.country}/flat/24.png`}
+                              alt={rfq.country}
+                              className="w-6 h-4 object-cover rounded"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <CardTitle className="text-base line-clamp-1">{rfq.title}</CardTitle>
+                        </div>
+                        {rfq.verified && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Verified
+                          </Badge>
+                        )}
+                      </div>
+                      <CardDescription className="line-clamp-2">{rfq.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>{rfq.mineralType || rfq.specificType || 'Various'}</span>
+                        <span>{format(new Date(rfq.createdAt), 'yyyy/MM/dd')}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+
+            <div className="text-center mt-8">
+              <Button asChild variant="outline" size="lg" data-testid="button-view-all-rfqs">
+                <Link href="/marketplace?tab=requests">
+                  View All RFQs
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Video Section */}
       {activeVideos && activeVideos.length > 0 && (

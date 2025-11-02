@@ -1181,6 +1181,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/buyer-requests/latest', async (req, res) => {
+    try {
+      const requests = await storage.getBuyerRequests();
+      // Get latest 6 active requests, sorted by creation date
+      const latestRequests = requests
+        .filter(r => r.status === 'active')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 6);
+      res.json(latestRequests);
+    } catch (error) {
+      console.error("Error fetching latest buyer requests:", error);
+      res.status(500).json({ message: "Failed to fetch latest requests" });
+    }
+  });
+
   app.post('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
     try {
       const buyerId = req.user.claims?.sub || req.user.id;
