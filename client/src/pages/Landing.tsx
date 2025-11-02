@@ -6,14 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { 
   Mountain, 
-  TrendingUp, 
   HandshakeIcon, 
-  FileText, 
-  Users, 
   Gem, 
   Shield, 
   ArrowRight,
-  Play,
   Wrench,
   Briefcase,
   ShieldCheck,

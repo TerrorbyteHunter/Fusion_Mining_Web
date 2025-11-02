@@ -1,6 +1,7 @@
-// Marketplace portal with mineral listings, buyer requests, and partnerships
+// Marketplace portal with hierarchical categories, listings, and buyer requests
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,17 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceListing, BuyerRequest } from "@shared/schema";
+import { MAIN_CATEGORIES, getSubcategoriesForMain } from "@shared/categories";
 import { 
   Search, 
   MapPin, 
   Package, 
   Users,
   Plus,
+  Gem,
+  Wrench,
+  Briefcase,
+  ShieldCheck,
 } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
@@ -27,7 +33,6 @@ import { ImageDisplay } from "@/components/ImageDisplay";
 import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
 import copper2Img from "../../../attached_assets/files/copper2.jpg";
 import gold2Img from "../../../attached_assets/files/gold2.jpg";
-import gold3Img from "../../../attached_assets/files/gold3.png";
 import green2Img from "../../../attached_assets/files/green-emerald2.jpg";
 import {
   Select,
@@ -40,8 +45,12 @@ import {
 export default function Marketplace() {
   const { isAuthenticated, isSeller } = useAuth();
   const { toast } = useToast();
+  const [location] = useLocation();
+  
+  const [activeTab, setActiveTab] = useState("minerals");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMineralType, setSelectedMineralType] = useState("all");
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string>("all");
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     id: string;
@@ -52,6 +61,32 @@ export default function Marketplace() {
     listingId?: string;
   } | null>(null);
   const [contactedListings, setContactedListings] = useState<Set<string>>(new Set());
+
+  // Synchronize state with URL parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1] || '');
+    const category = searchParams.get('category');
+    const tab = searchParams.get('tab');
+    
+    if (tab) {
+      setActiveTab(tab);
+      // Sync filters when tab changes from URL
+      if (tab === 'minerals') {
+        setSelectedMainCategory('minerals');
+      } else if (tab === 'mining_tools') {
+        setSelectedMainCategory('mining_tools');
+      } else if (tab === 'mining_services') {
+        setSelectedMainCategory('mining_services');
+      } else if (tab === 'mining_ppe') {
+        setSelectedMainCategory('mining_ppe');
+      } else if (tab === 'requests') {
+        setSelectedMainCategory('all');
+      }
+    } else if (category) {
+      setActiveTab(category);
+      setSelectedMainCategory(category);
+    }
+  }, [location]);
 
   // Fetch admin contact (public lightweight endpoint)
   const { data: adminContact, isLoading: loadingAdminContact } = useQuery<any>({
@@ -129,21 +164,41 @@ export default function Marketplace() {
     checkContactStatus();
   }, [listings, isAuthenticated]);
 
+  // Get subcategories for current main category
+  const availableSubcategories = selectedMainCategory !== "all" 
+    ? getSubcategoriesForMain(selectedMainCategory)
+    : {};
+
   const filteredListings = listings?.filter((listing) => {
-    const matchesMineralType = selectedMineralType === "all" || listing.mineralType === selectedMineralType;
+    const matchesMainCategory = selectedMainCategory === "all" || listing.mainCategory === selectedMainCategory;
+    const matchesSubcategory = selectedSubcategory === "all" || 
+      listing.mineralSubcategory === selectedSubcategory ||
+      listing.toolSubcategory === selectedSubcategory ||
+      listing.serviceSubcategory === selectedSubcategory ||
+      listing.ppeSubcategory === selectedSubcategory;
     const matchesSearch = !searchQuery || 
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesMineralType && matchesSearch && listing.status === 'approved';
+      listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.mineralType?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesMainCategory && matchesSubcategory && matchesSearch && listing.status === 'approved';
   });
 
   const filteredRequests = buyerRequests?.filter((request) => {
-    const matchesMineralType = selectedMineralType === "all" || request.mineralType === selectedMineralType;
+    const matchesMainCategory = selectedMainCategory === "all" || request.mainCategory === selectedMainCategory;
+    const matchesSubcategory = selectedSubcategory === "all" || 
+      request.mineralSubcategory === selectedSubcategory ||
+      request.toolSubcategory === selectedSubcategory ||
+      request.serviceSubcategory === selectedSubcategory ||
+      request.ppeSubcategory === selectedSubcategory;
     const matchesSearch = !searchQuery || 
       request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      request.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesMineralType && matchesSearch && request.status === 'active';
+      request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.mineralType?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesMainCategory && matchesSubcategory && matchesSearch && request.status === 'active';
   });
+
 
   return (
     <div className="flex flex-col">
@@ -172,24 +227,32 @@ export default function Marketplace() {
       {/* Marketplace Tabs */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <Tabs defaultValue="minerals" className="w-full">
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-3 mb-8">
-              <TabsTrigger value="minerals" data-testid="tab-minerals">
-                <img src={gold3Img} className="mr-2 h-4 w-4 object-cover rounded" alt="minerals" />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-5 mb-8">
+              <TabsTrigger value="minerals" data-testid="tab-minerals" onClick={() => setSelectedMainCategory("minerals")}>
+                <Gem className="mr-2 h-4 w-4" />
                 Minerals
               </TabsTrigger>
-              <TabsTrigger value="requests" data-testid="tab-requests">
-                <Package className="mr-2 h-4 w-4" />
-                Requests
+              <TabsTrigger value="mining_tools" data-testid="tab-tools" onClick={() => setSelectedMainCategory("mining_tools")}>
+                <Wrench className="mr-2 h-4 w-4" />
+                Tools
               </TabsTrigger>
-              <TabsTrigger value="partnerships" data-testid="tab-partnerships">
-                <Users className="mr-2 h-4 w-4" />
-                Partnerships
+              <TabsTrigger value="mining_services" data-testid="tab-services" onClick={() => setSelectedMainCategory("mining_services")}>
+                <Briefcase className="mr-2 h-4 w-4" />
+                Services
+              </TabsTrigger>
+              <TabsTrigger value="mining_ppe" data-testid="tab-ppe" onClick={() => setSelectedMainCategory("mining_ppe")}>
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                PPE
+              </TabsTrigger>
+              <TabsTrigger value="requests" data-testid="tab-requests" onClick={() => setSelectedMainCategory("all")}>
+                <Package className="mr-2 h-4 w-4" />
+                RFQs
               </TabsTrigger>
             </TabsList>
 
             {/* Filters */}
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
               <div>
                 <Label htmlFor="search-marketplace">Search</Label>
                 <div className="relative">
@@ -205,17 +268,37 @@ export default function Marketplace() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="mineral-type">Mineral Type</Label>
-                <Select value={selectedMineralType} onValueChange={setSelectedMineralType}>
-                  <SelectTrigger id="mineral-type" data-testid="select-mineral-type">
-                    <SelectValue placeholder="All Minerals" />
+                <Label htmlFor="main-category">Main Category</Label>
+                <Select value={selectedMainCategory} onValueChange={(val) => {
+                  setSelectedMainCategory(val);
+                  setSelectedSubcategory("all");
+                }}>
+                  <SelectTrigger id="main-category" data-testid="select-main-category">
+                    <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Minerals</SelectItem>
-                    <SelectItem value="Copper">Copper</SelectItem>
-                    <SelectItem value="Emerald">Emerald</SelectItem>
-                    <SelectItem value="Gold">Gold</SelectItem>
-                    <SelectItem value="Cobalt">Cobalt</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {Object.entries(MAIN_CATEGORIES).map(([key, cat]) => (
+                      <SelectItem key={key} value={key}>{cat.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <Select 
+                  value={selectedSubcategory} 
+                  onValueChange={setSelectedSubcategory}
+                  disabled={selectedMainCategory === "all"}
+                >
+                  <SelectTrigger id="subcategory" data-testid="select-subcategory">
+                    <SelectValue placeholder="All Subcategories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Subcategories</SelectItem>
+                    {Object.entries(availableSubcategories).map(([key, sub]: [string, any]) => (
+                      <SelectItem key={key} value={key}>{sub.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
