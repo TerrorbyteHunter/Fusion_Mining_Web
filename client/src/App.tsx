@@ -12,7 +12,6 @@ import { Footer } from "@/components/Footer";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import About from "@/pages/About";
-import Services from "@/pages/Services";
 import Sustainability from "@/pages/Sustainability";
 import Projects from "@/pages/Projects";
 import Marketplace from "@/pages/Marketplace";
@@ -26,7 +25,7 @@ import ProfileView from "@/pages/ProfileView";
 import CreateListing from "@/pages/CreateListing";
 import Messages from "@/pages/Messages";
 import LMEPrices from "@/pages/LMEPrices";
-import Compliance from "@/pages/Compliance";
+import ServicesCompliance from "@/pages/ServicesCompliance";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
@@ -42,14 +41,13 @@ function Router() {
           <Route path="/" component={Landing} />
           <Route path="/login" component={Login} />
           <Route path="/about" component={About} />
-          <Route path="/services" component={Services} />
+          <Route path="/services" component={ServicesCompliance} />
           <Route path="/sustainability" component={Sustainability} />
           <Route path="/projects" component={Projects} />
           <Route path="/marketplace" component={Marketplace} />
           <Route path="/news" component={News} />
           <Route path="/contact" component={Contact} />
           <Route path="/lme-prices" component={LMEPrices} />
-          <Route path="/compliance" component={Compliance} />
 
           {/* Protected Routes */}
           <Route path="/dashboard" component={Dashboard} />
