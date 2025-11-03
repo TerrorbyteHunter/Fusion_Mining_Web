@@ -26,12 +26,9 @@ import { NotificationBell } from "@/components/ui/notification-bell";
 
 const navItems = [
   { label: "Home", path: "/" },
-  { label: "About", path: "/about" },
   { label: "Services", path: "/services" },
-  { label: "Sustainability", path: "/sustainability" },
   { label: "Projects", path: "/projects" },
   { label: "Marketplace", path: "/marketplace" },
-  { label: "LME Prices", path: "/lme-prices" },
   { label: "News", path: "/news" },
   { label: "Contact", path: "/contact" },
 ];
