@@ -5,8 +5,30 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 2025)
 
-### B2B Mineral-Inspired Redesign
-The platform has been redesigned to match core concepts from b2bmineral.com while maintaining Fusion Mining's unique branding:
+### Compact Layout Redesign (November 3, 2025)
+The platform has been redesigned with a more compact, professional layout inspired by b2bmineral.com:
+
+**Navigation & Layout:**
+- Removed About Us and Sustainability pages for streamlined navigation
+- Added LME Price Ticker sidebar showing real-time prices for top 10 metals (Copper, Gold, Silver, etc.)
+- Reduced homepage hero section from 600px to 400px for more compact design
+- Simplified header navigation with fewer top-level links
+- LME ticker appears on all public pages, hidden on dashboard/admin pages
+
+**Dashboard Redesign:**
+- Implemented clean left sidebar navigation (similar to B2B Mineral reference)
+- Role-aware menu items (different for sellers vs buyers)
+- Compact card-based layout for stats and quick actions
+- Sticky sidebar navigation for easy access to all sections
+- Professional gradient header for visual hierarchy
+
+**Footer Updates:**
+- Removed links to deleted pages (About, Sustainability)
+- Reorganized sections for better clarity
+- Consolidated legal links into dedicated section
+
+### B2B Mineral-Inspired Redesign (Previous)
+The platform matches core concepts from b2bmineral.com while maintaining Fusion Mining's unique branding:
 
 **Database Schema Updates:**
 - Added hierarchical category fields to `marketplace_listings`: `main_category`, `sub_category`, `specific_type`
