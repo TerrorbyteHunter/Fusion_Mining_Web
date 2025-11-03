@@ -1,25 +1,20 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
-import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
 
-const viteLogger = createLogger();
-
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
+export let viteLogger: any;
 
 export async function setupVite(app: Express, server: Server) {
+  // Dynamically import Vite at runtime only in development so that production
+  // builds (and server bundles) do not include Vite and its native optional
+  // dependencies (like rollup platform binaries). This prevents server
+  // bundles from pulling in platform-specific native packages.
+  const viteModule = await import('vite');
+  const createViteServer = viteModule.createServer;
+  viteLogger = viteModule.createLogger();
+
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
@@ -27,11 +22,11 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig,
+    root: path.resolve(import.meta.dirname, '..', 'client'),
     configFile: false,
     customLogger: {
       ...viteLogger,
-      error: (msg, options) => {
+      error: (msg: any, options: any) => {
         viteLogger.error(msg, options);
         process.exit(1);
       },
