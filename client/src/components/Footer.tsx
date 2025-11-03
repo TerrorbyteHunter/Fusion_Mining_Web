@@ -70,11 +70,6 @@ export function Footer() {
             <h3 className="font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
-                  About Us
-                </Link>
-              </li>
-              <li>
                 <Link href="/services" className="text-muted-foreground hover:text-foreground transition-colors">
                   Services
                 </Link>
@@ -89,26 +84,36 @@ export function Footer() {
                   Marketplace
                 </Link>
               </li>
-            </ul>
-          </div>
-
-          {/* Resources */}
-          <div>
-            <h3 className="font-semibold mb-4">Resources</h3>
-            <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/news" className="text-muted-foreground hover:text-foreground transition-colors">
                   News & Insights
                 </Link>
               </li>
               <li>
-                <Link href="/sustainability" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Sustainability
+                <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Contact
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <h3 className="font-semibold mb-4">Legal</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link href="/legal/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Contact
+                <Link href="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/legal/disclaimer" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Disclaimer
                 </Link>
               </li>
             </ul>
