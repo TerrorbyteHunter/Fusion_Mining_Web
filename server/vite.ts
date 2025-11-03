@@ -40,6 +40,12 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
+  // Serve project-level static assets (images, PDFs) from /attached_assets in dev
+  // This mirrors how the client imports files via the @assets alias and allows
+  // dynamic image_url values (e.g. '/attached_assets/files/...') to be reachable
+  // when running the dev server.
+  app.use('/attached_assets', express.static(path.resolve(import.meta.dirname, '..', 'attached_assets')));
+
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
