@@ -4,7 +4,8 @@ const { Pool } = require('pg');
 // we rely on the platform's CA trust and do not disable verification.
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? undefined : { rejectUnauthorized: false }
+  // Only disable TLS verification when explicitly allowed via DEV_ALLOW_INSECURE_TLS
+  ssl: process.env.DEV_ALLOW_INSECURE_TLS === 'true' ? { rejectUnauthorized: false } : undefined
 });
 
 module.exports = async (req, res) => {

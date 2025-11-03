@@ -7,7 +7,8 @@ if (!connectionString) {
   console.error('DATABASE_URL (or POSTGRES_URL) is required');
   process.exit(1);
 }
-const pool = new Pool({ connectionString, ssl: connectionString.includes('render.com') ? { rejectUnauthorized: false } : undefined });
+// Allow opting into insecure TLS when DEV_ALLOW_INSECURE_TLS=true (local/dev only)
+const pool = new Pool({ connectionString, ssl: process.env.DEV_ALLOW_INSECURE_TLS === 'true' ? { rejectUnauthorized: false } : undefined });
 
 (async function(){
   const client = await pool.connect();
