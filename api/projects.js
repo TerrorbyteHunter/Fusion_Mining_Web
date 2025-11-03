@@ -1,6 +1,11 @@
 const { Pool } = require('pg');
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Allow insecure TLS verification in local/dev for convenience. Do NOT
+// disable this in production; instead ensure proper CA chain is trusted.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? undefined : { rejectUnauthorized: false }
+});
 
 module.exports = async (req, res) => {
   try {

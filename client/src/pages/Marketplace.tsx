@@ -515,6 +515,132 @@ export default function Marketplace() {
               )}
             </TabsContent>
 
+            <TabsContent value="mining_equipment">
+              {loadingListings ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[1, 2].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredListings && filteredListings.filter(l => l.type === 'partnership').length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
+                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
+                      {listing.imageUrl && (
+                        <ImageDisplay
+                          imageUrl={listing.imageUrl}
+                          alt={listing.title}
+                          fallbackImage={catalogueImg}
+                          className="h-48 w-full object-cover"
+                        />
+                      )}
+                      <CardHeader>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            {listing.itemId && (
+                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
+                            )}
+                          </div>
+                          <StatusBadge status={listing.status} />
+                        </div>
+                        <CardDescription className="line-clamp-3">
+                          {listing.description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{listing.location}</span>
+                        </div>
+                        <Button 
+                          className="w-full" 
+                          data-testid={`button-learn-partnership-${listing.id}`}
+                          onClick={() => handleContactSeller(listing)}
+                        >
+                          Inquire
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Partnership Opportunities</h3>
+                    <p className="text-muted-foreground">
+                      Check back later for new partnerships
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="mining_services">
+              {loadingListings ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {[1, 2].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : filteredListings && filteredListings.filter(l => l.type === 'partnership').length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
+                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
+                      <CardHeader>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            {listing.itemId && (
+                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
+                            )}
+                          </div>
+                          <StatusBadge status={listing.status} />
+                        </div>
+                        <CardDescription className="line-clamp-3">
+                          {listing.description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{listing.location}</span>
+                        </div>
+                        <Button 
+                          className="w-full" 
+                          data-testid={`button-learn-partnership-${listing.id}`}
+                          onClick={() => handleContactSeller(listing)}
+                        >
+                          Learn More
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Partnership Opportunities</h3>
+                    <p className="text-muted-foreground">
+                      Check back later for new partnerships
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
             <TabsContent value="partnerships">
               {loadingListings ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
