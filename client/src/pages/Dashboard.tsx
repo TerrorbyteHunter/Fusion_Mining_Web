@@ -4,15 +4,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { 
   Package, 
   MessageSquare, 
   Heart, 
   Settings,
-  Plus,
   TrendingUp,
   Users,
   FileText
@@ -50,35 +49,26 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex flex-col">
-      {/* Header */}
-      <section className="py-8 border-b bg-card/50">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold font-display mb-2" data-testid="text-page-title">
-                Welcome back, {user?.firstName || user?.email}!
-              </h1>
-              <p className="text-muted-foreground">
-                Manage your mining investments and partnerships
-              </p>
-            </div>
-            {isSeller && (
-              <Button asChild data-testid="button-create-listing">
-                <Link href="/dashboard/create-listing">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Listing
-                </Link>
-              </Button>
-            )}
+    <div className="flex">
+      <DashboardSidebar />
+      <div className="flex-1">
+        {/* Header */}
+        <section className="py-6 border-b bg-gradient-to-r from-primary/5 to-primary/10">
+          <div className="container mx-auto px-6">
+            <h1 className="text-2xl font-bold font-display mb-1" data-testid="text-page-title">
+              Welcome back, {user?.firstName || user?.email}!
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Here's what's happening with your account today
+            </p>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Quick Stats */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Quick Stats */}
+        <section className="py-6">
+          <div className="container mx-auto px-6">
+            <h2 className="text-lg font-semibold mb-4">Overview</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -156,89 +146,90 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* Quick Actions */}
-      <section className="py-8 border-t">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold font-display mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Link href="/dashboard/profile">
-              <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-profile">
-                <CardHeader>
-                  <Settings className="h-10 w-10 mb-4 text-primary" />
-                  <CardTitle>Manage Profile</CardTitle>
-                  <CardDescription>
-                    Update your account details and preferences
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-
-            <Link href="/dashboard/messages">
-              <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-messages">
-                <CardHeader>
-                  <MessageSquare className="h-10 w-10 mb-4 text-chart-4" />
-                  <CardTitle>Messages</CardTitle>
-                  <CardDescription>
-                    View and manage your conversations
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-
-            <Link href="/projects">
-              <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-projects">
-                <CardHeader>
-                  <TrendingUp className="h-10 w-10 mb-4 text-chart-3" />
-                  <CardTitle>Browse Projects</CardTitle>
-                  <CardDescription>
-                    Explore new mining opportunities
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-
-            {isSeller && (
-              <Link href="/dashboard/listings">
-                <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-listings">
-                  <CardHeader>
-                    <Package className="h-10 w-10 mb-4 text-chart-2" />
-                    <CardTitle>My Listings</CardTitle>
-                    <CardDescription>
-                      Manage your marketplace offerings
-                    </CardDescription>
+        {/* Quick Actions */}
+        <section className="py-6 border-t">
+          <div className="container mx-auto px-6">
+            <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Link href="/projects">
+                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full" data-testid="card-projects">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-chart-3/10 rounded-lg">
+                        <TrendingUp className="h-5 w-5 text-chart-3" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">Browse Projects</CardTitle>
+                        <CardDescription className="text-xs">
+                          Explore new mining opportunities
+                        </CardDescription>
+                      </div>
+                    </div>
                   </CardHeader>
                 </Card>
               </Link>
-            )}
 
-            {isAdmin && (
-              <Link href="/admin">
-                <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-admin">
-                  <CardHeader>
-                    <FileText className="h-10 w-10 mb-4 text-destructive" />
-                    <CardTitle>Admin Panel</CardTitle>
-                    <CardDescription>
-                      Manage users and verify listings
-                    </CardDescription>
+              <Link href="/marketplace">
+                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full" data-testid="card-marketplace">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-chart-5/10 rounded-lg">
+                        <Users className="h-5 w-5 text-chart-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-sm">Marketplace</CardTitle>
+                        <CardDescription className="text-xs">
+                          Buy minerals and find partnerships
+                        </CardDescription>
+                      </div>
+                    </div>
                   </CardHeader>
                 </Card>
               </Link>
-            )}
 
-            <Link href="/marketplace">
-              <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid="card-marketplace">
-                <CardHeader>
-                  <Users className="h-10 w-10 mb-4 text-chart-5" />
-                  <CardTitle>Marketplace</CardTitle>
-                  <CardDescription>
-                    Buy minerals and find partnerships
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
+              {isSeller && (
+                <Link href="/dashboard/create-listing">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/20" data-testid="card-create-listing">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Package className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm">Create Listing</CardTitle>
+                          <CardDescription className="text-xs">
+                            Add a new marketplace offering
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
+
+              {isAdmin && (
+                <Link href="/admin">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full" data-testid="card-admin">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-destructive/10 rounded-lg">
+                          <FileText className="h-5 w-5 text-destructive" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm">Admin Panel</CardTitle>
+                          <CardDescription className="text-xs">
+                            Manage users and verify listings
+                          </CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

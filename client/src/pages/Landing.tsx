@@ -105,7 +105,7 @@ export default function Landing() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[400px] md:h-[450px] flex items-center justify-center overflow-hidden">
         {/* Background Image with Overlay */}
         <div 
           className="absolute inset-0 bg-cover bg-center"
@@ -116,11 +116,11 @@ export default function Landing() {
 
         {/* Content */}
         <div className="relative z-10 container mx-auto px-4 text-white">
-          <div className="max-w-3xl">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold font-display mb-6" data-testid="text-hero-title">
+          <div className="max-w-2xl">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4" data-testid="text-hero-title">
               Unlock Zambia's Mining Potential
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-white/90">
+            <p className="text-lg md:text-xl mb-6 text-white/90">
               Connect with investors, trade minerals, and build partnerships in Africa's premier mining marketplace.
             </p>
             <div className="flex flex-wrap gap-4">
