@@ -22,6 +22,7 @@ import mineralsImg from "@assets/stock_images/mining_minerals_copp_a83cbefb.jpg"
 import toolsImg from "@assets/stock_images/mining_heavy_equipme_90ded174.jpg";
 import servicesImg from "@assets/stock_images/mining_engineer_serv_7e4e30bf.jpg";
 import type { Video, BuyerRequest } from "@shared/schema";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Convert YouTube URL to embed format
 function getEmbedUrl(url: string): string {
@@ -51,41 +52,42 @@ function getEmbedUrl(url: string): string {
   return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
 }
 
-const categoryCards = [
-  {
-    title: "Minerals",
-    description: "Metallic and non-metallic minerals, natural stones",
-    icon: Gem,
-    image: mineralsImg,
-    href: "/marketplace?category=minerals",
-    color: "text-chart-1"
-  },
-  {
-    title: "Mining Equipment",
-    description: "Equipment, machinery, and PPE for mining operations",
-    icon: Wrench,
-    image: toolsImg,
-    href: "/marketplace?category=mining_equipment",
-    color: "text-chart-2"
-  },
-  {
-    title: "Mining & Engineering Services",
-    description: "Professional services for mining operations",
-    icon: Briefcase,
-    image: servicesImg,
-    href: "/marketplace?category=mining_services",
-    color: "text-chart-3"
-  },
-];
-
-const stats = [
-  { label: "Active Projects", value: "50+", icon: Mountain },
-  { label: "Verified Partners", value: "200+", icon: HandshakeIcon },
-  { label: "Minerals Traded", value: "15+", icon: Gem },
-  { label: "Success Rate", value: "98%", icon: Shield },
-];
-
 export default function Landing() {
+  const { t } = useLanguage();
+  
+  const categoryCards = [
+    {
+      title: t('categories.minerals'),
+      description: t('categories.minerals.desc'),
+      icon: Gem,
+      image: mineralsImg,
+      href: "/marketplace?category=minerals",
+      color: "text-chart-1"
+    },
+    {
+      title: t('categories.equipment'),
+      description: t('categories.equipment.desc'),
+      icon: Wrench,
+      image: toolsImg,
+      href: "/marketplace?category=mining_equipment",
+      color: "text-chart-2"
+    },
+    {
+      title: t('categories.services'),
+      description: t('categories.services.desc'),
+      icon: Briefcase,
+      image: servicesImg,
+      href: "/marketplace?category=mining_services",
+      color: "text-chart-3"
+    },
+  ];
+
+  const stats = [
+    { label: t('stats.activeProjects'), value: "50+", icon: Mountain },
+    { label: t('stats.verifiedPartners'), value: "200+", icon: HandshakeIcon },
+    { label: t('stats.mineralsTraded'), value: "15+", icon: Gem },
+    { label: t('stats.successRate'), value: "98%", icon: Shield },
+  ];
   const { data: activeVideos } = useQuery<Video[]>({
     queryKey: ["/api/videos/active"],
   });
@@ -110,10 +112,10 @@ export default function Landing() {
         <div className="relative z-10 container mx-auto px-4 text-white">
           <div className="max-w-2xl">
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4" data-testid="text-hero-title">
-              Unlock Zambia's Mining Potential
+              {t('hero.title')}
             </h1>
             <p className="text-lg md:text-xl mb-6 text-white/90">
-              Connect with investors, trade minerals, and build partnerships in Africa's premier mining marketplace.
+              {t('hero.subtitle')}
             </p>
             <div className="flex flex-wrap gap-4">
               <Button 
@@ -124,7 +126,7 @@ export default function Landing() {
               >
                 <Link href="/marketplace">
                   <ShoppingCart className="mr-2 h-5 w-5" />
-                  Buy Minerals
+                  {t('hero.buy')}
                 </Link>
               </Button>
               <Button 
@@ -136,7 +138,7 @@ export default function Landing() {
               >
                 <Link href="/login">
                   <Package className="mr-2 h-5 w-5" />
-                  Sell Minerals
+                  {t('hero.sell')}
                 </Link>
               </Button>
             </div>
@@ -168,14 +170,14 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-              All Categories
+              {t('categories.title')}
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Browse our comprehensive marketplace for mining minerals, equipment, services, and safety gear
+              {t('categories.subtitle')}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {categoryCards.map((category, index) => (
               <Link key={index} href={category.href}>
                 <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer overflow-hidden group" data-testid={`card-category-${index}`}>

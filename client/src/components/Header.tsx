@@ -23,21 +23,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/ui/notification-bell";
-
-const navItems = [
-  { label: "Home", path: "/" },
-  { label: "Services", path: "/services" },
-  { label: "Marketplace", path: "/marketplace" },
-  { label: "Projects", path: "/projects" },
-  { label: "Sustainability", path: "/sustainability" },
-  { label: "Insights", path: "/news" },
-  { label: "Contact Us", path: "/contact" },
-];
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
   const [location] = useLocation();
   const { user, isAuthenticated, isAdmin } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useLanguage();
+
+  const navItems = [
+    { label: t('nav.home'), path: "/", key: "home" },
+    { label: t('nav.services'), path: "/services", key: "services" },
+    { label: t('nav.marketplace'), path: "/marketplace", key: "marketplace" },
+    { label: t('nav.projects'), path: "/projects", key: "projects" },
+    { label: t('nav.sustainability'), path: "/sustainability", key: "sustainability" },
+    { label: t('nav.news'), path: "/news", key: "news" },
+    { label: t('nav.contact'), path: "/contact", key: "contact" },
+  ];
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -80,7 +83,7 @@ export function Header() {
                 <Button
                   variant={location === item.path ? "secondary" : "ghost"}
                   size="sm"
-                  data-testid={`link-${item.label.toLowerCase()}`}
+                  data-testid={`link-${item.key}`}
                 >
                   {item.label}
                 </Button>
@@ -90,6 +93,7 @@ export function Header() {
 
           {/* Auth & User Menu */}
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {isAuthenticated && isAdmin && <NotificationBell />}
             {isAuthenticated ? (
               <DropdownMenu>
@@ -112,21 +116,21 @@ export function Header() {
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard" className="flex items-center gap-2">
                       <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
+                      {t('nav.dashboard')}
                     </Link>
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link href="/admin" className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4" />
-                        Admin Panel
+                        {t('nav.adminPanel')}
                       </Link>
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard/profile" className="flex items-center gap-2">
                       <User className="h-4 w-4" />
-                      Profile
+                      {t('nav.profile')}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -137,7 +141,7 @@ export function Header() {
                     data-testid="button-logout"
                   >
                     <LogOut className="h-4 w-4" />
-                    Log Out
+                    {t('nav.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -149,7 +153,7 @@ export function Header() {
               >
                 <Link href="/login">
                   <User className="mr-2 h-4 w-4" />
-                  Log In
+                  {t('nav.login')}
                 </Link>
               </Button>
             )}
@@ -180,7 +184,7 @@ export function Header() {
                   variant={location === item.path ? "secondary" : "ghost"}
                   className="w-full justify-start"
                   onClick={() => setMobileMenuOpen(false)}
-                  data-testid={`link-mobile-${item.label.toLowerCase()}`}
+                  data-testid={`link-mobile-${item.key}`}
                 >
                   {item.label}
                 </Button>

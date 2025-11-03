@@ -3,8 +3,10 @@ import { Link } from "wouter";
 import { Mountain, Mail, Phone, MapPin, Facebook, Twitter, Linkedin } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Footer() {
+  const { t } = useLanguage();
   const { data: contact } = useQuery<any>({
     queryKey: ['/api/contact-settings'],
     queryFn: getQueryFn({ on401: 'returnNull' }),
@@ -32,7 +34,7 @@ export function Footer() {
               </div>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Your trusted partner for mining investments and mineral trading in Zambia.
+              {t('footer.tagline')}
             </p>
             <div className="flex gap-2">
               <a 
@@ -67,36 +69,36 @@ export function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="font-semibold mb-4">{t('footer.quickLinks')}</h3>
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
               <li>
                 <Link href="/services" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Services
+                  {t('nav.services')}
                 </Link>
               </li>
               <li>
                 <Link href="/projects" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Projects
+                  {t('nav.projects')}
                 </Link>
               </li>
               <li>
                 <Link href="/marketplace" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Marketplace
+                  {t('nav.marketplace')}
                 </Link>
               </li>
               <li>
                 <Link href="/news" className="text-muted-foreground hover:text-foreground transition-colors">
-                  News & Insights
+                  {t('nav.news')}
                 </Link>
               </li>
               <li>
                 <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Contact
+                  {t('nav.contact')}
                 </Link>
               </li>
               <li>
                 <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
-                  About Us
+                  {t('nav.about')}
                 </Link>
               </li>
             </ul>
@@ -104,21 +106,21 @@ export function Footer() {
 
           {/* Resources */}
           <div>
-            <h3 className="font-semibold mb-4">Legal</h3>
+            <h3 className="font-semibold mb-4">{t('footer.legal')}</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/legal/terms" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Terms of Service
+                  {t('footer.terms')}
                 </Link>
               </li>
               <li>
                 <Link href="/legal/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Privacy Policy
+                  {t('footer.privacy')}
                 </Link>
               </li>
               <li>
                 <Link href="/legal/disclaimer" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Disclaimer
+                  {t('footer.disclaimer')}
                 </Link>
               </li>
             </ul>
@@ -126,7 +128,7 @@ export function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="font-semibold mb-4">Contact Us</h3>
+            <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -147,16 +149,16 @@ export function Footer() {
         </div>
 
         <div className="border-t mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-          <p>© 2024 Fusion Mining Limited. All rights reserved.</p>
+          <p>{t('footer.copyright')}</p>
           <div className="flex gap-6">
             <Link href="/legal/terms" className="hover:text-foreground transition-colors">
-              Terms of Service
+              {t('footer.terms')}
             </Link>
             <Link href="/legal/privacy" className="hover:text-foreground transition-colors">
-              Privacy Policy
+              {t('footer.privacy')}
             </Link>
             <Link href="/legal/disclaimer" className="hover:text-foreground transition-colors">
-              Disclaimer
+              {t('footer.disclaimer')}
             </Link>
           </div>
         </div>
