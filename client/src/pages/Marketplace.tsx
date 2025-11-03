@@ -24,7 +24,6 @@ import {
   Gem,
   Wrench,
   Briefcase,
-  ShieldCheck,
 } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
@@ -73,18 +72,20 @@ export default function Marketplace() {
       // Sync filters when tab changes from URL
       if (tab === 'minerals') {
         setSelectedMainCategory('minerals');
+      } else if (tab === 'mining_equipment') {
+        setSelectedMainCategory('mining_equipment');
       } else if (tab === 'mining_tools') {
-        setSelectedMainCategory('mining_tools');
+        setSelectedMainCategory('mining_equipment');
+      } else if (tab === 'mining_ppe') {
+        setSelectedMainCategory('mining_equipment');
       } else if (tab === 'mining_services') {
         setSelectedMainCategory('mining_services');
-      } else if (tab === 'mining_ppe') {
-        setSelectedMainCategory('mining_ppe');
       } else if (tab === 'requests') {
         setSelectedMainCategory('all');
       }
     } else if (category) {
       setActiveTab(category);
-      setSelectedMainCategory(category);
+      setSelectedMainCategory(category === 'mining_tools' || category === 'mining_ppe' ? 'mining_equipment' : category);
     }
   }, [location]);
 
@@ -228,22 +229,18 @@ export default function Marketplace() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-5 mb-8">
+            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-8">
               <TabsTrigger value="minerals" data-testid="tab-minerals" onClick={() => setSelectedMainCategory("minerals")}>
                 <Gem className="mr-2 h-4 w-4" />
                 Minerals
               </TabsTrigger>
-              <TabsTrigger value="mining_tools" data-testid="tab-tools" onClick={() => setSelectedMainCategory("mining_tools")}>
+              <TabsTrigger value="mining_equipment" data-testid="tab-equipment" onClick={() => setSelectedMainCategory("mining_equipment")}>
                 <Wrench className="mr-2 h-4 w-4" />
-                Tools
+                Equipment
               </TabsTrigger>
               <TabsTrigger value="mining_services" data-testid="tab-services" onClick={() => setSelectedMainCategory("mining_services")}>
                 <Briefcase className="mr-2 h-4 w-4" />
                 Services
-              </TabsTrigger>
-              <TabsTrigger value="mining_ppe" data-testid="tab-ppe" onClick={() => setSelectedMainCategory("mining_ppe")}>
-                <ShieldCheck className="mr-2 h-4 w-4" />
-                PPE
               </TabsTrigger>
               <TabsTrigger value="requests" data-testid="tab-requests" onClick={() => setSelectedMainCategory("all")}>
                 <Package className="mr-2 h-4 w-4" />

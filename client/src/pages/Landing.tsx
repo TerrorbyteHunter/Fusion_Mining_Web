@@ -12,7 +12,6 @@ import {
   ArrowRight,
   Wrench,
   Briefcase,
-  ShieldCheck,
   CheckCircle2,
   ShoppingCart,
   Package
@@ -22,7 +21,6 @@ import heroImage from "@assets/generated_images/Zambian_copper_mining_operation_
 import mineralsImg from "@assets/stock_images/mining_minerals_copp_a83cbefb.jpg";
 import toolsImg from "@assets/stock_images/mining_heavy_equipme_90ded174.jpg";
 import servicesImg from "@assets/stock_images/mining_engineer_serv_7e4e30bf.jpg";
-import ppeImg from "@assets/stock_images/mining_safety_helmet_b557deed.jpg";
 import type { Video, BuyerRequest } from "@shared/schema";
 
 // Convert YouTube URL to embed format
@@ -63,11 +61,11 @@ const categoryCards = [
     color: "text-chart-1"
   },
   {
-    title: "Mining Tools",
-    description: "Equipment and machinery for mining operations",
+    title: "Mining Equipment",
+    description: "Equipment, machinery, and PPE for mining operations",
     icon: Wrench,
     image: toolsImg,
-    href: "/marketplace?category=mining_tools",
+    href: "/marketplace?category=mining_equipment",
     color: "text-chart-2"
   },
   {
@@ -77,14 +75,6 @@ const categoryCards = [
     image: servicesImg,
     href: "/marketplace?category=mining_services",
     color: "text-chart-3"
-  },
-  {
-    title: "Mining PPE",
-    description: "Personal Protective Equipment for mining safety",
-    icon: ShieldCheck,
-    image: ppeImg,
-    href: "/marketplace?category=mining_ppe",
-    color: "text-chart-4"
   },
 ];
 

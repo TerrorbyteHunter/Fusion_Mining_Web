@@ -24,6 +24,8 @@ import ProfileView from "@/pages/ProfileView";
 import CreateListing from "@/pages/CreateListing";
 import Messages from "@/pages/Messages";
 import ServicesCompliance from "@/pages/ServicesCompliance";
+import Sustainability from "@/pages/Sustainability";
+import About from "@/pages/About";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
@@ -53,7 +55,9 @@ function Router() {
             <Route path="/services" component={ServicesCompliance} />
             <Route path="/projects" component={Projects} />
             <Route path="/marketplace" component={Marketplace} />
+            <Route path="/sustainability" component={Sustainability} />
             <Route path="/news" component={News} />
+            <Route path="/about" component={About} />
             <Route path="/contact" component={Contact} />
 
             {/* Protected Routes */}

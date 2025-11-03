@@ -27,10 +27,11 @@ import { NotificationBell } from "@/components/ui/notification-bell";
 const navItems = [
   { label: "Home", path: "/" },
   { label: "Services", path: "/services" },
-  { label: "Projects", path: "/projects" },
   { label: "Marketplace", path: "/marketplace" },
-  { label: "News", path: "/news" },
-  { label: "Contact", path: "/contact" },
+  { label: "Projects", path: "/projects" },
+  { label: "Sustainability", path: "/sustainability" },
+  { label: "Insights", path: "/news" },
+  { label: "Contact Us", path: "/contact" },
 ];
 
 export function Header() {
