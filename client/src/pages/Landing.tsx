@@ -13,7 +13,9 @@ import {
   Wrench,
   Briefcase,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  ShoppingCart,
+  Package
 } from "lucide-react";
 import { format } from "date-fns";
 import heroImage from "@assets/generated_images/Zambian_copper_mining_operation_aerial_46e06322.png";
@@ -128,11 +130,11 @@ export default function Landing() {
                 asChild 
                 size="lg" 
                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                data-testid="button-get-started"
+                data-testid="button-buy-minerals"
               >
-                <Link href="/login">
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                <Link href="/marketplace">
+                  <ShoppingCart className="mr-2 h-5 w-5" />
+                  Buy Minerals
                 </Link>
               </Button>
               <Button 
@@ -140,10 +142,11 @@ export default function Landing() {
                 size="lg" 
                 variant="outline" 
                 className="bg-white/10 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
-                data-testid="button-explore-projects"
+                data-testid="button-sell-minerals"
               >
-                <Link href="/projects">
-                  Explore Projects
+                <Link href="/login">
+                  <Package className="mr-2 h-5 w-5" />
+                  Sell Minerals
                 </Link>
               </Button>
             </div>
