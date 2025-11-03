@@ -15,12 +15,26 @@ The platform has been redesigned with a more compact, professional layout inspir
 - Simplified header navigation with fewer top-level links
 - LME ticker appears on all public pages, hidden on dashboard/admin pages
 
+**Homepage Quick Actions:**
+- Added "Buy Minerals" button (links to marketplace) with shopping cart icon
+- Added "Sell Minerals" button (links to login for sellers) with package icon
+- Replaced generic "Get Started" and "Explore Projects" with focused CTAs
+- Improved user flow for buyers and sellers
+
 **Dashboard Redesign:**
 - Implemented clean left sidebar navigation (similar to B2B Mineral reference)
 - Role-aware menu items (different for sellers vs buyers)
 - Compact card-based layout for stats and quick actions
 - Sticky sidebar navigation for easy access to all sections
 - Professional gradient header for visual hierarchy
+
+**Create Listing Functionality:**
+- Fully functional listing creation form at /dashboard/create-listing
+- Hierarchical category selection (Main Category → Subcategory → Specific Type)
+- Support for minerals, mining tools, services, and PPE listings
+- Image upload integration with ImageSelector component
+- Proper validation and seller authentication enforcement
+- Automatic submission to verification queue
 
 **Footer Updates:**
 - Removed links to deleted pages (About, Sustainability)
