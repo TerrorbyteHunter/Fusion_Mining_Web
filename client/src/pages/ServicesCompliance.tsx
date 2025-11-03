@@ -1,6 +1,8 @@
+import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   FileCheck, 
   Shield, 
@@ -25,6 +27,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 export default function ServicesCompliance() {
+  const { t } = useLanguage();
   const serviceCategories = [
     {
       title: "Consulting & Advisory",
@@ -253,26 +256,36 @@ export default function ServicesCompliance() {
         {/* Hero Section */}
         <div className="mb-12 text-center">
           <h1 className="text-5xl font-bold mb-4" data-testid="text-page-title">
-            Professional Mining Services & Compliance
+            {t('services.title')}
           </h1>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto" data-testid="text-page-subtitle">
-            Your one-stop solution for mineral trading, engineering services, legal compliance, and consulting in Zambia's mining sector
+            {t('services.subtitle')}
           </p>
           <div className="flex gap-4 justify-center mt-6">
-            <Button size="lg" data-testid="button-request-quote">
-              <Briefcase className="h-5 w-5 mr-2" />
-              Request Quote
+            <Button asChild size="lg" data-testid="button-request-quote">
+              <Link href="/contact">
+                <Briefcase className="h-5 w-5 mr-2" />
+                {t('services.requestQuote')}
+              </Link>
             </Button>
-            <Button size="lg" variant="outline" data-testid="button-view-compliance">
+            <Button 
+              size="lg" 
+              variant="outline" 
+              data-testid="button-view-compliance"
+              onClick={() => {
+                const element = document.getElementById('detailed-compliance-section');
+                element?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
               <FileText className="h-5 w-5 mr-2" />
-              View Compliance Guide
+              {t('services.viewCompliance')}
             </Button>
           </div>
         </div>
 
         {/* Compliance Highlights */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold mb-6 text-center">Regulatory Compliance at a Glance</h2>
+          <h2 className="text-2xl font-bold mb-6 text-center">{t('services.compliance.title')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {complianceHighlights.map((item, index) => {
               const Icon = item.icon;
@@ -295,7 +308,7 @@ export default function ServicesCompliance() {
 
         {/* Service Categories */}
         <div className="mb-12">
-          <h2 className="text-3xl font-bold mb-8 text-center">Our Professional Services</h2>
+          <h2 className="text-3xl font-bold mb-8 text-center">{t('services.ourServices')}</h2>
           <div className="grid gap-8">
             {serviceCategories.map((category, categoryIndex) => {
               const Icon = category.icon;
@@ -338,12 +351,12 @@ export default function ServicesCompliance() {
         </div>
 
         {/* Detailed Compliance Section */}
-        <div className="mb-12">
+        <div className="mb-12" id="detailed-compliance-section">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-3xl">Detailed Compliance Requirements</CardTitle>
+              <CardTitle className="text-3xl">{t('services.detailedCompliance')}</CardTitle>
               <CardDescription className="text-base">
-                Comprehensive regulatory framework for mining operations in Zambia
+                {t('services.detailedCompliance.subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -514,22 +527,33 @@ export default function ServicesCompliance() {
         {/* CTA Section */}
         <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
           <CardContent className="py-12 text-center">
-            <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
+            <h2 className="text-3xl font-bold mb-4">{t('services.ready')}</h2>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Partner with Fusion Mining Limited for comprehensive mining services, legal compliance, and market access across Zambia and Southern Africa
+              {t('services.ready.subtitle')}
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
-              <Button size="lg" data-testid="button-contact-services">
-                <Briefcase className="h-5 w-5 mr-2" />
-                Contact Our Team
+              <Button asChild size="lg" data-testid="button-contact-services">
+                <Link href="/contact">
+                  <Briefcase className="h-5 w-5 mr-2" />
+                  {t('services.contactTeam')}
+                </Link>
               </Button>
-              <Button size="lg" variant="outline" data-testid="button-view-marketplace">
-                <Package className="h-5 w-5 mr-2" />
-                Browse Marketplace
+              <Button asChild size="lg" variant="outline" data-testid="button-view-marketplace">
+                <Link href="/marketplace">
+                  <Package className="h-5 w-5 mr-2" />
+                  {t('services.browseMarketplace')}
+                </Link>
               </Button>
-              <Button size="lg" variant="outline" data-testid="button-download-guide">
+              <Button 
+                size="lg" 
+                variant="outline" 
+                data-testid="button-download-guide"
+                onClick={() => {
+                  window.print();
+                }}
+              >
                 <FileText className="h-5 w-5 mr-2" />
-                Download Compliance Guide
+                {t('services.downloadGuide')}
               </Button>
             </div>
           </CardContent>
