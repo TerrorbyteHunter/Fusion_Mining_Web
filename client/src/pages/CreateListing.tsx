@@ -57,10 +57,12 @@ export default function CreateListing() {
         
         if (data.mainCategory === 'minerals' && data.subcategory) {
           payload.mineralSubcategory = data.subcategory;
-        } else if (data.mainCategory === 'mining_tools' && data.subcategory) {
+        } else if (data.mainCategory === 'mining_equipment' && data.subcategory) {
           payload.toolSubcategory = data.subcategory;
         } else if (data.mainCategory === 'mining_services' && data.subcategory) {
           payload.serviceSubcategory = data.subcategory;
+        } else if (data.mainCategory === 'mining_tools' && data.subcategory) {
+          payload.toolSubcategory = data.subcategory;
         } else if (data.mainCategory === 'mining_ppe' && data.subcategory) {
           payload.ppeSubcategory = data.subcategory;
         }

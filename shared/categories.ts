@@ -8,23 +8,17 @@ export const MAIN_CATEGORIES = {
     icon: 'gem',
     description: 'Metallic and non-metallic minerals, natural stones'
   },
-  mining_tools: {
-    value: 'mining_tools',
-    label: 'Mining Tools',
+  mining_equipment: {
+    value: 'mining_equipment',
+    label: 'Mining Equipment',
     icon: 'wrench',
-    description: 'Equipment and machinery for mining operations'
+    description: 'Equipment, machinery, and PPE for mining operations'
   },
   mining_services: {
     value: 'mining_services',
     label: 'Mining & Engineering Services',
     icon: 'briefcase',
     description: 'Professional services for mining operations'
-  },
-  mining_ppe: {
-    value: 'mining_ppe',
-    label: 'Mining PPE',
-    icon: 'shield',
-    description: 'Personal Protective Equipment for mining safety'
   }
 } as const;
 
@@ -76,8 +70,8 @@ export const MINERAL_SUBCATEGORIES = {
   }
 } as const;
 
-// Mining Tools subcategories and specific types
-export const TOOL_SUBCATEGORIES = {
+// Mining Equipment subcategories (merged Tools and PPE)
+export const EQUIPMENT_SUBCATEGORIES = {
   drilling_equipment: {
     value: 'drilling_equipment',
     label: 'Drilling Rigs and Equipment',
@@ -149,9 +143,34 @@ export const TOOL_SUBCATEGORIES = {
       'Roof Support Systems', 'Ventilation Systems', 'Underground Pumps'
     ]
   },
-  other_tools: {
-    value: 'other_tools',
-    label: 'Other Mining Equipment',
+  head_face_protection: {
+    value: 'head_face_protection',
+    label: 'Head & Face Protection',
+    specificTypes: ['Hard Hats', 'Face Shields', 'Safety Goggles', 'Ear Protection']
+  },
+  respiratory_protection: {
+    value: 'respiratory_protection',
+    label: 'Mask/Respiratory Protection',
+    specificTypes: ['Dust Masks', 'Respirators', 'Gas Masks', 'Air Purifiers']
+  },
+  hand_foot_protection: {
+    value: 'hand_foot_protection',
+    label: 'Hand & Foot Protection',
+    specificTypes: ['Safety Gloves', 'Safety Boots', 'Steel-toe Boots', 'Chemical Resistant Gloves']
+  },
+  fall_protection: {
+    value: 'fall_protection',
+    label: 'Personal Fall Protection',
+    specificTypes: ['Safety Harnesses', 'Lanyards', 'Anchor Points', 'Fall Arrest Systems']
+  },
+  protective_clothing: {
+    value: 'protective_clothing',
+    label: 'Protective Clothing',
+    specificTypes: ['Coveralls', 'High-Visibility Vests', 'Flame Resistant Clothing', 'Chemical Suits']
+  },
+  other_equipment: {
+    value: 'other_equipment',
+    label: 'Other Equipment',
     specificTypes: ['Other']
   }
 } as const;
@@ -205,51 +224,19 @@ export const SERVICE_SUBCATEGORIES = {
   }
 } as const;
 
-// Mining PPE subcategories and specific types
-export const PPE_SUBCATEGORIES = {
-  head_face_protection: {
-    value: 'head_face_protection',
-    label: 'Head & Face Protection',
-    specificTypes: ['Hard Hats', 'Face Shields', 'Safety Goggles', 'Ear Protection']
-  },
-  respiratory_protection: {
-    value: 'respiratory_protection',
-    label: 'Mask/Respiratory Protection',
-    specificTypes: ['Dust Masks', 'Respirators', 'Gas Masks', 'Air Purifiers']
-  },
-  hand_foot_protection: {
-    value: 'hand_foot_protection',
-    label: 'Hand & Foot Protection',
-    specificTypes: ['Safety Gloves', 'Safety Boots', 'Steel-toe Boots', 'Chemical Resistant Gloves']
-  },
-  fall_protection: {
-    value: 'fall_protection',
-    label: 'Personal Fall Protection',
-    specificTypes: ['Safety Harnesses', 'Lanyards', 'Anchor Points', 'Fall Arrest Systems']
-  },
-  protective_clothing: {
-    value: 'protective_clothing',
-    label: 'Protective Clothing',
-    specificTypes: ['Coveralls', 'High-Visibility Vests', 'Flame Resistant Clothing', 'Chemical Suits']
-  },
-  other_ppe: {
-    value: 'other_ppe',
-    label: 'Other Protection Equipment',
-    specificTypes: ['Other']
-  }
-} as const;
-
 // Helper function to get all subcategories for a main category
 export function getSubcategoriesForMain(mainCategory: string) {
   switch (mainCategory) {
     case 'minerals':
       return MINERAL_SUBCATEGORIES;
-    case 'mining_tools':
-      return TOOL_SUBCATEGORIES;
+    case 'mining_equipment':
+      return EQUIPMENT_SUBCATEGORIES;
     case 'mining_services':
       return SERVICE_SUBCATEGORIES;
+    case 'mining_tools':
+      return EQUIPMENT_SUBCATEGORIES;
     case 'mining_ppe':
-      return PPE_SUBCATEGORIES;
+      return EQUIPMENT_SUBCATEGORIES;
     default:
       return {};
   }
@@ -261,9 +248,14 @@ export function getSpecificTypes(mainCategory: string, subcategory: string): str
   return (subcategories as any)[subcategory]?.specificTypes || [];
 }
 
+// Backward compatibility exports
+export const TOOL_SUBCATEGORIES = EQUIPMENT_SUBCATEGORIES;
+export const PPE_SUBCATEGORIES = EQUIPMENT_SUBCATEGORIES;
+
 // Export type for TypeScript
 export type MainCategory = keyof typeof MAIN_CATEGORIES;
 export type MineralSubcategory = keyof typeof MINERAL_SUBCATEGORIES;
-export type ToolSubcategory = keyof typeof TOOL_SUBCATEGORIES;
+export type EquipmentSubcategory = keyof typeof EQUIPMENT_SUBCATEGORIES;
 export type ServiceSubcategory = keyof typeof SERVICE_SUBCATEGORIES;
-export type PPESubcategory = keyof typeof PPE_SUBCATEGORIES;
+export type ToolSubcategory = keyof typeof EQUIPMENT_SUBCATEGORIES;
+export type PPESubcategory = keyof typeof EQUIPMENT_SUBCATEGORIES;
