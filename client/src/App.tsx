@@ -22,7 +22,6 @@ import ProfileManagement from "@/pages/ProfileManagement";
 import ProfileView from "@/pages/ProfileView";
 import CreateListing from "@/pages/CreateListing";
 import Messages from "@/pages/Messages";
-import LMEPrices from "@/pages/LMEPrices";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
