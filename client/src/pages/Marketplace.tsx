@@ -171,7 +171,16 @@ export default function Marketplace() {
     : {};
 
   const filteredListings = listings?.filter((listing) => {
-    const matchesMainCategory = selectedMainCategory === "all" || listing.mainCategory === selectedMainCategory;
+    // Handle main category matching - "mining_equipment" maps to both "mining_tools" and "mining_ppe"
+    let matchesMainCategory = true;
+    if (selectedMainCategory !== "all") {
+      if (selectedMainCategory === "mining_equipment") {
+        matchesMainCategory = listing.mainCategory === "mining_tools" || listing.mainCategory === "mining_ppe";
+      } else {
+        matchesMainCategory = listing.mainCategory === selectedMainCategory;
+      }
+    }
+    
     const matchesSubcategory = selectedSubcategory === "all" || 
       listing.mineralSubcategory === selectedSubcategory ||
       listing.toolSubcategory === selectedSubcategory ||
@@ -316,7 +325,7 @@ export default function Marketplace() {
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredListings.filter(l => l.type === 'mineral').map((listing) => (
+                  {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-listing-${listing.id}`}>
                       <ImageDisplay 
                         imageUrl={listing.imageUrl}
@@ -517,9 +526,10 @@ export default function Marketplace() {
 
             <TabsContent value="mining_equipment">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[1, 2].map((i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3].map((i) => (
                     <Card key={i}>
+                      <Skeleton className="h-48 w-full" />
                       <CardHeader>
                         <Skeleton className="h-6 w-3/4" />
                         <Skeleton className="h-4 w-full" />
@@ -527,43 +537,68 @@ export default function Marketplace() {
                     </Card>
                   ))}
                 </div>
-              ) : filteredListings && filteredListings.filter(l => l.type === 'partnership').length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
-                      {listing.imageUrl && (
-                        <ImageDisplay
-                          imageUrl={listing.imageUrl}
-                          alt={listing.title}
-                          fallbackImage={catalogueImg}
-                          className="h-48 w-full object-cover"
-                        />
-                      )}
+              ) : filteredListings && filteredListings.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredListings.map((listing) => (
+                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-equipment-${listing.id}`}>
+                      <ImageDisplay 
+                        imageUrl={listing.imageUrl}
+                        alt={listing.title}
+                        fallbackImage={catalogueImg}
+                      />
                       <CardHeader>
-                          <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
                             {listing.itemId && (
                               <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
                             )}
                           </div>
                           <StatusBadge status={listing.status} />
                         </div>
-                        <CardDescription className="line-clamp-3">
+                        <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          {listing.specificType && (
+                            <div>
+                              <p className="text-muted-foreground text-xs">Type</p>
+                              <p className="font-medium">{listing.specificType}</p>
+                            </div>
+                          )}
+                          {listing.price && (
+                            <div>
+                              <p className="text-muted-foreground text-xs">Price</p>
+                              <p className="font-medium text-chart-3">{listing.price}</p>
+                            </div>
+                          )}
+                          {listing.quantity && (
+                            <div className="col-span-2">
+                              <p className="text-muted-foreground text-xs">Quantity</p>
+                              <p className="font-medium">{listing.quantity}</p>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
                         <Button 
                           className="w-full" 
-                          data-testid={`button-learn-partnership-${listing.id}`}
+                          data-testid={`button-contact-seller-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
+                          disabled={loadingAdminContact}
                         >
-                          Inquire
+                          {loadingAdminContact ? (
+                            <>
+                              <Spinner size="sm" className="mr-2" />
+                              Preparing...
+                            </>
+                          ) : (
+                            'Inquire'
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
@@ -572,10 +607,10 @@ export default function Marketplace() {
               ) : (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Partnership Opportunities</h3>
+                    <Wrench className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Equipment Listings Found</h3>
                     <p className="text-muted-foreground">
-                      Check back later for new partnerships
+                      Try adjusting your filters or check back later
                     </p>
                   </CardContent>
                 </Card>
@@ -584,9 +619,10 @@ export default function Marketplace() {
 
             <TabsContent value="mining_services">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[1, 2].map((i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3].map((i) => (
                     <Card key={i}>
+                      <Skeleton className="h-48 w-full" />
                       <CardHeader>
                         <Skeleton className="h-6 w-3/4" />
                         <Skeleton className="h-4 w-full" />
@@ -594,35 +630,62 @@ export default function Marketplace() {
                     </Card>
                   ))}
                 </div>
-              ) : filteredListings && filteredListings.filter(l => l.type === 'partnership').length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
+              ) : filteredListings && filteredListings.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredListings.map((listing) => (
+                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-service-${listing.id}`}>
+                      <ImageDisplay 
+                        imageUrl={listing.imageUrl}
+                        alt={listing.title}
+                        fallbackImage={catalogueImg}
+                      />
                       <CardHeader>
-                          <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
                             {listing.itemId && (
                               <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
                             )}
                           </div>
                           <StatusBadge status={listing.status} />
                         </div>
-                        <CardDescription className="line-clamp-3">
+                        <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          {listing.specificType && (
+                            <div>
+                              <p className="text-muted-foreground text-xs">Service Type</p>
+                              <p className="font-medium">{listing.specificType}</p>
+                            </div>
+                          )}
+                          {listing.price && (
+                            <div>
+                              <p className="text-muted-foreground text-xs">Price</p>
+                              <p className="font-medium text-chart-3">{listing.price}</p>
+                            </div>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
                         <Button 
                           className="w-full" 
-                          data-testid={`button-learn-partnership-${listing.id}`}
+                          data-testid={`button-contact-seller-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
+                          disabled={loadingAdminContact}
                         >
-                          Learn More
+                          {loadingAdminContact ? (
+                            <>
+                              <Spinner size="sm" className="mr-2" />
+                              Preparing...
+                            </>
+                          ) : (
+                            'Inquire'
+                          )}
                         </Button>
                       </CardContent>
                     </Card>
@@ -631,10 +694,10 @@ export default function Marketplace() {
               ) : (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Partnership Opportunities</h3>
+                    <Briefcase className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Service Listings Found</h3>
                     <p className="text-muted-foreground">
-                      Check back later for new partnerships
+                      Try adjusting your filters or check back later
                     </p>
                   </CardContent>
                 </Card>
