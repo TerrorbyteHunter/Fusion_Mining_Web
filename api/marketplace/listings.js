@@ -1,4 +1,5 @@
-const { Pool } = require('pg');
+import pkg from 'pg';
+const { Pool } = pkg;
 
 // Configure pool with proper SSL for Supabase on Vercel
 const dbUrl = process.env.DATABASE_URL || '';
@@ -21,7 +22,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-module.exports = async (req, res) => {
+export default async (req, res) => {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
