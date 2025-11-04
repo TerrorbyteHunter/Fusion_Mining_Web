@@ -7,7 +7,9 @@
   ],
   "routes": [
     { "src": "/api/marketplace/listings", "dest": "/api/marketplace/listings.js" },
+    { "src": "/api/marketplace/buyer-requests", "dest": "/api/marketplace/buyer-requests.js" },
     { "src": "/api/projects", "dest": "/api/projects.js" },
+    { "src": "/api/blog", "dest": "/api/blog.js" },
     { "src": "/(.*)", "dest": "/dist/public/$1" }
   ]
 }
