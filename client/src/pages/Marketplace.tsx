@@ -33,6 +33,14 @@ import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
 import copper2Img from "../../../attached_assets/files/copper2.jpg";
 import gold2Img from "../../../attached_assets/files/gold2.jpg";
 import green2Img from "../../../attached_assets/files/green-emerald2.jpg";
+// Equipment and Services images
+import blastingImg from "../../../attached_assets/files/Services and Mining Equipment/blasting.png";
+import drillingImg from "../../../attached_assets/files/Services and Mining Equipment/drilling.png";
+import equipmentImg from "../../../attached_assets/files/Services and Mining Equipment/equipment.png";
+import equipment2Img from "../../../attached_assets/files/Services and Mining Equipment/equipment2.png";
+import feasibilityImg from "../../../attached_assets/files/Services and Mining Equipment/Feasibility.png";
+import shippingImg from "../../../attached_assets/files/Services and Mining Equipment/Shipping.png";
+import shipping2Img from "../../../attached_assets/files/Services and Mining Equipment/Shipping2.png";
 import {
   Select,
   SelectContent,
@@ -40,6 +48,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+// Helper function to get appropriate image for equipment/service based on keywords
+function getEquipmentImage(listing: MarketplaceListing): string {
+  if (!listing.mainCategory) {
+    return catalogueImg;
+  }
+  
+  const title = (listing.title || '').toLowerCase();
+  const specificType = (listing.specificType || '').toLowerCase();
+  const toolSubcategory = (listing.toolSubcategory || '').toLowerCase();
+  const serviceSubcategory = (listing.serviceSubcategory || '').toLowerCase();
+  
+  // Check for drilling-related
+  if (title.includes('drill') || specificType.includes('drill') || toolSubcategory.includes('drilling')) {
+    return drillingImg;
+  }
+  
+  // Check for blasting-related
+  if (title.includes('blast') || specificType.includes('blast') || serviceSubcategory.includes('blasting')) {
+    return blastingImg;
+  }
+  
+  // Check for shipping/freight-related
+  if (title.includes('freight') || title.includes('shipping') || title.includes('transport') || 
+      serviceSubcategory.includes('freight') || serviceSubcategory.includes('supply_chain')) {
+    return shippingImg;
+  }
+  
+  // Check for feasibility/consulting
+  if (title.includes('feasibility') || title.includes('consult') || title.includes('advisory') ||
+      serviceSubcategory.includes('consulting') || serviceSubcategory.includes('advisory')) {
+    return feasibilityImg;
+  }
+  
+  // Equipment fallbacks
+  if (listing.mainCategory === 'mining_tools' || listing.mainCategory === 'mining_ppe') {
+    return equipmentImg;
+  }
+  
+  // Services fallback
+  if (listing.mainCategory === 'mining_services') {
+    return equipment2Img;
+  }
+  
+  return catalogueImg;
+}
 
 export default function Marketplace() {
   const { isAuthenticated, isSeller } = useAuth();
@@ -544,7 +598,7 @@ export default function Marketplace() {
                       <ImageDisplay 
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
-                        fallbackImage={catalogueImg}
+                        fallbackImage={getEquipmentImage(listing)}
                       />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
@@ -637,7 +691,7 @@ export default function Marketplace() {
                       <ImageDisplay 
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
-                        fallbackImage={catalogueImg}
+                        fallbackImage={getEquipmentImage(listing)}
                       />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
