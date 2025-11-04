@@ -51,7 +51,27 @@ export default async (req, res) => {
     const client = await pool.connect();
     try {
       const query = `
-        SELECT id, seller_id, main_category, type, title, description, location, price, quantity, status, image_url, created_at
+        SELECT 
+          id,
+          item_id as "itemId",
+          seller_id as "sellerId",
+          main_category as "mainCategory",
+          mineral_subcategory as "mineralSubcategory",
+          tool_subcategory as "toolSubcategory",
+          service_subcategory as "serviceSubcategory",
+          ppe_subcategory as "ppeSubcategory",
+          specific_type as "specificType",
+          mineral_type as "mineralType",
+          grade,
+          type,
+          title,
+          description,
+          location,
+          price,
+          quantity,
+          status,
+          image_url as "imageUrl",
+          created_at as "createdAt"
         FROM marketplace_listings
         WHERE status = 'approved'
         ORDER BY created_at DESC
