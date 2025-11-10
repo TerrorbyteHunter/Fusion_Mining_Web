@@ -50,3 +50,25 @@ export const isSeller: RequestHandler = (req: any, res, next) => {
   }
   next();
 };
+
+// RBAC: require specific admin permission
+export function requireAdminPermission(permissionKey: string): RequestHandler {
+  return async (req: any, res, next) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
+      const perms = await storage.getAdminPermissions(req.user.id);
+      // If no permissions row exists, treat as Super User (allow)
+      if (!perms) {
+        return next();
+      }
+      if (!(perms as any)[permissionKey]) {
+        return res.status(403).json({ message: 'Insufficient permissions' });
+      }
+      next();
+    } catch (err) {
+      return res.status(500).json({ message: 'Permission check failed' });
+    }
+  };
+}

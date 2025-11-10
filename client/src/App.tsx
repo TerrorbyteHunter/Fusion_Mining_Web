@@ -17,13 +17,9 @@ import Projects from "@/pages/Projects";
 import Marketplace from "@/pages/Marketplace";
 import News from "@/pages/News";
 import Contact from "@/pages/Contact";
-import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
-import ProfileManagement from "@/pages/ProfileManagement";
 import ProfileView from "@/pages/ProfileView";
-import CreateListing from "@/pages/CreateListing";
-import Messages from "@/pages/Messages";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 import Sustainability from "@/pages/Sustainability";
 import About from "@/pages/About";
@@ -36,8 +32,8 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const [location] = useLocation();
   
-  const isDashboardOrAdmin = location.startsWith('/dashboard') || location.startsWith('/admin');
-  const showLMETicker = !isDashboardOrAdmin && location !== '/login';
+  const isAdminSection = location.startsWith('/admin');
+  const showLMETicker = !isAdminSection && location !== '/login';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -62,12 +58,8 @@ function Router() {
             <Route path="/contact" component={Contact} />
 
             {/* Protected Routes */}
-            <Route path="/dashboard" component={Dashboard} />
-            <Route path="/dashboard/profile" component={ProfileManagement} />
             <Route path="/profile/:id" component={ProfileView} />
-            <Route path="/dashboard/create-listing" component={CreateListing} />
-            <Route path="/dashboard/messages" component={Messages} />
-            <Route path="/dashboard/:section" component={Dashboard} />
+            {/* Dashboard routes removed */}
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
 

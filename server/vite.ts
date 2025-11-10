@@ -21,6 +21,20 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true as const,
   };
 
+  // When running Vite in middlewareMode inside our Express server we must
+  // avoid using the HTTP proxy defined in the client's `vite.config.ts`.
+  // If the proxy remains enabled it will attempt to connect back to the
+  // same server process (via localhost) and can cause socket/DNS errors
+  // (ENOBUFS) or recursive proxying. Explicitly set an empty `proxy`
+  // config here to disable that behaviour.
+  // Load the React plugin directly and avoid loading the client's vite
+  // config file. Loading the client's `vite.config.ts` can re-enable the
+  // HTTP proxy (and other settings) which we need to control when Vite is
+  // embedded as middleware. Setting `configFile: false` and providing the
+  // minimal necessary options prevents accidental proxying back to this
+  // process and avoids ENOBUFS / recursive proxy issues.
+  const reactPlugin = await import('@vitejs/plugin-react').then((m) => m.default);
+
   const vite = await createViteServer({
     root: path.resolve(import.meta.dirname, '..', 'client'),
     configFile: false,
@@ -31,8 +45,21 @@ export async function setupVite(app: Express, server: Server) {
         process.exit(1);
       },
     },
-    server: serverOptions,
+    server: {
+      ...serverOptions,
+      // disable the http proxy when embedding Vite into our server process
+      proxy: {},
+    },
     appType: "custom",
+    resolve: {
+      alias: {
+        '@': path.resolve(import.meta.dirname, '..', 'client', 'src'),
+        '@shared': path.resolve(import.meta.dirname, '..', 'shared'),
+        // Serve project-level assets from the attached_assets folder during dev
+        '@assets': path.resolve(import.meta.dirname, '..', 'attached_assets'),
+      },
+    },
+    plugins: [reactPlugin()],
   });
 
   // Serve project-level static assets (images, PDFs) from /attached_assets in dev

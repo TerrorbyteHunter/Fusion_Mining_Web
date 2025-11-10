@@ -12,8 +12,8 @@ function clientConfigFromDatabaseUrl(url) {
     host: u.hostname,
     port: u.port ? Number(u.port) : undefined,
     database: u.pathname && u.pathname.length > 1 ? u.pathname.slice(1) : undefined,
-    // Allow opting into insecure TLS for local/dev testing via DEV_ALLOW_INSECURE_TLS=true
-    ssl: process.env.DEV_ALLOW_INSECURE_TLS === 'true' ? { rejectUnauthorized: false } : undefined
+    // Force SSL options for dev testing. Remove or change for production.
+    ssl: { rejectUnauthorized: false }
   };
   return config;
 }
