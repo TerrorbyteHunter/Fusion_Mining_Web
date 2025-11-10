@@ -48,6 +48,21 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Admin granular permissions (role-based control)
+export const adminPermissions = pgTable("admin_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminUserId: varchar("admin_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  canManageUsers: boolean("can_manage_users").notNull().default(true),
+  canManageListings: boolean("can_manage_listings").notNull().default(true),
+  canManageProjects: boolean("can_manage_projects").notNull().default(true),
+  canManageBlog: boolean("can_manage_blog").notNull().default(true),
+  canManageCMS: boolean("can_manage_cms").notNull().default(true),
+  canViewAnalytics: boolean("can_view_analytics").notNull().default(true),
+  canManageMessages: boolean("can_manage_messages").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
@@ -374,6 +389,13 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   notifications: many(notifications),
 }));
 
+export const adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
+  adminUser: one(users, {
+    fields: [adminPermissions.adminUserId],
+    references: [users.id],
+  }),
+}));
+
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
   user: one(users, {
     fields: [userProfiles.userId],
@@ -509,6 +531,18 @@ export const upsertUserSchema = createInsertSchema(users).pick({
 });
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type AdminPermissions = typeof adminPermissions.$inferSelect;
+export const insertAdminPermissionsSchema = createInsertSchema(adminPermissions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateAdminPermissionsSchema = createInsertSchema(adminPermissions).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ adminUserId: true });
+export type InsertAdminPermissions = z.infer<typeof insertAdminPermissionsSchema>;
+export type UpdateAdminPermissions = z.infer<typeof updateAdminPermissionsSchema>;
 
 // User Profile schemas
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({

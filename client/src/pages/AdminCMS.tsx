@@ -60,11 +60,12 @@ import {
   Send
 } from "lucide-react";
 import { format } from "date-fns";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { useLocation } from "wouter";
 
 export default function AdminCMS() {
   const { toast } = useToast();
-  const { isAdmin, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAdmin, isAuthenticated, isLoading: authLoading, permissions } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
@@ -165,6 +166,16 @@ export default function AdminCMS() {
       setLocation("/dashboard");
     }
   }, [isAuthenticated, authLoading, isAdmin, toast, setLocation]);
+
+  // Gate by CMS permission
+  useEffect(() => {
+    if (!authLoading && isAuthenticated && isAdmin) {
+      if (permissions && permissions.canManageCMS === false) {
+        toast({ title: "Access Denied", description: "You don't have CMS access.", variant: "destructive" });
+        setLocation('/admin');
+      }
+    }
+  }, [authLoading, isAuthenticated, isAdmin, permissions, setLocation, toast]);
 
   if (authLoading || !isAuthenticated || !isAdmin) {
     return null;
@@ -534,7 +545,9 @@ export default function AdminCMS() {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex min-h-screen">
+      <AdminSidebar activeTab="cms" onTabChange={() => {}} />
+      <div className="flex-1 flex flex-col">
       <section className="py-8 border-b bg-gradient-to-r from-primary/10 to-chart-2/10">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-3 mb-2">
@@ -1803,6 +1816,7 @@ export default function AdminCMS() {
           </Dialog>
         </div>
       </section>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic } from "./vite";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import passport from "passport";
@@ -10,6 +10,10 @@ import pg from "pg";
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// If running behind a proxy (Vite middleware or other), trust the first proxy
+// so that secure cookie / sameSite behavior and req.protocol are correct.
+app.set('trust proxy', 1);
 
 // PostgreSQL session store setup
 const PgStore = connectPgSimple(session);
@@ -59,7 +63,7 @@ app.use((req, res, next) => {
         logLine = logLine.slice(0, 79) + "…";
       }
 
-      log(logLine);
+      console.log(logLine);
     }
   });
 
@@ -103,17 +107,17 @@ app.use((req, res, next) => {
         const present = (res.rows || []).map((r: any) => r.column_name);
         const missing = requiredColumns.filter(c => !present.includes(c));
         if (missing.length) {
-          log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(', ')}`);
-          log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
+          console.log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(', ')}`);
+          console.log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
         }
       } catch (err) {
         // Don't block server start for this check; just log the error.
-        log(`Schema check failed: ${(err as Error).message}`);
+        console.log(`Schema check failed: ${(err as Error).message}`);
       }
     })();
 
     server.listen(port, () => {
-      log(`Server running at http://localhost:${port}`);
+      console.log(`Server running at http://localhost:${port}`);
     });
   } else {
     // Production: serve static files
@@ -124,7 +128,7 @@ app.use((req, res, next) => {
     if (!process.env.VERCEL && !process.env.REPL_ID) {
       const port = parseInt(process.env.PORT || '5000', 10);
       server.listen(port, () => {
-        log(`Server running at http://localhost:${port}`);
+        console.log(`Server running at http://localhost:${port}`);
       });
     }
   }

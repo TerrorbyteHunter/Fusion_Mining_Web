@@ -17,6 +17,10 @@ import {
   activityLogs,
   notifications,
   videos,
+  adminPermissions,
+  type AdminPermissions,
+  type InsertAdminPermissions,
+  type UpdateAdminPermissions,
   type User,
   type UpsertUser,
   type UserProfile,
@@ -99,6 +103,10 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  // Admin permissions
+  getAdminPermissions(adminUserId: string): Promise<AdminPermissions | undefined>;
+  upsertAdminPermissions(data: InsertAdminPermissions): Promise<AdminPermissions>;
+  updateAdminPermissions(data: UpdateAdminPermissions): Promise<AdminPermissions>;
 
   // User Profile operations
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
@@ -287,6 +295,44 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  // ========================================================================
+  // Admin Permissions operations
+  // ========================================================================
+  async getAdminPermissions(adminUserId: string): Promise<AdminPermissions | undefined> {
+    const [row] = await db
+      .select()
+      .from(adminPermissions)
+      .where(eq(adminPermissions.adminUserId, adminUserId))
+      .limit(1);
+    return row;
+  }
+
+  async upsertAdminPermissions(data: InsertAdminPermissions): Promise<AdminPermissions> {
+    const existing = await this.getAdminPermissions(data.adminUserId);
+    if (existing) {
+      const [updated] = await db
+        .update(adminPermissions)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(adminPermissions.adminUserId, data.adminUserId))
+        .returning();
+      return updated;
+    }
+    const [inserted] = await db
+      .insert(adminPermissions)
+      .values(data)
+      .returning();
+    return inserted;
+  }
+
+  async updateAdminPermissions(data: UpdateAdminPermissions): Promise<AdminPermissions> {
+    const [updated] = await db
+      .update(adminPermissions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(adminPermissions.adminUserId, data.adminUserId))
+      .returning();
+    return updated;
   }
 
   // ========================================================================

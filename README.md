@@ -25,9 +25,9 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 
 ### Admin Features
 - **Verification Queue**: Review and approve/reject marketplace listings
-- **User Management**: View all users, manage roles
-- **Contact Submissions**: Review messages from contact form
-- **Blog Management**: Create and publish news articles
+- **User Management**: View all users, manage roles and per-admin permissions
+- **Messages**: Categorized admin messaging; start conversations with any user
+- **Content CMS**: Manage blog posts, videos, and content
 - **Analytics**: Platform overview and statistics
 
 ## 🚀 Tech Stack
@@ -266,6 +266,17 @@ npm run db:generate  # Generate migrations
 - `POST /api/marketplace/listings` - Create listing (sellers)
 - `POST /api/messages` - Send message
 
+### Role-Based Admin Permissions
+
+- Admin permissions are stored in `admin_permissions`:
+  - `can_manage_users`, `can_manage_listings`, `can_manage_projects`, `can_manage_blog`, `can_manage_cms`, `can_view_analytics`, `can_manage_messages`.
+- Super Admins without a permissions row default to full access.
+- CMS access is gated by `can_manage_cms`.
+
+Apply these SQL migrations in pgAdmin (if not using the ORM push):
+- `migrations/0010_add_admin_permissions.sql`
+- `migrations/0011_add_cms_permission.sql`
+
 ### Message creation idempotency
 
 To prevent duplicate messages from being created when a client retries requests (for example due to network timeouts or accidental double-clicks), the server implements idempotency for message creation.
@@ -292,6 +303,14 @@ After adding the table, the existing message creation endpoint will accept `Idem
 - `POST /api/admin/verify/:id` - Approve listing
 - `POST /api/admin/reject/:id` - Reject listing
 - `GET /api/admin/users` - All users
+- `POST /api/admin/users` - Create user (auto-seeds admin permissions if role=admin)
+- `GET /api/admin/users/:id/permissions` - Get admin permissions
+- `PATCH /api/admin/users/:id/permissions` - Update admin permissions
+- `POST /api/admin/messages/start` - Start general conversation with any user
+
+### Currency
+
+- App standardized to ZMW and USD (replace any ZAR values in sample data with ZMW).
 
 ## 🤝 Contributing
 
@@ -303,7 +322,7 @@ Proprietary - © 2024 Fusion Mining Limited
 
 ## 🔗 Links
 
-- **Platform**: [https://fusionmining.repl.co](https://fusionmining.repl.co)
+- **Platform**: https://fusionmining.repl.co
 - **Support**: info@fusionmining.com
 - **Documentation**: See `replit.md` for detailed technical docs
 

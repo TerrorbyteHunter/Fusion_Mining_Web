@@ -2,7 +2,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, isSeller } from "./localAuth";
+import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission } from "./localAuth";
 import { ZodError } from "zod";
 import {
   insertUserProfileSchema,
@@ -738,10 +738,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const user = await storage.getUser(userId);
-      res.json(user);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      let adminPerms = undefined as any;
+      if (user.role === 'admin') {
+        adminPerms = await storage.getAdminPermissions(user.id);
+      }
+      res.json({ ...user, adminPermissions: adminPerms || null });
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ========================================================================
+  // Admin Permissions Routes
+  // ========================================================================
+  app.get('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req, res) => {
+    try {
+      const perms = await storage.getAdminPermissions(req.params.id);
+      res.json(perms || null);
+    } catch (error) {
+      console.error('Error fetching admin permissions:', error);
+      res.status(500).json({ message: 'Failed to fetch admin permissions' });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req: any, res) => {
+    try {
+      const adminUserId = req.params.id;
+      const payload = {
+        adminUserId,
+        canManageUsers: req.body?.canManageUsers,
+        canManageListings: req.body?.canManageListings,
+        canManageProjects: req.body?.canManageProjects,
+        canManageBlog: req.body?.canManageBlog,
+        canViewAnalytics: req.body?.canViewAnalytics,
+        canManageMessages: req.body?.canManageMessages,
+      };
+      const updated = await storage.upsertAdminPermissions(payload as any);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating admin permissions:', error);
+      res.status(500).json({ message: 'Failed to update admin permissions' });
+    }
+  });
+
+  // Start a general conversation with any user (admin)
+  app.post('/api/admin/messages/start', isAuthenticated, isAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { receiverId, subject, content } = req.body || {};
+      if (!receiverId || !content) {
+        return res.status(400).json({ message: 'receiverId and content are required' });
+      }
+      // Create a general thread (no project/listing)
+      const thread = await storage.createMessageThread({
+        title: subject || 'Admin message',
+        type: 'general',
+        buyerId: null,
+        sellerId: null,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+      } as any);
+
+      const message = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId,
+        subject: subject || null,
+        content,
+        context: 'general',
+        isAutoRelay: false,
+      } as any);
+
+      await storage.updateThreadLastMessage(thread.id);
+      res.json({ thread, message });
+    } catch (error) {
+      console.error('Error starting admin conversation:', error);
+      res.status(500).json({ message: 'Failed to start conversation' });
+    }
+  });
+
+  // Start a context-specific thread (listing/project) with a target user
+  app.post('/api/admin/threads/start', isAuthenticated, isAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { receiverId, subject, content, listingId, projectId } = req.body || {};
+      if (!receiverId || !content || (!listingId && !projectId)) {
+        return res.status(400).json({ message: 'receiverId, content and listingId/projectId are required' });
+      }
+
+      const thread = await storage.createMessageThread({
+        title: subject || 'Admin message',
+        type: listingId ? 'admin_to_seller' : (projectId ? 'admin_to_buyer' : 'general'),
+        projectId: projectId || null,
+        listingId: listingId || null,
+        buyerId: projectId ? receiverId : null,
+        sellerId: listingId ? receiverId : null,
+        adminId,
+        createdBy: adminId,
+        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
+        status: 'open',
+      } as any);
+
+      const message = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId,
+        subject: subject || null,
+        content,
+        relatedProjectId: projectId || null,
+        relatedListingId: listingId || null,
+        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
+        isAutoRelay: false,
+      } as any);
+
+      await storage.updateThreadLastMessage(thread.id);
+      res.json({ thread, message });
+    } catch (error) {
+      console.error('Error starting context thread:', error);
+      res.status(500).json({ message: 'Failed to start thread' });
     }
   });
 
@@ -1226,7 +1344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
     try {
       const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
       const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
@@ -1241,7 +1359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
     try {
       await storage.deleteMarketplaceListing(req.params.id);
       res.json({ success: true });
@@ -1967,6 +2085,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching users:", error);
       res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { email, password, firstName, lastName, role } = req.body || {};
+      if (!email || !role) {
+        return res.status(400).json({ message: 'Email and role are required' });
+      }
+      // Password is ignored in current storage model; kept for future auth wiring
+      const user = await storage.upsertUser({
+        email,
+        firstName,
+        lastName,
+        // allow setting role on creation
+        // @ts-ignore
+        role: role,
+      });
+      // If admin, ensure a permissions row exists
+      if (role === 'admin') {
+        await storage.upsertAdminPermissions({ adminUserId: user.id } as any);
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      res.status(500).json({ message: 'Failed to create user' });
     }
   });
 
