@@ -6,7 +6,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
-import { DashboardSidebar } from "@/components/DashboardSidebar";
 import { 
   Package, 
   MessageSquare, 
@@ -49,9 +48,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="flex">
-      <DashboardSidebar />
-      <div className="flex-1">
+    <div className="flex-1">
         {/* Header */}
         <section className="py-6 border-b bg-gradient-to-r from-primary/5 to-primary/10">
           <div className="container mx-auto px-6">
@@ -230,6 +227,5 @@ export default function Dashboard() {
           </div>
         </section>
       </div>
-    </div>
   );
 }

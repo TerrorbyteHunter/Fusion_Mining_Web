@@ -21,13 +21,17 @@ import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
 import ProfileView from "@/pages/ProfileView";
 import ServicesCompliance from "@/pages/ServicesCompliance";
+// Dashboard pages are routed through DashboardLayout to keep sidebar visible
+// The following imports are no longer needed:
+// Dashboard, Messages, CreateListing, ProfileManagement, Marketplace
 import Sustainability from "@/pages/Sustainability";
 import About from "@/pages/About";
+import CategoryBrowse from "@/pages/CategoryBrowse";
+import NotFound from "@/pages/not-found";
 import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
-import CategoryBrowse from "@/pages/CategoryBrowse";
-import NotFound from "@/pages/not-found";
+import DashboardLayout from "@/pages/DashboardLayout";
 
 function Router() {
   const [location] = useLocation();
@@ -59,7 +63,15 @@ function Router() {
 
             {/* Protected Routes */}
             <Route path="/profile/:id" component={ProfileView} />
-            {/* Dashboard routes removed */}
+            {/* Dashboard & user area routes */}
+              {/* Dashboard area (keeps sidebar visible across subpages) */}
+              <Route path="/dashboard" component={DashboardLayout} />
+              <Route path="/dashboard/messages" component={DashboardLayout} />
+              <Route path="/dashboard/create-listing" component={DashboardLayout} />
+              <Route path="/dashboard/listings" component={DashboardLayout} />
+              <Route path="/dashboard/requests" component={DashboardLayout} />
+              <Route path="/dashboard/profile" component={DashboardLayout} />
+
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
 

@@ -21,6 +21,9 @@ export default function Messages() {
   const { toast } = useToast();
   const [selectedThread, setSelectedThread] = useState<MessageThread | null>(null);
   const [messageContent, setMessageContent] = useState("");
+  const [threadSearchQuery, setThreadSearchQuery] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("inbox");
   const [usersSubTab, setUsersSubTab] = useState("sellers");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
@@ -114,6 +117,26 @@ export default function Messages() {
     sendMessageMutation.mutate({ threadId: selectedThread.id, content: messageContent });
   };
 
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const resp = await fetch("/api/uploads/messages", { method: "POST", body: form });
+      if (!resp.ok) throw new Error("Upload failed");
+      return resp.json() as Promise<{ url: string; filename: string }>;
+    },
+    onSuccess: (payload) => {
+      if (!selectedThread) return;
+      const linkLine = `Attachment: ${payload.filename} - ${payload.url}`;
+      sendMessageMutation.mutate({ threadId: selectedThread.id, content: linkLine });
+      setAttachmentFile(null);
+      toast({ title: "Attachment uploaded", description: "File link sent in chat." });
+    },
+    onError: () => {
+      toast({ title: "Upload failed", description: "Could not upload file.", variant: "destructive" });
+    }
+  });
+
   // Mutation to mark messages as read
   const markAsReadMutation = useMutation({
     mutationFn: async (messageIds: string[]) => {
@@ -169,48 +192,56 @@ export default function Messages() {
     const currentUserId = user?.id || (user as any)?.claims?.sub;
     const isAdmin = user?.role === 'admin';
 
+    let base: (MessageThread & { unreadCount?: number })[] = [];
     switch (activeTab) {
       case "inbox":
-        // Only show marketplace/listing related threads (marketplace context)
-        return processedThreads.filter(t => 
+        base = processedThreads.filter(t => 
           (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
-        ).sort((a, b) => 
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
-
+        break;
       case "projects":
-        // Show all project interest related threads (project_interest context)
-        return processedThreads.filter(t => 
+        base = processedThreads.filter(t => 
           (t as any).context === 'project_interest' || !!t.projectId
-        ).sort((a, b) => 
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
         );
-
+        break;
       case "sellers":
-        // Admin sees all threads with sellers
-        // Sellers see threads where they are the seller
-        // Buyers see threads where they are talking to a seller
-        return processedThreads.filter(t => {
+        base = processedThreads.filter(t => {
           if (isAdmin) return !!t.sellerId;
-          // If current user is the seller, show their threads
           if (t.sellerId === currentUserId) return true;
-          // If current user is a buyer talking to a seller, show the thread
           if (t.buyerId === currentUserId && !!t.sellerId) return true;
           return false;
-        }).sort((a, b) => 
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-        );
-
+        });
+        break;
       default:
-        return processedThreads;
+        base = processedThreads;
     }
+
+    const q = threadSearchQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      base = base.filter(t => {
+        const title = (t.title || "").toLowerCase();
+        const contextTags = [(t as any).context || "", t.projectId ? "project" : "", t.listingId ? "listing" : ""].join(" ").toLowerCase();
+        return title.includes(q) || contextTags.includes(q);
+      });
+    }
+
+    return base.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
   };
 
   const filteredUsers = () => {
     if (!allUsers) return [] as User[];
-    if (usersSubTab === "sellers") return allUsers.filter(u => u.role === "seller");
-    if (usersSubTab === "buyers") return allUsers.filter(u => u.role === "buyer");
-    return allUsers.filter(u => u.role === "admin");
+    let list = allUsers;
+    if (usersSubTab === "sellers") list = list.filter(u => u.role === "seller");
+    else if (usersSubTab === "buyers") list = list.filter(u => u.role === "buyer");
+    else list = list.filter(u => u.role === "admin");
+    const q = userSearchQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      list = list.filter(u => {
+        const name = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
+        return name.includes(q) || (u.email || "").toLowerCase().includes(q);
+      });
+    }
+    return list;
   };
 
   // Fetch users list (for admin)
@@ -276,6 +307,19 @@ export default function Messages() {
                   )}
                   {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
                 </TabsList>
+
+                {activeTab !== "users" && (
+                  <div className="px-1 pb-2">
+                    <input
+                      type="text"
+                      value={threadSearchQuery}
+                      onChange={(e) => setThreadSearchQuery(e.target.value)}
+                      placeholder="Search conversations..."
+                      className="w-full text-sm px-3 py-2 border rounded-md bg-background"
+                      data-testid="input-thread-search"
+                    />
+                  </div>
+                )}
 
                 {user?.role !== "buyer" && (
                   <TabsContent value="sellers" className="space-y-2">
@@ -379,6 +423,17 @@ export default function Messages() {
                         <TabsTrigger value="buyers" data-testid="tab-buyers">Buyers</TabsTrigger>
                         <TabsTrigger value="admins" data-testid="tab-admins">Admins</TabsTrigger>
                       </TabsList>
+
+                      <div className="px-1 pb-2">
+                        <input
+                          type="text"
+                          value={userSearchQuery}
+                          onChange={(e) => setUserSearchQuery(e.target.value)}
+                          placeholder="Search users..."
+                          className="w-full text-sm px-3 py-2 border rounded-md bg-background"
+                          data-testid="input-user-search"
+                        />
+                      </div>
 
                       <TabsContent value={usersSubTab} className="space-y-2">
                         {filteredUsers().map((usr) => (
@@ -575,6 +630,21 @@ export default function Messages() {
                     <div className="flex gap-2">
                       <Textarea placeholder="Type your message..." value={messageContent} onChange={(e) => setMessageContent(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} className="flex-1 resize-none" rows={3} data-testid="input-message" />
                       <Button onClick={handleSendMessage} disabled={!messageContent.trim() || sendMessageMutation.isPending} data-testid="button-send-message"><Send className="h-4 w-4" /></Button>
+                    </div>
+                    <div className="flex items-center gap-2 mt-3">
+                      <input
+                        type="file"
+                        onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
+                        data-testid="input-attachment"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => attachmentFile && uploadAttachmentMutation.mutate(attachmentFile)}
+                        disabled={!attachmentFile || uploadAttachmentMutation.isPending || !selectedThread}
+                        data-testid="button-upload-attachment"
+                      >
+                        {uploadAttachmentMutation.isPending ? "Uploading..." : "Attach file"}
+                      </Button>
                     </div>
                   </div>
                 </Card>

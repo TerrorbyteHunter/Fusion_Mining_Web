@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from 'wouter';
 import { TestTube, LogIn, Key } from "lucide-react";
 
 interface TestAccount {
@@ -45,13 +46,19 @@ export function TestLoginSelector() {
     retry: false,
   });
 
+  const [, setLocation] = useLocation();
+
   const loginMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return await apiRequest("POST", "/api/test-login", { userId });
+      const res = await apiRequest("POST", "/api/test-login", { userId });
+      return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries();
-      window.location.reload();
+      // redirect based on role
+      const role = data?.user?.role;
+  if (role === 'admin') setLocation('/admin');
+  else setLocation('/dashboard');
     },
   });
 
@@ -67,16 +74,19 @@ export function TestLoginSelector() {
 
   const credentialsLoginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
-      return await apiRequest("POST", "/api/login", credentials);
+      const res = await apiRequest("POST", "/api/login", credentials);
+      return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: any) => {
       toast({
         title: "Login Successful",
         description: "You have been logged in successfully.",
       });
       setIsDialogOpen(false);
       queryClient.invalidateQueries();
-      window.location.reload();
+  const role = data?.user?.role;
+  if (role === 'admin') setLocation('/admin');
+  else setLocation('/dashboard');
     },
     onError: (error: Error) => {
       toast({

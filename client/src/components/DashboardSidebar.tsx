@@ -96,9 +96,10 @@ export function DashboardSidebar() {
       {/* Navigation Menu */}
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-1">
-          {menuItems.map((item) => {
+            {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location === item.href;
+            // mark as active when the current location equals the href or is a subpath
+            const isActive = location === item.href || (item.href !== '/' && location.startsWith(item.href));
             
             return (
               <Link key={item.href} href={item.href}>

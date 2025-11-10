@@ -24,6 +24,8 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json",
         },
+        // ensure cookies (session) are sent/received during dev
+        credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
 
@@ -34,7 +36,14 @@ export default function Login() {
           title: "Login successful",
           description: `Welcome back, ${data.user.firstName}!`,
         });
-        setLocation("/dashboard");
+        // Redirect admin users to the admin panel; others go to the dashboard
+        const role = data?.user?.role || data?.role;
+        if (role === 'admin') {
+          setLocation('/admin');
+        } else {
+          // Non-admin users go to their dashboard (buyer/seller views handled there)
+          setLocation('/dashboard');
+        }
       } else {
         toast({
           title: "Login failed",

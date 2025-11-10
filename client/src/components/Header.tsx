@@ -89,6 +89,18 @@ export function Header() {
                 </Button>
               </Link>
             ))}
+            {isAuthenticated && (
+              <Link href="/dashboard">
+                <Button
+                  variant={location.startsWith("/dashboard") ? "secondary" : "ghost"}
+                  size="sm"
+                  className="ml-1"
+                  data-testid="link-dashboard"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+            )}
           </nav>
 
           {/* Auth & User Menu */}
@@ -121,6 +133,12 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="flex items-center gap-2" data-testid="menu-dashboard">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => logoutMutation.mutate()}
@@ -178,6 +196,18 @@ export function Header() {
                 </Button>
               </Link>
             ))}
+            {isAuthenticated && (
+              <Link href="/dashboard">
+                <Button
+                  variant={location.startsWith("/dashboard") ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setMobileMenuOpen(false)}
+                  data-testid="link-mobile-dashboard"
+                >
+                  Dashboard
+                </Button>
+              </Link>
+            )}
           </nav>
         )}
       </div>

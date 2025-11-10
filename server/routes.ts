@@ -1,5 +1,8 @@
 // API routes for Fusion Mining Limited platform
 import type { Express } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission } from "./localAuth";
@@ -50,10 +53,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: 'Invalid credentials' });
         }
         // Use passport login to set session
+        console.log('[DEV] /api/login - before login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
         req.login(user, (err) => {
           if (err) {
+            console.error('[DEV] /api/login - login error', err);
             return res.status(500).json({ message: 'Login failed' });
           }
+          try {
+            console.log('[DEV] /api/login - after login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
+          } catch (e) {}
           res.json({ success: true, user });
         });
       });
@@ -97,17 +105,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "User not found" });
         }
 
-        // Use passport login
-        req.login(user, (err: any) => {
-          if (err) {
-            console.error("Login error:", err);
-            return res.status(500).json({ message: "Failed to login" });
-          }
-          res.json({ 
-            message: "Test login successful", 
-            user 
+        // Use passport login (see logging below)
+          console.log('[DEV] /api/test-login - before login, sessionID=', req.sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
+          req.login(user, (err: any) => {
+            if (err) {
+              console.error("[DEV] /api/test-login - Login error:", err);
+              return res.status(500).json({ message: "Failed to login" });
+            }
+            console.log('[DEV] /api/test-login - after login, sessionID=', req.sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
+            res.json({ 
+              message: "Test login successful", 
+              user 
+            });
           });
-        });
       } catch (error) {
         console.error("Error during test login:", error);
         res.status(500).json({ message: "Failed to login" });
@@ -152,6 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Get current user endpoint
     app.get('/api/auth/user', async (req: any, res) => {
+      console.log('[DEV] /api/auth/user - sessionID=', req.sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
       if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Unauthorized" });
       }
@@ -1252,6 +1263,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard: get current user's listings (sellers)
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // If user is seller, return their listings; otherwise return empty array
+      const listings = await storage.getListingsBySellerId(userId);
+      res.json(listings || []);
+    } catch (error) {
+      console.error('Error fetching dashboard listings:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard listings' });
+    }
+  });
+
   // Return a single listing including basic seller info (used by client when messages
   // don't include the listing payload).
   app.get('/api/marketplace/listings/:id', async (req, res) => {
@@ -1571,6 +1595,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error closing thread:", error);
       res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Message Attachments
+  // ========================================================================
+  const uploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "messages");
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+
+  const storageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const upload = multer({
+    storage: storageEngine,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "application/pdf",
+        "text/plain",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type"));
+    },
+  });
+
+  app.post('/api/uploads/messages', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const relativePath = `/attached_assets/files/uploads/messages/${req.file.filename}`;
+      res.json({
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
     }
   });
 

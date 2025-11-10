@@ -99,11 +99,17 @@ export function serveStatic(app: Express) {
   // Build output is in dist/public, but since this is called from server/vite.ts,
   // we need to go up one level from server/ to get to project root, then to dist/public
   const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  const attachedAssetsPath = path.resolve(import.meta.dirname, "..", "attached_assets");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
     );
+  }
+
+  // Serve attached assets (uploads and static files) in production
+  if (fs.existsSync(attachedAssetsPath)) {
+    app.use('/attached_assets', express.static(attachedAssetsPath));
   }
 
   app.use(express.static(distPath));
