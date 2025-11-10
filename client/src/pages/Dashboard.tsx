@@ -37,7 +37,8 @@ export default function Dashboard() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        // Navigate to the client-side login page (not the API route)
+        window.location.href = "/login";
       }, 500);
       return;
     }
