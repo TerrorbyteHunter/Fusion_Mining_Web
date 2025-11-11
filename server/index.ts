@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import session from "express-session";
@@ -14,6 +15,15 @@ app.use(express.urlencoded({ extended: false }));
 // If running behind a proxy (Vite middleware or other), trust the first proxy
 // so that secure cookie / sameSite behavior and req.protocol are correct.
 app.set('trust proxy', 1);
+
+// CORS for cross-origin API (e.g., client on vercel.app, API on render.com)
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : undefined;
+app.use(cors({
+  origin: corsOrigin || true,
+  credentials: true,
+}));
 
 // PostgreSQL session store setup
 const PgStore = connectPgSimple(session);
@@ -32,6 +42,8 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production', // use secure cookies in production
     httpOnly: true,
+    sameSite: (process.env.COOKIE_SAMESITE as any) || (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
+    domain: process.env.COOKIE_DOMAIN || undefined,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
