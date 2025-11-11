@@ -37,35 +37,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
     // ========================================================================
-    // Username/Password Login (DEVELOPMENT ONLY)
+    // Quick Login for DEMO/TESTING ONLY
+    // WARNING: This is NOT secure and should NOT be used in production with real data
+    // This is enabled for all environments to support demo deployments
     // ========================================================================
-    if (process.env.NODE_ENV === 'development') {
-      app.post('/api/login', async (req, res) => {
-        const { username, password } = req.body;
-        // Simple hardcoded users for testing (NO SECURITY)
-        const users = {
-          admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-          henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass' },
-          ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass' },
-        };
-        const user = Object.values(users).find(u => u.username === username && u.password === password);
-        if (!user) {
-          return res.status(401).json({ message: 'Invalid credentials' });
+    app.post('/api/login', async (req, res) => {
+      const { username, password } = req.body;
+      
+      console.warn('⚠️  WARNING: Using demo login endpoint - NOT FOR PRODUCTION USE');
+      
+      // Simple hardcoded users for testing (NO SECURITY)
+      const users = {
+        admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
+        henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass' },
+        ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass' },
+      };
+      
+      const user = Object.values(users).find(u => u.username === username && u.password === password);
+      if (!user) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+      
+      // Use passport login to set session
+      console.log('[DEMO LOGIN] before login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
+      req.login(user, (err) => {
+        if (err) {
+          console.error('[DEMO LOGIN] login error', err);
+          return res.status(500).json({ message: 'Login failed' });
         }
-        // Use passport login to set session
-        console.log('[DEV] /api/login - before login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
-        req.login(user, (err) => {
-          if (err) {
-            console.error('[DEV] /api/login - login error', err);
-            return res.status(500).json({ message: 'Login failed' });
-          }
-          try {
-            console.log('[DEV] /api/login - after login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
-          } catch (e) {}
-          res.json({ success: true, user });
-        });
+        try {
+          console.log('[DEMO LOGIN] after login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
+        } catch (e) {}
+        res.json({ success: true, user });
       });
-    }
+    });
   // ========================================================================
   // Development Test Login (DEVELOPMENT ONLY)
   // ========================================================================
