@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Mountain } from "lucide-react";
+import { Mountain, UserCog, ShoppingBag, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleQuickLogin = async (role: 'admin' | 'buyer' | 'seller') => {
+    setLoading(role);
+
+    // Hardcoded credentials for each role
+    const credentials = {
+      admin: { username: 'admin', password: 'admin123' },
+      buyer: { username: 'henry', password: 'henry123' },
+      seller: { username: 'ray', password: 'ray123' },
+    };
+
+    const { username, password } = credentials[role];
 
     try {
       const response = await fetch("/api/login", {
@@ -24,7 +28,6 @@ export default function Login() {
         headers: {
           "Content-Type": "application/json",
         },
-        // ensure cookies (session) are sent/received during dev
         credentials: 'include',
         body: JSON.stringify({ username, password }),
       });
@@ -36,12 +39,11 @@ export default function Login() {
           title: "Login successful",
           description: `Welcome back, ${data.user.firstName}!`,
         });
-        // Redirect admin users to the admin panel; others go to the dashboard
-        const role = data?.user?.role || data?.role;
-        if (role === 'admin') {
+        // Redirect based on role
+        const userRole = data?.user?.role || data?.role;
+        if (userRole === 'admin') {
           setLocation('/admin');
         } else {
-          // Non-admin users go to their dashboard (buyer/seller views handled there)
           setLocation('/dashboard');
         }
       } else {
@@ -58,7 +60,7 @@ export default function Login() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
@@ -77,51 +79,80 @@ export default function Login() {
               </span>
             </div>
           </div>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">Quick Login</CardTitle>
           <CardDescription>
-            Enter your credentials to access the platform
+            Choose your account type to access the platform
           </CardDescription>
+          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-md">
+            <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium text-center">
+              ⚠️ DEMO MODE - Not for production use with real data
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="admin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                data-testid="input-username"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                data-testid="input-password"
-              />
-            </div>
+          <div className="space-y-3">
             <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-              data-testid="button-login"
+              onClick={() => handleQuickLogin('admin')}
+              disabled={loading !== null}
+              className="w-full h-16 flex items-center justify-start gap-4 px-6"
+              variant="outline"
+              data-testid="button-login-admin"
             >
-              {loading ? "Logging in..." : "Login"}
+              <UserCog className="h-6 w-6 text-primary" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-base">Login as Admin</span>
+                <span className="text-xs text-muted-foreground">
+                  Full platform access & management
+                </span>
+              </div>
+              {loading === 'admin' && (
+                <span className="ml-auto text-xs">Logging in...</span>
+              )}
             </Button>
-          </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            <p className="font-semibold mb-1">Test Accounts (No Security):</p>
-            <p>Admin: admin / admin123</p>
-            <p>Buyer: henry / henry123</p>
-            <p>Seller: ray / ray123</p>
+
+            <Button
+              onClick={() => handleQuickLogin('buyer')}
+              disabled={loading !== null}
+              className="w-full h-16 flex items-center justify-start gap-4 px-6"
+              variant="outline"
+              data-testid="button-login-buyer"
+            >
+              <ShoppingBag className="h-6 w-6 text-primary" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-base">Login as Buyer</span>
+                <span className="text-xs text-muted-foreground">
+                  Browse projects & submit requests
+                </span>
+              </div>
+              {loading === 'buyer' && (
+                <span className="ml-auto text-xs">Logging in...</span>
+              )}
+            </Button>
+
+            <Button
+              onClick={() => handleQuickLogin('seller')}
+              disabled={loading !== null}
+              className="w-full h-16 flex items-center justify-start gap-4 px-6"
+              variant="outline"
+              data-testid="button-login-seller"
+            >
+              <Building2 className="h-6 w-6 text-primary" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-base">Login as Seller</span>
+                <span className="text-xs text-muted-foreground">
+                  Manage listings & respond to buyers
+                </span>
+              </div>
+              {loading === 'seller' && (
+                <span className="ml-auto text-xs">Logging in...</span>
+              )}
+            </Button>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Demo accounts for testing - No security enabled
+            </p>
           </div>
         </CardContent>
       </Card>
