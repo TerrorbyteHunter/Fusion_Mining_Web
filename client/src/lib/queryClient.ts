@@ -13,11 +13,14 @@ export async function apiRequest(
   data?: unknown | undefined,
   extraHeaders?: Record<string, string> | undefined,
 ): Promise<Response> {
+  const apiBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+  const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
+  const fullUrl = /^https?:\/\//i.test(url) ? url : `${normalizedBase}${url}`;
   const baseHeaders: Record<string, string> = {};
   if (data) baseHeaders["Content-Type"] = "application/json";
   const headers = { ...baseHeaders, ...(extraHeaders || {}) };
 
-  const res = await fetch(url, {
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -55,7 +58,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const apiBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+    const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
+    const path = queryKey.join("/") as string;
+    const fullUrl = /^https?:\/\//i.test(path) ? path : `${normalizedBase}${path}`;
+    const res = await fetch(fullUrl, {
       credentials: "include",
     });
 
