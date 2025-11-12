@@ -32,6 +32,17 @@ function formatZodError(error: ZodError): string {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
+  // Health Check Endpoint (for monitoring services like Render, Vercel, etc.)
+  // ========================================================================
+  app.get('/api/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  // ========================================================================
   // Auth Setup (Local Development)
   // ========================================================================
   await setupAuth(app);
