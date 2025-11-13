@@ -194,7 +194,7 @@ async function seed() {
     // Create marketplace listings
     console.log("Creating marketplace listings...");
     
-    await db.insert(marketplaceListings).values([
+  await db.insert(marketplaceListings).values([
       {
         sellerId: "test-seller-456",
         type: "mineral",
@@ -330,7 +330,7 @@ async function seed() {
         price: "$50,000+ (project dependent)",
         status: "approved",
       },
-    ]).onConflictDoNothing();
+  ] as any).onConflictDoNothing();
 
     console.log("✓ Marketplace listings created");
 
