@@ -3605,12 +3605,22 @@ app.use(cors({
   origin: corsOrigin || true,
   credentials: true
 }));
-var PgStore = connectPgSimple(session);
-var sessionStore = new PgStore({
-  conString: process.env.DATABASE_URL,
-  tableName: "sessions",
-  createTableIfMissing: true
-});
+var sessionStore;
+if (process.env.DATABASE_URL) {
+  try {
+    const PgStore = connectPgSimple(session);
+    sessionStore = new PgStore({
+      conString: process.env.DATABASE_URL,
+      tableName: "sessions",
+      createTableIfMissing: true
+    });
+  } catch (err) {
+    console.log("Warning: failed to initialize Postgres session store. Falling back to default MemoryStore. Error:", err.message);
+    sessionStore = void 0;
+  }
+} else {
+  console.log("No DATABASE_URL set \u2014 using MemoryStore for sessions (not recommended for production).");
+}
 app.use(session({
   store: sessionStore,
   secret: process.env.SESSION_SECRET || "dev-secret-key",
@@ -3653,46 +3663,50 @@ app.use((req, res, next) => {
   next();
 });
 (async () => {
-  const server = await registerRoutes(app);
-  app.use((err, _req, res, _next) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    res.status(status).json({ message });
-    throw err;
-  });
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-    const port = parseInt(process.env.PORT || "5000", 10);
-    (async function schemaCheck() {
-      try {
-        const requiredColumns = ["related_project_id", "related_listing_id"];
-        const pool2 = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-        const res = await pool2.query(
-          `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
-          [requiredColumns]
-        );
-        await pool2.end();
-        const present = (res.rows || []).map((r) => r.column_name);
-        const missing = requiredColumns.filter((c) => !present.includes(c));
-        if (missing.length) {
-          console.log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(", ")}`);
-          console.log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
-        }
-      } catch (err) {
-        console.log(`Schema check failed: ${err.message}`);
-      }
-    })();
-    server.listen(port, () => {
-      console.log(`Server running at http://localhost:${port}`);
+  try {
+    const server = await registerRoutes(app);
+    app.use((err, _req, res, _next) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+      console.error("Unhandled error:", err);
     });
-  } else {
-    serveStatic(app);
-    if (!process.env.VERCEL && !process.env.REPL_ID) {
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
       const port = parseInt(process.env.PORT || "5000", 10);
+      (async function schemaCheck() {
+        try {
+          const requiredColumns = ["related_project_id", "related_listing_id"];
+          const pool2 = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+          const res = await pool2.query(
+            `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
+            [requiredColumns]
+          );
+          await pool2.end();
+          const present = (res.rows || []).map((r) => r.column_name);
+          const missing = requiredColumns.filter((c) => !present.includes(c));
+          if (missing.length) {
+            console.log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(", ")}`);
+            console.log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
+          }
+        } catch (err) {
+          console.log(`Schema check failed: ${err.message}`);
+        }
+      })();
       server.listen(port, () => {
         console.log(`Server running at http://localhost:${port}`);
       });
+    } else {
+      serveStatic(app);
+      if (!process.env.VERCEL && !process.env.REPL_ID) {
+        const port = parseInt(process.env.PORT || "5000", 10);
+        server.listen(port, () => {
+          console.log(`Server running at http://localhost:${port}`);
+        });
+      }
     }
+  } catch (err) {
+    console.error("Fatal error during server startup:", err.message || err);
   }
 })();
 var index_default = app;

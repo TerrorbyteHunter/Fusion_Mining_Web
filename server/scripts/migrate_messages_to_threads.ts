@@ -34,8 +34,8 @@ const { pool } = require('../db');
 
         await client.query('UPDATE messages SET thread_id = $1 WHERE id = $2', [threadId, m.id]);
         console.log('Migrated message', m.id, '-> thread', threadId);
-      } catch (err) {
-        console.error('Failed migrating message', m.id, err.message || err);
+      } catch (err: any) {
+        console.error('Failed migrating message', m.id, err?.message || err);
       }
     }
 

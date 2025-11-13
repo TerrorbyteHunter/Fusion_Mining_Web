@@ -25,17 +25,27 @@ app.use(cors({
   credentials: true,
 }));
 
-// PostgreSQL session store setup
-const PgStore = connectPgSimple(session);
-const sessionStore = new PgStore({
-  conString: process.env.DATABASE_URL,
-  tableName: 'sessions',
-  createTableIfMissing: true,
-});
+// PostgreSQL session store setup (only when DATABASE_URL is provided)
+let sessionStore: any | undefined;
+if (process.env.DATABASE_URL) {
+  try {
+    const PgStore = connectPgSimple(session);
+    sessionStore = new PgStore({
+      conString: process.env.DATABASE_URL,
+      tableName: 'sessions',
+      createTableIfMissing: true,
+    });
+  } catch (err) {
+    console.log('Warning: failed to initialize Postgres session store. Falling back to default MemoryStore. Error:', (err as Error).message);
+    sessionStore = undefined;
+  }
+} else {
+  console.log('No DATABASE_URL set — using MemoryStore for sessions (not recommended for production).');
+}
 
-// Session setup with PostgreSQL store
+// Session setup (use Postgres store when available, otherwise MemoryStore)
 app.use(session({
-  store: sessionStore,
+  store: sessionStore as any,
   secret: process.env.SESSION_SECRET || 'dev-secret-key',
   resave: false,
   saveUninitialized: false,
@@ -82,67 +92,72 @@ app.use((req, res, next) => {
   next();
 });
 
+// Boot the server and register routes
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+    // Central error handler: respond and log, but don't rethrow here to avoid crashing the process
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-    
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
-    const port = parseInt(process.env.PORT || '5000', 10);
-
-    // Development-time schema sanity check: verify important columns exist
-    // This helps developers who haven't run migrations yet get a friendly
-    // suggestion to run `npm run db:push` when the DB is out-of-sync.
-    (async function schemaCheck() {
-      try {
-        const requiredColumns = ['related_project_id', 'related_listing_id'];
-        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
-        const res = await pool.query(
-          `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
-          [requiredColumns]
-        );
-        await pool.end();
-
-        const present = (res.rows || []).map((r: any) => r.column_name);
-        const missing = requiredColumns.filter(c => !present.includes(c));
-        if (missing.length) {
-          console.log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(', ')}`);
-          console.log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
-        }
-      } catch (err) {
-        // Don't block server start for this check; just log the error.
-        console.log(`Schema check failed: ${(err as Error).message}`);
-      }
-    })();
-
-    server.listen(port, () => {
-      console.log(`Server running at http://localhost:${port}`);
+      res.status(status).json({ message });
+      console.error('Unhandled error:', err);
     });
-  } else {
-    // Production: serve static files
-    serveStatic(app);
-    
-    // Only listen on port if NOT on Vercel or Replit
-    // Vercel and Replit don't need us to call server.listen()
-    if (!process.env.VERCEL && !process.env.REPL_ID) {
+
+    // importantly only setup vite in development and after
+    // setting up all the other routes so the catch-all route
+    // doesn't interfere with the other routes
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+
+      // ALWAYS serve the app on the port specified in the environment variable PORT
+      // Other ports are firewalled. Default to 5000 if not specified.
       const port = parseInt(process.env.PORT || '5000', 10);
+
+      // Development-time schema sanity check: verify important columns exist
+      (async function schemaCheck() {
+        try {
+          const requiredColumns = ['related_project_id', 'related_listing_id'];
+          const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+          const res = await pool.query(
+            `select column_name from information_schema.columns where table_name = 'messages' and column_name = ANY($1)`,
+            [requiredColumns]
+          );
+          await pool.end();
+
+          const present = (res.rows || []).map((r: any) => r.column_name);
+          const missing = requiredColumns.filter(c => !present.includes(c));
+          if (missing.length) {
+            console.log(`WARNING: Database schema appears out of date. Missing columns on 'messages' table: ${missing.join(', ')}`);
+            console.log(`Run 'npm run db:push' to synchronize your local database schema with the application schema.`);
+          }
+        } catch (err) {
+          // Don't block server start for this check; just log the error.
+          console.log(`Schema check failed: ${(err as Error).message}`);
+        }
+      })();
+
       server.listen(port, () => {
         console.log(`Server running at http://localhost:${port}`);
       });
+    } else {
+      // Production: serve static files
+      serveStatic(app);
+
+      // Only listen on port if NOT on Vercel or Replit
+      // Vercel and Replit don't need us to call server.listen()
+      if (!process.env.VERCEL && !process.env.REPL_ID) {
+        const port = parseInt(process.env.PORT || '5000', 10);
+        server.listen(port, () => {
+          console.log(`Server running at http://localhost:${port}`);
+        });
+      }
     }
+  } catch (err) {
+    console.error('Fatal error during server startup:', (err as Error).message || err);
+    // don't re-throw so the process doesn't crash silently on Render; keep process alive for logs
   }
 })();
 
