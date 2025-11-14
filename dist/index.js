@@ -3709,14 +3709,10 @@ app.use((req, res, next) => {
     } else {
       console.log("Production mode: serving static files");
       serveStatic(app);
-      if (!process.env.VERCEL && !process.env.REPL_ID) {
-        const port = parseInt(process.env.PORT || "5000", 10);
-        server.listen(port, () => {
-          console.log(`Server running at http://localhost:${port} (production)`);
-        });
-      } else {
-        console.log("Not calling server.listen() because running on Vercel/Replit-compatible environment");
-      }
+      const port = parseInt(process.env.PORT || "5000", 10);
+      server.listen(port, () => {
+        console.log(`Server running at http://localhost:${port} (production)`);
+      });
     }
   } catch (err) {
     console.error("Fatal error during server startup:", err.message || err);
