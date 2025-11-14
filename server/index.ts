@@ -12,6 +12,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Basic startup info for debugging on platforms like Render
+console.log('Starting server bootstrap', { NODE_ENV: process.env.NODE_ENV, PORT: process.env.PORT });
+
+// Global handlers to capture uncaught errors and rejections (log them so Render shows details)
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err instanceof Error ? err.stack || err.message : String(err));
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason instanceof Error ? reason.stack || reason.message : String(reason));
+});
+
 // If running behind a proxy (Vite middleware or other), trust the first proxy
 // so that secure cookie / sameSite behavior and req.protocol are correct.
 app.set('trust proxy', 1);
@@ -35,6 +46,7 @@ if (process.env.DATABASE_URL) {
       tableName: 'sessions',
       createTableIfMissing: true,
     });
+    console.log('Postgres session store initialized');
   } catch (err) {
     console.log('Warning: failed to initialize Postgres session store. Falling back to default MemoryStore. Error:', (err as Error).message);
     sessionStore = undefined;
@@ -95,7 +107,9 @@ app.use((req, res, next) => {
 // Boot the server and register routes
 (async () => {
   try {
+    console.log('Registering routes...');
     const server = await registerRoutes(app);
+    console.log('Routes registered');
 
     // Central error handler: respond and log, but don't rethrow here to avoid crashing the process
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -140,10 +154,11 @@ app.use((req, res, next) => {
       })();
 
       server.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
+        console.log(`Server running at http://localhost:${port} (development)`);
       });
     } else {
       // Production: serve static files
+      console.log('Production mode: serving static files');
       serveStatic(app);
 
       // Only listen on port if NOT on Vercel or Replit
@@ -151,8 +166,10 @@ app.use((req, res, next) => {
       if (!process.env.VERCEL && !process.env.REPL_ID) {
         const port = parseInt(process.env.PORT || '5000', 10);
         server.listen(port, () => {
-          console.log(`Server running at http://localhost:${port}`);
+          console.log(`Server running at http://localhost:${port} (production)`);
         });
+      } else {
+        console.log('Not calling server.listen() because running on Vercel/Replit-compatible environment');
       }
     }
   } catch (err) {

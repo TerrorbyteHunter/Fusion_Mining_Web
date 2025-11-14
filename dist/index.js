@@ -3599,6 +3599,13 @@ import pg from "pg";
 var app = express2();
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
+console.log("Starting server bootstrap", { NODE_ENV: process.env.NODE_ENV, PORT: process.env.PORT });
+process.on("uncaughtException", (err) => {
+  console.error("uncaughtException:", err instanceof Error ? err.stack || err.message : String(err));
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandledRejection:", reason instanceof Error ? reason.stack || reason.message : String(reason));
+});
 app.set("trust proxy", 1);
 var corsOrigin = process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim()) : void 0;
 app.use(cors({
@@ -3614,6 +3621,7 @@ if (process.env.DATABASE_URL) {
       tableName: "sessions",
       createTableIfMissing: true
     });
+    console.log("Postgres session store initialized");
   } catch (err) {
     console.log("Warning: failed to initialize Postgres session store. Falling back to default MemoryStore. Error:", err.message);
     sessionStore = void 0;
@@ -3664,7 +3672,9 @@ app.use((req, res, next) => {
 });
 (async () => {
   try {
+    console.log("Registering routes...");
     const server = await registerRoutes(app);
+    console.log("Routes registered");
     app.use((err, _req, res, _next) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
@@ -3694,15 +3704,18 @@ app.use((req, res, next) => {
         }
       })();
       server.listen(port, () => {
-        console.log(`Server running at http://localhost:${port}`);
+        console.log(`Server running at http://localhost:${port} (development)`);
       });
     } else {
+      console.log("Production mode: serving static files");
       serveStatic(app);
       if (!process.env.VERCEL && !process.env.REPL_ID) {
         const port = parseInt(process.env.PORT || "5000", 10);
         server.listen(port, () => {
-          console.log(`Server running at http://localhost:${port}`);
+          console.log(`Server running at http://localhost:${port} (production)`);
         });
+      } else {
+        console.log("Not calling server.listen() because running on Vercel/Replit-compatible environment");
       }
     }
   } catch (err) {
