@@ -163,14 +163,11 @@ app.use((req, res, next) => {
 
       // Only listen on port if NOT on Vercel or Replit
       // Vercel and Replit don't need us to call server.listen()
-      if (!process.env.VERCEL && !process.env.REPL_ID) {
-        const port = parseInt(process.env.PORT || '5000', 10);
-        server.listen(port, () => {
-          console.log(`Server running at http://localhost:${port} (production)`);
-        });
-      } else {
-        console.log('Not calling server.listen() because running on Vercel/Replit-compatible environment');
-      }
+      // Always listen in production so Render (and similar platforms) can bind to the provided PORT
+      const port = parseInt(process.env.PORT || '5000', 10);
+      server.listen(port, () => {
+        console.log(`Server running at http://localhost:${port} (production)`);
+      });
     }
   } catch (err) {
     console.error('Fatal error during server startup:', (err as Error).message || err);
