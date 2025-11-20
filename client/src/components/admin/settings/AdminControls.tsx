@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tantml:query/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Shield, Users, LogOut, AlertTriangle } from "lucide-react";
@@ -64,33 +64,33 @@ export function AdminControls() {
                 <TableRow>
                   <TableHead>Admin User</TableHead>
                   <TableHead>Manage Users</TableHead>
-                  <TableHead>Manage Content</TableHead>
-                  <TableHead>Manage Settings</TableHead>
-                  <TableHead>View Audit Logs</TableHead>
+                  <TableHead>Manage CMS</TableHead>
+                  <TableHead>Manage Listings</TableHead>
+                  <TableHead>View Analytics</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {permissions.map((perm) => (
                   <TableRow key={perm.id}>
-                    <TableCell className="font-medium">{perm.userId}</TableCell>
+                    <TableCell className="font-medium">{perm.adminUserId}</TableCell>
                     <TableCell>
                       <Badge variant={perm.canManageUsers ? "default" : "outline"}>
                         {perm.canManageUsers ? "Yes" : "No"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={perm.canManageContent ? "default" : "outline"}>
-                        {perm.canManageContent ? "Yes" : "No"}
+                      <Badge variant={perm.canManageCMS ? "default" : "outline"}>
+                        {perm.canManageCMS ? "Yes" : "No"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={perm.canManageSettings ? "default" : "outline"}>
-                        {perm.canManageSettings ? "Yes" : "No"}
+                      <Badge variant={perm.canManageListings ? "default" : "outline"}>
+                        {perm.canManageListings ? "Yes" : "No"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={perm.canViewAuditLogs ? "default" : "outline"}>
-                        {perm.canViewAuditLogs ? "Yes" : "No"}
+                      <Badge variant={perm.canViewAnalytics ? "default" : "outline"}>
+                        {perm.canViewAnalytics ? "Yes" : "No"}
                       </Badge>
                     </TableCell>
                   </TableRow>
