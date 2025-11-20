@@ -17,8 +17,8 @@ export function LegalCompliance() {
   const { toast } = useToast();
   const [isCreateDocDialogOpen, setIsCreateDocDialogOpen] = useState(false);
   const [isCreateRuleDialogOpen, setIsCreateRuleDialogOpen] = useState(false);
-  const [docForm, setDocForm] = useState({ name: "", content: "" });
-  const [ruleForm, setRuleForm] = useState({ ruleType: "", enabled: true, minThreshold: 0 });
+  const [docForm, setDocForm] = useState({ templateName: "", content: "" });
+  const [ruleForm, setRuleForm] = useState({ ruleName: "", active: true, minDocuments: 0 });
 
   const { data: documentTemplates } = useQuery<DocumentTemplate[]>({
     queryKey: ["/api/document-templates"],
@@ -39,7 +39,7 @@ export function LegalCompliance() {
       queryClient.invalidateQueries({ queryKey: ["/api/document-templates"] });
       toast({ title: "Success", description: "Document template created" });
       setIsCreateDocDialogOpen(false);
-      setDocForm({ name: "", content: "" });
+      setDocForm({ templateName: "", content: "" });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to create document", variant: "destructive" });
@@ -53,7 +53,7 @@ export function LegalCompliance() {
       queryClient.invalidateQueries({ queryKey: ["/api/verification-rules"] });
       toast({ title: "Success", description: "Verification rule created" });
       setIsCreateRuleDialogOpen(false);
-      setRuleForm({ ruleType: "", enabled: true, minThreshold: 0 });
+      setRuleForm({ ruleName: "", active: true, minDocuments: 0 });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to create rule", variant: "destructive" });
@@ -61,8 +61,8 @@ export function LegalCompliance() {
   });
 
   const toggleRuleMutation = useMutation({
-    mutationFn: async ({ id, enabled }: { id: string; enabled: boolean }) =>
-      apiRequest("PATCH", `/api/verification-rules/${id}`, { enabled }),
+    mutationFn: async ({ id, active }: { id: string; active: boolean }) =>
+      apiRequest("PATCH", `/api/verification-rules/${id}`, { active }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/verification-rules"] });
       toast({ title: "Success", description: "Verification rule updated" });
@@ -100,8 +100,8 @@ export function LegalCompliance() {
                     <Label htmlFor="doc-name">Document Name</Label>
                     <Input
                       id="doc-name"
-                      value={docForm.name}
-                      onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
+                      value={docForm.templateName}
+                      onChange={(e) => setDocForm({ ...docForm, templateName: e.target.value })}
                       placeholder="Terms of Service"
                       data-testid="input-doc-name"
                     />
@@ -113,7 +113,7 @@ export function LegalCompliance() {
                   </Button>
                   <Button
                     onClick={() => createDocumentMutation.mutate(docForm)}
-                    disabled={createDocumentMutation.isPending || !docForm.name}
+                    disabled={createDocumentMutation.isPending || !docForm.templateName}
                     data-testid="button-submit-document"
                   >
                     {createDocumentMutation.isPending ? "Creating..." : "Create"}
@@ -138,7 +138,7 @@ export function LegalCompliance() {
               <TableBody>
                 {documentTemplates.map((doc) => (
                   <TableRow key={doc.id} data-testid={`row-document-${doc.id}`}>
-                    <TableCell className="font-medium">{doc.name}</TableCell>
+                    <TableCell className="font-medium">{doc.templateName}</TableCell>
                     <TableCell><Badge variant="outline">{doc.documentType}</Badge></TableCell>
                     <TableCell className="font-mono text-sm">{doc.version}</TableCell>
                     <TableCell className="text-muted-foreground">
@@ -177,22 +177,22 @@ export function LegalCompliance() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="rule-type">Rule Type</Label>
+                    <Label htmlFor="rule-type">Rule Name</Label>
                     <Input
                       id="rule-type"
-                      value={ruleForm.ruleType}
-                      onChange={(e) => setRuleForm({ ...ruleForm, ruleType: e.target.value })}
-                      placeholder="identity_verification"
+                      value={ruleForm.ruleName}
+                      onChange={(e) => setRuleForm({ ...ruleForm, ruleName: e.target.value })}
+                      placeholder="Identity Verification"
                       data-testid="input-rule-type"
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="min-threshold">Minimum Threshold</Label>
+                    <Label htmlFor="min-threshold">Minimum Documents</Label>
                     <Input
                       id="min-threshold"
                       type="number"
-                      value={ruleForm.minThreshold}
-                      onChange={(e) => setRuleForm({ ...ruleForm, minThreshold: parseInt(e.target.value) })}
+                      value={ruleForm.minDocuments}
+                      onChange={(e) => setRuleForm({ ...ruleForm, minDocuments: parseInt(e.target.value) })}
                       data-testid="input-min-threshold"
                     />
                   </div>
@@ -203,7 +203,7 @@ export function LegalCompliance() {
                   </Button>
                   <Button
                     onClick={() => createRuleMutation.mutate(ruleForm)}
-                    disabled={createRuleMutation.isPending || !ruleForm.ruleType}
+                    disabled={createRuleMutation.isPending || !ruleForm.ruleName}
                     data-testid="button-submit-rule"
                   >
                     {createRuleMutation.isPending ? "Creating..." : "Create"}
@@ -228,18 +228,18 @@ export function LegalCompliance() {
               <TableBody>
                 {verificationRules.map((rule) => (
                   <TableRow key={rule.id} data-testid={`row-rule-${rule.id}`}>
-                    <TableCell className="font-medium">{rule.ruleType}</TableCell>
-                    <TableCell>{rule.minThreshold}</TableCell>
+                    <TableCell className="font-medium">{rule.ruleName}</TableCell>
+                    <TableCell>{rule.minDocuments}</TableCell>
                     <TableCell>
-                      <Badge variant={rule.enabled ? "default" : "outline"}>
-                        {rule.enabled ? "Enabled" : "Disabled"}
+                      <Badge variant={rule.active ? "default" : "outline"}>
+                        {rule.active ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <Switch
-                        checked={rule.enabled}
+                        checked={rule.active}
                         onCheckedChange={(checked) =>
-                          toggleRuleMutation.mutate({ id: rule.id, enabled: checked })
+                          toggleRuleMutation.mutate({ id: rule.id, active: checked })
                         }
                         data-testid={`switch-rule-${rule.id}`}
                       />

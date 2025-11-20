@@ -65,6 +65,3 @@ export default function AdminSettings() {
     </div>
   );
 }
-  const { isAdmin, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [editingTier, setEditingTier] = useState<string | null>(null);
-  const [tierForm, setTierForm] = useState({

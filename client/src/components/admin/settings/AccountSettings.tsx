@@ -192,8 +192,8 @@ export function AccountSettings() {
                     <TableCell>{new Date(entry.createdAt).toLocaleString()}</TableCell>
                     <TableCell className="font-mono text-sm">{entry.ipAddress}</TableCell>
                     <TableCell>
-                      <Badge variant={entry.success ? "default" : "destructive"}>
-                        {entry.success ? "Success" : "Failed"}
+                      <Badge variant={entry.loginSuccess ? "default" : "destructive"}>
+                        {entry.loginSuccess ? "Success" : "Failed"}
                       </Badge>
                     </TableCell>
                   </TableRow>

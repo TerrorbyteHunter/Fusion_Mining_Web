@@ -18,9 +18,9 @@ export function CommunicationSettings() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [templateForm, setTemplateForm] = useState({
-    name: "",
+    templateKey: "",
     subject: "",
-    body: "",
+    bodyHtml: "",
     variables: [] as string[],
   });
 
@@ -70,9 +70,9 @@ export function CommunicationSettings() {
 
   const resetForm = () => {
     setTemplateForm({
-      name: "",
+      templateKey: "",
       subject: "",
-      body: "",
+      bodyHtml: "",
       variables: [],
     });
   };
@@ -80,10 +80,10 @@ export function CommunicationSettings() {
   const handleEditTemplate = (template: EmailTemplate) => {
     setEditingTemplate(template);
     setTemplateForm({
-      name: template.name,
+      templateKey: template.templateKey,
       subject: template.subject,
-      body: template.body,
-      variables: template.variables,
+      bodyHtml: template.bodyHtml,
+      variables: template.variables || [],
     });
   };
 
@@ -122,11 +122,11 @@ export function CommunicationSettings() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="template-name">Template Name</Label>
+                    <Label htmlFor="template-name">Template Key</Label>
                     <Input
                       id="template-name"
-                      value={templateForm.name}
-                      onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                      value={templateForm.templateKey}
+                      onChange={(e) => setTemplateForm({ ...templateForm, templateKey: e.target.value })}
                       placeholder="welcome_email"
                       data-testid="input-template-name"
                     />
@@ -142,12 +142,12 @@ export function CommunicationSettings() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="template-body">Email Body</Label>
+                    <Label htmlFor="template-body">Email Body (HTML)</Label>
                     <Textarea
                       id="template-body"
-                      value={templateForm.body}
-                      onChange={(e) => setTemplateForm({ ...templateForm, body: e.target.value })}
-                      placeholder="Hello {{firstName}},\n\nWelcome to our platform..."
+                      value={templateForm.bodyHtml}
+                      onChange={(e) => setTemplateForm({ ...templateForm, bodyHtml: e.target.value })}
+                      placeholder="<p>Hello {{firstName}},</p><p>Welcome to our platform...</p>"
                       rows={10}
                       data-testid="input-template-body"
                     />
@@ -159,7 +159,7 @@ export function CommunicationSettings() {
                   </Button>
                   <Button
                     onClick={handleCreateTemplate}
-                    disabled={createTemplateMutation.isPending || !templateForm.name}
+                    disabled={createTemplateMutation.isPending || !templateForm.templateKey}
                     data-testid="button-submit-template"
                   >
                     {createTemplateMutation.isPending ? "Creating..." : "Create Template"}
@@ -184,11 +184,11 @@ export function CommunicationSettings() {
               <TableBody>
                 {emailTemplates.map((template) => (
                   <TableRow key={template.id} data-testid={`row-template-${template.id}`}>
-                    <TableCell className="font-mono text-sm">{template.name}</TableCell>
+                    <TableCell className="font-mono text-sm">{template.templateKey}</TableCell>
                     <TableCell className="font-medium">{template.subject}</TableCell>
                     <TableCell>
                       <div className="flex gap-1 flex-wrap">
-                        {template.variables.map((variable) => (
+                        {template.variables?.map((variable) => (
                           <Badge key={variable} variant="outline" className="font-mono text-xs">
                             {`{{${variable}}}`}
                           </Badge>
@@ -234,11 +234,11 @@ export function CommunicationSettings() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="edit-template-name">Template Name</Label>
+                <Label htmlFor="edit-template-name">Template Key</Label>
                 <Input
                   id="edit-template-name"
-                  value={templateForm.name}
-                  onChange={(e) => setTemplateForm({ ...templateForm, name: e.target.value })}
+                  value={templateForm.templateKey}
+                  onChange={(e) => setTemplateForm({ ...templateForm, templateKey: e.target.value })}
                   data-testid="input-edit-template-name"
                 />
               </div>
@@ -252,11 +252,11 @@ export function CommunicationSettings() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="edit-template-body">Email Body</Label>
+                <Label htmlFor="edit-template-body">Email Body (HTML)</Label>
                 <Textarea
                   id="edit-template-body"
-                  value={templateForm.body}
-                  onChange={(e) => setTemplateForm({ ...templateForm, body: e.target.value })}
+                  value={templateForm.bodyHtml}
+                  onChange={(e) => setTemplateForm({ ...templateForm, bodyHtml: e.target.value })}
                   rows={10}
                   data-testid="input-edit-template-body"
                 />
