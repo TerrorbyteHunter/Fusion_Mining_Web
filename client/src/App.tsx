@@ -20,6 +20,7 @@ import News from "@/pages/News";
 import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
+import AdminSettings from "@/pages/AdminSettings";
 import ProfileView from "@/pages/ProfileView";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 // Dashboard pages are routed through DashboardLayout to keep sidebar visible
@@ -76,6 +77,7 @@ function Router() {
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
+            <Route path="/admin/settings" component={AdminSettings} />
 
             {/* Category Browsing Routes */}
             <Route path="/categories/:mainCategory/:subcategory?" component={CategoryBrowse} />
