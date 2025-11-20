@@ -372,6 +372,106 @@ export const contactSettings = pgTable("contact_settings", {
 });
 
 // ============================================================================
+// Admin Settings & Configuration
+// ============================================================================
+
+// Platform-wide settings
+export const platformSettings = pgTable("platform_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull(), // 'general', 'payment', 'email', etc.
+  isPublic: boolean("is_public").notNull().default(false),
+  updatedBy: varchar("updated_by").references(() => users.id),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Email templates for system notifications
+export const emailTemplates = pgTable("email_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateKey: varchar("template_key", { length: 100 }).notNull().unique(),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  bodyHtml: text("body_html").notNull(),
+  bodyText: text("body_text"),
+  variables: text("variables").array(), // Available template variables
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Login history and security tracking
+export const loginHistory = pgTable("login_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  loginSuccess: boolean("login_success").notNull(),
+  failureReason: varchar("failure_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_login_user_id").on(table.userId),
+  index("IDX_login_created").on(table.createdAt),
+]);
+
+// KYC/AML verification rules
+export const verificationStatusEnum = pgEnum('verification_status', ['pending', 'approved', 'rejected']);
+export const verificationRules = pgTable("verification_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ruleName: varchar("rule_name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  requiredFor: varchar("required_for", { length: 50 }).notNull(), // 'buyer', 'seller', 'both'
+  documentTypes: text("document_types").array().notNull(), // ['passport', 'license', etc]
+  minDocuments: integer("min_documents").notNull().default(1),
+  autoApprove: boolean("auto_approve").notNull().default(false),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Document templates for legal/compliance
+export const documentTemplates = pgTable("document_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  templateName: varchar("template_name", { length: 100 }).notNull(),
+  documentType: varchar("document_type", { length: 50 }).notNull(), // 'contract', 'nda', 'terms', etc
+  content: text("content").notNull(),
+  variables: text("variables").array(), // Available merge fields
+  version: varchar("version", { length: 20 }).notNull().default('1.0'),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Admin audit logs for compliance
+export const adminAuditLogs = pgTable("admin_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminId: varchar("admin_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  action: varchar("action", { length: 100 }).notNull(), // 'user_deleted', 'settings_updated', etc
+  targetType: varchar("target_type", { length: 50 }), // 'user', 'listing', 'project', etc
+  targetId: varchar("target_id"),
+  changes: jsonb("changes"), // Store before/after values
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_audit_admin_id").on(table.adminId),
+  index("IDX_audit_created").on(table.createdAt),
+  index("IDX_audit_action").on(table.action),
+]);
+
+// Two-factor authentication settings
+export const twoFactorAuth = pgTable("two_factor_auth", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  enabled: boolean("enabled").notNull().default(false),
+  secret: varchar("secret"), // Encrypted TOTP secret
+  backupCodes: text("backup_codes").array(), // Encrypted backup codes
+  lastUsed: timestamp("last_used"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
 // Membership Tier Configuration
 // ============================================================================
 export const membershipBenefits = pgTable("membership_benefits", {
@@ -759,3 +859,87 @@ export const updateMessageTemplateSchema = createInsertSchema(messageTemplates).
 export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
 export type UpdateMessageTemplate = z.infer<typeof updateMessageTemplateSchema>;
 export type MessageTemplate = typeof messageTemplates.$inferSelect;
+
+// Platform Settings schemas
+export const insertPlatformSettingSchema = createInsertSchema(platformSettings).omit({
+  id: true,
+  updatedAt: true,
+});
+export const updatePlatformSettingSchema = createInsertSchema(platformSettings).omit({
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
+export type UpdatePlatformSetting = z.infer<typeof updatePlatformSettingSchema>;
+export type PlatformSetting = typeof platformSettings.$inferSelect;
+
+// Email Template schemas
+export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertEmailTemplate = z.infer<typeof insertEmailTemplateSchema>;
+export type UpdateEmailTemplate = z.infer<typeof updateEmailTemplateSchema>;
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+
+// Login History schemas
+export const insertLoginHistorySchema = createInsertSchema(loginHistory).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertLoginHistory = z.infer<typeof insertLoginHistorySchema>;
+export type LoginHistory = typeof loginHistory.$inferSelect;
+
+// Verification Rule schemas
+export const insertVerificationRuleSchema = createInsertSchema(verificationRules).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateVerificationRuleSchema = createInsertSchema(verificationRules).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertVerificationRule = z.infer<typeof insertVerificationRuleSchema>;
+export type UpdateVerificationRule = z.infer<typeof updateVerificationRuleSchema>;
+export type VerificationRule = typeof verificationRules.$inferSelect;
+
+// Document Template schemas
+export const insertDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateDocumentTemplateSchema = createInsertSchema(documentTemplates).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertDocumentTemplate = z.infer<typeof insertDocumentTemplateSchema>;
+export type UpdateDocumentTemplate = z.infer<typeof updateDocumentTemplateSchema>;
+export type DocumentTemplate = typeof documentTemplates.$inferSelect;
+
+// Admin Audit Log schemas
+export const insertAdminAuditLogSchema = createInsertSchema(adminAuditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAdminAuditLog = z.infer<typeof insertAdminAuditLogSchema>;
+export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
+
+// Two Factor Auth schemas
+export const insertTwoFactorAuthSchema = createInsertSchema(twoFactorAuth).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateTwoFactorAuthSchema = createInsertSchema(twoFactorAuth).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertTwoFactorAuth = z.infer<typeof insertTwoFactorAuthSchema>;
+export type UpdateTwoFactorAuth = z.infer<typeof updateTwoFactorAuthSchema>;
+export type TwoFactorAuth = typeof twoFactorAuth.$inferSelect;
