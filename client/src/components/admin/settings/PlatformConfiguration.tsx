@@ -1,0 +1,220 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Sliders, Award, Percent, Palette } from "lucide-react";
+import type { PlatformSetting, MembershipBenefit } from "@shared/schema";
+
+export function PlatformConfiguration() {
+  const { toast } = useToast();
+  const [editingBenefit, setEditingBenefit] = useState<string | null>(null);
+  const [benefitForm, setbenefitForm] = useState({
+    maxActiveRFQs: 0,
+    monthlyPrice: "0.00",
+    visibilityRanking: 3,
+  });
+
+  const { data: platformSettings } = useQuery<PlatformSetting[]>({
+    queryKey: ["/api/platform-settings"],
+  });
+
+  const { data: benefits } = useQuery<MembershipBenefit[]>({
+    queryKey: ["/api/membership-benefits"],
+  });
+
+  const updateBenefitMutation = useMutation({
+    mutationFn: async ({ tier, data }: { tier: string; data: any }) =>
+      apiRequest("PUT", `/api/admin/membership-benefits/${tier}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/membership-benefits"] });
+      toast({ title: "Success", description: "Membership benefit updated" });
+      setEditingBenefit(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update benefit", variant: "destructive" });
+    },
+  });
+
+  const handleEditBenefit = (tier: string) => {
+    const benefit = benefits?.find((b) => b.tier === tier);
+    if (benefit) {
+      setbenefitForm({
+        maxActiveRFQs: benefit.maxActiveRFQs,
+        monthlyPrice: benefit.monthlyPrice,
+        visibilityRanking: benefit.visibilityRanking,
+      });
+      setEditingBenefit(tier);
+    }
+  };
+
+  const handleSaveBenefit = () => {
+    if (!editingBenefit) return;
+    updateBenefitMutation.mutate({ tier: editingBenefit, data: benefitForm });
+  };
+
+  return (
+    <div className="grid gap-6">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sliders className="h-5 w-5" />
+            <CardTitle>Platform Settings</CardTitle>
+          </div>
+          <CardDescription>Global configuration options</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {platformSettings && platformSettings.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {platformSettings.map((setting) => (
+                  <TableRow key={setting.id}>
+                    <TableCell className="font-mono text-sm">{setting.key}</TableCell>
+                    <TableCell className="font-medium">{setting.value}</TableCell>
+                    <TableCell className="text-muted-foreground">{setting.description}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-sm text-muted-foreground">No platform settings configured</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            <CardTitle>Membership Tiers</CardTitle>
+          </div>
+          <CardDescription>Configure pricing and features for each tier</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {benefits && benefits.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              {benefits.map((benefit) => (
+                <Card key={benefit.tier} data-testid={`card-tier-${benefit.tier}`}>
+                  <CardHeader>
+                    <CardTitle className="capitalize flex items-center justify-between">
+                      {benefit.tier}
+                      <Badge>${benefit.monthlyPrice}/mo</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {editingBenefit === benefit.tier ? (
+                      <div className="space-y-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor={`max-rfqs-${benefit.tier}`}>Max Active RFQs</Label>
+                          <Input
+                            id={`max-rfqs-${benefit.tier}`}
+                            type="number"
+                            value={benefitForm.maxActiveRFQs}
+                            onChange={(e) => setbenefitForm({ ...benefitForm, maxActiveRFQs: parseInt(e.target.value) })}
+                            data-testid={`input-max-rfqs-${benefit.tier}`}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor={`price-${benefit.tier}`}>Monthly Price ($)</Label>
+                          <Input
+                            id={`price-${benefit.tier}`}
+                            value={benefitForm.monthlyPrice}
+                            onChange={(e) => setbenefitForm({ ...benefitForm, monthlyPrice: e.target.value })}
+                            data-testid={`input-price-${benefit.tier}`}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveBenefit} disabled={updateBenefitMutation.isPending} data-testid={`button-save-${benefit.tier}`}>
+                            Save
+                          </Button>
+                          <Button variant="outline" onClick={() => setEditingBenefit(null)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Max RFQs</span>
+                          <Badge variant="outline">{benefit.maxActiveRFQs}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-muted-foreground">Visibility</span>
+                          <Badge variant="outline">Rank {benefit.visibilityRanking}</Badge>
+                        </div>
+                        <Button className="w-full" variant="outline" onClick={() => handleEditBenefit(benefit.tier)} data-testid={`button-edit-${benefit.tier}`}>
+                          Edit Tier
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No membership tiers configured</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Percent className="h-5 w-5" />
+            <CardTitle>Commission Rates</CardTitle>
+          </div>
+          <CardDescription>Platform commission on transactions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              <div>
+                <p className="font-medium">Standard Commission</p>
+                <p className="text-sm text-muted-foreground">Applied to all marketplace transactions</p>
+              </div>
+              <Badge variant="outline" className="text-lg px-3">5%</Badge>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            <CardTitle>Platform Branding</CardTitle>
+          </div>
+          <CardDescription>Company name, logo, and visual identity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Company Name</Label>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <span className="font-medium">Fusion Mining Limited</span>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Platform Tagline</Label>
+              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
+                <span className="text-muted-foreground">B2B Mining Marketplace & Investment Platform</span>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
