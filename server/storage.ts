@@ -21,6 +21,7 @@ import {
   membershipBenefits,
   tierUsageTracking,
   platformSettings,
+  settingsAudit,
   emailTemplates,
   loginHistory,
   verificationRules,
@@ -70,6 +71,8 @@ import {
   type PlatformSetting,
   type InsertPlatformSetting,
   type UpdatePlatformSetting,
+  type SettingsAudit,
+  type InsertSettingsAudit,
   type EmailTemplate,
   type InsertEmailTemplate,
   type UpdateEmailTemplate,
@@ -261,9 +264,15 @@ export interface IStorage {
 
   // Platform Settings operations
   getAllPlatformSettings(): Promise<PlatformSetting[]>;
+  getPlatformSettingByKey(key: string): Promise<PlatformSetting | undefined>;
+  getPlatformSettingsByCategory(category: string): Promise<PlatformSetting[]>;
   createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting>;
   updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting>;
   deletePlatformSetting(id: string): Promise<void>;
+  
+  // Settings Audit operations
+  getSettingsAuditLogs(settingKey?: string, limit?: number): Promise<SettingsAudit[]>;
+  logSettingChange(audit: InsertSettingsAudit): Promise<void>;
 
   // Email Template operations
   getAllEmailTemplates(): Promise<EmailTemplate[]>;
@@ -1728,6 +1737,46 @@ export class DatabaseStorage implements IStorage {
 
   async deletePlatformSetting(id: string): Promise<void> {
     await db.delete(platformSettings).where(eq(platformSettings.id, id));
+  }
+
+  async getPlatformSettingByKey(key: string): Promise<PlatformSetting | undefined> {
+    const [setting] = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.key, key))
+      .limit(1);
+    return setting;
+  }
+
+  async getPlatformSettingsByCategory(category: string): Promise<PlatformSetting[]> {
+    return await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.category, category))
+      .orderBy(platformSettings.key);
+  }
+
+  // ========================================================================
+  // Settings Audit operations
+  // ========================================================================
+  async getSettingsAuditLogs(settingKey?: string, limit: number = 50): Promise<SettingsAudit[]> {
+    if (settingKey) {
+      return await db
+        .select()
+        .from(settingsAudit)
+        .where(eq(settingsAudit.settingKey, settingKey))
+        .orderBy(desc(settingsAudit.changedAt))
+        .limit(limit);
+    }
+    return await db
+      .select()
+      .from(settingsAudit)
+      .orderBy(desc(settingsAudit.changedAt))
+      .limit(limit);
+  }
+
+  async logSettingChange(audit: InsertSettingsAudit): Promise<void> {
+    await db.insert(settingsAudit).values(audit);
   }
 
   // ========================================================================
