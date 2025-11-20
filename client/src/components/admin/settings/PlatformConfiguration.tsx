@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sliders, Award, Percent, Palette } from "lucide-react";
+import { Sliders, Award, Percent, Palette, Plus, Check, X } from "lucide-react";
 import type { PlatformSetting, MembershipBenefit } from "@shared/schema";
 
 export function PlatformConfiguration() {
@@ -20,12 +20,34 @@ export function PlatformConfiguration() {
     visibilityRanking: 3,
   });
 
-  const { data: platformSettings } = useQuery<PlatformSetting[]>({
+  const { data: platformSettings, refetch: refetchSettings } = useQuery<PlatformSetting[]>({
     queryKey: ["/api/platform-settings"],
   });
 
-  const { data: benefits } = useQuery<MembershipBenefit[]>({
+  const { data: benefits, refetch: refetchBenefits } = useQuery<MembershipBenefit[]>({
     queryKey: ["/api/membership-benefits"],
+  });
+
+  const seedPlatformSettingsMutation = useMutation({
+    mutationFn: async () => apiRequest("POST", "/api/seed-platform-settings"),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Platform settings seeded successfully" });
+      refetchSettings();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to seed platform settings", variant: "destructive" });
+    },
+  });
+
+  const seedMembershipBenefitsMutation = useMutation({
+    mutationFn: async () => apiRequest("POST", "/api/seed-membership-benefits"),
+    onSuccess: () => {
+      toast({ title: "Success", description: "Membership tiers seeded successfully" });
+      refetchBenefits();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to seed membership tiers", variant: "destructive" });
+    },
   });
 
   const updateBenefitMutation = useMutation({
@@ -62,11 +84,24 @@ export function PlatformConfiguration() {
     <div className="grid gap-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sliders className="h-5 w-5" />
-            <CardTitle>Platform Settings</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sliders className="h-5 w-5" />
+              <CardTitle>Platform Settings</CardTitle>
+            </div>
+            {(!platformSettings || platformSettings.length === 0) && import.meta.env.DEV && (
+              <Button 
+                onClick={() => seedPlatformSettingsMutation.mutate()}
+                disabled={seedPlatformSettingsMutation.isPending}
+                size="sm"
+                data-testid="button-seed-settings"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {seedPlatformSettingsMutation.isPending ? "Seeding..." : "Seed Settings"}
+              </Button>
+            )}
           </div>
-          <CardDescription>Global configuration options</CardDescription>
+          <CardDescription>Global configuration options for the platform</CardDescription>
         </CardHeader>
         <CardContent>
           {platformSettings && platformSettings.length > 0 ? (
@@ -76,6 +111,7 @@ export function PlatformConfiguration() {
                   <TableHead>Key</TableHead>
                   <TableHead>Value</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Category</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,24 +119,43 @@ export function PlatformConfiguration() {
                   <TableRow key={setting.id}>
                     <TableCell className="font-mono text-sm">{setting.key}</TableCell>
                     <TableCell className="font-medium">{setting.value}</TableCell>
-                    <TableCell className="text-muted-foreground">{setting.description}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{setting.description}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">{setting.category}</Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           ) : (
-            <p className="text-sm text-muted-foreground">No platform settings configured</p>
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">No platform settings configured</p>
+              <p className="text-xs text-muted-foreground">Click "Seed Settings" to populate default configuration</p>
+            </div>
           )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Award className="h-5 w-5" />
-            <CardTitle>Membership Tiers</CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              <CardTitle>Membership Tiers</CardTitle>
+            </div>
+            {(!benefits || benefits.length === 0) && import.meta.env.DEV && (
+              <Button 
+                onClick={() => seedMembershipBenefitsMutation.mutate()}
+                disabled={seedMembershipBenefitsMutation.isPending}
+                size="sm"
+                data-testid="button-seed-tiers"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {seedMembershipBenefitsMutation.isPending ? "Seeding..." : "Seed Tiers"}
+              </Button>
+            )}
           </div>
-          <CardDescription>Configure pricing and features for each tier</CardDescription>
+          <CardDescription>Configure pricing and features for each membership tier</CardDescription>
         </CardHeader>
         <CardContent>
           {benefits && benefits.length > 0 ? (
@@ -109,8 +164,10 @@ export function PlatformConfiguration() {
                 <Card key={benefit.tier} data-testid={`card-tier-${benefit.tier}`}>
                   <CardHeader>
                     <CardTitle className="capitalize flex items-center justify-between">
-                      {benefit.tier}
-                      <Badge>${benefit.monthlyPrice}/mo</Badge>
+                      <span className="text-lg">{benefit.tier}</span>
+                      <Badge variant={benefit.tier === 'premium' ? 'default' : 'secondary'} className="text-base px-3">
+                        ${benefit.monthlyPrice}/mo
+                      </Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -146,13 +203,41 @@ export function PlatformConfiguration() {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Max RFQs</span>
-                          <Badge variant="outline">{benefit.maxActiveRFQs}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-muted-foreground">Visibility</span>
-                          <Badge variant="outline">Rank {benefit.visibilityRanking}</Badge>
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Max Listings</span>
+                            <Badge variant="outline">
+                              {benefit.maxActiveRFQs === -1 ? 'Unlimited' : benefit.maxActiveRFQs}
+                            </Badge>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Analytics</span>
+                            {benefit.canAccessAnalytics ? (
+                              <Check className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Direct Messaging</span>
+                            {benefit.canDirectMessage ? (
+                              <Check className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Priority Support</span>
+                            {benefit.prioritySupport ? (
+                              <Check className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <X className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Search Ranking</span>
+                            <Badge variant="outline">Rank {benefit.visibilityRanking}</Badge>
+                          </div>
                         </div>
                         <Button className="w-full" variant="outline" onClick={() => handleEditBenefit(benefit.tier)} data-testid={`button-edit-${benefit.tier}`}>
                           Edit Tier
@@ -164,7 +249,10 @@ export function PlatformConfiguration() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No membership tiers configured</p>
+            <div className="text-center py-8">
+              <p className="text-sm text-muted-foreground mb-4">No membership tiers configured</p>
+              <p className="text-xs text-muted-foreground">Click "Seed Tiers" to populate default membership tiers (Basic, Standard, Premium)</p>
+            </div>
           )}
         </CardContent>
       </Card>
