@@ -210,16 +210,16 @@ export default function Landing() {
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-                Latest RFQs
+                {t('rfq.title')}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Recent requests for quotation from verified buyers
+                {t('rfq.subtitle')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {latestRFQs.slice(0, 6).map((rfq, index) => (
-                <Link key={rfq.id} href={`/marketplace?tab=requests`}>
+                <Link key={rfq.id} href={`/marketplace?tab=requests&requestId=${rfq.id}`}>
                   <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer" data-testid={`card-rfq-${index}`}>
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2 mb-2">
@@ -239,7 +239,7 @@ export default function Landing() {
                         {rfq.verified && (
                           <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 flex items-center gap-1">
                             <CheckCircle2 className="h-3 w-3" />
-                            Verified
+                            {t('rfq.verified')}
                           </Badge>
                         )}
                       </div>
@@ -259,7 +259,7 @@ export default function Landing() {
             <div className="text-center mt-8">
               <Button asChild variant="outline" size="lg" data-testid="button-view-all-rfqs">
                 <Link href="/marketplace?tab=requests">
-                  View All RFQs
+                  {t('rfq.viewAll')}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
@@ -274,10 +274,10 @@ export default function Landing() {
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold font-display mb-4">
-                Discover Our Impact
+                {t('video.title')}
               </h2>
               <p className="text-lg text-muted-foreground">
-                Watch our latest videos showcasing Zambia's mining potential
+                {t('video.subtitle')}
               </p>
             </div>
 
@@ -321,10 +321,10 @@ export default function Landing() {
           <Card className="bg-gradient-to-r from-primary/10 via-chart-2/10 to-primary/10 border-primary/20">
             <CardHeader className="text-center">
               <CardTitle className="text-3xl md:text-4xl font-bold font-display mb-4">
-                Ready to Start Your Mining Journey?
+                {t('cta.title')}
               </CardTitle>
               <CardDescription className="text-lg">
-                Join hundreds of successful investors and traders on our platform
+                {t('cta.subtitle')}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex justify-center gap-4">

@@ -1,20 +1,13 @@
 import { Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { 
   FileCheck, 
   Shield, 
-  Leaf, 
-  Users, 
-  AlertCircle, 
   CheckCircle2,
   ExternalLink,
   FileText,
-  Landmark,
   Briefcase,
-  Truck,
   Search,
   FlaskConical,
   Factory,
@@ -23,8 +16,13 @@ import {
   ClipboardCheck,
   Gavel
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function ServicesCompliance() {
   const { t } = useLanguage();
@@ -350,176 +348,354 @@ export default function ServicesCompliance() {
           </div>
         </div>
 
-        {/* Detailed Compliance Section */}
+        {/* Licence Types Section - Restructured */}
         <div className="mb-12" id="detailed-compliance-section">
           <Card>
             <CardHeader className="text-center">
-              <CardTitle className="text-3xl">{t('services.detailedCompliance')}</CardTitle>
+              <CardTitle className="text-3xl">Licence Types</CardTitle>
               <CardDescription className="text-base">
-                {t('services.detailedCompliance.subtitle')}
+                Comprehensive licensing framework for mining operations in Zambia
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="licenses" className="space-y-6" data-testid="tabs-detailed-compliance">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="licenses" data-testid="tab-licenses-detailed">
-                    <FileText className="h-4 w-4 mr-2" />
-                    License Types
-                  </TabsTrigger>
-                  <TabsTrigger value="requirements" data-testid="tab-requirements-detailed">
-                    <ClipboardCheck className="h-4 w-4 mr-2" />
-                    Requirements
-                  </TabsTrigger>
-                  <TabsTrigger value="authorities" data-testid="tab-authorities-detailed">
-                    <Landmark className="h-4 w-4 mr-2" />
-                    Authorities
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="licenses" className="space-y-4">
-                  <div className="grid gap-4">
-                    {[
-                      {
-                        name: "Artisanal Mining Rights (AMR)",
-                        eligibility: "Zambian citizens only",
-                        area: "2+ cadastre units",
-                        duration: "Varies"
-                      },
-                      {
-                        name: "Small-Scale Mining License",
-                        eligibility: "Min 5% Zambian shareholding",
-                        area: "3-120 cadastre units",
-                        duration: "Renewable"
-                      },
-                      {
-                        name: "Large-Scale Mining License",
-                        eligibility: "No ownership restrictions",
-                        area: "400+ hectares",
-                        duration: "Up to 25 years"
-                      }
-                    ].map((license, index) => (
-                      <Card key={index} data-testid={`card-license-type-${index}`}>
-                        <CardHeader>
-                          <div className="flex items-start justify-between">
-                            <CardTitle className="text-lg">{license.name}</CardTitle>
-                            <Badge variant="secondary">{license.duration}</Badge>
-                          </div>
-                          <CardDescription>
-                            <strong>Eligibility:</strong> {license.eligibility} • <strong>Area:</strong> {license.area}
-                          </CardDescription>
-                        </CardHeader>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="requirements" className="space-y-4">
-                  <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950/20">
-                    <AlertCircle className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="text-blue-900 dark:text-blue-100">Key Compliance Areas</AlertTitle>
-                    <AlertDescription className="text-blue-800 dark:text-blue-200">
-                      All mining operations must comply with environmental, local content, health & safety, and tax requirements
-                    </AlertDescription>
-                  </Alert>
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Leaf className="h-5 w-5 text-green-600" />
-                          Environmental
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
+              <Accordion type="single" collapsible className="space-y-4" data-testid="accordion-licence-types">
+                
+                {/* Artisanal Mining Rights */}
+                <AccordionItem value="amr" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline" data-testid="accordion-trigger-amr">
+                    <div className="flex items-center gap-3 text-left">
+                      <FileCheck className="h-5 w-5 text-primary" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Artisanal Mining Rights (AMR)</h3>
+                        <p className="text-sm text-muted-foreground">For small-scale artisanal operations</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4" data-testid="accordion-content-amr">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-primary" />
+                          Eligibility Requirements
+                        </h4>
                         <ul className="space-y-2 text-sm">
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>EIA approval from ZEMA required</span>
+                            <span>Zambian citizens only</span>
                           </li>
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>Environmental Management Plan</span>
+                            <span>Individual or cooperative ownership</span>
                           </li>
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>Rehabilitation fund contributions</span>
+                            <span>Limited to 2+ cadastre units</span>
                           </li>
                         </ul>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Users className="h-5 w-5 text-blue-600" />
-                          Local Content
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <ClipboardCheck className="h-4 w-4 text-primary" />
+                          Key Requirements
+                        </h4>
                         <ul className="space-y-2 text-sm">
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>Hire qualified Zambian citizens</span>
+                            <span>Basic environmental management plan</span>
                           </li>
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>Procurement from local suppliers</span>
+                            <span>Safety equipment and practices</span>
                           </li>
                           <li className="flex gap-2">
                             <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
-                            <span>Skills transfer programs</span>
+                            <span>Annual reporting to MRC</span>
                           </li>
                         </ul>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-                <TabsContent value="authorities" className="space-y-4">
-                  <div className="grid gap-4">
-                    {[
-                      {
-                        name: "Ministry of Mines and Minerals Development",
-                        role: "Primary regulatory authority",
-                        contact: "Nasser Road, Lusaka",
-                        website: "https://www.mmmd.gov.zm"
-                      },
-                      {
-                        name: "Minerals Regulation Commission (MRC)",
-                        role: "License issuance and compliance monitoring",
-                        contact: "Contact via Ministry",
-                        website: "https://www.mmmd.gov.zm"
-                      },
-                      {
-                        name: "Zambia Environmental Management Agency (ZEMA)",
-                        role: "Environmental approvals and monitoring",
-                        contact: "Environmental compliance authority",
-                        website: "www.zema.org.zm"
-                      }
-                    ].map((authority, index) => (
-                      <Card key={index} data-testid={`card-authority-detailed-${index}`}>
-                        <CardHeader>
-                          <CardTitle className="text-lg">{authority.name}</CardTitle>
-                          <CardDescription>{authority.role}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                          <p className="mb-2">{authority.contact}</p>
-                          <a 
-                            href={authority.website.startsWith('http') ? authority.website : `https://${authority.website}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline inline-flex items-center gap-1"
-                            data-testid={`link-authority-detailed-${index}`}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            {authority.website}
-                          </a>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                {/* Small Scale Mining */}
+                <AccordionItem value="small-scale" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline" data-testid="accordion-trigger-small-scale">
+                    <div className="flex items-center gap-3 text-left">
+                      <Pickaxe className="h-5 w-5 text-primary" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Small Scale (SEL & SML)</h3>
+                        <p className="text-sm text-muted-foreground">Small-scale Exploration License & Small-scale Mining License</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4" data-testid="accordion-content-small-scale">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-primary" />
+                          Eligibility Requirements
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Minimum 5% Zambian shareholding required</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Coverage: 3-120 cadastre units</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Renewable license period</span>
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <ClipboardCheck className="h-4 w-4 text-primary" />
+                          Key Requirements
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Environmental Impact Assessment (EIA)</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Local content compliance (employment & procurement)</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Quarterly production reporting</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Health & safety certification</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Large Scale Mining */}
+                <AccordionItem value="large-scale" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline" data-testid="accordion-trigger-large-scale">
+                    <div className="flex items-center gap-3 text-left">
+                      <Factory className="h-5 w-5 text-primary" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Large Scale (LEL & LML)</h3>
+                        <p className="text-sm text-muted-foreground">Large-scale Exploration License & Large-scale Mining License</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-4" data-testid="accordion-content-large-scale">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <Shield className="h-4 w-4 text-primary" />
+                          Eligibility Requirements
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>No ownership restrictions</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Coverage: 400+ hectares</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>License duration: Up to 25 years</span>
+                          </li>
+                        </ul>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <ClipboardCheck className="h-4 w-4 text-primary" />
+                          Key Requirements
+                        </h4>
+                        <ul className="space-y-2 text-sm">
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Comprehensive EIA from ZEMA</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Detailed mine plan and feasibility study</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Local content & skills transfer programs</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Mine rehabilitation fund contributions</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                            <span>Monthly production and tax reporting</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Other Permits */}
+                <AccordionItem value="other-permits" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline" data-testid="accordion-trigger-other-permits">
+                    <div className="flex items-center gap-3 text-left">
+                      <FileText className="h-5 w-5 text-primary" />
+                      <div>
+                        <h3 className="text-lg font-semibold">Other Permits</h3>
+                        <p className="text-sm text-muted-foreground">Trading and processing permits</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-4 space-y-6" data-testid="accordion-content-other-permits">
+                    {/* Mineral Trading Permit */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <Package className="h-4 w-4 text-primary" />
+                        Mineral Trading Permit
+                      </h4>
+                      <div className="grid md:grid-cols-2 gap-4 pl-6">
+                        <div>
+                          <p className="text-sm font-medium mb-2">Eligibility:</p>
+                          <ul className="space-y-1 text-sm">
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Registered business entity in Zambia</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Tax compliance certificate</span>
+                            </li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium mb-2">Requirements:</p>
+                          <ul className="space-y-1 text-sm">
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Trading license from MRC</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Export documentation compliance</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Monthly transaction reporting</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mineral Processing Permit */}
+                    <div className="space-y-2">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <Factory className="h-4 w-4 text-primary" />
+                        Mineral Processing Permit
+                      </h4>
+                      <div className="grid md:grid-cols-2 gap-4 pl-6">
+                        <div>
+                          <p className="text-sm font-medium mb-2">Eligibility:</p>
+                          <ul className="space-y-1 text-sm">
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Licensed processing facility</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Technical capacity certification</span>
+                            </li>
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium mb-2">Requirements:</p>
+                          <ul className="space-y-1 text-sm">
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Environmental compliance (ZEMA)</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Waste management plan</span>
+                            </li>
+                            <li className="flex gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5" />
+                              <span>Quarterly production reporting</span>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+              </Accordion>
+
+              {/* Regulatory Authorities Info */}
+              <div className="mt-8 pt-8 border-t">
+                <h3 className="text-xl font-semibold mb-4">Regulatory Authorities</h3>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Ministry of Mines</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">
+                      <p className="mb-1">Primary regulatory authority</p>
+                      <a 
+                        href="https://www.mmmd.gov.zm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        www.mmmd.gov.zm
+                      </a>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">MRC</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">
+                      <p className="mb-1">License issuance & compliance</p>
+                      <a 
+                        href="https://www.mmmd.gov.zm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Contact via Ministry
+                      </a>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">ZEMA</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">
+                      <p className="mb-1">Environmental approvals</p>
+                      <a 
+                        href="https://www.zema.org.zm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        www.zema.org.zm
+                      </a>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
