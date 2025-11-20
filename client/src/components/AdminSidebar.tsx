@@ -13,7 +13,6 @@ import {
   Settings,
   FileText,
   Activity,
-  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +82,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     {
       label: "Settings",
       icon: Settings,
-      tab: "settings",
+      href: "/admin/settings",
       testId: "admin-sidebar-settings"
     },
   ];

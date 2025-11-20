@@ -756,36 +756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Seed tier usage tracking records
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-        const tierUsageData = [
-          {
-            userId: "test-buyer-basic-001",
-            tier: "basic",
-            monthPeriod: currentMonth,
-            rfqsCreated: 1, // At limit for basic tier
-          },
-          {
-            userId: "test-buyer-789",
-            tier: "standard",
-            monthPeriod: currentMonth,
-            rfqsCreated: 3, // Within limit for standard tier (5 max)
-          },
-          {
-            userId: "test-buyer-premium-002",
-            tier: "premium",
-            monthPeriod: currentMonth,
-            rfqsCreated: 4, // Unlimited tier
-          },
-        ];
-
-        for (const usage of tierUsageData) {
-          try {
-            await storage.trackTierUsage(usage.userId, usage.tier as any);
-          } catch (error) {
-            // Ignore errors
-          }
-        }
+        // Tier usage is tracked automatically when RFQs are created
 
         // Seed blog posts
         const blogPostsData = [
@@ -932,13 +903,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         res.json({ 
           message: "Sample data seeded successfully with membership tiers",
-          details: {
+          results: {
             users: testUsers.length,
             projects: projectsData.length,
             marketplaceListings: listingsData.length,
             buyerRequests: requestsData.length,
             blogPosts: blogPostsData.length,
-            tierUsageRecords: tierUsageData.length,
           }
         });
       } catch (error) {
@@ -1048,6 +1018,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching membership benefits:", error);
       res.status(500).json({ message: "Failed to fetch membership benefits" });
+    }
+  });
+
+  app.put('/api/admin/membership-benefits/:tier', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { tier } = req.params;
+      const updated = await storage.updateMembershipBenefit(tier, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating membership benefit:", error);
+      res.status(500).json({ message: "Failed to update membership benefit" });
+    }
+  });
+
+  app.post('/api/admin/users/:userId/tier', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { tier } = req.body;
+      
+      if (!tier || !['basic', 'standard', 'premium'].includes(tier)) {
+        return res.status(400).json({ message: "Invalid tier" });
+      }
+      
+      const updated = await storage.updateUserMembershipTier(userId, tier);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user tier:", error);
+      res.status(500).json({ message: "Failed to update user tier" });
+    }
+  });
+
+  app.post('/api/admin/seed-sample-data', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Seed comprehensive sample data for testing
+      const results = {
+        users: 0,
+        projects: 0,
+        listings: 0,
+        buyerRequests: 0,
+        blogPosts: 0,
+      };
+
+      // Create sample users with different tiers
+      const sampleUsers = [
+        {
+          email: "basic.user@fusionmining.com",
+          password: await bcrypt.hash("basic123", 10),
+          firstName: "Basic",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "basic" as const,
+        },
+        {
+          email: "standard.user@fusionmining.com",
+          password: await bcrypt.hash("standard123", 10),
+          firstName: "Standard",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "standard" as const,
+        },
+        {
+          email: "premium.user@fusionmining.com",
+          password: await bcrypt.hash("premium123", 10),
+          firstName: "Premium",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "premium" as const,
+        },
+        {
+          email: "seller.verified@fusionmining.com",
+          password: await bcrypt.hash("seller123", 10),
+          firstName: "Verified",
+          lastName: "Seller",
+          role: "seller" as const,
+          membershipTier: "premium" as const,
+        },
+      ];
+
+      for (const userData of sampleUsers) {
+        try {
+          await storage.upsertUser(userData);
+          results.users++;
+        } catch (e) {
+          console.log("User already exists:", userData.email);
+        }
+      }
+
+      res.json({ 
+        message: "Sample data seeded successfully",
+        results 
+      });
+    } catch (error) {
+      console.error("Error seeding sample data:", error);
+      res.status(500).json({ message: "Failed to seed sample data" });
     }
   });
 

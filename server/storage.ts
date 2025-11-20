@@ -1531,6 +1531,30 @@ export class DatabaseStorage implements IStorage {
     return benefit;
   }
 
+  async updateMembershipBenefit(tier: string, benefitData: Partial<InsertMembershipBenefit>): Promise<MembershipBenefit> {
+    const [updated] = await db
+      .update(membershipBenefits)
+      .set({
+        ...benefitData,
+        updatedAt: new Date(),
+      })
+      .where(eq(membershipBenefits.tier, tier as any))
+      .returning();
+    return updated;
+  }
+
+  async updateUserMembershipTier(userId: string, tier: string): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ 
+        membershipTier: tier as any,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
   // ========================================================================
   // Tier Usage Tracking operations
   // ========================================================================
