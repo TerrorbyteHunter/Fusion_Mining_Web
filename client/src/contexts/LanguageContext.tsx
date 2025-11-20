@@ -107,7 +107,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     'services.title': 'Professional Mining Services & Compliance',
     'services.subtitle': "Your one-stop solution for mineral trading, engineering services, legal compliance, and consulting in Zambia's mining sector",
-    'services.requestQuote': 'Request Quote',
+    'services.requestQuote': 'Contact us',
     'services.viewCompliance': 'View Compliance Guide',
     'services.compliance.title': 'Regulatory Compliance at a Glance',
     'services.ourServices': 'Our Professional Services',
@@ -182,7 +182,7 @@ const translations: Record<Language, Record<string, string>> = {
     
     'services.title': '专业采矿服务与合规',
     'services.subtitle': '在赞比亚采矿领域提供矿物交易、工程服务、法律合规和咨询的一站式解决方案',
-    'services.requestQuote': '请求报价',
+    'services.requestQuote': '联系我们',
     'services.viewCompliance': '查看合规指南',
     'services.compliance.title': '监管合规一览',
     'services.ourServices': '我们的专业服务',

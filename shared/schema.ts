@@ -14,6 +14,7 @@ import {
   decimal,
   boolean,
   pgEnum,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -36,6 +37,7 @@ export const sessions = pgTable(
 // ============================================================================
 export const userRoleEnum = pgEnum('user_role', ['admin', 'buyer', 'seller']);
 export const profileTypeEnum = pgEnum('profile_type', ['individual', 'company']);
+export const membershipTierEnum = pgEnum('membership_tier', ['basic', 'standard', 'premium']);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -44,6 +46,7 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").notNull().default('buyer'),
+  membershipTier: membershipTierEnum("membership_tier").notNull().default('basic'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -368,6 +371,37 @@ export const contactSettings = pgTable("contact_settings", {
 });
 
 // ============================================================================
+// Membership Tier Configuration
+// ============================================================================
+export const membershipBenefits = pgTable("membership_benefits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tier: membershipTierEnum("tier").notNull().unique(),
+  maxActiveRFQs: integer("max_active_rfqs").notNull(),
+  canAccessAnalytics: boolean("can_access_analytics").notNull().default(false),
+  canDirectMessage: boolean("can_direct_message").notNull().default(false),
+  prioritySupport: boolean("priority_support").notNull().default(false),
+  visibilityRanking: integer("visibility_ranking").notNull(), // 1=highest, 3=lowest
+  monthlyPrice: decimal("monthly_price", { precision: 10, scale: 2 }).notNull().default('0'),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Track monthly usage for tier limits (resets monthly)
+export const tierUsageTracking = pgTable("tier_usage_tracking", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  month: varchar("month", { length: 7 }).notNull(), // Format: "YYYY-MM"
+  activeRFQsCount: integer("active_rfqs_count").notNull().default(0),
+  messagesCount: integer("messages_count").notNull().default(0),
+  analyticsViews: integer("analytics_views").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_usage_user_month").on(table.userId, table.month),
+  unique("UNQ_user_month").on(table.userId, table.month),
+]);
+
+// ============================================================================
 // Relations
 // ============================================================================
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -387,6 +421,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   interests: many(expressInterest),
   activityLogs: many(activityLogs),
   notifications: many(notifications),
+  tierUsage: many(tierUsageTracking),
 }));
 
 export const adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
@@ -513,6 +548,13 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const tierUsageTrackingRelations = relations(tierUsageTracking, ({ one }) => ({
+  user: one(users, {
+    fields: [tierUsageTracking.userId],
     references: [users.id],
   }),
 }));
@@ -673,6 +715,34 @@ export const updateContactSettingsSchema = createInsertSchema(contactSettings).o
 export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
 export type UpdateContactSettings = z.infer<typeof updateContactSettingsSchema>;
 export type ContactSettings = typeof contactSettings.$inferSelect;
+
+// Membership Benefit schemas
+export const insertMembershipBenefitSchema = createInsertSchema(membershipBenefits).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateMembershipBenefitSchema = createInsertSchema(membershipBenefits).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertMembershipBenefit = z.infer<typeof insertMembershipBenefitSchema>;
+export type UpdateMembershipBenefit = z.infer<typeof updateMembershipBenefitSchema>;
+export type MembershipBenefit = typeof membershipBenefits.$inferSelect;
+
+// Tier Usage Tracking schemas
+export const insertTierUsageTrackingSchema = createInsertSchema(tierUsageTracking).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateTierUsageTrackingSchema = createInsertSchema(tierUsageTracking).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertTierUsageTracking = z.infer<typeof insertTierUsageTrackingSchema>;
+export type UpdateTierUsageTracking = z.infer<typeof updateTierUsageTrackingSchema>;
+export type TierUsageTracking = typeof tierUsageTracking.$inferSelect;
 
 // Message Template schemas
 export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({

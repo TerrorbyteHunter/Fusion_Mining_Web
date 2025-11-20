@@ -1,12 +1,47 @@
 // Seed script for development testing
 import { db } from "./db";
-import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings } from "@shared/schema";
+import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function seed() {
   console.log("Starting database seeding...");
 
   try {
+    // Seed membership tier benefits first
+    console.log("Creating membership tier benefits...");
+    
+    await db.insert(membershipBenefits).values([
+      {
+        tier: "basic",
+        maxActiveRFQs: 3,
+        canAccessAnalytics: false,
+        canDirectMessage: false,
+        prioritySupport: false,
+        visibilityRanking: 3, // Lowest visibility
+        monthlyPrice: "0.00",
+      },
+      {
+        tier: "standard",
+        maxActiveRFQs: 10,
+        canAccessAnalytics: true,
+        canDirectMessage: true,
+        prioritySupport: false,
+        visibilityRanking: 2, // Medium visibility
+        monthlyPrice: "49.99",
+      },
+      {
+        tier: "premium",
+        maxActiveRFQs: 999, // Effectively unlimited
+        canAccessAnalytics: true,
+        canDirectMessage: true,
+        prioritySupport: true,
+        visibilityRanking: 1, // Highest visibility
+        monthlyPrice: "149.99",
+      },
+    ]).onConflictDoNothing();
+
+    console.log("✓ Membership tier benefits created");
+
     // Create test users
     console.log("Creating test users...");
     
