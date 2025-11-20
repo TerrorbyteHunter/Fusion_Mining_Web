@@ -2961,8 +2961,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
+      // Get the current setting to log the old value
+      const currentSetting = await storage.getAllPlatformSettings();
+      const existing = currentSetting.find(s => s.id === req.params.id);
+      
       const validatedData = updatePlatformSettingSchema.parse({ ...req.body, id: req.params.id, updatedBy: req.user.id });
       const setting = await storage.updatePlatformSetting(validatedData);
+      
+      // Log the change to audit table
+      if (existing && req.body.value !== undefined) {
+        await storage.logSettingChange({
+          settingKey: existing.key,
+          oldValue: existing.value,
+          newValue: req.body.value,
+          changedBy: req.user.id,
+        });
+      }
+      
       res.json(setting);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -2980,6 +2995,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting platform setting:", error);
       res.status(500).json({ message: "Failed to delete platform setting" });
+    }
+  });
+
+  // Get settings by category
+  app.get('/api/admin/settings/platform/category/:category', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getPlatformSettingsByCategory(req.params.category);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings by category:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Get settings audit logs
+  app.get('/api/admin/settings/audit', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { settingKey, limit } = req.query;
+      const logs = await storage.getSettingsAuditLogs(
+        settingKey as string | undefined,
+        limit ? parseInt(limit as string) : 50
+      );
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching settings audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 
