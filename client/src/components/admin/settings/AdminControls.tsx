@@ -4,16 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Shield, Users, LogOut, AlertTriangle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award } from "lucide-react";
 import type { User, AdminPermissions } from "@shared/schema";
+
+type ActionType = 'logout' | 'delete' | 'role' | 'tier';
 
 export function AdminControls() {
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [actionType, setActionType] = useState<ActionType>('logout');
+  const [selectedRole, setSelectedRole] = useState<string>('');
+  const [selectedTier, setSelectedTier] = useState<string>('');
 
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
@@ -28,7 +35,8 @@ export function AdminControls() {
       apiRequest("POST", `/api/admin/users/${userId}/force-logout`),
     onSuccess: () => {
       toast({ title: "Success", description: "User has been logged out" });
-      setIsLogoutDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsDialogOpen(false);
       setSelectedUser(null);
     },
     onError: () => {
@@ -36,16 +44,117 @@ export function AdminControls() {
     },
   });
 
-  const handleForceLogout = (user: User) => {
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) =>
+      apiRequest("DELETE", `/api/admin/users/${userId}`),
+    onSuccess: () => {
+      toast({ title: "Success", description: "User has been deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete user", variant: "destructive" });
+    },
+  });
+
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) =>
+      apiRequest("PATCH", `/api/admin/users/${userId}/role`, { role }),
+    onSuccess: () => {
+      toast({ title: "Success", description: "User role has been updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsDialogOpen(false);
+      setSelectedUser(null);
+      setSelectedRole('');
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update user role", variant: "destructive" });
+    },
+  });
+
+  const changeTierMutation = useMutation({
+    mutationFn: async ({ userId, tier }: { userId: string; tier: string }) =>
+      apiRequest("POST", `/api/admin/users/${userId}/tier`, { tier }),
+    onSuccess: () => {
+      toast({ title: "Success", description: "User membership tier has been updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setIsDialogOpen(false);
+      setSelectedUser(null);
+      setSelectedTier('');
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update membership tier", variant: "destructive" });
+    },
+  });
+
+  const openActionDialog = (user: User, action: ActionType) => {
     setSelectedUser(user);
-    setIsLogoutDialogOpen(true);
+    setActionType(action);
+    if (action === 'role') {
+      setSelectedRole(user.role);
+    }
+    if (action === 'tier') {
+      setSelectedTier(user.membershipTier);
+    }
+    setIsDialogOpen(true);
   };
 
-  const confirmForceLogout = () => {
-    if (selectedUser) {
-      forceLogoutMutation.mutate(selectedUser.id);
+  const confirmAction = () => {
+    if (!selectedUser) return;
+    
+    switch (actionType) {
+      case 'logout':
+        forceLogoutMutation.mutate(selectedUser.id);
+        break;
+      case 'delete':
+        deleteUserMutation.mutate(selectedUser.id);
+        break;
+      case 'role':
+        if (selectedRole) {
+          changeRoleMutation.mutate({ userId: selectedUser.id, role: selectedRole });
+        }
+        break;
+      case 'tier':
+        if (selectedTier) {
+          changeTierMutation.mutate({ userId: selectedUser.id, tier: selectedTier });
+        }
+        break;
     }
   };
+
+  const getDialogContent = () => {
+    switch (actionType) {
+      case 'logout':
+        return {
+          title: 'Force User Logout',
+          description: `This will immediately terminate all active sessions for ${selectedUser?.firstName} ${selectedUser?.lastName}. They will need to log in again to access the platform.`,
+          icon: <LogOut className="h-5 w-5 text-destructive" />,
+        };
+      case 'delete':
+        return {
+          title: 'Delete User',
+          description: `Are you sure you want to delete ${selectedUser?.firstName} ${selectedUser?.lastName}? This action cannot be undone and will remove all user data.`,
+          icon: <AlertTriangle className="h-5 w-5 text-destructive" />,
+        };
+      case 'role':
+        return {
+          title: 'Change User Role',
+          description: `Update the role for ${selectedUser?.firstName} ${selectedUser?.lastName}. This will affect their permissions and access level.`,
+          icon: <UserCog className="h-5 w-5" />,
+        };
+      case 'tier':
+        return {
+          title: 'Change Membership Tier',
+          description: `Update the membership tier for ${selectedUser?.firstName} ${selectedUser?.lastName}. This will affect their feature access and limits.`,
+          icon: <Award className="h-5 w-5" />,
+        };
+    }
+  };
+
+  const dialogContent = getDialogContent();
+  const isPending = forceLogoutMutation.isPending || deleteUserMutation.isPending || 
+                    changeRoleMutation.isPending || changeTierMutation.isPending;
 
   return (
     <div className="grid gap-6">
@@ -141,15 +250,44 @@ export function AdminControls() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleForceLogout(user)}
-                        data-testid={`button-logout-${user.id}`}
-                      >
-                        <LogOut className="h-4 w-4 mr-1" />
-                        Force Logout
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openActionDialog(user, 'role')}
+                          data-testid={`button-role-${user.id}`}
+                        >
+                          <UserCog className="h-3 w-3 mr-1" />
+                          Role
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openActionDialog(user, 'tier')}
+                          data-testid={`button-tier-${user.id}`}
+                        >
+                          <Award className="h-3 w-3 mr-1" />
+                          Tier
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openActionDialog(user, 'logout')}
+                          data-testid={`button-logout-${user.id}`}
+                        >
+                          <LogOut className="h-3 w-3 mr-1" />
+                          Logout
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openActionDialog(user, 'delete')}
+                          data-testid={`button-delete-${user.id}`}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -161,29 +299,69 @@ export function AdminControls() {
         </CardContent>
       </Card>
 
-      <Dialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Force User Logout
+              {dialogContent.icon}
+              {dialogContent.title}
             </DialogTitle>
             <DialogDescription>
-              This will immediately terminate all active sessions for {selectedUser?.firstName} {selectedUser?.lastName}.
-              They will need to log in again to access the platform.
+              {dialogContent.description}
             </DialogDescription>
           </DialogHeader>
+          
+          {actionType === 'role' && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="role-select">Select New Role</Label>
+                <Select value={selectedRole} onValueChange={setSelectedRole}>
+                  <SelectTrigger id="role-select" data-testid="select-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin" data-testid="option-admin">Admin</SelectItem>
+                    <SelectItem value="buyer" data-testid="option-buyer">Buyer</SelectItem>
+                    <SelectItem value="seller" data-testid="option-seller">Seller</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          
+          {actionType === 'tier' && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="tier-select">Select New Membership Tier</Label>
+                <Select value={selectedTier} onValueChange={setSelectedTier}>
+                  <SelectTrigger id="tier-select" data-testid="select-tier">
+                    <SelectValue placeholder="Select tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic" data-testid="option-basic">Basic</SelectItem>
+                    <SelectItem value="standard" data-testid="option-standard">Standard</SelectItem>
+                    <SelectItem value="premium" data-testid="option-premium">Premium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLogoutDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
             <Button
-              variant="destructive"
-              onClick={confirmForceLogout}
-              disabled={forceLogoutMutation.isPending}
-              data-testid="button-confirm-logout"
+              variant={actionType === 'delete' || actionType === 'logout' ? "destructive" : "default"}
+              onClick={confirmAction}
+              disabled={isPending || (actionType === 'role' && !selectedRole) || (actionType === 'tier' && !selectedTier)}
+              data-testid="button-confirm-action"
             >
-              {forceLogoutMutation.isPending ? "Logging out..." : "Force Logout"}
+              {isPending ? "Processing..." : 
+               actionType === 'logout' ? "Force Logout" :
+               actionType === 'delete' ? "Delete User" :
+               actionType === 'role' ? "Update Role" :
+               "Update Tier"}
             </Button>
           </DialogFooter>
         </DialogContent>

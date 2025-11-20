@@ -1014,7 +1014,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to seed membership benefits" });
       }
     });
+
+    app.post('/api/seed-platform-settings', async (req, res) => {
+      try {
+        const settings = [
+          {
+            key: 'platform_name',
+            value: 'Fusion Mining Limited',
+            description: 'Name of the platform',
+            category: 'general',
+            isPublic: true,
+          },
+          {
+            key: 'platform_tagline',
+            value: 'B2B Mining Marketplace & Investment Platform',
+            description: 'Platform tagline and description',
+            category: 'general',
+            isPublic: true,
+          },
+          {
+            key: 'commission_rate',
+            value: '5',
+            description: 'Platform commission rate on transactions (percentage)',
+            category: 'payment',
+            isPublic: false,
+          },
+          {
+            key: 'support_email',
+            value: 'support@fusionmining.com',
+            description: 'Contact email for platform support',
+            category: 'general',
+            isPublic: true,
+          },
+          {
+            key: 'maintenance_mode',
+            value: 'false',
+            description: 'Enable/disable maintenance mode',
+            category: 'general',
+            isPublic: false,
+          },
+          {
+            key: 'max_upload_size_mb',
+            value: '10',
+            description: 'Maximum file upload size in megabytes',
+            category: 'general',
+            isPublic: false,
+          },
+          {
+            key: 'auto_approve_listings',
+            value: 'false',
+            description: 'Automatically approve marketplace listings without admin review',
+            category: 'general',
+            isPublic: false,
+          },
+        ];
+
+        for (const setting of settings) {
+          try {
+            await storage.createPlatformSetting(setting as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        res.json({ 
+          message: "Platform settings seeded successfully",
+          count: settings.length
+        });
+      } catch (error) {
+        console.error("Error seeding platform settings:", error);
+        res.status(500).json({ message: "Failed to seed platform settings" });
+      }
+    });
   }
+
+  // ========================================================================
+  // Platform Settings Routes (Admin Only)
+  // ========================================================================
+  app.get('/api/platform-settings', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch platform settings" });
+    }
+  });
 
   // ========================================================================
   // Membership Benefits Routes
