@@ -5,6 +5,34 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 2025)
 
+### Dynamic Platform Settings Management (November 20, 2025)
+Implemented a comprehensive platform settings management system in the Admin Settings panel:
+
+**Database Schema:**
+- Added `platformSettings` table with fields: id, key, value, description, category, dataType (string/number/boolean), isPublic
+- Added `settingsAudit` table for change tracking: id, settingId, settingKey, oldValue, newValue, changedBy, changedAt
+- Enforces referential integrity with foreign keys and automatic audit logging
+
+**Admin Interface (Platform Tab):**
+- Inline editing with data-type-aware inputs:
+  - Boolean settings: Toggle switch (true/false)
+  - Number settings: Number input with validation
+  - String settings: Text input
+- Real-time validation with visual feedback (red borders + error messages)
+- Category-based filtering (All, General, Payment, Email, Security)
+- Collapsible audit log viewer showing change history (old value, new value, timestamp)
+- Responsive design with proper spacing and accessibility
+
+**Validation Rules:**
+- Number settings: Cannot be empty, must be valid numbers
+- Boolean settings: Always true/false via toggle switch
+- String settings: Can be empty for optional text values
+- Real-time validation prevents invalid submissions
+
+**Seed Data:**
+- 11 default platform settings covering general, payment, email, and security categories
+- Includes platform_name, commission_rate, maintenance_mode, max_upload_size_mb, session_timeout_hours, etc.
+
 ### Compact Layout Redesign (November 3, 2025)
 The platform has been redesigned with a more compact, professional layout inspired by b2bmineral.com:
 
