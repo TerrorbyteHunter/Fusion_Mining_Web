@@ -20,6 +20,14 @@ import {
   adminPermissions,
   membershipBenefits,
   tierUsageTracking,
+  platformSettings,
+  emailTemplates,
+  loginHistory,
+  verificationRules,
+  documentTemplates,
+  adminAuditLogs,
+  twoFactorAuth,
+  sessions,
   type AdminPermissions,
   type InsertAdminPermissions,
   type UpdateAdminPermissions,
@@ -59,6 +67,25 @@ import {
   type InsertMembershipBenefit,
   type TierUsageTracking,
   type InsertTierUsageTracking,
+  type PlatformSetting,
+  type InsertPlatformSetting,
+  type UpdatePlatformSetting,
+  type EmailTemplate,
+  type InsertEmailTemplate,
+  type UpdateEmailTemplate,
+  type LoginHistory,
+  type InsertLoginHistory,
+  type VerificationRule,
+  type InsertVerificationRule,
+  type UpdateVerificationRule,
+  type DocumentTemplate,
+  type InsertDocumentTemplate,
+  type UpdateDocumentTemplate,
+  type AdminAuditLog,
+  type InsertAdminAuditLog,
+  type TwoFactorAuth,
+  type InsertTwoFactorAuth,
+  type UpdateTwoFactorAuth,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
@@ -231,6 +258,48 @@ export interface IStorage {
   incrementUserRFQCount(userId: string, month: string): Promise<void>;
   checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string }>;
   getUserActiveRFQCount(userId: string): Promise<number>;
+
+  // Platform Settings operations
+  getAllPlatformSettings(): Promise<PlatformSetting[]>;
+  createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting>;
+  updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting>;
+  deletePlatformSetting(id: string): Promise<void>;
+
+  // Email Template operations
+  getAllEmailTemplates(): Promise<EmailTemplate[]>;
+  createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate>;
+  updateEmailTemplate(template: UpdateEmailTemplate): Promise<EmailTemplate>;
+  deleteEmailTemplate(id: string): Promise<void>;
+
+  // Login History operations
+  getLoginHistory(userId?: string): Promise<LoginHistory[]>;
+  logLoginAttempt(data: InsertLoginHistory): Promise<void>;
+
+  // Verification Rule operations
+  getAllVerificationRules(): Promise<VerificationRule[]>;
+  createVerificationRule(rule: InsertVerificationRule): Promise<VerificationRule>;
+  updateVerificationRule(rule: UpdateVerificationRule): Promise<VerificationRule>;
+  deleteVerificationRule(id: string): Promise<void>;
+
+  // Document Template operations
+  getAllDocumentTemplates(): Promise<DocumentTemplate[]>;
+  createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate>;
+  updateDocumentTemplate(template: UpdateDocumentTemplate): Promise<DocumentTemplate>;
+  deleteDocumentTemplate(id: string): Promise<void>;
+
+  // Admin Audit Log operations
+  getAdminAuditLogs(adminId?: string): Promise<AdminAuditLog[]>;
+  logAdminAudit(data: InsertAdminAuditLog): Promise<void>;
+
+  // Two-Factor Auth operations
+  getTwoFactorAuthStatus(userId: string): Promise<TwoFactorAuth | undefined>;
+  enableTwoFactorAuth(userId: string): Promise<void>;
+  disableTwoFactorAuth(userId: string): Promise<void>;
+
+  // User Management (Admin) operations
+  updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
+  forceUserLogout(userId: string): Promise<void>;
+  updateUserInfo(userId: string, data: any): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1633,6 +1702,221 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { allowed: true };
+  }
+
+  // ========================================================================
+  // Platform Settings operations
+  // ========================================================================
+  async getAllPlatformSettings(): Promise<PlatformSetting[]> {
+    return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+  }
+
+  async createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting> {
+    const [created] = await db.insert(platformSettings).values(setting).returning();
+    return created;
+  }
+
+  async updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting> {
+    const { id, ...updates } = setting;
+    const [updated] = await db
+      .update(platformSettings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(platformSettings.id, id!))
+      .returning();
+    return updated;
+  }
+
+  async deletePlatformSetting(id: string): Promise<void> {
+    await db.delete(platformSettings).where(eq(platformSettings.id, id));
+  }
+
+  // ========================================================================
+  // Email Template operations
+  // ========================================================================
+  async getAllEmailTemplates(): Promise<EmailTemplate[]> {
+    return await db.select().from(emailTemplates).orderBy(desc(emailTemplates.createdAt));
+  }
+
+  async createEmailTemplate(template: InsertEmailTemplate): Promise<EmailTemplate> {
+    const [created] = await db.insert(emailTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateEmailTemplate(template: UpdateEmailTemplate): Promise<EmailTemplate> {
+    const { id, ...updates } = template;
+    const [updated] = await db
+      .update(emailTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(emailTemplates.id, id!))
+      .returning();
+    return updated;
+  }
+
+  async deleteEmailTemplate(id: string): Promise<void> {
+    await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+  }
+
+  // ========================================================================
+  // Login History operations
+  // ========================================================================
+  async getLoginHistory(userId?: string): Promise<LoginHistory[]> {
+    if (userId) {
+      return await db
+        .select()
+        .from(loginHistory)
+        .where(eq(loginHistory.userId, userId))
+        .orderBy(desc(loginHistory.createdAt))
+        .limit(100);
+    }
+    return await db
+      .select()
+      .from(loginHistory)
+      .orderBy(desc(loginHistory.createdAt))
+      .limit(100);
+  }
+
+  async logLoginAttempt(data: InsertLoginHistory): Promise<void> {
+    await db.insert(loginHistory).values(data);
+  }
+
+  // ========================================================================
+  // Verification Rule operations
+  // ========================================================================
+  async getAllVerificationRules(): Promise<VerificationRule[]> {
+    return await db.select().from(verificationRules).orderBy(desc(verificationRules.createdAt));
+  }
+
+  async createVerificationRule(rule: InsertVerificationRule): Promise<VerificationRule> {
+    const [created] = await db.insert(verificationRules).values(rule).returning();
+    return created;
+  }
+
+  async updateVerificationRule(rule: UpdateVerificationRule): Promise<VerificationRule> {
+    const { id, ...updates } = rule;
+    const [updated] = await db
+      .update(verificationRules)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(verificationRules.id, id!))
+      .returning();
+    return updated;
+  }
+
+  async deleteVerificationRule(id: string): Promise<void> {
+    await db.delete(verificationRules).where(eq(verificationRules.id, id));
+  }
+
+  // ========================================================================
+  // Document Template operations
+  // ========================================================================
+  async getAllDocumentTemplates(): Promise<DocumentTemplate[]> {
+    return await db.select().from(documentTemplates).orderBy(desc(documentTemplates.createdAt));
+  }
+
+  async createDocumentTemplate(template: InsertDocumentTemplate): Promise<DocumentTemplate> {
+    const [created] = await db.insert(documentTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateDocumentTemplate(template: UpdateDocumentTemplate): Promise<DocumentTemplate> {
+    const { id, ...updates} = template;
+    const [updated] = await db
+      .update(documentTemplates)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(documentTemplates.id, id!))
+      .returning();
+    return updated;
+  }
+
+  async deleteDocumentTemplate(id: string): Promise<void> {
+    await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
+  }
+
+  // ========================================================================
+  // Admin Audit Log operations
+  // ========================================================================
+  async getAdminAuditLogs(adminId?: string): Promise<AdminAuditLog[]> {
+    if (adminId) {
+      return await db
+        .select()
+        .from(adminAuditLogs)
+        .where(eq(adminAuditLogs.adminId, adminId))
+        .orderBy(desc(adminAuditLogs.createdAt))
+        .limit(200);
+    }
+    return await db
+      .select()
+      .from(adminAuditLogs)
+      .orderBy(desc(adminAuditLogs.createdAt))
+      .limit(200);
+  }
+
+  async logAdminAudit(data: InsertAdminAuditLog): Promise<void> {
+    await db.insert(adminAuditLogs).values(data);
+  }
+
+  // ========================================================================
+  // Two-Factor Auth operations
+  // ========================================================================
+  async getTwoFactorAuthStatus(userId: string): Promise<TwoFactorAuth | undefined> {
+    const [twoFA] = await db
+      .select()
+      .from(twoFactorAuth)
+      .where(eq(twoFactorAuth.userId, userId))
+      .limit(1);
+    return twoFA;
+  }
+
+  async enableTwoFactorAuth(userId: string): Promise<void> {
+    const existing = await this.getTwoFactorAuthStatus(userId);
+    
+    if (existing) {
+      await db
+        .update(twoFactorAuth)
+        .set({ enabled: true, updatedAt: new Date() })
+        .where(eq(twoFactorAuth.userId, userId));
+    } else {
+      await db
+        .insert(twoFactorAuth)
+        .values({
+          userId,
+          enabled: true,
+          secret: null,
+          backupCodes: [],
+        });
+    }
+  }
+
+  async disableTwoFactorAuth(userId: string): Promise<void> {
+    await db
+      .update(twoFactorAuth)
+      .set({ enabled: false, updatedAt: new Date() })
+      .where(eq(twoFactorAuth.userId, userId));
+  }
+
+  // ========================================================================
+  // User Management (Admin) operations
+  // ========================================================================
+  async updateUserPassword(userId: string, hashedPassword: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async forceUserLogout(userId: string): Promise<void> {
+    // Delete all sessions for this user
+    await db
+      .delete(sessions)
+      .where(sql`${sessions.sess}->>'userId' = ${userId}`);
+  }
+
+  async updateUserInfo(userId: string, data: any): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
   }
 }
 

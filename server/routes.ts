@@ -26,6 +26,14 @@ import {
   insertNotificationSchema,
   insertVideoSchema,
   updateVideoSchema,
+  insertPlatformSettingSchema,
+  updatePlatformSettingSchema,
+  insertEmailTemplateSchema,
+  updateEmailTemplateSchema,
+  insertVerificationRuleSchema,
+  updateVerificationRuleSchema,
+  insertDocumentTemplateSchema,
+  updateDocumentTemplateSchema,
 } from "@shared/schema";
 // import { getSession } from "./replitAuth";
 
@@ -2834,6 +2842,401 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting video:", error);
       res.status(500).json({ message: "Failed to delete video" });
+    }
+  });
+
+  // ============================================================================
+  // Admin Settings API Routes
+  // ============================================================================
+
+  // Platform Settings
+  app.get('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch platform settings" });
+    }
+  });
+
+  app.post('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertPlatformSettingSchema.parse({ ...req.body, updatedBy: req.user.id });
+      const setting = await storage.createPlatformSetting(validatedData);
+      res.json(setting);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating platform setting:", error);
+      res.status(500).json({ message: "Failed to create platform setting" });
+    }
+  });
+
+  app.patch('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const validatedData = updatePlatformSettingSchema.parse({ ...req.body, id: req.params.id, updatedBy: req.user.id });
+      const setting = await storage.updatePlatformSetting(validatedData);
+      res.json(setting);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating platform setting:", error);
+      res.status(500).json({ message: "Failed to update platform setting" });
+    }
+  });
+
+  app.delete('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deletePlatformSetting(req.params.id);
+      res.json({ message: "Platform setting deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting platform setting:", error);
+      res.status(500).json({ message: "Failed to delete platform setting" });
+    }
+  });
+
+  // Email Templates
+  app.get('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  app.post('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertEmailTemplateSchema.parse(req.body);
+      const template = await storage.createEmailTemplate(validatedData);
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating email template:", error);
+      res.status(500).json({ message: "Failed to create email template" });
+    }
+  });
+
+  app.patch('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateEmailTemplateSchema.parse({ ...req.body, id: req.params.id });
+      const template = await storage.updateEmailTemplate(validatedData);
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating email template:", error);
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
+  app.delete('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteEmailTemplate(req.params.id);
+      res.json({ message: "Email template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting email template:", error);
+      res.status(500).json({ message: "Failed to delete email template" });
+    }
+  });
+
+  // Login History
+  app.get('/api/admin/settings/login-history', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = req.query.userId as string | undefined;
+      const history = await storage.getLoginHistory(userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching login history:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+
+  // Verification Rules
+  app.get('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const rules = await storage.getAllVerificationRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching verification rules:", error);
+      res.status(500).json({ message: "Failed to fetch verification rules" });
+    }
+  });
+
+  app.post('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertVerificationRuleSchema.parse(req.body);
+      const rule = await storage.createVerificationRule(validatedData);
+      res.json(rule);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating verification rule:", error);
+      res.status(500).json({ message: "Failed to create verification rule" });
+    }
+  });
+
+  app.patch('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateVerificationRuleSchema.parse({ ...req.body, id: req.params.id });
+      const rule = await storage.updateVerificationRule(validatedData);
+      res.json(rule);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating verification rule:", error);
+      res.status(500).json({ message: "Failed to update verification rule" });
+    }
+  });
+
+  app.delete('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteVerificationRule(req.params.id);
+      res.json({ message: "Verification rule deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting verification rule:", error);
+      res.status(500).json({ message: "Failed to delete verification rule" });
+    }
+  });
+
+  // Document Templates
+  app.get('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllDocumentTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching document templates:", error);
+      res.status(500).json({ message: "Failed to fetch document templates" });
+    }
+  });
+
+  app.post('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertDocumentTemplateSchema.parse(req.body);
+      const template = await storage.createDocumentTemplate(validatedData);
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating document template:", error);
+      res.status(500).json({ message: "Failed to create document template" });
+    }
+  });
+
+  app.patch('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateDocumentTemplateSchema.parse({ ...req.body, id: req.params.id });
+      const template = await storage.updateDocumentTemplate(validatedData);
+      res.json(template);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating document template:", error);
+      res.status(500).json({ message: "Failed to update document template" });
+    }
+  });
+
+  app.delete('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteDocumentTemplate(req.params.id);
+      res.json({ message: "Document template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting document template:", error);
+      res.status(500).json({ message: "Failed to delete document template" });
+    }
+  });
+
+  // Admin Audit Logs
+  app.get('/api/admin/settings/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const adminId = req.query.adminId as string | undefined;
+      const logs = await storage.getAdminAuditLogs(adminId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // User Management (Admin Controls)
+  app.patch('/api/admin/users/:id/password-reset', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(req.params.id, hashedPassword);
+      
+      // Log audit trail
+      await storage.logAdminAudit({
+        adminId: (req as any).user.id,
+        action: 'user_password_reset',
+        targetType: 'user',
+        targetId: req.params.id,
+        changes: { resetBy: 'admin' },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+      
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error resetting user password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  app.post('/api/admin/users/:id/force-logout', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.forceUserLogout(req.params.id);
+      
+      // Log audit trail
+      await storage.logAdminAudit({
+        adminId: (req as any).user.id,
+        action: 'user_force_logout',
+        targetType: 'user',
+        targetId: req.params.id,
+        changes: {},
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+      
+      res.json({ message: "User logged out successfully" });
+    } catch (error) {
+      console.error("Error forcing user logout:", error);
+      res.status(500).json({ message: "Failed to force logout" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/role', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { role } = req.body;
+      if (!['admin', 'buyer', 'seller'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const updatedUser = await storage.updateUserRole(req.params.id, role);
+      
+      // Log audit trail
+      await storage.logAdminAudit({
+        adminId: (req as any).user.id,
+        action: 'user_role_updated',
+        targetType: 'user',
+        targetId: req.params.id,
+        changes: { newRole: role },
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // Account Settings (for current admin user)
+  app.patch('/api/account/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, profileImageUrl } = req.body;
+      const updatedUser = await storage.updateUserInfo(req.user.id, {
+        firstName,
+        lastName,
+        email,
+        profileImageUrl,
+      });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  app.post('/api/account/password-change', isAuthenticated, async (req: any, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new password required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+      
+      // Verify current password
+      const user = await storage.getUserById(req.user.id);
+      if (!user || !user.password) {
+        return res.status(400).json({ message: "Invalid user" });
+      }
+      
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      
+      // Update to new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(req.user.id, hashedPassword);
+      
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  app.get('/api/account/login-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const history = await storage.getLoginHistory(req.user.id);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching login history:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+
+  // Two-Factor Authentication
+  app.get('/api/account/2fa/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const twoFAStatus = await storage.getTwoFactorAuthStatus(req.user.id);
+      res.json(twoFAStatus);
+    } catch (error) {
+      console.error("Error fetching 2FA status:", error);
+      res.status(500).json({ message: "Failed to fetch 2FA status" });
+    }
+  });
+
+  app.post('/api/account/2fa/enable', isAuthenticated, async (req: any, res) => {
+    try {
+      // In a real implementation, this would generate a TOTP secret and QR code
+      // For now, we'll create a placeholder
+      await storage.enableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA enabled successfully" });
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+
+  app.post('/api/account/2fa/disable', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.disableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA disabled successfully" });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      res.status(500).json({ message: "Failed to disable 2FA" });
     }
   });
 
