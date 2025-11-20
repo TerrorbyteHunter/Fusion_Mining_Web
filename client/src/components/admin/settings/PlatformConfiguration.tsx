@@ -5,15 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sliders, Award, Percent, Palette, Plus, Check, X } from "lucide-react";
-import type { PlatformSetting, MembershipBenefit } from "@shared/schema";
+import { Sliders, Award, Percent, Palette, Plus, Check, X, Save, ChevronDown, Clock, Edit2 } from "lucide-react";
+import type { PlatformSetting, MembershipBenefit, SettingsAudit } from "@shared/schema";
 
 export function PlatformConfiguration() {
   const { toast } = useToast();
   const [editingBenefit, setEditingBenefit] = useState<string | null>(null);
+  const [editingSettingId, setEditingSettingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [showAuditLogs, setShowAuditLogs] = useState(false);
   const [benefitForm, setbenefitForm] = useState({
     maxActiveRFQs: 0,
     monthlyPrice: "0.00",
@@ -21,11 +29,31 @@ export function PlatformConfiguration() {
   });
 
   const { data: platformSettings, refetch: refetchSettings } = useQuery<PlatformSetting[]>({
-    queryKey: ["/api/platform-settings"],
+    queryKey: ["/api/admin/settings/platform"],
+  });
+
+  const { data: auditLogs } = useQuery<SettingsAudit[]>({
+    queryKey: ["/api/admin/settings/audit"],
+    enabled: showAuditLogs,
   });
 
   const { data: benefits, refetch: refetchBenefits } = useQuery<MembershipBenefit[]>({
     queryKey: ["/api/membership-benefits"],
+  });
+
+  const updateSettingMutation = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: string }) =>
+      apiRequest("PATCH", `/api/admin/settings/platform/${id}`, { value }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/platform"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/audit"] });
+      toast({ title: "Success", description: "Setting updated successfully" });
+      setEditingSettingId(null);
+      setEditingValue("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update setting", variant: "destructive" });
+    },
   });
 
   const seedPlatformSettingsMutation = useMutation({
@@ -80,6 +108,117 @@ export function PlatformConfiguration() {
     updateBenefitMutation.mutate({ tier: editingBenefit, data: benefitForm });
   };
 
+  const handleEditSetting = (setting: PlatformSetting) => {
+    setEditingSettingId(setting.id);
+    setEditingValue(setting.value);
+  };
+
+  const handleSaveSetting = (id: string) => {
+    // Validation
+    const setting = platformSettings?.find(s => s.id === id);
+    if (!setting) return;
+
+    if (setting.dataType === 'number' && isNaN(Number(editingValue))) {
+      toast({ title: "Validation Error", description: "Value must be a number", variant: "destructive" });
+      return;
+    }
+
+    if (editingValue.trim() === "") {
+      toast({ title: "Validation Error", description: "Value cannot be empty", variant: "destructive" });
+      return;
+    }
+
+    updateSettingMutation.mutate({ id, value: editingValue });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSettingId(null);
+    setEditingValue("");
+  };
+
+  const renderEditableValue = (setting: PlatformSetting) => {
+    const isEditing = editingSettingId === setting.id;
+
+    if (!isEditing) {
+      return (
+        <div className="flex items-center gap-2">
+          {setting.dataType === 'boolean' ? (
+            <Badge variant={setting.value === 'true' ? 'default' : 'secondary'}>
+              {setting.value === 'true' ? 'Enabled' : 'Disabled'}
+            </Badge>
+          ) : (
+            <span className="font-medium">{setting.value}</span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => handleEditSetting(setting)}
+            data-testid={`button-edit-${setting.key}`}
+          >
+            <Edit2 className="h-3 w-3" />
+          </Button>
+        </div>
+      );
+    }
+
+    if (setting.dataType === 'boolean') {
+      return (
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={editingValue === 'true'}
+            onCheckedChange={(checked) => setEditingValue(checked ? 'true' : 'false')}
+            data-testid={`switch-${setting.key}`}
+          />
+          <Button
+            size="sm"
+            onClick={() => handleSaveSetting(setting.id)}
+            disabled={updateSettingMutation.isPending}
+            data-testid={`button-save-${setting.key}`}
+          >
+            <Save className="h-3 w-3 mr-1" />
+            Save
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+            Cancel
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          type={setting.dataType === 'number' ? 'number' : 'text'}
+          value={editingValue}
+          onChange={(e) => setEditingValue(e.target.value)}
+          className="max-w-xs"
+          data-testid={`input-${setting.key}`}
+        />
+        <Button
+          size="sm"
+          onClick={() => handleSaveSetting(setting.id)}
+          disabled={updateSettingMutation.isPending}
+          data-testid={`button-save-${setting.key}`}
+        >
+          <Save className="h-3 w-3 mr-1" />
+          Save
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleCancelEdit}>
+          Cancel
+        </Button>
+      </div>
+    );
+  };
+
+  // Filter settings by category
+  const filteredSettings = platformSettings?.filter(setting => 
+    categoryFilter === 'all' || setting.category === categoryFilter
+  );
+
+  // Get unique categories for filter
+  const categories = Array.from(new Set(platformSettings?.map(s => s.category) || [])).sort();
+
   return (
     <div className="grid gap-6">
       <Card>
@@ -101,32 +240,106 @@ export function PlatformConfiguration() {
               </Button>
             )}
           </div>
-          <CardDescription>Global configuration options for the platform</CardDescription>
+          <CardDescription>Configure platform-wide settings with inline editing</CardDescription>
         </CardHeader>
         <CardContent>
           {platformSettings && platformSettings.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {platformSettings.map((setting) => (
-                  <TableRow key={setting.id}>
-                    <TableCell className="font-mono text-sm">{setting.key}</TableCell>
-                    <TableCell className="font-medium">{setting.value}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{setting.description}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="capitalize">{setting.category}</Badge>
-                    </TableCell>
+            <div className="space-y-4">
+              {/* Category Filter */}
+              <div className="flex items-center gap-4">
+                <Label className="text-sm font-medium">Filter by Category:</Label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-category-filter">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category} className="capitalize">
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Separator />
+
+              {/* Settings Table */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Category</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredSettings && filteredSettings.length > 0 ? (
+                    filteredSettings.map((setting) => (
+                      <TableRow key={setting.id} data-testid={`row-setting-${setting.key}`}>
+                        <TableCell className="font-mono text-sm">{setting.key}</TableCell>
+                        <TableCell>{renderEditableValue(setting)}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm max-w-md">
+                          {setting.description}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="capitalize">{setting.category}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                        No settings found for this category
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+
+              <Separator />
+
+              {/* Audit Logs Section */}
+              <Collapsible open={showAuditLogs} onOpenChange={setShowAuditLogs}>
+                <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:underline" data-testid="button-toggle-audit-logs">
+                  <Clock className="h-4 w-4" />
+                  Recent Changes
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showAuditLogs ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  {auditLogs && auditLogs.length > 0 ? (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Setting</TableHead>
+                            <TableHead>Old Value</TableHead>
+                            <TableHead>New Value</TableHead>
+                            <TableHead>Changed At</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {auditLogs.map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell className="font-mono text-sm">{log.settingKey}</TableCell>
+                              <TableCell className="text-muted-foreground">{log.oldValue}</TableCell>
+                              <TableCell className="font-medium">{log.newValue}</TableCell>
+                              <TableCell className="text-sm">
+                                {new Date(log.changedAt).toLocaleString()}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">No changes recorded yet</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground mb-4">No platform settings configured</p>
