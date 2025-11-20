@@ -375,17 +375,34 @@ export const contactSettings = pgTable("contact_settings", {
 // Admin Settings & Configuration
 // ============================================================================
 
+export const settingDataTypeEnum = pgEnum('setting_data_type', ['boolean', 'number', 'string', 'json']);
+
 // Platform-wide settings
 export const platformSettings = pgTable("platform_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   key: varchar("key", { length: 100 }).notNull().unique(),
   value: text("value").notNull(),
+  dataType: settingDataTypeEnum("data_type").notNull().default('string'),
   description: text("description"),
-  category: varchar("category", { length: 50 }).notNull(), // 'general', 'payment', 'email', etc.
+  category: varchar("category", { length: 50 }).notNull(), // 'general', 'payment', 'security', 'branding', etc.
   isPublic: boolean("is_public").notNull().default(false),
   updatedBy: varchar("updated_by").references(() => users.id),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Settings audit log for tracking changes
+export const settingsAudit = pgTable("settings_audit", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  settingKey: varchar("setting_key", { length: 100 }).notNull(),
+  oldValue: text("old_value"),
+  newValue: text("new_value").notNull(),
+  changedBy: varchar("changed_by").notNull().references(() => users.id),
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_settings_audit_key").on(table.settingKey),
+  index("IDX_settings_audit_changed_by").on(table.changedBy),
+  index("IDX_settings_audit_changed_at").on(table.changedAt),
+]);
 
 // Email templates for system notifications
 export const emailTemplates = pgTable("email_templates", {
@@ -871,6 +888,14 @@ export const updatePlatformSettingSchema = createInsertSchema(platformSettings).
 export type InsertPlatformSetting = z.infer<typeof insertPlatformSettingSchema>;
 export type UpdatePlatformSetting = z.infer<typeof updatePlatformSettingSchema>;
 export type PlatformSetting = typeof platformSettings.$inferSelect;
+
+// Settings Audit schemas
+export const insertSettingsAuditSchema = createInsertSchema(settingsAudit).omit({
+  id: true,
+  changedAt: true,
+});
+export type InsertSettingsAudit = z.infer<typeof insertSettingsAuditSchema>;
+export type SettingsAudit = typeof settingsAudit.$inferSelect;
 
 // Email Template schemas
 export const insertEmailTemplateSchema = createInsertSchema(emailTemplates).omit({
