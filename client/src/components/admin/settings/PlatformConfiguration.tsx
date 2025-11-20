@@ -118,13 +118,15 @@ export function PlatformConfiguration() {
     const setting = platformSettings?.find(s => s.id === id);
     if (!setting) return;
 
-    if (setting.dataType === 'number' && isNaN(Number(editingValue))) {
-      toast({ title: "Validation Error", description: "Value must be a number", variant: "destructive" });
+    // Numeric and boolean settings cannot be empty
+    if ((setting.dataType === 'number' || setting.dataType === 'boolean') && editingValue.trim() === '') {
+      toast({ title: "Validation Error", description: `${setting.dataType === 'number' ? 'Number' : 'Boolean'} settings cannot be empty`, variant: "destructive" });
       return;
     }
 
-    if (editingValue.trim() === "") {
-      toast({ title: "Validation Error", description: "Value cannot be empty", variant: "destructive" });
+    // Validate number format
+    if (setting.dataType === 'number' && isNaN(Number(editingValue))) {
+      toast({ title: "Validation Error", description: "Value must be a valid number", variant: "destructive" });
       return;
     }
 
@@ -186,19 +188,37 @@ export function PlatformConfiguration() {
       );
     }
 
+    // Real-time validation
+    const isEmpty = editingValue.trim() === '';
+    const isNumericOrBoolean = setting.dataType === 'number' || setting.dataType === 'boolean';
+    const isInvalidNumber = setting.dataType === 'number' && !isEmpty && isNaN(Number(editingValue));
+    const hasValidationError = (isNumericOrBoolean && isEmpty) || isInvalidNumber;
+
+    let errorMessage = '';
+    if (isNumericOrBoolean && isEmpty) {
+      errorMessage = `${setting.dataType === 'number' ? 'Number' : 'Boolean'} settings cannot be empty`;
+    } else if (isInvalidNumber) {
+      errorMessage = 'Must be a valid number';
+    }
+
     return (
       <div className="flex items-center gap-2">
-        <Input
-          type={setting.dataType === 'number' ? 'number' : 'text'}
-          value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
-          className="max-w-xs"
-          data-testid={`input-${setting.key}`}
-        />
+        <div className="flex flex-col gap-1">
+          <Input
+            type={setting.dataType === 'number' ? 'number' : 'text'}
+            value={editingValue}
+            onChange={(e) => setEditingValue(e.target.value)}
+            className={`max-w-xs ${hasValidationError ? 'border-destructive' : ''}`}
+            data-testid={`input-${setting.key}`}
+          />
+          {hasValidationError && (
+            <span className="text-xs text-destructive">{errorMessage}</span>
+          )}
+        </div>
         <Button
           size="sm"
           onClick={() => handleSaveSetting(setting.id)}
-          disabled={updateSettingMutation.isPending}
+          disabled={updateSettingMutation.isPending || hasValidationError}
           data-testid={`button-save-${setting.key}`}
         >
           <Save className="h-3 w-3 mr-1" />
