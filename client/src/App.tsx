@@ -13,6 +13,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 // Import all pages
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
 import Projects from "@/pages/Projects";
 import Marketplace from "@/pages/Marketplace";
 import News from "@/pages/News";
@@ -37,7 +38,7 @@ function Router() {
   const [location] = useLocation();
   
   const isAdminSection = location.startsWith('/admin');
-  const showLMETicker = !isAdminSection && location !== '/login';
+  const showLMETicker = !isAdminSection && location !== '/login' && location !== '/signup';
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -53,6 +54,7 @@ function Router() {
             {/* Public Routes */}
             <Route path="/" component={Landing} />
             <Route path="/login" component={Login} />
+            <Route path="/signup" component={Signup} />
             <Route path="/services" component={ServicesCompliance} />
             <Route path="/projects" component={Projects} />
             <Route path="/marketplace" component={Marketplace} />

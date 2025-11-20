@@ -18,6 +18,8 @@ import {
   notifications,
   videos,
   adminPermissions,
+  membershipBenefits,
+  tierUsageTracking,
   type AdminPermissions,
   type InsertAdminPermissions,
   type UpdateAdminPermissions,
@@ -53,6 +55,10 @@ import {
   type Video,
   type InsertVideo,
   type UpdateVideo,
+  type MembershipBenefit,
+  type InsertMembershipBenefit,
+  type TierUsageTracking,
+  type InsertTierUsageTracking,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
@@ -98,6 +104,7 @@ export interface IStorage {
   // User operations (Required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   getAdminUser(): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
@@ -213,6 +220,17 @@ export interface IStorage {
   createMessageTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
   getMessageTemplates(activeOnly?: boolean): Promise<MessageTemplate[]>;
   getMessageTemplateByType(type: string): Promise<MessageTemplate | undefined>;
+
+  // Membership Benefit operations
+  createMembershipBenefit(benefit: InsertMembershipBenefit): Promise<MembershipBenefit>;
+  getAllMembershipBenefits(): Promise<MembershipBenefit[]>;
+  getMembershipBenefitByTier(tier: string): Promise<MembershipBenefit | undefined>;
+  
+  // Tier Usage Tracking operations
+  getUserTierUsage(userId: string, month: string): Promise<TierUsageTracking | undefined>;
+  incrementUserRFQCount(userId: string, month: string): Promise<void>;
+  checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string }>;
+  getUserActiveRFQCount(userId: string): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -226,6 +244,11 @@ export class DatabaseStorage implements IStorage {
 
   async getUserById(id: string): Promise<User | undefined> {
     return this.getUser(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async getAdminUser(): Promise<User | undefined> {
@@ -251,14 +274,21 @@ export class DatabaseStorage implements IStorage {
       
       if (existingUsers.length > 0) {
         // Update existing user, preserving the original ID and role
+        const updateData: any = {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          updatedAt: new Date(),
+        };
+        
+        // Only update password if provided
+        if (userData.password) {
+          updateData.password = userData.password;
+        }
+        
         const [user] = await db
           .update(users)
-          .set({
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            profileImageUrl: userData.profileImageUrl,
-            updatedAt: new Date(),
-          })
+          .set(updateData)
           .where(eq(users.email, userData.email))
           .returning();
         return user;
@@ -1472,6 +1502,113 @@ export class DatabaseStorage implements IStorage {
       ))
       .limit(1);
     return template;
+  }
+
+  // ========================================================================
+  // Membership Benefit operations
+  // ========================================================================
+  async createMembershipBenefit(benefitData: InsertMembershipBenefit): Promise<MembershipBenefit> {
+    const [benefit] = await db
+      .insert(membershipBenefits)
+      .values(benefitData)
+      .returning();
+    return benefit;
+  }
+
+  async getAllMembershipBenefits(): Promise<MembershipBenefit[]> {
+    return await db
+      .select()
+      .from(membershipBenefits)
+      .orderBy(membershipBenefits.visibilityRanking);
+  }
+
+  async getMembershipBenefitByTier(tier: string): Promise<MembershipBenefit | undefined> {
+    const [benefit] = await db
+      .select()
+      .from(membershipBenefits)
+      .where(eq(membershipBenefits.tier, tier as any))
+      .limit(1);
+    return benefit;
+  }
+
+  // ========================================================================
+  // Tier Usage Tracking operations
+  // ========================================================================
+  async getUserTierUsage(userId: string, month: string): Promise<TierUsageTracking | undefined> {
+    const [usage] = await db
+      .select()
+      .from(tierUsageTracking)
+      .where(and(
+        eq(tierUsageTracking.userId, userId),
+        eq(tierUsageTracking.month, month)
+      ))
+      .limit(1);
+    return usage;
+  }
+
+  async incrementUserRFQCount(userId: string, month: string): Promise<void> {
+    const existing = await this.getUserTierUsage(userId, month);
+    
+    if (existing) {
+      await db
+        .update(tierUsageTracking)
+        .set({ 
+          activeRFQsCount: sql`${tierUsageTracking.activeRFQsCount} + 1`,
+          updatedAt: new Date()
+        })
+        .where(eq(tierUsageTracking.id, existing.id));
+    } else {
+      await db
+        .insert(tierUsageTracking)
+        .values({
+          userId,
+          month,
+          activeRFQsCount: 1,
+          messagesCount: 0,
+          analyticsViews: 0,
+        });
+    }
+  }
+
+  async getUserActiveRFQCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(buyerRequests)
+      .where(and(
+        eq(buyerRequests.buyerId, userId),
+        eq(buyerRequests.status, 'active')
+      ));
+    return result[0]?.count || 0;
+  }
+
+  async checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+    const user = await this.getUser(userId);
+    
+    if (!user) {
+      return { allowed: false, reason: 'User not found' };
+    }
+
+    const benefit = await this.getMembershipBenefitByTier(user.membershipTier);
+    
+    if (!benefit) {
+      return { allowed: false, reason: 'Membership tier not configured' };
+    }
+
+    // -1 means unlimited
+    if (benefit.maxActiveRFQs === -1) {
+      return { allowed: true };
+    }
+
+    const activeCount = await this.getUserActiveRFQCount(userId);
+    
+    if (activeCount >= benefit.maxActiveRFQs) {
+      return { 
+        allowed: false, 
+        reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? 's' : ''}. Upgrade to create more RFQs.`
+      };
+    }
+
+    return { allowed: true };
   }
 }
 

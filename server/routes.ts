@@ -7,6 +7,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission } from "./localAuth";
 import { ZodError } from "zod";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import bcrypt from "bcrypt";
 import {
   insertUserProfileSchema,
   updateUserProfileSchema,
@@ -28,6 +32,37 @@ import {
 // Helper function to format Zod errors
 function formatZodError(error: ZodError): string {
   return error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
+}
+
+// Middleware to check if user has analytics access based on membership tier
+async function requireAnalyticsAccess(req: any, res: any, next: any) {
+  try {
+    const userId = req.user?.claims?.sub || req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const user = await storage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const tier = user.membershipTier || 'basic';
+    
+    // Only Standard and Premium tiers have analytics access
+    if (tier === 'basic') {
+      return res.status(403).json({ 
+        message: "Analytics access requires Standard or Premium membership",
+        upgradeRequired: true,
+        currentTier: tier
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Error checking analytics access:", error);
+    res.status(500).json({ message: "Failed to verify access" });
+  }
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -55,31 +90,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.post('/api/login', async (req, res) => {
       const { username, password } = req.body;
       
-      console.warn('⚠️  WARNING: Using demo login endpoint - NOT FOR PRODUCTION USE');
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username/email and password are required' });
+      }
       
-      // Simple hardcoded users for testing (NO SECURITY)
-      const users = {
-        admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-        henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass' },
-        ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass' },
-      };
+      let authenticatedUser = null;
       
-      const user = Object.values(users).find(u => u.username === username && u.password === password);
-      if (!user) {
+      // First, try to authenticate against the database
+      try {
+        // Try to find user by email (username could be email)
+        const dbUser = await storage.getUserByEmail(username);
+        
+        if (dbUser && dbUser.password) {
+          // User found in database with password, verify with bcrypt
+          const isPasswordValid = await bcrypt.compare(password, dbUser.password);
+          
+          if (isPasswordValid) {
+            authenticatedUser = dbUser;
+            console.log('[DB AUTH] Authenticated user from database:', dbUser.email);
+          }
+        }
+      } catch (error) {
+        console.error('[DB AUTH] Database authentication error:', error);
+      }
+      
+      // If database authentication failed, fallback to hardcoded test users
+      if (!authenticatedUser) {
+        console.warn('⚠️  WARNING: Using demo login endpoint - NOT FOR PRODUCTION USE');
+        
+        // Simple hardcoded users for testing (NO SECURITY)
+        const hardcodedUsers = {
+          admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User', membershipTier: 'premium' },
+          henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass', membershipTier: 'standard' },
+          ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass', membershipTier: 'premium' },
+        };
+        
+        authenticatedUser = Object.values(hardcodedUsers).find(u => u.username === username && u.password === password);
+        
+        if (authenticatedUser) {
+          console.log('[DEMO LOGIN] Authenticated hardcoded user:', username);
+        }
+      }
+      
+      // If no user authenticated, return error
+      if (!authenticatedUser) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
       // Use passport login to set session
-      console.log('[DEMO LOGIN] before login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
-      req.login(user, (err) => {
+      console.log('[LOGIN] before login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated());
+      req.login(authenticatedUser, (err) => {
         if (err) {
-          console.error('[DEMO LOGIN] login error', err);
+          console.error('[LOGIN] login error', err);
           return res.status(500).json({ message: 'Login failed' });
         }
         try {
-          console.log('[DEMO LOGIN] after login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
+          console.log('[LOGIN] after login, sessionID=', (req as any).sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
         } catch (e) {}
-        res.json({ success: true, user });
+        res.json({ success: true, user: authenticatedUser });
       });
     });
   // ========================================================================
@@ -267,28 +335,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     app.post('/api/seed-data', async (req, res) => {
       try {
-        // Create test users first to avoid foreign key constraints
+        // Create test users with different membership tiers
         const testUsers = [
           {
             id: 'test-admin-123',
             email: 'admin@fusionmining.com',
             firstName: 'Admin',
             lastName: 'User',
-            role: 'admin'
+            role: 'admin',
+            membershipTier: 'premium'
           },
           {
             id: 'test-seller-456',
             email: 'ray@fusionmining.com',
             firstName: 'Ray',
             lastName: 'Pass',
-            role: 'seller'
+            role: 'seller',
+            membershipTier: 'premium'
           },
           {
             id: 'test-buyer-789',
             email: 'henry@fusionmining.com',
             firstName: 'Henry',
             lastName: 'Pass',
-            role: 'buyer'
+            role: 'buyer',
+            membershipTier: 'standard'
+          },
+          {
+            id: 'test-buyer-basic-001',
+            email: 'alice@example.com',
+            firstName: 'Alice',
+            lastName: 'Johnson',
+            role: 'buyer',
+            membershipTier: 'basic'
+          },
+          {
+            id: 'test-buyer-premium-002',
+            email: 'bob@example.com',
+            firstName: 'Bob',
+            lastName: 'Williams',
+            role: 'buyer',
+            membershipTier: 'premium'
+          },
+          {
+            id: 'test-seller-standard-003',
+            email: 'carol@example.com',
+            firstName: 'Carol',
+            lastName: 'Davis',
+            role: 'seller',
+            membershipTier: 'standard'
           },
         ];
 
@@ -303,6 +398,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 lastName: userData.lastName,
               });
               await storage.updateUserRole(userData.id, userData.role);
+              // Set membership tier
+              await db.update(users).set({ membershipTier: userData.membershipTier as any }).where(eq(users.id, userData.id));
             }
           } catch (error) {
             console.error(`Error creating user ${userData.id}:`, error);
@@ -441,8 +538,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Seed marketplace listings
+        // Seed marketplace listings - 10 total from different sellers
         const listingsData = [
+          // Premium seller listings
           {
             sellerId: "test-seller-456",
             type: "mineral",
@@ -499,12 +597,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
             location: "Copperbelt",
             status: "approved",
           },
+          // Standard seller listings
           {
-            sellerId: "test-seller-456",
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Amethyst Gemstones - Small Lots",
+            description: "Beautiful purple amethyst from Southern Province mines. Perfect for jewelry makers and collectors. Available in various sizes.",
+            mineralType: "Amethyst",
+            grade: "AA Grade",
+            location: "Southern Province",
+            quantity: "100 carats",
+            price: "$50/carat",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Manganese Ore",
+            description: "High-grade manganese ore for steel production. Reliable supply from established mine. Competitive pricing available.",
+            mineralType: "Manganese",
+            grade: "42% Mn",
+            location: "Copperbelt",
+            quantity: "500 tonnes",
+            price: "$750/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "service",
+            title: "Mining Consulting Services",
+            description: "Experienced mining consultants offering geological surveys, feasibility studies, and operational optimization services.",
+            location: "Nationwide",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
             type: "partnership",
-            title: "Emerald Processing Facility Partnership",
-            description: "Looking for technology and investment partner to establish state-of-the-art emerald cutting and processing facility in Zambia.",
-            location: "Lusaka",
+            title: "Small-Scale Gold Mining Partnership",
+            description: "Looking for investment partner for small-scale gold mining operation. Low entry cost with good potential returns.",
+            location: "Northern Province",
+            status: "pending",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Quartz Crystals - Wholesale",
+            description: "Clear quartz crystals suitable for industrial and decorative use. Bulk quantities available at wholesale prices.",
+            mineralType: "Quartz",
+            grade: "Industrial Grade",
+            location: "Eastern Province",
+            quantity: "10 tonnes",
+            price: "$100/tonne",
             status: "approved",
           },
         ];
@@ -517,8 +660,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Seed buyer requests
+        // Seed buyer requests - 8 total to demonstrate tier limits
+        // 1 from basic (test-buyer-basic-001), 3 from standard (test-buyer-789), 4 from premium (test-buyer-premium-002)
         const requestsData = [
+          // Basic tier buyer (1 RFQ - at limit)
+          {
+            buyerId: "test-buyer-basic-001",
+            title: "Small Gold Purchase for Jewelry",
+            description: "Small jewelry business seeking gold for custom pieces. Looking for reliable local supplier with fair pricing.",
+            mineralType: "Gold",
+            quantity: "5 kg",
+            budget: "$300,000",
+            location: "Lusaka area",
+            status: "active",
+          },
+          // Standard tier buyer (3 RFQs - within 5 limit)
           {
             buyerId: "test-buyer-789",
             title: "Seeking Regular Copper Ore Supply",
@@ -549,6 +705,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
             location: "Any region with export capability",
             status: "active",
           },
+          // Premium tier buyer (4 RFQs - unlimited tier)
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Bulk Copper Concentrate Purchase",
+            description: "Large-scale buyer seeking premium copper concentrate for processing. Long-term contracts preferred with competitive pricing.",
+            mineralType: "Copper",
+            quantity: "50,000 tonnes annually",
+            budget: "$200M+",
+            location: "Copperbelt or Northern Province",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Rare Earth Elements Sourcing",
+            description: "Technology company seeking rare earth elements for manufacturing. Looking for sustainable and ethical suppliers.",
+            mineralType: "Rare Earth Elements",
+            quantity: "1,000 tonnes",
+            budget: "$50M",
+            location: "Any region",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Gemstone Investment Portfolio",
+            description: "Investment firm building gemstone portfolio. Interested in emeralds, amethysts, and other precious stones from certified sources.",
+            mineralType: "Mixed Gemstones",
+            quantity: "Various lots",
+            budget: "$10-20M",
+            location: "Nationwide",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Manganese Ore for Steel Production",
+            description: "Steel manufacturer requires high-grade manganese ore. Looking for reliable supply chain with export capabilities.",
+            mineralType: "Manganese",
+            quantity: "20,000 tonnes annually",
+            budget: "$15M annually",
+            location: "Any major mining region",
+            status: "active",
+          },
         ];
 
         for (const request of requestsData) {
@@ -556,6 +753,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createBuyerRequest(request as any);
           } catch (error) {
             // Ignore duplicates
+          }
+        }
+
+        // Seed tier usage tracking records
+        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+        const tierUsageData = [
+          {
+            userId: "test-buyer-basic-001",
+            tier: "basic",
+            monthPeriod: currentMonth,
+            rfqsCreated: 1, // At limit for basic tier
+          },
+          {
+            userId: "test-buyer-789",
+            tier: "standard",
+            monthPeriod: currentMonth,
+            rfqsCreated: 3, // Within limit for standard tier (5 max)
+          },
+          {
+            userId: "test-buyer-premium-002",
+            tier: "premium",
+            monthPeriod: currentMonth,
+            rfqsCreated: 4, // Unlimited tier
+          },
+        ];
+
+        for (const usage of tierUsageData) {
+          try {
+            await storage.trackTierUsage(usage.userId, usage.tier as any);
+          } catch (error) {
+            // Ignore errors
           }
         }
 
@@ -703,12 +931,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         res.json({ 
-          message: "Sample data seeded successfully",
+          message: "Sample data seeded successfully with membership tiers",
           details: {
+            users: testUsers.length,
             projects: projectsData.length,
             marketplaceListings: listingsData.length,
             buyerRequests: requestsData.length,
             blogPosts: blogPostsData.length,
+            tierUsageRecords: tierUsageData.length,
           }
         });
       } catch (error) {
@@ -756,7 +986,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(500).json({ message: "Failed to seed message templates" });
       }
     });
+
+    app.post('/api/seed-membership-benefits', async (req, res) => {
+      try {
+        const benefits = [
+          {
+            tier: 'basic',
+            maxActiveRFQs: 1,
+            canAccessAnalytics: false,
+            canDirectMessage: false,
+            prioritySupport: false,
+            visibilityRanking: 3,
+            monthlyPrice: '0',
+          },
+          {
+            tier: 'standard',
+            maxActiveRFQs: 5,
+            canAccessAnalytics: true,
+            canDirectMessage: true,
+            prioritySupport: false,
+            visibilityRanking: 2,
+            monthlyPrice: '50',
+          },
+          {
+            tier: 'premium',
+            maxActiveRFQs: -1, // unlimited
+            canAccessAnalytics: true,
+            canDirectMessage: true,
+            prioritySupport: true,
+            visibilityRanking: 1,
+            monthlyPrice: '200',
+          },
+        ];
+
+        for (const benefit of benefits) {
+          try {
+            await storage.createMembershipBenefit(benefit as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        res.json({ 
+          message: "Membership benefits seeded successfully",
+          count: benefits.length
+        });
+      } catch (error) {
+        console.error("Error seeding membership benefits:", error);
+        res.status(500).json({ message: "Failed to seed membership benefits" });
+      }
+    });
   }
+
+  // ========================================================================
+  // Membership Benefits Routes
+  // ========================================================================
+  app.get('/api/membership-benefits', async (req, res) => {
+    try {
+      const benefits = await storage.getAllMembershipBenefits();
+      res.json(benefits);
+    } catch (error) {
+      console.error("Error fetching membership benefits:", error);
+      res.status(500).json({ message: "Failed to fetch membership benefits" });
+    }
+  });
+
+  // ========================================================================
+  // Auth Routes
+  // ========================================================================
+  app.post('/api/register', async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, role, membershipTier } = req.body;
+      
+      if (!email || !password || !firstName || !lastName || !role) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: 'User with this email already exists' });
+      }
+
+      // Hash the password with bcrypt (salt rounds = 10)
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Create user with hashed password
+      const user = await storage.upsertUser({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+      });
+
+      // Update role and membership tier
+      await storage.updateUserRole(user.id, role);
+      
+      // Update membership tier if provided
+      if (membershipTier && ['basic', 'standard', 'premium'].includes(membershipTier)) {
+        await db.update(users).set({ membershipTier: membershipTier as any }).where(eq(users.id, user.id));
+      }
+
+      // Create default profile
+      await storage.createUserProfile({
+        userId: user.id,
+        profileType: 'individual',
+        verified: false,
+      });
+
+      // Get updated user with tier
+      const updatedUser = await storage.getUser(user.id);
+
+      res.json({ 
+        success: true, 
+        message: 'Registration successful',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
 
   // ========================================================================
   // Auth Routes
@@ -1357,11 +1707,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
     try {
       const buyerId = req.user.claims?.sub || req.user.id;
+      
+      // Check tier limits before allowing RFQ creation
+      const tierCheck = await storage.checkUserCanCreateRFQ(buyerId);
+      if (!tierCheck.allowed) {
+        return res.status(403).json({ 
+          message: tierCheck.reason || 'You have reached your tier limit for active RFQs',
+          tierLimitReached: true
+        });
+      }
+      
       const validatedData = insertBuyerRequestSchema.parse({
         ...req.body,
         buyerId,
       });
       const request = await storage.createBuyerRequest(validatedData);
+      
+      // Track usage for this month
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      await storage.incrementUserRFQCount(buyerId, currentMonth);
+      
       res.json(request);
     } catch (error: any) {
       if (error instanceof ZodError) {
