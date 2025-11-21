@@ -854,6 +854,8 @@ export type MarketplaceListingWithSeller = MarketplaceListing & {
     lastName: string | null;
     email: string | null;
     verified: boolean;
+    verificationStatus: 'not_requested' | 'pending' | 'approved' | 'rejected' | null;
+    badgeColor: 'bronze' | 'silver' | 'gold' | null;
   } | null;
 };
 

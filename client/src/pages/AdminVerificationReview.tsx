@@ -76,7 +76,7 @@ export default function AdminVerificationReview() {
 
   // Approve mutation
   const approveMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/api/verification/approve/${id}`, 'POST'),
+    mutationFn: (id: string) => apiRequest('POST', `/api/verification/approve/${id}`),
     onSuccess: () => {
       toast({
         title: "Request Approved",
@@ -99,7 +99,7 @@ export default function AdminVerificationReview() {
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      apiRequest(`/api/verification/reject/${id}`, 'POST', { reason }),
+      apiRequest('POST', `/api/verification/reject/${id}`, { reason }),
     onSuccess: () => {
       toast({
         title: "Request Rejected",
