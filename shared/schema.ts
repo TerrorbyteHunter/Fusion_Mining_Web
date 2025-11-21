@@ -761,6 +761,7 @@ export type ProjectWithOwner = Project & {
     firstName: string | null;
     lastName: string | null;
     email: string | null;
+    verified: boolean;
   } | null;
 };
 
@@ -789,6 +790,7 @@ export type MarketplaceListingWithSeller = MarketplaceListing & {
     firstName: string | null;
     lastName: string | null;
     email: string | null;
+    verified: boolean;
   } | null;
 };
 

@@ -12,13 +12,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiRequest } from "@/lib/queryClient";
-import type { Project } from "@shared/schema";
+import type { ProjectWithOwner } from "@shared/schema";
 import { 
   MapPin, 
   FileText, 
   Search, 
   Heart,
-  MessageCircle
+  MessageCircle,
+  CheckCircle2
 } from "lucide-react";
 import { ZambiaMap } from "@/components/ZambiaMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
@@ -44,7 +45,7 @@ export default function Projects() {
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
 
   // Fetch projects
-  const { data: projects, isLoading } = useQuery<Project[]>({
+  const { data: projects, isLoading } = useQuery<ProjectWithOwner[]>({
     queryKey: ["/api/projects"],
   });
 
@@ -307,6 +308,14 @@ export default function Projects() {
                     <CardDescription className="line-clamp-2">
                       {project.description}
                     </CardDescription>
+                    {project.owner && (
+                      <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-owner-${project.id}`}>
+                        <span>{project.owner.firstName} {project.owner.lastName}</span>
+                        {project.owner.verified && (
+                          <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-${project.id}`} />
+                        )}
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-2 text-sm">

@@ -490,14 +490,15 @@ export class DatabaseStorage implements IStorage {
   // Project operations
   // ========================================================================
   async createProject(projectData: InsertProject): Promise<Project> {
+    const dataToInsert: any = { ...projectData };
     // If created active immediately, assign an item id; otherwise will be assigned when activated
-    if (!projectData.itemId && projectData.status === 'active') {
-      projectData.itemId = await generateUniqueItemId(db);
+    if (!dataToInsert.itemId && dataToInsert.status === 'active') {
+      dataToInsert.itemId = await generateUniqueItemId(db);
     }
 
     const [project] = await db
       .insert(projects)
-      .values(projectData)
+      .values(dataToInsert)
       .returning();
     return project;
   }
@@ -512,14 +513,16 @@ export class DatabaseStorage implements IStorage {
           lastName: users.lastName,
           email: users.email,
         },
+        profile: userProfiles,
       })
       .from(projects)
       .leftJoin(users, eq(projects.ownerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .orderBy(desc(projects.createdAt));
 
     return results.map(r => ({
       ...r.project,
-      owner: r.owner,
+      owner: r.owner ? { ...r.owner, verified: r.profile?.verified ?? false } : null,
     }));
   }
 
@@ -533,9 +536,11 @@ export class DatabaseStorage implements IStorage {
           lastName: users.lastName,
           email: users.email,
         },
+        profile: userProfiles,
       })
       .from(projects)
       .leftJoin(users, eq(projects.ownerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(projects.id, id));
 
     if (results.length === 0) {
@@ -544,22 +549,23 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...results[0].project,
-      owner: results[0].owner,
+      owner: results[0].owner ? { ...results[0].owner, verified: results[0].profile?.verified ?? false } : null,
     };
   }
 
   async updateProject(id: string, data: Partial<InsertProject>): Promise<Project> {
+    const updateData: any = { ...data, updatedAt: new Date() };
     // If status is being changed to active and itemId is missing, generate one
     if (data.status === 'active') {
       const [existing] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
       if (existing && !existing.itemId) {
-        data.itemId = await generateUniqueItemId(db);
+        updateData.itemId = await generateUniqueItemId(db);
       }
     }
 
     const [project] = await db
       .update(projects)
-      .set({ ...data, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(projects.id, id))
       .returning();
     return project;
@@ -649,9 +655,11 @@ export class DatabaseStorage implements IStorage {
           lastName: users.lastName,
           email: users.email,
         },
+        profile: userProfiles,
       })
       .from(marketplaceListings)
-      .leftJoin(users, eq(marketplaceListings.sellerId, users.id));
+      .leftJoin(users, eq(marketplaceListings.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId));
 
     if (whereConditions) {
       query = query.where(whereConditions) as any;
@@ -661,7 +669,7 @@ export class DatabaseStorage implements IStorage {
 
     return results.map(r => ({
       ...r.listing,
-      seller: r.seller,
+      seller: r.seller ? { ...r.seller, verified: r.profile?.verified ?? false } : null,
     }));
   }
 
@@ -675,9 +683,11 @@ export class DatabaseStorage implements IStorage {
           lastName: users.lastName,
           email: users.email,
         },
+        profile: userProfiles,
       })
       .from(marketplaceListings)
       .leftJoin(users, eq(marketplaceListings.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(marketplaceListings.id, id));
 
     if (results.length === 0) {
@@ -686,7 +696,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...results[0].listing,
-      seller: results[0].seller,
+      seller: results[0].seller ? { ...results[0].seller, verified: results[0].profile?.verified ?? false } : null,
     };
   }
 
