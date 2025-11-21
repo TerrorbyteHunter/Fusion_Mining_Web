@@ -1,0 +1,50 @@
+On the settings page, we need to populate admin roles with actual roles and capabilities for admins, i want to have 5 types of admins each with different roles, follow my below plan
+
+role-based admin system with multiple admin types, each having specific permissions. Admins should be assigned roles at account creation or via Super Admin controls.
+Admin Types and Suggested Roles:
+1. 	Super Admin
+• 	Purpose: Full control of the platform (founder-level).
+• 	Permissions: Manage all users and admins, configure platform settings (commission, branding, maintenance mode), access all analytics, override verification decisions, CRUD on all content (CMS, listings, projects).
+2. 	Verification Admin
+• 	Purpose: Handle compliance and listing approvals.
+• 	Permissions: Access verification queue, approve or reject marketplace listings, manage KYC/AML documents, flag suspicious accounts.
+3. 	Content Admin
+• 	Purpose: Manage platform content and branding.
+• 	Permissions: CMS management (blog posts, videos, news), edit platform tagline, banners, onboarding messages, upload document templates (contracts, NDAs).
+4. 	Support Admin
+• 	Purpose: Handle user communication and issue resolution.
+• 	Permissions: Access messaging system, respond to support tickets, reset user passwords, force logout suspicious accounts.
+5. 	Analytics Admin
+• 	Purpose: Monitor platform performance.
+• 	Permissions: Access analytics dashboard, export reports, track listing performance, monitor fraud detection logs.
+Requirements:
+1. 	Admin Roles
+• 	Define roles: super_admin, verification_admin, content_admin, support_admin, analytics_admin.
+• 	Store role in admin_roles table or users.role column.
+2. 	Permissions
+• 	Map each role to permissions:
+can_manage_users
+can_manage_listings
+can_manage_verification
+can_manage_cms
+can_manage_messages
+can_view_analytics
+can_manage_settings
+• 	Super Admin = all permissions.
+• 	Other roles = scoped permissions.
+3. 	Admin Panel
+• 	Add UI for Super Admin to:
+Assign or change roles
+View permissions per admin
+Audit admin actions
+4. 	Backend
+• 	Middleware checks role before allowing access to routes.
+• 	Example: /api/admin/verification-queue requires can_manage_verification.
+• 	Store audit logs for all admin actions.
+Tech Notes:
+• 	Use Role-Based Access Control (RBAC) middleware in Express.
+• 	Store roles and permissions in Postgres (admin_roles table).
+• 	Expose API endpoints:
+GET /api/admin/users/:id/permissions
+PATCH /api/admin/users/:id/permissions
+• 	Frontend: Show or hide admin panel tabs based on role.
