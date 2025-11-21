@@ -53,6 +53,8 @@ export default function Admin() {
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
+  const [selectedTier, setSelectedTier] = useState<string>("");
+  const [editingTier, setEditingTier] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<string>("all");
@@ -357,6 +359,23 @@ export default function Admin() {
     },
   });
 
+  // Update user tier mutation
+  const updateUserTierMutation = useMutation({
+    mutationFn: async ({ userId, tier }: { userId: string; tier: string }) => {
+      return await apiRequest("POST", `/api/admin/users/${userId}/tier`, { tier });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Tier updated", description: "User membership tier has been updated successfully." });
+      setEditingUser(null);
+      setSelectedTier("");
+      setEditingTier(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update membership tier", variant: "destructive" });
+    },
+  });
+
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserForm) => {
@@ -616,6 +635,7 @@ export default function Admin() {
                   <UserManagementSection
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -633,6 +653,7 @@ export default function Admin() {
                   <UserManagementSection
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -650,6 +671,7 @@ export default function Admin() {
                   <UserManagementSection
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -1068,6 +1090,84 @@ export default function Admin() {
             </DialogContent>
           </Dialog>
 
+          {/* Edit User Tier Dialog */}
+          <Dialog open={editingTier} onOpenChange={(open) => {
+            if (!open) {
+              setEditingTier(false);
+              setEditingUser(null);
+              setSelectedTier("");
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Update Membership Tier
+                </DialogTitle>
+                <DialogDescription>
+                  Change the membership tier for {editingUser?.firstName} {editingUser?.lastName} ({editingUser?.email})
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="tier-select">Select New Membership Tier</Label>
+                  <Select value={selectedTier} onValueChange={setSelectedTier}>
+                    <SelectTrigger id="tier-select" data-testid="select-tier">
+                      <SelectValue placeholder="Select tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic" data-testid="option-basic">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="capitalize">Basic</Badge>
+                          <span className="text-xs text-muted-foreground">- Free tier</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="standard" data-testid="option-standard">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="capitalize">Standard</Badge>
+                          <span className="text-xs text-muted-foreground">- More features</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="premium" data-testid="option-premium">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="default" className="capitalize">Premium</Badge>
+                          <span className="text-xs text-muted-foreground">- All features</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Current tier: <Badge variant="outline" className="capitalize">{editingUser?.membershipTier || 'basic'}</Badge>
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingTier(false);
+                    setEditingUser(null);
+                    setSelectedTier("");
+                  }}
+                  data-testid="button-cancel-tier"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (editingUser && selectedTier) {
+                      updateUserTierMutation.mutate({ userId: editingUser.id, tier: selectedTier });
+                    }
+                  }}
+                  disabled={!selectedTier || updateUserTierMutation.isPending}
+                  data-testid="button-confirm-tier"
+                >
+                  {updateUserTierMutation.isPending ? "Updating..." : "Update Tier"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Edit Listing Dialog */}
           <Dialog open={!!editingListing} onOpenChange={(open) => !open && setEditingListing(null)}>
             <DialogContent className="max-w-3xl">
@@ -1482,11 +1582,13 @@ export default function Admin() {
 function UserManagementSection({ 
   users, 
   onEdit, 
+  onEditTier,
   onDelete, 
   loading 
 }: { 
   users: User[]; 
-  onEdit: (u: User) => void; 
+  onEdit: (u: User) => void;
+  onEditTier: (u: User) => void; 
   onDelete: (u: User) => void;
   loading?: boolean;
 }) {
@@ -1515,6 +1617,7 @@ function UserManagementSection({
             <TableHead>Email</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Membership Tier</TableHead>
             <TableHead>Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -1522,7 +1625,7 @@ function UserManagementSection({
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                 No users found
               </TableCell>
             </TableRow>
@@ -1536,11 +1639,28 @@ function UserManagementSection({
                     {u.role}
                   </Badge>
                 </TableCell>
+                <TableCell>
+                  <Badge 
+                    variant={
+                      u.membershipTier === 'premium' ? 'default' : 
+                      u.membershipTier === 'standard' ? 'secondary' : 
+                      'outline'
+                    } 
+                    className="capitalize"
+                  >
+                    {u.membershipTier || 'basic'}
+                  </Badge>
+                </TableCell>
               <TableCell>{u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-'}</TableCell>
               <TableCell className="text-right">
-                <div className="flex gap-2 justify-end">
+                <div className="flex gap-2 justify-end flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => onEdit(u)} data-testid={`button-edit-user-${u.id}`}>
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-4 w-4 mr-1" />
+                      Role
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
+                      <Award className="h-4 w-4 mr-1" />
+                      Tier
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}>
                       <Trash className="h-4 w-4" />
