@@ -39,10 +39,12 @@ import {
   type InsertUserProfile,
   type UpdateUserProfile,
   type Project,
+  type ProjectWithOwner,
   type InsertProject,
   type ExpressInterest,
   type InsertExpressInterest,
   type MarketplaceListing,
+  type MarketplaceListingWithSeller,
   type InsertMarketplaceListing,
   type BuyerRequest,
   type InsertBuyerRequest,
@@ -155,8 +157,8 @@ export interface IStorage {
 
   // Project operations
   createProject(project: InsertProject): Promise<Project>;
-  getProjects(): Promise<Project[]>;
-  getProjectById(id: string): Promise<Project | undefined>;
+  getProjects(): Promise<ProjectWithOwner[]>;
+  getProjectById(id: string): Promise<ProjectWithOwner | undefined>;
   updateProject(id: string, data: Partial<InsertProject>): Promise<Project>;
   deleteProject(id: string): Promise<void>;
   closeProject(id: string): Promise<Project>;
@@ -165,8 +167,8 @@ export interface IStorage {
 
   // Marketplace Listing operations
   createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
-  getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListing[]>;
-  getMarketplaceListingById(id: string): Promise<MarketplaceListing | undefined>;
+  getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListingWithSeller[]>;
+  getMarketplaceListingById(id: string): Promise<MarketplaceListingWithSeller | undefined>;
   updateListingStatus(id: string, status: string): Promise<MarketplaceListing>;
   updateMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing>;
   deleteMarketplaceListing(id: string): Promise<void>;
@@ -500,19 +502,50 @@ export class DatabaseStorage implements IStorage {
     return project;
   }
 
-  async getProjects(): Promise<Project[]> {
-    return await db
-      .select()
+  async getProjects(): Promise<ProjectWithOwner[]> {
+    const results = await db
+      .select({
+        project: projects,
+        owner: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
       .from(projects)
+      .leftJoin(users, eq(projects.ownerId, users.id))
       .orderBy(desc(projects.createdAt));
+
+    return results.map(r => ({
+      ...r.project,
+      owner: r.owner,
+    }));
   }
 
-  async getProjectById(id: string): Promise<Project | undefined> {
-    const [project] = await db
-      .select()
+  async getProjectById(id: string): Promise<ProjectWithOwner | undefined> {
+    const results = await db
+      .select({
+        project: projects,
+        owner: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
       .from(projects)
+      .leftJoin(users, eq(projects.ownerId, users.id))
       .where(eq(projects.id, id));
-    return project;
+
+    if (results.length === 0) {
+      return undefined;
+    }
+
+    return {
+      ...results[0].project,
+      owner: results[0].owner,
+    };
   }
 
   async updateProject(id: string, data: Partial<InsertProject>): Promise<Project> {
@@ -593,31 +626,68 @@ export class DatabaseStorage implements IStorage {
     return listing;
   }
 
-  async getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListing[]> {
-    let query = db.select().from(marketplaceListings);
-
+  async getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListingWithSeller[]> {
+    // Build where conditions only if filters are provided
+    let whereConditions;
     if (filters?.type && filters?.status) {
-      query = query.where(
-        and(
-          eq(marketplaceListings.type, filters.type as any),
-          eq(marketplaceListings.status, filters.status as any)
-        )
-      ) as any;
+      whereConditions = and(
+        eq(marketplaceListings.type, filters.type as any),
+        eq(marketplaceListings.status, filters.status as any)
+      );
     } else if (filters?.type) {
-      query = query.where(eq(marketplaceListings.type, filters.type as any)) as any;
+      whereConditions = eq(marketplaceListings.type, filters.type as any);
     } else if (filters?.status) {
-      query = query.where(eq(marketplaceListings.status, filters.status as any)) as any;
+      whereConditions = eq(marketplaceListings.status, filters.status as any);
     }
 
-    return await query.orderBy(desc(marketplaceListings.createdAt));
+    let query = db
+      .select({
+        listing: marketplaceListings,
+        seller: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
+      .from(marketplaceListings)
+      .leftJoin(users, eq(marketplaceListings.sellerId, users.id));
+
+    if (whereConditions) {
+      query = query.where(whereConditions) as any;
+    }
+
+    const results = await query.orderBy(desc(marketplaceListings.createdAt));
+
+    return results.map(r => ({
+      ...r.listing,
+      seller: r.seller,
+    }));
   }
 
-  async getMarketplaceListingById(id: string): Promise<MarketplaceListing | undefined> {
-    const [listing] = await db
-      .select()
+  async getMarketplaceListingById(id: string): Promise<MarketplaceListingWithSeller | undefined> {
+    const results = await db
+      .select({
+        listing: marketplaceListings,
+        seller: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
       .from(marketplaceListings)
+      .leftJoin(users, eq(marketplaceListings.sellerId, users.id))
       .where(eq(marketplaceListings.id, id));
-    return listing;
+
+    if (results.length === 0) {
+      return undefined;
+    }
+
+    return {
+      ...results[0].listing,
+      seller: results[0].seller,
+    };
   }
 
   async updateListingStatus(id: string, status: string): Promise<MarketplaceListing> {

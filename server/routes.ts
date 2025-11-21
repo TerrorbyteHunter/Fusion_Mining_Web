@@ -1520,10 +1520,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', isAuthenticated, async (req, res) => {
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // Defensive check: ensure we have a valid user ID
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
       const validatedData = insertProjectSchema.parse(req.body);
-      const project = await storage.createProject(validatedData);
+      // Always set ownerId from authenticated user to prevent spoofing
+      const projectData = {
+        ...validatedData,
+        ownerId: userId,
+      };
+      const project = await storage.createProject(projectData);
       res.json(project);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -1535,10 +1545,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/projects/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/projects/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const validatedData = insertProjectSchema.partial().parse(req.body);
-      const project = await storage.updateProject(req.params.id, validatedData);
+      // Prevent changing ownerId via update - only admins should update projects anyway
+      const { ownerId, ...updateData } = validatedData;
+      const project = await storage.updateProject(req.params.id, updateData);
       res.json(project);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -1589,55 +1601,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const interest = await storage.expressProjectInterest(validatedData);
 
       const buyer = await storage.getUserById(userId);
-      const adminUser = await storage.getAdminUser();
       
       if (projectId) {
         const project = await storage.getProjectById(projectId);
         
-        if (adminUser && project && buyer) {
-          const thread = await storage.createMessageThread({
-            title: `Inquiry about: ${project.name}`,
-            type: 'project_interest',
-            projectId,
-            buyerId: userId,
-            sellerId: adminUser.id,
-            adminId: adminUser.id,
-            createdBy: userId,
-            context: 'project_interest',
-            status: 'open',
-          });
-
-          await storage.createNotification({
-            userId: adminUser.id,
-            type: 'interest_received',
-            title: 'New Interest in Project',
-            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
-            link: `/admin/projects/${projectId}`,
-          });
-
-          const buyerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_buyer');
-          const adminTemplate = await storage.getMessageTemplateByType('buyer_interest_to_admin');
-
-          if (buyerTemplate && adminUser) {
-            await storage.createMessage({
-              threadId: thread.id,
-              senderId: adminUser.id,
-              receiverId: userId,
-              subject: buyerTemplate.subject.replace('{project_name}', project.name),
-              content: buyerTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', buyer.firstName || 'there'),
+        if (project && buyer && project.ownerId) {
+          const projectOwner = await storage.getUserById(project.ownerId);
+          
+          if (projectOwner) {
+            // Create direct thread between buyer and project owner
+            const thread = await storage.createMessageThread({
+              title: `Inquiry about: ${project.name}`,
+              type: 'project_interest',
+              projectId,
+              buyerId: userId,
+              sellerId: project.ownerId,
+              adminId: null,
+              createdBy: userId,
               context: 'project_interest',
-              relatedProjectId: projectId,
-              isAutoRelay: true,
+              status: 'open',
             });
-          }
 
-          if (adminTemplate) {
+            // Notify project owner of interest
+            await storage.createNotification({
+              userId: project.ownerId,
+              type: 'interest_received',
+              title: 'New Interest in Your Project',
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+              link: `/dashboard/messages`,
+            });
+
+            // Send welcome message from owner to buyer
+            const ownerName = `${projectOwner.firstName || ''} ${projectOwner.lastName || ''}`.trim() || 'Project Owner';
+            const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+            
             await storage.createMessage({
               threadId: thread.id,
-              senderId: userId,
-              receiverId: adminUser.id,
-              subject: adminTemplate.subject.replace('{project_name}', project.name),
-              content: adminTemplate.content.replace('{project_name}', project.name).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
+              senderId: project.ownerId,
+              receiverId: userId,
+              subject: `Re: Inquiry about ${project.name}`,
+              content: `Hello ${buyerName},\n\nThank you for your interest in ${project.name}. I'm ${ownerName}, the project owner. I'd be happy to discuss this opportunity with you.\n\nPlease feel free to ask any questions you may have.\n\nBest regards,\n${ownerName}`,
               context: 'project_interest',
               relatedProjectId: projectId,
               isAutoRelay: true,
@@ -1648,93 +1651,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const listing = await storage.getMarketplaceListingById(listingId);
         const seller = listing ? await storage.getUserById(listing.sellerId) : null;
         
-        if (adminUser && listing && buyer) {
+        if (listing && buyer && seller) {
+          // Create direct thread between buyer and seller
           const thread = await storage.createMessageThread({
             title: `Inquiry about: ${listing.title}`,
             type: 'marketplace_inquiry',
             listingId,
             buyerId: userId,
             sellerId: listing.sellerId,
-            adminId: adminUser.id,
+            adminId: null,
             createdBy: userId,
             context: 'marketplace',
             status: 'open',
           });
 
+          // Notify seller of interest
           await storage.createNotification({
-            userId: adminUser.id,
+            userId: seller.id,
             type: 'interest_received',
-            title: 'New Interest in Listing',
+            title: 'New Interest in Your Listing',
             message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
-            link: `/admin/marketplace/${listingId}`,
+            link: `/dashboard/messages`,
           });
 
-          if (seller) {
-            await storage.createNotification({
-              userId: seller.id,
-              type: 'interest_received',
-              title: 'New Interest in Your Listing',
-              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
-              link: `/marketplace/${listingId}`,
-            });
-          }
-
-          const buyerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_buyer');
-          const adminTemplate = await storage.getMessageTemplateByType('buyer_interest_to_admin');
-
-          if (buyerTemplate && adminUser) {
-            await storage.createMessage({
-              threadId: thread.id,
-              senderId: adminUser.id,
-              receiverId: userId,
-              subject: buyerTemplate.subject.replace('{project_name}', listing.title),
-              content: buyerTemplate.content.replace('{project_name}', listing.title).replace('{buyer_name}', buyer.firstName || 'there'),
-              context: 'marketplace',
-              relatedListingId: listingId,
-              isAutoRelay: true,
-            });
-          }
-
-          if (adminTemplate) {
-            await storage.createMessage({
-              threadId: thread.id,
-              senderId: userId,
-              receiverId: adminUser.id,
-              subject: adminTemplate.subject.replace('{project_name}', listing.title),
-              content: adminTemplate.content.replace('{project_name}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
-              context: 'marketplace',
-              relatedListingId: listingId,
-              isAutoRelay: true,
-            });
-          }
-
-          // Send automatic message to seller
-          const sellerTemplate = await storage.getMessageTemplateByType('buyer_interest_to_seller');
-          if (sellerTemplate && seller) {
-            // Create a separate thread for admin-seller communication
-            const adminSellerThread = await storage.createMessageThread({
-              title: `Interest in your listing: ${listing.title}`,
-              type: 'admin_to_seller',
-              listingId,
-              buyerId: null,
-              sellerId: seller.id,
-              adminId: adminUser.id,
-              createdBy: adminUser.id,
-              context: 'marketplace',
-              status: 'open',
-            });
-
-            await storage.createMessage({
-              threadId: adminSellerThread.id,
-              senderId: adminUser.id,
-              receiverId: seller.id,
-              subject: sellerTemplate.subject.replace('{listing_title}', listing.title),
-              content: sellerTemplate.content.replace('{listing_title}', listing.title).replace('{buyer_name}', `${buyer.firstName} ${buyer.lastName}`),
-              context: 'marketplace',
-              relatedListingId: listingId,
-              isAutoRelay: true,
-            });
-          }
+          // Send welcome message from seller to buyer
+          const sellerName = `${seller.firstName || ''} ${seller.lastName || ''}`.trim() || 'Seller';
+          const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+          
+          await storage.createMessage({
+            threadId: thread.id,
+            senderId: listing.sellerId,
+            receiverId: userId,
+            subject: `Re: Inquiry about ${listing.title}`,
+            content: `Hello ${buyerName},\n\nThank you for your interest in ${listing.title}. I'm ${sellerName}, the seller. I'd be happy to provide more information and answer any questions you might have.\n\nFeel free to reach out with your questions.\n\nBest regards,\n${sellerName}`,
+            context: 'marketplace',
+            relatedListingId: listingId,
+            isAutoRelay: true,
+          });
         }
       }
 
