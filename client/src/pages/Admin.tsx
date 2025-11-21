@@ -40,7 +40,7 @@ import type { MarketplaceListing, User, Message, ActivityLog, Project, BuyerRequ
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
-  TrendingUp, MapPin
+  TrendingUp, MapPin, Award
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
