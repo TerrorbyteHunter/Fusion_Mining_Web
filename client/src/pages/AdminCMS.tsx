@@ -9,27 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { StatusBadge } from "@/components/StatusBadge";
-import { ImageSelector } from "@/components/ImageSelector";
-import { ImageDisplay } from "@/components/ImageDisplay";
-import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -40,24 +21,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { BlogPost, Video } from "@shared/schema";
-import { MessageDialog } from "@/components/MessageDialog";
-import { MessageDetailDialog } from "@/components/MessageDetailDialog";
 import { 
   Newspaper, 
-  Mail, 
-  Activity, 
   MapPin,
   Edit,
   Trash,
   Plus,
-  Eye,
   CheckCircle,
   Clock,
   Video as VideoIcon,
-  Power,
-  Store,
   Settings,
-  Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -96,8 +69,6 @@ export default function AdminCMS() {
     imageUrl: "",
     order: 0,
   });
-  void Eye;
-  void Clock;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -1184,7 +1155,7 @@ export default function AdminCMS() {
                   </div>
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground mb-3">Contact form submissions are automatically logged and can be reviewed in the system.</p>
-                    <Button variant="outline" onClick={() => navigate('/admin/contact-submissions')} data-testid="button-view-submissions">
+                    <Button variant="outline" onClick={() => setLocation('/admin/contact-submissions')} data-testid="button-view-submissions">
                       View Contact Submissions
                     </Button>
                   </div>
