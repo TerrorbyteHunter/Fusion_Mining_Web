@@ -16,12 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface AdminSidebarProps {
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
-}
-
-export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
+export function AdminSidebar() {
   const [location] = useLocation();
   const { user } = useAuth();
 
@@ -34,37 +29,37 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     {
       label: "Dashboard",
       icon: LayoutDashboard,
-      tab: "overview",
+      href: "/admin?tab=overview",
       testId: "admin-sidebar-dashboard"
     },
     {
       label: "Users",
       icon: Users,
-      tab: "users",
+      href: "/admin?tab=users",
       testId: "admin-sidebar-users"
     },
     {
       label: "Listings",
       icon: Package,
-      tab: "listings",
+      href: "/admin?tab=listings",
       testId: "admin-sidebar-listings"
     },
     {
       label: "Messages",
       icon: MessageSquare,
-      tab: "messages",
+      href: "/admin?tab=messages",
       testId: "admin-sidebar-messages"
     },
     {
       label: "Verification Queue",
       icon: ShieldCheck,
-      tab: "verification",
+      href: "/admin?tab=verification",
       testId: "admin-sidebar-verification"
     },
     {
       label: "Analytics",
       icon: BarChart3,
-      tab: "analytics",
+      href: "/admin?tab=analytics",
       testId: "admin-sidebar-analytics"
     },
     {
@@ -76,7 +71,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     {
       label: "Activity Logs",
       icon: Activity,
-      tab: "activity",
+      href: "/admin?tab=activity",
       testId: "admin-sidebar-activity"
     },
     {
@@ -86,15 +81,6 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
       testId: "admin-sidebar-settings"
     },
   ];
-
-  const handleClick = (item: typeof menuItems[0]) => {
-    if (item.href) {
-      return; // Let Link handle it
-    }
-    if (item.tab && onTabChange) {
-      onTabChange(item.tab);
-    }
-  };
 
   return (
     <aside className="w-64 bg-card border-r min-h-screen sticky top-0 h-screen flex flex-col">
@@ -123,40 +109,22 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.tab || (item.href && location === item.href);
-            
-            if (item.href) {
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start gap-3",
-                      isActive && "bg-primary/10 text-primary font-semibold"
-                    )}
-                    data-testid={item.testId}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Button>
-                </Link>
-              );
-            }
+            const isActive = location === item.href || location.startsWith(item.href);
             
             return (
-              <Button
-                key={item.tab}
-                variant={isActive ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3",
-                  isActive && "bg-primary/10 text-primary font-semibold"
-                )}
-                onClick={() => handleClick(item)}
-                data-testid={item.testId}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Button>
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start gap-3",
+                    isActive && "bg-primary/10 text-primary font-semibold"
+                  )}
+                  data-testid={item.testId}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Button>
+              </Link>
             );
           })}
         </div>
