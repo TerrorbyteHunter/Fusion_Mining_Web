@@ -621,6 +621,14 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
+                        {listing.seller && (
+                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-equipment-${listing.id}`}>
+                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
+                            {listing.seller.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-equipment-${listing.id}`} />
+                            )}
+                          </div>
+                        )}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -714,6 +722,14 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
+                        {listing.seller && (
+                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-service-${listing.id}`}>
+                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
+                            {listing.seller.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-service-${listing.id}`} />
+                            )}
+                          </div>
+                        )}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -795,6 +811,14 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-3">
                           {listing.description}
                         </CardDescription>
+                        {listing.seller && (
+                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-partnership-${listing.id}`}>
+                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
+                            {listing.seller.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-partnership-${listing.id}`} />
+                            )}
+                          </div>
+                        )}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
