@@ -18,9 +18,7 @@ import Projects from "@/pages/Projects";
 import Marketplace from "@/pages/Marketplace";
 import News from "@/pages/News";
 import Contact from "@/pages/Contact";
-import Admin from "@/pages/Admin";
-import AdminCMS from "@/pages/AdminCMS";
-import AdminSettings from "@/pages/AdminSettings";
+import AdminLayout from "@/pages/AdminLayout";
 import ProfileView from "@/pages/ProfileView";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 // Dashboard pages are routed through DashboardLayout to keep sidebar visible
@@ -75,9 +73,9 @@ function Router() {
               <Route path="/dashboard/requests" component={DashboardLayout} />
               <Route path="/dashboard/profile" component={DashboardLayout} />
 
-            <Route path="/admin" component={Admin} />
-            <Route path="/admin/cms" component={AdminCMS} />
-            <Route path="/admin/settings" component={AdminSettings} />
+            <Route path="/admin" component={AdminLayout} />
+            <Route path="/admin/cms" component={AdminLayout} />
+            <Route path="/admin/settings" component={AdminLayout} />
 
             {/* Category Browsing Routes */}
             <Route path="/categories/:mainCategory/:subcategory?" component={CategoryBrowse} />
