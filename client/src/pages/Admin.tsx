@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import type { MarketplaceListing, User, Message, ActivityLog, Project, BuyerRequest } from "@shared/schema";
 import { 
@@ -48,6 +49,7 @@ export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [userSearch, setUserSearch] = useState("");
@@ -580,7 +582,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">User Management</h2>
-                  <p className="text-muted-foreground">Manage all platform users</p>
+                  <p className="text-muted-foreground">Manage all platform users by role</p>
                 </div>
                 <Button onClick={() => setCreateUserOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -601,21 +603,65 @@ export default function Admin() {
                 </div>
               </div>
 
-              {/* Users Table */}
-              <UserManagementSection
-                users={filteredUsers}
-                onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                onDelete={(u) => {
-                  if (u.id === user?.id) {
-                    toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
-                    return;
-                  }
-                  if (confirm(`Are you sure you want to delete user ${u.email}?`)) {
-                    deleteUserMutation.mutate(u.id);
-                  }
-                }}
-                loading={loadingUsers}
-              />
+              {/* Role-based Tabs */}
+              <Tabs value={userRoleTab} onValueChange={(v) => setUserRoleTab(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="buyer" data-testid="tab-buyers">Buyers</TabsTrigger>
+                  <TabsTrigger value="seller" data-testid="tab-sellers">Sellers</TabsTrigger>
+                  <TabsTrigger value="admin" data-testid="tab-admins">Admins</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="buyer">
+                  <UserManagementSection
+                    users={filteredUsers.filter(u => u.role === 'buyer')}
+                    onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onDelete={(u) => {
+                      if (u.id === user?.id) {
+                        toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
+                        return;
+                      }
+                      if (confirm(`Are you sure you want to delete user ${u.email}?`)) {
+                        deleteUserMutation.mutate(u.id);
+                      }
+                    }}
+                    loading={loadingUsers}
+                  />
+                </TabsContent>
+
+                <TabsContent value="seller">
+                  <UserManagementSection
+                    users={filteredUsers.filter(u => u.role === 'seller')}
+                    onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onDelete={(u) => {
+                      if (u.id === user?.id) {
+                        toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
+                        return;
+                      }
+                      if (confirm(`Are you sure you want to delete user ${u.email}?`)) {
+                        deleteUserMutation.mutate(u.id);
+                      }
+                    }}
+                    loading={loadingUsers}
+                  />
+                </TabsContent>
+
+                <TabsContent value="admin">
+                  <UserManagementSection
+                    users={filteredUsers.filter(u => u.role === 'admin')}
+                    onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
+                    onDelete={(u) => {
+                      if (u.id === user?.id) {
+                        toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
+                        return;
+                      }
+                      if (confirm(`Are you sure you want to delete user ${u.email}?`)) {
+                        deleteUserMutation.mutate(u.id);
+                      }
+                    }}
+                    loading={loadingUsers}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
