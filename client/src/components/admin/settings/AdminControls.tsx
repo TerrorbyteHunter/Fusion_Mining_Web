@@ -3,16 +3,17 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award } from "lucide-react";
+import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award, ShoppingBag, Building2 } from "lucide-react";
 import type { User, AdminPermissions } from "@shared/schema";
 
-type ActionType = 'logout' | 'delete' | 'role' | 'tier';
+type ActionType = 'logout' | 'delete' | 'role' | 'tier' | 'admin-role';
 
 export function AdminControls() {
   const { toast } = useToast();
@@ -21,7 +22,26 @@ export function AdminControls() {
   const [actionType, setActionType] = useState<ActionType>('logout');
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [selectedTier, setSelectedTier] = useState<string>('');
+  const [selectedAdminRole, setSelectedAdminRole] = useState<string>('');
+  const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
 
+  // Fetch users filtered by role
+  const { data: buyers } = useQuery<User[]>({
+    queryKey: ["/api/admin/users/by-role", "buyer"],
+    queryFn: () => fetch(`/api/admin/users/by-role/buyer`).then(res => res.json()),
+  });
+
+  const { data: sellers } = useQuery<User[]>({
+    queryKey: ["/api/admin/users/by-role", "seller"],
+    queryFn: () => fetch(`/api/admin/users/by-role/seller`).then(res => res.json()),
+  });
+
+  const { data: admins } = useQuery<(User & { adminRole?: string; permissions?: AdminPermissions })[]>({
+    queryKey: ["/api/admin/users/by-role", "admin"],
+    queryFn: () => fetch(`/api/admin/users/by-role/admin`).then(res => res.json()),
+  });
+
+  // Still fetch all users for compatibility
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
