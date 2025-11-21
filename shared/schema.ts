@@ -102,6 +102,7 @@ export const projects = pgTable("projects", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   // short human-friendly item id shown when project is published/active
   itemId: varchar("item_id", { length: 5 }),
+  ownerId: varchar("owner_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description").notNull(),
   licenseType: licenseTypeEnum("license_type").notNull(),
@@ -744,11 +745,24 @@ export type UserProfile = typeof userProfiles.$inferSelect;
 // Project schemas
 export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
+  itemId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  ownerId: z.string().optional(), // Optional since it will be set from authenticated user
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
+
+// Project with owner information (for display)
+export type ProjectWithOwner = Project & {
+  owner: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  } | null;
+};
 
 // Express Interest schemas
 export const insertExpressInterestSchema = createInsertSchema(expressInterest).omit({
@@ -767,6 +781,16 @@ export const insertMarketplaceListingSchema = createInsertSchema(marketplaceList
 });
 export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
 export type MarketplaceListing = typeof marketplaceListings.$inferSelect;
+
+// Marketplace Listing with seller information (for display)
+export type MarketplaceListingWithSeller = MarketplaceListing & {
+  seller: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+  } | null;
+};
 
 // Buyer Request schemas
 export const insertBuyerRequestSchema = createInsertSchema(buyerRequests).omit({

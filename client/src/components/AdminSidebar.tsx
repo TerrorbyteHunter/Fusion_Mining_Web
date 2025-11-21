@@ -16,7 +16,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
+}
+
+export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
 
@@ -29,37 +34,37 @@ export function AdminSidebar() {
     {
       label: "Dashboard",
       icon: LayoutDashboard,
-      href: "/admin?tab=overview",
+      tab: "overview",
       testId: "admin-sidebar-dashboard"
     },
     {
       label: "Users",
       icon: Users,
-      href: "/admin?tab=users",
+      tab: "users",
       testId: "admin-sidebar-users"
     },
     {
       label: "Listings",
       icon: Package,
-      href: "/admin?tab=listings",
+      tab: "listings",
       testId: "admin-sidebar-listings"
     },
     {
       label: "Messages",
       icon: MessageSquare,
-      href: "/admin?tab=messages",
+      tab: "messages",
       testId: "admin-sidebar-messages"
     },
     {
       label: "Verification Queue",
       icon: ShieldCheck,
-      href: "/admin?tab=verification",
+      tab: "verification",
       testId: "admin-sidebar-verification"
     },
     {
       label: "Analytics",
       icon: BarChart3,
-      href: "/admin?tab=analytics",
+      tab: "analytics",
       testId: "admin-sidebar-analytics"
     },
     {
@@ -71,7 +76,7 @@ export function AdminSidebar() {
     {
       label: "Activity Logs",
       icon: Activity,
-      href: "/admin?tab=activity",
+      tab: "activity",
       testId: "admin-sidebar-activity"
     },
     {
@@ -81,6 +86,15 @@ export function AdminSidebar() {
       testId: "admin-sidebar-settings"
     },
   ];
+
+  const handleClick = (item: typeof menuItems[0]) => {
+    if (item.href) {
+      return; // Let Link handle it
+    }
+    if (item.tab && onTabChange) {
+      onTabChange(item.tab);
+    }
+  };
 
   return (
     <aside className="w-64 bg-card border-r min-h-screen sticky top-0 h-screen flex flex-col">
@@ -109,22 +123,40 @@ export function AdminSidebar() {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location === item.href || location.startsWith(item.href);
+            const isActive = activeTab === item.tab || (item.href && location === item.href);
+            
+            if (item.href) {
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start gap-3",
+                      isActive && "bg-primary/10 text-primary font-semibold"
+                    )}
+                    data-testid={item.testId}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            }
             
             return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start gap-3",
-                    isActive && "bg-primary/10 text-primary font-semibold"
-                  )}
-                  data-testid={item.testId}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </Button>
-              </Link>
+              <Button
+                key={item.tab}
+                variant={isActive ? "secondary" : "ghost"}
+                className={cn(
+                  "w-full justify-start gap-3",
+                  isActive && "bg-primary/10 text-primary font-semibold"
+                )}
+                onClick={() => handleClick(item)}
+                data-testid={item.testId}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Button>
             );
           })}
         </div>

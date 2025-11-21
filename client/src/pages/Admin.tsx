@@ -2,7 +2,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { useSearch, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import type { MarketplaceListing, User, Message, ActivityLog, Project, BuyerRequest } from "@shared/schema";
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
@@ -48,10 +48,7 @@ import { format } from "date-fns";
 export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
-  const [, navigate] = useLocation();
-  const search = useSearch();
-  const queryParams = new URLSearchParams(search);
-  const activeTab = queryParams.get("tab") || "overview";
+  const [activeTab, setActiveTab] = useState("overview");
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -456,7 +453,9 @@ export default function Admin() {
   }) || [];
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex min-h-screen">
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="flex-1 flex flex-col">
       {/* Header */}
         <section className="py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
           <div className="container mx-auto px-6">
@@ -542,15 +541,15 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button onClick={() => navigate("/admin?tab=verification")} className="w-full justify-start">
+                    <Button onClick={() => setActiveTab("verification")} className="w-full justify-start">
                       <ShieldCheck className="mr-2 h-4 w-4" />
                       Review Pending ({stats.pendingVerifications})
                     </Button>
-                    <Button onClick={() => navigate("/admin?tab=users")} variant="outline" className="w-full justify-start">
+                    <Button onClick={() => setActiveTab("users")} variant="outline" className="w-full justify-start">
                       <Users className="mr-2 h-4 w-4" />
                       Manage Users
                     </Button>
-                    <Button onClick={() => navigate("/admin?tab=listings")} variant="outline" className="w-full justify-start">
+                    <Button onClick={() => setActiveTab("listings")} variant="outline" className="w-full justify-start">
                       <Package className="mr-2 h-4 w-4" />
                       Manage Listings
                     </Button>
@@ -586,7 +585,7 @@ export default function Admin() {
                         </div>
                       ))}
                       {pendingListings.length > 5 && (
-                        <Button onClick={() => navigate("/admin?tab=verification")} variant="outline" className="w-full">
+                        <Button onClick={() => setActiveTab("verification")} variant="outline" className="w-full">
                           View All ({pendingListings.length})
                         </Button>
                       )}
@@ -1574,6 +1573,8 @@ export default function Admin() {
         </Dialog>
 
         {/* Legacy status-only edit dialog removed in favor of full edit dialog below */}
+        </div>
+    </div>
   );
 }
 
