@@ -21,6 +21,7 @@ import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
 import AdminSettings from "@/pages/AdminSettings";
+import AdminVerificationReview from "@/pages/AdminVerificationReview";
 import ProfileView from "@/pages/ProfileView";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 // Dashboard pages are routed through DashboardLayout to keep sidebar visible
@@ -74,10 +75,12 @@ function Router() {
               <Route path="/dashboard/listings" component={DashboardLayout} />
               <Route path="/dashboard/requests" component={DashboardLayout} />
               <Route path="/dashboard/profile" component={DashboardLayout} />
+              <Route path="/dashboard/verification" component={DashboardLayout} />
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
             <Route path="/admin/settings" component={AdminSettings} />
+            <Route path="/admin/seller-verification" component={AdminVerificationReview} />
 
             {/* Category Browsing Routes */}
             <Route path="/categories/:mainCategory/:subcategory?" component={CategoryBrowse} />
