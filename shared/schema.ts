@@ -848,6 +848,15 @@ export type InsertVideo = z.infer<typeof insertVideoSchema>;
 export type UpdateVideo = z.infer<typeof updateVideoSchema>;
 export type Video = typeof videos.$inferSelect;
 
+// Sustainability Content schemas
+export const insertSustainabilityContentSchema = createInsertSchema(sustainabilityContent).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSustainabilityContent = z.infer<typeof insertSustainabilityContentSchema>;
+export type SustainabilityContent = typeof sustainabilityContent.$inferSelect;
+
 // Contact Settings schemas
 export const insertContactSettingsSchema = createInsertSchema(contactSettings).omit({
   id: true,
