@@ -557,7 +557,7 @@ export default function AdminCMS() {
             </h1>
           </div>
           <p className="text-muted-foreground">
-            Manage blog posts, videos, contact submissions, projects, and monitor activity
+            Manage blog posts, videos, news & insights, and sustainability content
           </p>
         </div>
       </section>
@@ -565,7 +565,7 @@ export default function AdminCMS() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs defaultValue="blog" className="w-full">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="blog" data-testid="tab-blog">
                 <Newspaper className="mr-2 h-4 w-4" />
                 Blog Posts
@@ -574,21 +574,13 @@ export default function AdminCMS() {
                 <VideoIcon className="mr-2 h-4 w-4" />
                 Videos
               </TabsTrigger>
-              <TabsTrigger value="contacts" data-testid="tab-contacts">
-                <Mail className="mr-2 h-4 w-4" />
-                Contacts
+              <TabsTrigger value="news-insights" data-testid="tab-news-insights">
+                <Newspaper className="mr-2 h-4 w-4" />
+                News & Insights
               </TabsTrigger>
-              <TabsTrigger value="projects" data-testid="tab-projects">
+              <TabsTrigger value="sustainability" data-testid="tab-sustainability">
                 <MapPin className="mr-2 h-4 w-4" />
-                Projects
-              </TabsTrigger>
-              <TabsTrigger value="marketplace" data-testid="tab-marketplace">
-                <Store className="mr-2 h-4 w-4" />
-                Marketplace
-              </TabsTrigger>
-              <TabsTrigger value="messages" data-testid="tab-messages">
-                <Send className="mr-2 h-4 w-4" />
-                Messages
+                Sustainability
               </TabsTrigger>
               <TabsTrigger value="contact-settings" onClick={() => setLocation('/admin/contact-settings')} data-testid="tab-contact-settings">
                 <Settings className="mr-2 h-4 w-4" />
@@ -993,7 +985,153 @@ export default function AdminCMS() {
               )}
             </TabsContent>
 
-            <TabsContent value="contacts" className="mt-6">
+            <TabsContent value="news-insights" className="mt-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">News & Insights</h2>
+                <Dialog open={isCreatePostOpen} onOpenChange={setIsCreatePostOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-create-news-post">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Article
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Create News Article</DialogTitle>
+                      <DialogDescription>
+                        Create a new news or insights article for the News & Insights section
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="title">Title *</Label>
+                        <Input
+                          id="title"
+                          value={postForm.title}
+                          onChange={(e) => setPostForm({ ...postForm, title: e.target.value })}
+                          data-testid="input-news-title"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="slug">Slug *</Label>
+                        <Input
+                          id="slug"
+                          value={postForm.slug}
+                          onChange={(e) => setPostForm({ ...postForm, slug: e.target.value })}
+                          data-testid="input-news-slug"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="category">Category</Label>
+                        <Input
+                          id="category"
+                          value={postForm.category}
+                          onChange={(e) => setPostForm({ ...postForm, category: e.target.value })}
+                          placeholder="e.g., Market Updates, Industry Trends"
+                          data-testid="input-news-category"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="excerpt">Excerpt</Label>
+                        <Textarea
+                          id="excerpt"
+                          value={postForm.excerpt}
+                          onChange={(e) => setPostForm({ ...postForm, excerpt: e.target.value })}
+                          rows={2}
+                          data-testid="textarea-news-excerpt"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="content">Content *</Label>
+                        <Textarea
+                          id="content"
+                          value={postForm.content}
+                          onChange={(e) => setPostForm({ ...postForm, content: e.target.value })}
+                          rows={8}
+                          data-testid="textarea-news-content"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="imageUrl">Image URL</Label>
+                        <Input
+                          id="imageUrl"
+                          value={postForm.imageUrl}
+                          onChange={(e) => setPostForm({ ...postForm, imageUrl: e.target.value })}
+                          data-testid="input-news-image"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={handleCreatePost}
+                        disabled={createPostMutation.isPending}
+                        data-testid="button-submit-news-post"
+                      >
+                        Create Article
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {loadingPosts ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full mt-2" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : blogPosts && blogPosts.length > 0 ? (
+                <div className="space-y-4">
+                  {blogPosts.map((post) => (
+                    <Card key={post.id} data-testid={`card-news-article-${post.id}`}>
+                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                        <div className="flex-1">
+                          <CardTitle>{post.title}</CardTitle>
+                          <CardDescription>{post.category}</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditPost(post)}
+                            data-testid={`button-edit-news-${post.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this article?")) {
+                                deletePostMutation.mutate(post.id);
+                              }
+                            }}
+                            data-testid={`button-delete-news-${post.id}`}
+                          >
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card className="text-center py-12">
+                  <CardContent>
+                    <Newspaper className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Articles Yet</h3>
+                    <p className="text-muted-foreground">Create your first news or insights article</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sustainability" className="mt-6">
               <h2 className="text-2xl font-bold mb-6">Contact Submissions</h2>
               {loadingContacts ? (
                 <Skeleton className="h-96 w-full" />
@@ -1054,7 +1192,7 @@ export default function AdminCMS() {
               )}
             </TabsContent>
 
-            <TabsContent value="projects" className="mt-6">
+            <TabsContent value="placeholder" className="mt-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Mining Projects</h2>
                 <Button onClick={() => setIsCreateProjectOpen(true)} data-testid="button-create-project">
@@ -1143,7 +1281,7 @@ export default function AdminCMS() {
               )}
             </TabsContent>
 
-            <TabsContent value="marketplace" className="mt-6">
+            <TabsContent value="placeholder2" className="mt-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Marketplace Listings & Verification Queue</h2>
               </div>
@@ -1289,7 +1427,7 @@ export default function AdminCMS() {
               )}
             </TabsContent>
 
-            <TabsContent value="activity" className="mt-6">
+            <TabsContent value="placeholder4" className="mt-6">
               <h2 className="text-2xl font-bold mb-6">Recent Activity</h2>
               {loadingLogs ? (
                 <Skeleton className="h-96 w-full" />
@@ -1328,7 +1466,7 @@ export default function AdminCMS() {
               )}
             </TabsContent>
 
-            <TabsContent value="messages" className="mt-6">
+            <TabsContent value="placeholder3" className="mt-6">
               <Tabs defaultValue="inbox" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 mb-6">
                   <TabsTrigger value="inbox" data-testid="tab-inbox">
