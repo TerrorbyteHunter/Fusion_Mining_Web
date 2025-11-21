@@ -39,6 +39,7 @@ export const userRoleEnum = pgEnum('user_role', ['admin', 'buyer', 'seller']);
 export const adminRoleEnum = pgEnum('admin_role', ['super_admin', 'verification_admin', 'content_admin', 'support_admin', 'analytics_admin']);
 export const profileTypeEnum = pgEnum('profile_type', ['individual', 'company']);
 export const membershipTierEnum = pgEnum('membership_tier', ['basic', 'standard', 'premium']);
+export const verificationStatusEnum = pgEnum('verification_status', ['not_requested', 'pending', 'approved', 'rejected']);
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -49,6 +50,8 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").notNull().default('buyer'),
   membershipTier: membershipTierEnum("membership_tier").notNull().default('basic'),
+  verificationStatus: verificationStatusEnum("verification_status").notNull().default('not_requested'),
+  badgeColor: varchar("badge_color"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -458,7 +461,6 @@ export const loginHistory = pgTable("login_history", {
 ]);
 
 // KYC/AML verification rules
-export const verificationStatusEnum = pgEnum('verification_status', ['pending', 'approved', 'rejected']);
 export const verificationRules = pgTable("verification_rules", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   ruleName: varchar("rule_name", { length: 100 }).notNull().unique(),
@@ -546,6 +548,47 @@ export const tierUsageTracking = pgTable("tier_usage_tracking", {
 ]);
 
 // ============================================================================
+// Seller Verification
+// ============================================================================
+export const sellerVerificationRequestStatusEnum = pgEnum('seller_verification_request_status', ['pending', 'approved', 'rejected']);
+export const sellerVerificationDocumentTypeEnum = pgEnum('seller_verification_document_type', [
+  'certificate_of_incorporation',
+  'company_profile',
+  'shareholder_list',
+  'tax_certificate',
+  'letter_of_authorization',
+  'director_id'
+]);
+
+export const sellerVerificationRequests = pgTable("seller_verification_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: sellerVerificationRequestStatusEnum("status").notNull().default('pending'),
+  rejectionReason: text("rejection_reason"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_verification_seller_id").on(table.sellerId),
+  index("IDX_verification_status").on(table.status),
+]);
+
+export const sellerVerificationDocuments = pgTable("seller_verification_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestId: varchar("request_id").notNull().references(() => sellerVerificationRequests.id, { onDelete: 'cascade' }),
+  documentType: sellerVerificationDocumentTypeEnum("document_type").notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: varchar("mime_type", { length: 100 }),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_verification_doc_request_id").on(table.requestId),
+]);
+
+// ============================================================================
 // Relations
 // ============================================================================
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -566,6 +609,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   activityLogs: many(activityLogs),
   notifications: many(notifications),
   tierUsage: many(tierUsageTracking),
+  verificationRequests: many(sellerVerificationRequests),
 }));
 
 export const adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
@@ -700,6 +744,25 @@ export const tierUsageTrackingRelations = relations(tierUsageTracking, ({ one })
   user: one(users, {
     fields: [tierUsageTracking.userId],
     references: [users.id],
+  }),
+}));
+
+export const sellerVerificationRequestsRelations = relations(sellerVerificationRequests, ({ one, many }) => ({
+  seller: one(users, {
+    fields: [sellerVerificationRequests.sellerId],
+    references: [users.id],
+  }),
+  reviewer: one(users, {
+    fields: [sellerVerificationRequests.reviewedBy],
+    references: [users.id],
+  }),
+  documents: many(sellerVerificationDocuments),
+}));
+
+export const sellerVerificationDocumentsRelations = relations(sellerVerificationDocuments, ({ one }) => ({
+  request: one(sellerVerificationRequests, {
+    fields: [sellerVerificationDocuments.requestId],
+    references: [sellerVerificationRequests.id],
   }),
 }));
 
@@ -1028,3 +1091,28 @@ export const updateTwoFactorAuthSchema = createInsertSchema(twoFactorAuth).omit(
 export type InsertTwoFactorAuth = z.infer<typeof insertTwoFactorAuthSchema>;
 export type UpdateTwoFactorAuth = z.infer<typeof updateTwoFactorAuthSchema>;
 export type TwoFactorAuth = typeof twoFactorAuth.$inferSelect;
+
+// Seller Verification Request schemas
+export const insertSellerVerificationRequestSchema = createInsertSchema(sellerVerificationRequests).omit({
+  id: true,
+  submittedAt: true,
+  reviewedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateSellerVerificationRequestSchema = createInsertSchema(sellerVerificationRequests).omit({
+  submittedAt: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertSellerVerificationRequest = z.infer<typeof insertSellerVerificationRequestSchema>;
+export type UpdateSellerVerificationRequest = z.infer<typeof updateSellerVerificationRequestSchema>;
+export type SellerVerificationRequest = typeof sellerVerificationRequests.$inferSelect;
+
+// Seller Verification Document schemas
+export const insertSellerVerificationDocumentSchema = createInsertSchema(sellerVerificationDocuments).omit({
+  id: true,
+  uploadedAt: true,
+});
+export type InsertSellerVerificationDocument = z.infer<typeof insertSellerVerificationDocumentSchema>;
+export type SellerVerificationDocument = typeof sellerVerificationDocuments.$inferSelect;
