@@ -50,6 +50,7 @@ export default function Admin() {
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
+  const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [userSearch, setUserSearch] = useState("");
@@ -671,7 +672,7 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">Listing Management</h2>
-                  <p className="text-muted-foreground">View, edit, and manage all marketplace listings</p>
+                  <p className="text-muted-foreground">View, edit, and manage all marketplace listings by type</p>
                 </div>
                 <Button onClick={() => setCreateListingOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
@@ -704,19 +705,75 @@ export default function Admin() {
                 </Select>
               </div>
 
-              {/* Listings Table */}
-              <ListingManagementSection
-                listings={filteredListings}
-                onEdit={setEditingListing}
-                onDelete={(id) => {
-                  if (confirm("Are you sure you want to delete this listing?")) {
-                    deleteListingMutation.mutate(id);
-                  }
-                }}
-                onApprove={(id) => approveMutation.mutate(id)}
-                onReject={(id) => rejectMutation.mutate(id)}
-                loading={loadingListings}
-              />
+              {/* Listing Type Tabs */}
+              <Tabs value={listingTypeTab} onValueChange={(v) => setListingTypeTab(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-6">
+                  <TabsTrigger value="all" data-testid="tab-all-listings">All Listings</TabsTrigger>
+                  <TabsTrigger value="mineral" data-testid="tab-mineral-listings">Minerals</TabsTrigger>
+                  <TabsTrigger value="partnership" data-testid="tab-partnership-listings">Partnerships</TabsTrigger>
+                  <TabsTrigger value="project" data-testid="tab-project-listings">Projects</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="all">
+                  <ListingManagementSection
+                    listings={filteredListings}
+                    onEdit={setEditingListing}
+                    onDelete={(id) => {
+                      if (confirm("Are you sure you want to delete this listing?")) {
+                        deleteListingMutation.mutate(id);
+                      }
+                    }}
+                    onApprove={(id) => approveMutation.mutate(id)}
+                    onReject={(id) => rejectMutation.mutate(id)}
+                    loading={loadingListings}
+                  />
+                </TabsContent>
+
+                <TabsContent value="mineral">
+                  <ListingManagementSection
+                    listings={filteredListings.filter(l => l.type === 'mineral')}
+                    onEdit={setEditingListing}
+                    onDelete={(id) => {
+                      if (confirm("Are you sure you want to delete this listing?")) {
+                        deleteListingMutation.mutate(id);
+                      }
+                    }}
+                    onApprove={(id) => approveMutation.mutate(id)}
+                    onReject={(id) => rejectMutation.mutate(id)}
+                    loading={loadingListings}
+                  />
+                </TabsContent>
+
+                <TabsContent value="partnership">
+                  <ListingManagementSection
+                    listings={filteredListings.filter(l => l.type === 'partnership')}
+                    onEdit={setEditingListing}
+                    onDelete={(id) => {
+                      if (confirm("Are you sure you want to delete this listing?")) {
+                        deleteListingMutation.mutate(id);
+                      }
+                    }}
+                    onApprove={(id) => approveMutation.mutate(id)}
+                    onReject={(id) => rejectMutation.mutate(id)}
+                    loading={loadingListings}
+                  />
+                </TabsContent>
+
+                <TabsContent value="project">
+                  <ListingManagementSection
+                    listings={filteredListings.filter(l => l.type === 'project')}
+                    onEdit={setEditingListing}
+                    onDelete={(id) => {
+                      if (confirm("Are you sure you want to delete this listing?")) {
+                        deleteListingMutation.mutate(id);
+                      }
+                    }}
+                    onApprove={(id) => approveMutation.mutate(id)}
+                    onReject={(id) => rejectMutation.mutate(id)}
+                    loading={loadingListings}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
