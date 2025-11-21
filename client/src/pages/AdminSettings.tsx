@@ -10,7 +10,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 export default function AdminSettings() {
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar activeTab="settings" onTabChange={() => {}} />
+      <AdminSidebar />
       <div className="flex-1 flex flex-col">
         <section className="py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
           <div className="container mx-auto px-6">
