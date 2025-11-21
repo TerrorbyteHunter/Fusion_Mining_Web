@@ -13,7 +13,8 @@ import {
   Settings,
   TrendingUp,
   Users,
-  FileText
+  FileText,
+  Shield
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -186,23 +187,43 @@ export default function Dashboard() {
               </Link>
 
               {isSeller && (
-                <Link href="/dashboard/create-listing">
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/20" data-testid="card-create-listing">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Package className="h-5 w-5 text-primary" />
+                <>
+                  <Link href="/dashboard/create-listing">
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-primary/20" data-testid="card-create-listing">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-primary/10 rounded-lg">
+                            <Package className="h-5 w-5 text-primary" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-sm">Create Listing</CardTitle>
+                            <CardDescription className="text-xs">
+                              Add a new marketplace offering
+                            </CardDescription>
+                          </div>
                         </div>
-                        <div>
-                          <CardTitle className="text-sm">Create Listing</CardTitle>
-                          <CardDescription className="text-xs">
-                            Add a new marketplace offering
-                          </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  </Link>
+                  
+                  <Link href="/dashboard/verification">
+                    <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-chart-3/20" data-testid="card-verification">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-chart-3/10 rounded-lg">
+                            <Shield className="h-5 w-5 text-chart-3" />
+                          </div>
+                          <div>
+                            <CardTitle className="text-sm">Get Verified</CardTitle>
+                            <CardDescription className="text-xs">
+                              Build trust with buyers and unlock premium features
+                            </CardDescription>
+                          </div>
                         </div>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                </Link>
+                      </CardHeader>
+                    </Card>
+                  </Link>
+                </>
               )}
 
               {isAdmin && (

@@ -13,6 +13,7 @@ import {
   Settings,
   FileText,
   Activity,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,12 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
       icon: ShieldCheck,
       tab: "verification",
       testId: "admin-sidebar-verification"
+    },
+    {
+      label: "Seller Verification",
+      icon: Shield,
+      href: "/admin/seller-verification",
+      testId: "admin-sidebar-seller-verification"
     },
     {
       label: "Analytics",
