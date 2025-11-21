@@ -307,126 +307,6 @@ export default function AdminCMS() {
     },
   });
 
-  const updateProjectStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest("PATCH", `/api/projects/${id}`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project status updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update project status", variant: "destructive" });
-    },
-  });
-
-  const createProjectMutation = useMutation({
-    mutationFn: async (data: typeof projectForm) => {
-      return await apiRequest("POST", "/api/projects", {
-        ...data,
-        latitude: data.latitude ? data.latitude : null,
-        longitude: data.longitude ? data.longitude : null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      setIsCreateProjectOpen(false);
-      setProjectForm({
-        name: "",
-        description: "",
-        licenseType: "exploration",
-        minerals: [],
-        location: "",
-        latitude: "",
-        longitude: "",
-        status: "active",
-        imageUrl: "",
-        area: "",
-        estimatedValue: "",
-      });
-      toast({ title: "Project created successfully" });
-    },
-    onError: (error: Error) => {
-      if (isUnauthorizedError(error)) {
-        toast({ title: "Unauthorized", variant: "destructive" });
-        setTimeout(() => window.location.href = "/api/login", 500);
-        return;
-      }
-      toast({ title: "Error", description: "Failed to create project", variant: "destructive" });
-    },
-  });
-
-  const updateProjectMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: typeof projectForm }) => {
-      return await apiRequest("PATCH", `/api/projects/${id}`, {
-        ...data,
-        latitude: data.latitude ? data.latitude : null,
-        longitude: data.longitude ? data.longitude : null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      setIsEditProjectOpen(false);
-      setEditingProject(null);
-      setProjectForm({
-        name: "",
-        description: "",
-        licenseType: "exploration",
-        minerals: [],
-        location: "",
-        latitude: "",
-        longitude: "",
-        status: "active",
-        imageUrl: "",
-        area: "",
-        estimatedValue: "",
-      });
-      toast({ title: "Project updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update project", variant: "destructive" });
-    },
-  });
-
-  const deleteProjectMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/projects/${id}`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({ title: "Project deleted successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete project", variant: "destructive" });
-    },
-  });
-
-  const updateListingStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest("PATCH", `/api/marketplace/listings/${id}`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
-      toast({ title: "Listing status updated successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update listing status", variant: "destructive" });
-    },
-  });
-
-  const deleteListingMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/marketplace/listings/${id}`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
-      toast({ title: "Listing deleted successfully" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete listing", variant: "destructive" });
-    },
-  });
-
   const handleCreatePost = () => {
     if (!postForm.title || !postForm.slug || !postForm.content) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
@@ -1274,195 +1154,44 @@ export default function AdminCMS() {
                 </Card>
               )}
             </TabsContent>
+
+            <TabsContent value="contact-settings" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contact Information Settings</CardTitle>
+                  <CardDescription>
+                    Manage your platform's contact information displayed to users
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">Email Address</p>
+                      <p className="font-medium">contact@fusionminingzambia.com</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Phone Number</p>
+                      <p className="font-medium">+260 211 123456</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Office Address</p>
+                      <p className="font-medium">Lusaka, Zambia</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Business Hours</p>
+                      <p className="font-medium">Monday - Friday: 8:00 AM - 5:00 PM (CAT)</p>
+                    </div>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <p className="text-sm text-muted-foreground mb-3">Contact form submissions are automatically logged and can be reviewed in the system.</p>
+                    <Button variant="outline" onClick={() => navigate('/admin/contact-submissions')} data-testid="button-view-submissions">
+                      View Contact Submissions
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
-
-          {/* Message Dialog for Admin */}
-          {selectedRecipient && (
-            <MessageDialog
-              open={messageDialogOpen}
-              onOpenChange={(open) => {
-                setMessageDialogOpen(open);
-                if (!open) {
-                  setSelectedRecipient(null);
-                }
-              }}
-              recipientId={selectedRecipient.id}
-              recipientName={selectedRecipient.name}
-              defaultSubject={selectedRecipient.subject}
-              listingTitle={selectedRecipient.context}
-            />
-          )}
-
-          {/* Message Detail Dialog for Admin */}
-          <MessageDetailDialog
-            messageId={selectedMessageId}
-            open={messageDetailOpen}
-            onOpenChange={(open) => {
-              setMessageDetailOpen(open);
-              if (!open) {
-                setSelectedMessageId(null);
-              }
-            }}
-          />
-
-          {/* Create/Edit Project Dialog */}
-          <Dialog open={isCreateProjectOpen || isEditProjectOpen} onOpenChange={(open) => {
-            if (!open) {
-              setIsCreateProjectOpen(false);
-              setIsEditProjectOpen(false);
-              setEditingProject(null);
-              setProjectForm({
-                name: "",
-                description: "",
-                licenseType: "exploration",
-                minerals: [],
-                location: "",
-                latitude: "",
-                longitude: "",
-                status: "active",
-                imageUrl: "",
-                area: "",
-                estimatedValue: "",
-              });
-            }
-          }}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingProject ? "Edit Project" : "Create New Project"}</DialogTitle>
-                <DialogDescription>
-                  {editingProject ? "Update project details" : "Add a new mining project to the platform"}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="project-name">Project Name *</Label>
-                  <Input
-                    id="project-name"
-                    value={projectForm.name}
-                    onChange={(e) => setProjectForm({ ...projectForm, name: e.target.value })}
-                    placeholder="e.g., Konkola Copper Mine"
-                    data-testid="input-project-name"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="project-description">Description *</Label>
-                  <Textarea
-                    id="project-description"
-                    value={projectForm.description}
-                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
-                    placeholder="Detailed project description"
-                    className="min-h-32"
-                    data-testid="textarea-project-description"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-license">License Type *</Label>
-                    <Select
-                      value={projectForm.licenseType}
-                      onValueChange={(value: "exploration" | "mining" | "processing") => 
-                        setProjectForm({ ...projectForm, licenseType: value })
-                      }
-                    >
-                      <SelectTrigger data-testid="select-license-type">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="exploration">Exploration</SelectItem>
-                        <SelectItem value="mining">Mining</SelectItem>
-                        <SelectItem value="processing">Processing</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-location">Location *</Label>
-                    <Input
-                      id="project-location"
-                      value={projectForm.location}
-                      onChange={(e) => setProjectForm({ ...projectForm, location: e.target.value })}
-                      placeholder="e.g., Copperbelt Province"
-                      data-testid="input-project-location"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="project-minerals">Minerals * (comma-separated)</Label>
-                  <Input
-                    id="project-minerals"
-                    value={projectForm.minerals.join(", ")}
-                    onChange={(e) => setProjectForm({ 
-                      ...projectForm, 
-                      minerals: e.target.value.split(",").map(m => m.trim()).filter(m => m) 
-                    })}
-                    placeholder="e.g., Copper, Cobalt, Gold"
-                    data-testid="input-project-minerals"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-area">Area</Label>
-                    <Input
-                      id="project-area"
-                      value={projectForm.area}
-                      onChange={(e) => setProjectForm({ ...projectForm, area: e.target.value })}
-                      placeholder="e.g., 500 hectares"
-                      data-testid="input-project-area"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-value">Estimated Value</Label>
-                    <Input
-                      id="project-value"
-                      value={projectForm.estimatedValue}
-                      onChange={(e) => setProjectForm({ ...projectForm, estimatedValue: e.target.value })}
-                      placeholder="e.g., $50M"
-                      data-testid="input-project-value"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-lat">Latitude (optional)</Label>
-                    <Input
-                      id="project-lat"
-                      value={projectForm.latitude}
-                      onChange={(e) => setProjectForm({ ...projectForm, latitude: e.target.value })}
-                      placeholder="e.g., -12.9843"
-                      data-testid="input-project-latitude"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="project-lng">Longitude (optional)</Label>
-                    <Input
-                      id="project-lng"
-                      value={projectForm.longitude}
-                      onChange={(e) => setProjectForm({ ...projectForm, longitude: e.target.value })}
-                      placeholder="e.g., 28.6366"
-                      data-testid="input-project-longitude"
-                    />
-                  </div>
-                </div>
-                <ImageSelector
-                  value={projectForm.imageUrl}
-                  onChange={(value) => setProjectForm({ ...projectForm, imageUrl: value })}
-                  label="Project Image"
-                  placeholder="https://example.com/project-image.jpg"
-                  testId="input-project-image"
-                />
-              </div>
-              <DialogFooter>
-                <Button 
-                  onClick={editingProject ? handleUpdateProject : handleCreateProject}
-                  disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
-                  data-testid="button-submit-project"
-                >
-                  {(createProjectMutation.isPending || updateProjectMutation.isPending) 
-                    ? "Saving..." 
-                    : (editingProject ? "Update Project" : "Create Project")}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </section>
       </div>
