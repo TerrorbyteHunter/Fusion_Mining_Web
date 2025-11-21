@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
+import { VerificationBadge } from "@/components/VerificationBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceListingWithSeller, BuyerRequest } from "@shared/schema";
@@ -148,7 +149,7 @@ export default function Marketplace() {
     queryKey: ['/api/admin/contact-user'],
   });
 
-  const handleContactSeller = (listing: MarketplaceListing) => {
+  const handleContactSeller = (listing: MarketplaceListingWithSeller) => {
     if (!adminContact?.id) {
       toast({
         title: "Error",
@@ -180,7 +181,7 @@ export default function Marketplace() {
 
 
   // Fetch listings
-  const { data: listings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
+  const { data: listings, isLoading: loadingListings } = useQuery<MarketplaceListingWithSeller[]>({
     queryKey: ["/api/marketplace/listings"],
   });
 
@@ -410,11 +411,14 @@ export default function Marketplace() {
                           {listing.description}
                         </CardDescription>
                         {listing.seller && (
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-${listing.id}`}>
-                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
-                            {listing.seller.verified && (
-                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-seller-${listing.id}`} />
-                            )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap" data-testid={`text-seller-${listing.id}`}>
+                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
+                            <VerificationBadge 
+                              verificationStatus={listing.seller.verificationStatus}
+                              badgeColor={listing.seller.badgeColor}
+                              size="sm"
+                              showIcon={true}
+                            />
                           </div>
                         )}
                       </CardHeader>

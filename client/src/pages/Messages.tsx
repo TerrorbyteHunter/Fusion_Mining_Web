@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { VerificationBadge } from "@/components/VerificationBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone, MapPin, Building2, Copy, Eye, MessageCircle } from "lucide-react";
@@ -693,7 +694,15 @@ export default function Messages() {
                   )}
                 </Avatar>
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedUserDetails.firstName} {selectedUserDetails.lastName}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg font-semibold">{selectedUserDetails.firstName} {selectedUserDetails.lastName}</h3>
+                    <VerificationBadge 
+                      verificationStatus={selectedUserDetails.verificationStatus}
+                      badgeColor={selectedUserDetails.badgeColor as 'bronze' | 'silver' | 'gold' | null}
+                      size="sm"
+                      showIcon={true}
+                    />
+                  </div>
                   <Badge variant="outline" className="capitalize mt-1">{selectedUserDetails.role}</Badge>
                 </div>
               </div>

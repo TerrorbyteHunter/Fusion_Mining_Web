@@ -63,7 +63,7 @@ export default function SellerVerification() {
 
   // Create verification request mutation
   const createRequestMutation = useMutation({
-    mutationFn: () => apiRequest('/api/verification/request', 'POST'),
+    mutationFn: () => apiRequest('POST', '/api/verification/request'),
     onSuccess: () => {
       toast({
         title: "Verification Request Created",
