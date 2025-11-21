@@ -309,6 +309,20 @@ export const contactSubmissions = pgTable("contact_submissions", {
 });
 
 // ============================================================================
+// Sustainability Content
+// ============================================================================
+export const sustainabilityContent = pgTable("sustainability_content", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title", { length: 255 }).notNull(),
+  section: varchar("section", { length: 255 }).notNull(), // e.g., "Environmental", "Community", "Social"
+  content: text("content").notNull(),
+  imageUrl: varchar("image_url"),
+  order: integer("order").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
 // Verification Queue
 // ============================================================================
 export const verificationQueue = pgTable("verification_queue", {
