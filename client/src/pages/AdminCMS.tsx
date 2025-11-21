@@ -39,7 +39,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { BlogPost, ContactSubmission, ActivityLog, Project, Video, MarketplaceListing, User, Message } from "@shared/schema";
+import type { BlogPost, Video } from "@shared/schema";
 import { MessageDialog } from "@/components/MessageDialog";
 import { MessageDetailDialog } from "@/components/MessageDetailDialog";
 import { 
@@ -67,11 +67,13 @@ export default function AdminCMS() {
   const { toast } = useToast();
   const { isAdmin, isAuthenticated, isLoading: authLoading, permissions } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isEditPostOpen, setIsEditPostOpen] = useState(false);
   const [isCreateVideoOpen, setIsCreateVideoOpen] = useState(false);
+  const [isCreateSustainabilityOpen, setIsCreateSustainabilityOpen] = useState(false);
+  const [isEditSustainabilityOpen, setIsEditSustainabilityOpen] = useState(false);
+  const [editingSustainability, setEditingSustainability] = useState<any | null>(null);
   const [postForm, setPostForm] = useState({
     title: "",
     slug: "",
@@ -87,63 +89,15 @@ export default function AdminCMS() {
     thumbnailUrl: "",
     duration: "",
   });
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
-  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [projectForm, setProjectForm] = useState({
-    name: "",
-    description: "",
-    licenseType: "exploration" as "exploration" | "mining" | "processing",
-    minerals: [] as string[],
-    location: "",
-    latitude: "",
-    longitude: "",
-  status: "active" as "active" | "pending" | "completed" | "suspended" | "closed",
-    imageUrl: "",
-    area: "",
-    estimatedValue: "",
-  });
-  const [isCreateListingOpen, setIsCreateListingOpen] = useState(false);
-  const [isEditListingOpen, setIsEditListingOpen] = useState(false);
-  const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
-  const [listingForm, setListingForm] = useState({
-    sellerId: "",
-    type: "mineral" as "mineral" | "partnership",
+  const [sustainabilityForm, setSustainabilityForm] = useState({
     title: "",
-    description: "",
-    mineralType: "",
-    grade: "",
-    location: "",
-    quantity: "",
-    price: "",
+    section: "",
+    content: "",
     imageUrl: "",
-    status: "approved" as "pending" | "approved" | "rejected" | "inactive",
+    order: 0,
   });
-  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
-  const [selectedRecipient, setSelectedRecipient] = useState<{
-    id: string;
-    name?: string;
-    subject?: string;
-    context?: string;
-  } | null>(null);
-  const [messageDetailOpen, setMessageDetailOpen] = useState(false);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  // Reference some variables that are currently unused to satisfy the
-  // project's strict `noUnusedLocals` TypeScript setting. These are
-  // intentionally referenced here as no-op usages and can be removed
-  // or integrated properly when these features are implemented.
   void Eye;
   void Clock;
-  void selectedPost;
-  void setSelectedPost;
-  void isCreateListingOpen;
-  void setIsCreateListingOpen;
-  void isEditListingOpen;
-  void setIsEditListingOpen;
-  void editingListing;
-  void setEditingListing;
-  void listingForm;
-  void setListingForm;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -185,48 +139,14 @@ export default function AdminCMS() {
     queryKey: ["/api/blog/admin/all"],
   });
 
-  const { data: contacts, isLoading: loadingContacts } = useQuery<ContactSubmission[]>({
-    queryKey: ["/api/contact/submissions"],
-  });
-
-  const { data: activityLogs, isLoading: loadingLogs } = useQuery<ActivityLog[]>({
-    queryKey: ["/api/admin/activity-logs"],
-  });
-
-  const { data: projects, isLoading: loadingProjects } = useQuery<Project[]>({
-    queryKey: ["/api/projects"],
-  });
-
   const { data: videos, isLoading: loadingVideos} = useQuery<Video[]>({
     queryKey: ["/api/videos"],
   });
 
-  const { data: marketplaceListings, isLoading: loadingListings } = useQuery<MarketplaceListing[]>({
-    queryKey: ["/api/marketplace/listings"],
+  const { data: sustainabilityContent, isLoading: loadingSustainability } = useQuery<any[]>({
+    queryKey: ["/api/sustainability"],
   });
 
-  const { data: users, isLoading: loadingUsers } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-  });
-
-  const { data: adminMessages, isLoading: loadingMessages } = useQuery<Message[]>({
-    queryKey: ["/api/messages"],
-  });
-
-  const handleViewMessage = (messageId: string) => {
-    setSelectedMessageId(messageId);
-    setMessageDetailOpen(true);
-  };
-
-  const handleMessageUser = (userId: string, userName: string, context?: string, subject?: string) => {
-    setSelectedRecipient({
-      id: userId,
-      name: userName,
-      subject: subject || "Admin Message",
-      context: context,
-    });
-    setMessageDialogOpen(true);
-  };
 
   const createPostMutation = useMutation({
     mutationFn: async (data: typeof postForm) => {
@@ -290,13 +210,47 @@ export default function AdminCMS() {
     },
   });
 
-  const updateContactStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      return await apiRequest("PATCH", `/api/contact/submissions/${id}`, { status });
+  const createSustainabilityMutation = useMutation({
+    mutationFn: async (data: typeof sustainabilityForm) => {
+      return await apiRequest("POST", "/api/sustainability", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/contact/submissions"] });
-      toast({ title: "Contact status updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/sustainability"] });
+      setIsCreateSustainabilityOpen(false);
+      setSustainabilityForm({ title: "", section: "", content: "", imageUrl: "", order: 0 });
+      toast({ title: "Sustainability content created successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to create sustainability content", variant: "destructive" });
+    },
+  });
+
+  const updateSustainabilityMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof sustainabilityForm }) => {
+      return await apiRequest("PATCH", `/api/sustainability/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sustainability"] });
+      setIsEditSustainabilityOpen(false);
+      setEditingSustainability(null);
+      setSustainabilityForm({ title: "", section: "", content: "", imageUrl: "", order: 0 });
+      toast({ title: "Sustainability content updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update sustainability content", variant: "destructive" });
+    },
+  });
+
+  const deleteSustainabilityMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/sustainability/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sustainability"] });
+      toast({ title: "Sustainability content deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete sustainability content", variant: "destructive" });
     },
   });
 
@@ -510,38 +464,32 @@ export default function AdminCMS() {
     updatePostMutation.mutate({ id: editingPost.id, data: postForm });
   };
 
-  const handleCreateProject = () => {
-    if (!projectForm.name || !projectForm.description || !projectForm.location || projectForm.minerals.length === 0) {
-      toast({ title: "Error", description: "Please fill in all required fields (name, description, location, minerals)", variant: "destructive" });
-      return;
-    }
-    createProjectMutation.mutate(projectForm);
-  };
-
-  const handleEditProject = (project: Project) => {
-    setEditingProject(project);
-    setProjectForm({
-      name: project.name,
-      description: project.description,
-      licenseType: project.licenseType,
-      minerals: project.minerals,
-      location: project.location,
-      latitude: project.latitude || "",
-      longitude: project.longitude || "",
-      status: project.status,
-      imageUrl: project.imageUrl || "",
-      area: project.area || "",
-      estimatedValue: project.estimatedValue || "",
+  const handleEditSustainability = (item: any) => {
+    setEditingSustainability(item);
+    setSustainabilityForm({
+      title: item.title,
+      section: item.section,
+      content: item.content,
+      imageUrl: item.imageUrl || "",
+      order: item.order || 0,
     });
-    setIsEditProjectOpen(true);
+    setIsEditSustainabilityOpen(true);
   };
 
-  const handleUpdateProject = () => {
-    if (!projectForm.name || !projectForm.description || !projectForm.location || projectForm.minerals.length === 0 || !editingProject) {
+  const handleCreateSustainability = () => {
+    if (!sustainabilityForm.title || !sustainabilityForm.section || !sustainabilityForm.content) {
       toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
       return;
     }
-    updateProjectMutation.mutate({ id: editingProject.id, data: projectForm });
+    createSustainabilityMutation.mutate(sustainabilityForm);
+  };
+
+  const handleUpdateSustainability = () => {
+    if (!sustainabilityForm.title || !sustainabilityForm.section || !sustainabilityForm.content || !editingSustainability) {
+      toast({ title: "Error", description: "Please fill in all required fields", variant: "destructive" });
+      return;
+    }
+    updateSustainabilityMutation.mutate({ id: editingSustainability.id, data: sustainabilityForm });
   };
 
   return (
@@ -1132,10 +1080,156 @@ export default function AdminCMS() {
             </TabsContent>
 
             <TabsContent value="sustainability" className="mt-6">
-              <h2 className="text-2xl font-bold mb-6">Contact Submissions</h2>
-              {loadingContacts ? (
-                <Skeleton className="h-96 w-full" />
-              ) : contacts && contacts.length > 0 ? (
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Sustainability Content</h2>
+                <Dialog open={isCreateSustainabilityOpen} onOpenChange={setIsCreateSustainabilityOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-create-sustainability">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Content
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Add Sustainability Content</DialogTitle>
+                      <DialogDescription>
+                        Add new sustainability content to the page
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="sust-title">Title *</Label>
+                        <Input
+                          id="sust-title"
+                          value={sustainabilityForm.title}
+                          onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, title: e.target.value })}
+                          data-testid="input-sustainability-title"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="sust-section">Section *</Label>
+                        <Input
+                          id="sust-section"
+                          value={sustainabilityForm.section}
+                          onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, section: e.target.value })}
+                          placeholder="e.g., Environmental, Community, Social"
+                          data-testid="input-sustainability-section"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="sust-content">Content *</Label>
+                        <Textarea
+                          id="sust-content"
+                          value={sustainabilityForm.content}
+                          onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, content: e.target.value })}
+                          rows={6}
+                          data-testid="textarea-sustainability-content"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="sust-image">Image URL</Label>
+                        <Input
+                          id="sust-image"
+                          value={sustainabilityForm.imageUrl}
+                          onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, imageUrl: e.target.value })}
+                          data-testid="input-sustainability-image"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="sust-order">Display Order</Label>
+                        <Input
+                          id="sust-order"
+                          type="number"
+                          value={sustainabilityForm.order}
+                          onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, order: parseInt(e.target.value) || 0 })}
+                          data-testid="input-sustainability-order"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={handleCreateSustainability}
+                        disabled={createSustainabilityMutation.isPending}
+                        data-testid="button-submit-sustainability"
+                      >
+                        Add Content
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              <Dialog open={isEditSustainabilityOpen} onOpenChange={setIsEditSustainabilityOpen}>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Edit Sustainability Content</DialogTitle>
+                    <DialogDescription>
+                      Update the sustainability content
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-sust-title">Title *</Label>
+                      <Input
+                        id="edit-sust-title"
+                        value={sustainabilityForm.title}
+                        onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, title: e.target.value })}
+                        data-testid="input-edit-sustainability-title"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-sust-section">Section *</Label>
+                      <Input
+                        id="edit-sust-section"
+                        value={sustainabilityForm.section}
+                        onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, section: e.target.value })}
+                        data-testid="input-edit-sustainability-section"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-sust-content">Content *</Label>
+                      <Textarea
+                        id="edit-sust-content"
+                        value={sustainabilityForm.content}
+                        onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, content: e.target.value })}
+                        rows={6}
+                        data-testid="textarea-edit-sustainability-content"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-sust-image">Image URL</Label>
+                      <Input
+                        id="edit-sust-image"
+                        value={sustainabilityForm.imageUrl}
+                        onChange={(e) => setSustainabilityForm({ ...sustainabilityForm, imageUrl: e.target.value })}
+                        data-testid="input-edit-sustainability-image"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleUpdateSustainability}
+                      disabled={updateSustainabilityMutation.isPending}
+                      data-testid="button-update-sustainability"
+                    >
+                      Update Content
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              {loadingSustainability ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full mt-2" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : sustainabilityContent && sustainabilityContent.length > 0 ? (
                 <div className="space-y-4">
                   {contacts.map((contact) => (
                     <Card key={contact.id} data-testid={`card-contact-${contact.id}`}>
