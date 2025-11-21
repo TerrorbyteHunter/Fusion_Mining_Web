@@ -3521,6 +3521,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================================================
+  // Seller Verification Routes
+  // ========================================================================
+  
+  // Create verification request (Seller only)
+  app.post('/api/verification/request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can request verification" });
+      }
+
+      const request = await storage.createVerificationRequest(req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating verification request:", error);
+      res.status(500).json({ message: "Failed to create verification request" });
+    }
+  });
+
+  // Get current user's verification request (Seller)
+  app.get('/api/verification/my-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can access this endpoint" });
+      }
+
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      
+      if (!request) {
+        return res.json(null);
+      }
+
+      // Also get documents for this request
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      res.json({ ...request, documents });
+    } catch (error) {
+      console.error("Error fetching verification request:", error);
+      res.status(500).json({ message: "Failed to fetch verification request" });
+    }
+  });
+
+  // Get all verification requests (Admin only)
+  app.get('/api/verification/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await storage.getAllVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch verification requests" });
+    }
+  });
+
+  // Get pending verification requests (Admin only)
+  app.get('/api/verification/requests/pending', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await storage.getAllPendingVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching pending verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending verification requests" });
+    }
+  });
+
+  // Get documents for a verification request (Admin only)
+  app.get('/api/verification/documents/:requestId', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const documents = await storage.getDocumentsByRequestId(req.params.requestId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching verification documents:", error);
+      res.status(500).json({ message: "Failed to fetch verification documents" });
+    }
+  });
+
+  // Approve verification request (Admin only)
+  app.post('/api/verification/approve/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const request = await storage.approveVerificationRequest(req.params.id, req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error approving verification request:", error);
+      res.status(500).json({ message: "Failed to approve verification request" });
+    }
+  });
+
+  // Reject verification request (Admin only)
+  app.post('/api/verification/reject/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      const request = await storage.rejectVerificationRequest(req.params.id, req.user.id, reason);
+      res.json(request);
+    } catch (error) {
+      console.error("Error rejecting verification request:", error);
+      res.status(500).json({ message: "Failed to reject verification request" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Verification Documents
+  // ========================================================================
+  const verificationUploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "verification");
+  fs.mkdirSync(verificationUploadsRoot, { recursive: true });
+
+  const verificationStorageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, verificationUploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const verificationUpload = multer({
+    storage: verificationStorageEngine,
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB for verification documents
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type. Please upload PDF, JPG, PNG, or DOC files."));
+    },
+  });
+
+  // Upload verification file endpoint
+  app.post('/api/verification/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can upload verification documents" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { requestId, documentType } = req.body;
+      
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+
+      // Verify the request belongs to the current user
+      const request = await storage.getVerificationRequestById(requestId);
+      if (!request || request.sellerId !== req.user.id) {
+        return res.status(403).json({ message: "Invalid verification request" });
+      }
+
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      
+      // Create document record in database
+      const document = await storage.createVerificationDocument({
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+      });
+
+      res.json({
+        document,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading verification document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload verification document" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
