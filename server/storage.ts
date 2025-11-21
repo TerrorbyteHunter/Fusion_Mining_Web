@@ -13,6 +13,7 @@ import {
   blogPosts,
   contactSubmissions,
   contactSettings,
+  sustainabilityContent,
   verificationQueue,
   activityLogs,
   notifications,
@@ -57,6 +58,8 @@ import {
   type InsertContactSubmission,
   type ContactSettings,
   type InsertContactSettings,
+  type SustainabilityContent,
+  type InsertSustainabilityContent,
   type ActivityLog,
   type InsertActivityLog,
   type Notification,
@@ -245,6 +248,13 @@ export interface IStorage {
   updateVideo(video: UpdateVideo): Promise<Video>;
   toggleVideoActive(id: string): Promise<Video>;
   deleteVideo(id: string): Promise<void>;
+
+  // Sustainability Content operations
+  createSustainabilityContent(content: InsertSustainabilityContent): Promise<SustainabilityContent>;
+  getSustainabilityContent(): Promise<SustainabilityContent[]>;
+  getSustainabilityContentById(id: string): Promise<SustainabilityContent | undefined>;
+  updateSustainabilityContent(id: string, content: Partial<InsertSustainabilityContent>): Promise<SustainabilityContent>;
+  deleteSustainabilityContent(id: string): Promise<void>;
 
   // Message Template operations
   createMessageTemplate(template: InsertMessageTemplate): Promise<MessageTemplate>;
@@ -1546,6 +1556,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteVideo(id: string): Promise<void> {
     await db.delete(videos).where(eq(videos.id, id));
+  }
+
+  // ========================================================================
+  // Sustainability Content operations
+  // ========================================================================
+  async createSustainabilityContent(content: InsertSustainabilityContent): Promise<SustainabilityContent> {
+    const [item] = await db
+      .insert(sustainabilityContent)
+      .values(content)
+      .returning();
+    return item;
+  }
+
+  async getSustainabilityContent(): Promise<SustainabilityContent[]> {
+    return await db
+      .select()
+      .from(sustainabilityContent)
+      .orderBy(sustainabilityContent.order);
+  }
+
+  async getSustainabilityContentById(id: string): Promise<SustainabilityContent | undefined> {
+    const [item] = await db
+      .select()
+      .from(sustainabilityContent)
+      .where(eq(sustainabilityContent.id, id))
+      .limit(1);
+    return item;
+  }
+
+  async updateSustainabilityContent(id: string, content: Partial<InsertSustainabilityContent>): Promise<SustainabilityContent> {
+    const [item] = await db
+      .update(sustainabilityContent)
+      .set(content)
+      .where(eq(sustainabilityContent.id, id))
+      .returning();
+    return item;
+  }
+
+  async deleteSustainabilityContent(id: string): Promise<void> {
+    await db.delete(sustainabilityContent).where(eq(sustainabilityContent.id, id));
   }
 
   // ========================================================================
