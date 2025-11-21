@@ -24,7 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function CreateListing() {
   const { toast } = useToast();
-  const { isAuthenticated, isSeller, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isSeller, isAdmin, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const [listingForm, setListingForm] = useState({
     type: "mineral" as "mineral" | "partnership" | "project",
@@ -116,15 +116,15 @@ export default function CreateListing() {
       }, 500);
       return;
     }
-    if (!authLoading && isAuthenticated && !isSeller) {
+    if (!authLoading && isAuthenticated && !isSeller && !isAdmin) {
       toast({
         title: "Access Denied",
-        description: "You need seller privileges to create listings",
+        description: "You need seller or admin privileges to create listings",
         variant: "destructive",
       });
       setLocation("/dashboard");
     }
-  }, [isAuthenticated, isSeller, authLoading, toast, setLocation]);
+  }, [isAuthenticated, isSeller, isAdmin, authLoading, toast, setLocation]);
 
   // Reset subcategory and specific type when main category changes
   useEffect(() => {

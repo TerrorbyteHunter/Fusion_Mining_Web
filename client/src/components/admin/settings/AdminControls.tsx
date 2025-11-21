@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award } from "lucide-react";
+import { Shield, Users, LogOut, AlertTriangle, UserCog, Award } from "lucide-react";
 import type { User, AdminPermissions } from "@shared/schema";
 
 type ActionType = 'logout' | 'delete' | 'role' | 'tier' | 'admin-role';
@@ -40,10 +40,6 @@ export function AdminControls() {
     queryFn: () => fetch(`/api/admin/users/by-role/admin`).then(res => res.json()),
   });
 
-  // Still fetch all users for compatibility
-  const { data: users } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-  });
 
   const { data: permissions } = useQuery<AdminPermissions[]>({
     queryKey: ["/api/admin/permissions"],

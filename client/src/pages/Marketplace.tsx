@@ -40,7 +40,6 @@ import equipmentImg from "../../../attached_assets/files/Services and Mining Equ
 import equipment2Img from "../../../attached_assets/files/Services and Mining Equipment/equipment2.png";
 import feasibilityImg from "../../../attached_assets/files/Services and Mining Equipment/Feasibility.png";
 import shippingImg from "../../../attached_assets/files/Services and Mining Equipment/Shipping.png";
-import shipping2Img from "../../../attached_assets/files/Services and Mining Equipment/Shipping2.png";
 import {
   Select,
   SelectContent,

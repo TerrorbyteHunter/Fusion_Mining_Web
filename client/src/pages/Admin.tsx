@@ -38,7 +38,7 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import type { MarketplaceListing, User, Message, ActivityLog, Project, BuyerRequest } from "@shared/schema";
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
-  Edit, Trash, Plus, Search, CheckCircle, XCircle, Eye,
+  Edit, Trash, Plus, Search, CheckCircle, XCircle,
   TrendingUp, MapPin
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -232,11 +232,6 @@ export default function Admin() {
   const [startConvOpen, setStartConvOpen] = useState(false);
   const [startConvForm, setStartConvForm] = useState({ userId: '', subject: '', content: '', listingId: '', projectId: '' });
   // Threads and chat state
-  const { data: allThreads } = useQuery<any[]>({
-    queryKey: ["/api/threads/all"],
-    enabled: !!isAdmin && activeTab === 'messages',
-    refetchInterval: 5000,
-  });
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const { data: threadMessages } = useQuery<Message[]>({
     queryKey: ["/api/threads", selectedThreadId, "messages"],
