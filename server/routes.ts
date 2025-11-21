@@ -2632,6 +2632,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // Sustainability Routes
+  // ========================================================================
+  app.get('/api/sustainability', async (req, res) => {
+    try {
+      const items = await storage.getSustainabilityContent();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching sustainability content:", error);
+      res.status(500).json({ message: "Failed to fetch sustainability content" });
+    }
+  });
+
+  app.post('/api/sustainability', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.parse(req.body);
+      const item = await storage.createSustainabilityContent(validatedData);
+      res.json(item);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating sustainability content:", error);
+      res.status(500).json({ message: "Failed to create sustainability content" });
+    }
+  });
+
+  app.patch('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.partial().parse(req.body);
+      const item = await storage.updateSustainabilityContent(req.params.id, validatedData);
+      res.json(item);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating sustainability content:", error);
+      res.status(500).json({ message: "Failed to update sustainability content" });
+    }
+  });
+
+  app.delete('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSustainabilityContent(req.params.id);
+      res.json({ message: "Sustainability content deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting sustainability content:", error);
+      res.status(500).json({ message: "Failed to delete sustainability content" });
+    }
+  });
+
+  // ========================================================================
   // Contact Routes
   // ========================================================================
   app.post('/api/contact', async (req, res) => {
