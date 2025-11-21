@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award, ShoppingBag, Building2 } from "lucide-react";
+import { Shield, Users, LogOut, AlertTriangle, Trash2, UserCog, Award } from "lucide-react";
 import type { User, AdminPermissions } from "@shared/schema";
 
 type ActionType = 'logout' | 'delete' | 'role' | 'tier' | 'admin-role';
@@ -22,7 +22,6 @@ export function AdminControls() {
   const [actionType, setActionType] = useState<ActionType>('logout');
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [selectedTier, setSelectedTier] = useState<string>('');
-  const [selectedAdminRole, setSelectedAdminRole] = useState<string>('');
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
 
   // Fetch users filtered by role
@@ -169,6 +168,12 @@ export function AdminControls() {
           description: `Update the membership tier for ${selectedUser?.firstName} ${selectedUser?.lastName}. This will affect their feature access and limits.`,
           icon: <Award className="h-5 w-5" />,
         };
+      default:
+        return {
+          title: 'Action',
+          description: 'Select an action',
+          icon: <UserCog className="h-5 w-5" />,
+        };
     }
   };
 
@@ -238,84 +243,127 @@ export function AdminControls() {
             <Users className="h-5 w-5" />
             <CardTitle>User Management</CardTitle>
           </div>
-          <CardDescription>Manage platform users and their access</CardDescription>
+          <CardDescription>Manage platform users by role category</CardDescription>
         </CardHeader>
         <CardContent>
-          {users && users.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Tier</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.slice(0, 20).map((user) => (
-                  <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
-                    <TableCell className="font-medium">
-                      {user.firstName} {user.lastName}
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === "admin" ? "default" : "outline"}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="capitalize">
-                        {user.membershipTier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openActionDialog(user, 'role')}
-                          data-testid={`button-role-${user.id}`}
-                        >
-                          <UserCog className="h-3 w-3 mr-1" />
-                          Role
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openActionDialog(user, 'tier')}
-                          data-testid={`button-tier-${user.id}`}
-                        >
-                          <Award className="h-3 w-3 mr-1" />
-                          Tier
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openActionDialog(user, 'logout')}
-                          data-testid={`button-logout-${user.id}`}
-                        >
-                          <LogOut className="h-3 w-3 mr-1" />
-                          Logout
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => openActionDialog(user, 'delete')}
-                          data-testid={`button-delete-${user.id}`}
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-sm text-muted-foreground">No users found</p>
-          )}
+          <Tabs value={userRoleTab} onValueChange={(v) => setUserRoleTab(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="buyer" data-testid="tab-buyers">Buyers</TabsTrigger>
+              <TabsTrigger value="seller" data-testid="tab-sellers">Sellers</TabsTrigger>
+              <TabsTrigger value="admin" data-testid="tab-admins">Admins</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="buyer">
+              {buyers && buyers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {buyers.slice(0, 20).map((user) => (
+                      <TableRow key={user.id} data-testid={`row-buyer-${user.id}`}>
+                        <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{user.membershipTier}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => openActionDialog(user, 'tier')} data-testid={`button-tier-${user.id}`}>
+                              <Award className="h-3 w-3 mr-1" />Tier
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => openActionDialog(user, 'logout')} data-testid={`button-logout-${user.id}`}>
+                              <LogOut className="h-3 w-3 mr-1" />Logout
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No buyers found</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="seller">
+              {sellers && sellers.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sellers.slice(0, 20).map((user) => (
+                      <TableRow key={user.id} data-testid={`row-seller-${user.id}`}>
+                        <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">{user.membershipTier}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => openActionDialog(user, 'tier')} data-testid={`button-tier-${user.id}`}>
+                              <Award className="h-3 w-3 mr-1" />Tier
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => openActionDialog(user, 'logout')} data-testid={`button-logout-${user.id}`}>
+                              <LogOut className="h-3 w-3 mr-1" />Logout
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No sellers found</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="admin">
+              {admins && admins.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Admin Role</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {admins.slice(0, 20).map((user) => (
+                      <TableRow key={user.id} data-testid={`row-admin-${user.id}`}>
+                        <TableCell className="font-medium">{user.firstName} {user.lastName}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="default" className="capitalize">{user.adminRole || 'Unassigned'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" onClick={() => openActionDialog(user, 'logout')} data-testid={`button-logout-${user.id}`}>
+                              <LogOut className="h-3 w-3 mr-1" />Logout
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">No admins found</p>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
