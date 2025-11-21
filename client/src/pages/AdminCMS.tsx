@@ -1231,56 +1231,45 @@ export default function AdminCMS() {
                 </div>
               ) : sustainabilityContent && sustainabilityContent.length > 0 ? (
                 <div className="space-y-4">
-                  {contacts.map((contact) => (
-                    <Card key={contact.id} data-testid={`card-contact-${contact.id}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle>{contact.subject}</CardTitle>
-                            <CardDescription>
-                              From: {contact.name} ({contact.email})
-                            </CardDescription>
-                          </div>
-                          <Badge variant={contact.status === 'new' ? 'default' : 'secondary'}>
-                            {contact.status}
-                          </Badge>
+                  {sustainabilityContent.map((item: any) => (
+                    <Card key={item.id} data-testid={`card-sustainability-${item.id}`}>
+                      <CardHeader className="flex flex-row items-start justify-between space-y-0">
+                        <div className="flex-1">
+                          <CardTitle>{item.title}</CardTitle>
+                          <CardDescription>{item.section}</CardDescription>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="mb-4">{contact.message}</p>
-                        {contact.phone && (
-                          <p className="text-sm text-muted-foreground mb-4">Phone: {contact.phone}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Submitted: {format(new Date(contact.createdAt), "MMM d, yyyy HH:mm")}
-                        </p>
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateContactStatusMutation.mutate({ id: contact.id, status: 'contacted' })}
-                            data-testid={`button-mark-contacted-${contact.id}`}
+                            onClick={() => handleEditSustainability(item)}
+                            data-testid={`button-edit-sustainability-${item.id}`}
                           >
-                            Mark as Contacted
+                            <Edit className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => updateContactStatusMutation.mutate({ id: contact.id, status: 'resolved' })}
-                            data-testid={`button-mark-resolved-${contact.id}`}
+                            variant="destructive"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this content?")) {
+                                deleteSustainabilityMutation.mutate(item.id);
+                              }
+                            }}
+                            data-testid={`button-delete-sustainability-${item.id}`}
                           >
-                            Mark as Resolved
+                            <Trash className="h-4 w-4" />
                           </Button>
                         </div>
-                      </CardContent>
+                      </CardHeader>
                     </Card>
                   ))}
                 </div>
               ) : (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <Mail className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Contact Submissions</h3>
+                    <MapPin className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-xl font-semibold mb-2">No Sustainability Content</h3>
+                    <p className="text-muted-foreground">Create your first sustainability content</p>
                   </CardContent>
                 </Card>
               )}
