@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import type { MarketplaceListing, BuyerRequest } from "@shared/schema";
+import type { MarketplaceListingWithSeller, BuyerRequest } from "@shared/schema";
 import { MAIN_CATEGORIES, getSubcategoriesForMain } from "@shared/categories";
 import { 
   Search, 
@@ -24,6 +24,7 @@ import {
   Gem,
   Wrench,
   Briefcase,
+  CheckCircle2,
 } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
@@ -49,7 +50,7 @@ import {
 } from "@/components/ui/select";
 
 // Helper function to get appropriate image for equipment/service based on keywords
-function getEquipmentImage(listing: MarketplaceListing): string {
+function getEquipmentImage(listing: MarketplaceListingWithSeller): string {
   if (!listing.mainCategory) {
     return catalogueImg;
   }
@@ -408,6 +409,14 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
+                        {listing.seller && (
+                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-${listing.id}`}>
+                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
+                            {listing.seller.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-seller-${listing.id}`} />
+                            )}
+                          </div>
+                        )}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
