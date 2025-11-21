@@ -36,6 +36,7 @@ export const sessions = pgTable(
 // User storage table (Required for Replit Auth)
 // ============================================================================
 export const userRoleEnum = pgEnum('user_role', ['admin', 'buyer', 'seller']);
+export const adminRoleEnum = pgEnum('admin_role', ['super_admin', 'verification_admin', 'content_admin', 'support_admin', 'analytics_admin']);
 export const profileTypeEnum = pgEnum('profile_type', ['individual', 'company']);
 export const membershipTierEnum = pgEnum('membership_tier', ['basic', 'standard', 'premium']);
 
@@ -56,13 +57,23 @@ export const users = pgTable("users", {
 export const adminPermissions = pgTable("admin_permissions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   adminUserId: varchar("admin_user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
-  canManageUsers: boolean("can_manage_users").notNull().default(true),
-  canManageListings: boolean("can_manage_listings").notNull().default(true),
-  canManageProjects: boolean("can_manage_projects").notNull().default(true),
-  canManageBlog: boolean("can_manage_blog").notNull().default(true),
-  canManageCMS: boolean("can_manage_cms").notNull().default(true),
-  canViewAnalytics: boolean("can_view_analytics").notNull().default(true),
-  canManageMessages: boolean("can_manage_messages").notNull().default(true),
+  adminRole: adminRoleEnum("admin_role").notNull().default('content_admin'),
+  // Core permissions
+  canManageUsers: boolean("can_manage_users").notNull().default(false),
+  canManageListings: boolean("can_manage_listings").notNull().default(false),
+  canManageProjects: boolean("can_manage_projects").notNull().default(false),
+  canManageBlog: boolean("can_manage_blog").notNull().default(false),
+  canManageCMS: boolean("can_manage_cms").notNull().default(false),
+  canViewAnalytics: boolean("can_view_analytics").notNull().default(false),
+  canManageMessages: boolean("can_manage_messages").notNull().default(false),
+  // Enhanced permissions
+  canManageVerification: boolean("can_manage_verification").notNull().default(false),
+  canManageSettings: boolean("can_manage_settings").notNull().default(false),
+  canManageAdmins: boolean("can_manage_admins").notNull().default(false),
+  canAccessAuditLogs: boolean("can_access_audit_logs").notNull().default(false),
+  canManageDocuments: boolean("can_manage_documents").notNull().default(false),
+  canResetPasswords: boolean("can_reset_passwords").notNull().default(false),
+  canForceLogout: boolean("can_force_logout").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

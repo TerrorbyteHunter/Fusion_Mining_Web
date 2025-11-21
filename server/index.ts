@@ -74,6 +74,10 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Load admin permissions for authenticated admin users
+import { loadAdminPermissions } from "./rbac";
+app.use(loadAdminPermissions);
+
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;

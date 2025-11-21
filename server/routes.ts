@@ -2803,6 +2803,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // Admin Role Management Routes
+  // ========================================================================
+  
+  // Get all available admin roles and their default permissions
+  app.get('/api/admin/roles', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ROLE_PERMISSIONS, getAdminRoleDisplayName } = await import('./rbac');
+      const roles = Object.keys(ROLE_PERMISSIONS).map(role => ({
+        value: role,
+        label: getAdminRoleDisplayName(role as any),
+        permissions: ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS],
+      }));
+      res.json(roles);
+    } catch (error) {
+      console.error('Error fetching admin roles:', error);
+      res.status(500).json({ message: 'Failed to fetch admin roles' });
+    }
+  });
+
+  // Get users filtered by role (for tabbed user management interface)
+  app.get('/api/admin/users/by-role/:role', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { role } = req.params;
+      if (!['admin', 'buyer', 'seller'].includes(role)) {
+        return res.status(400).json({ message: 'Invalid role' });
+      }
+      const allUsers = await storage.getAllUsers();
+      const filteredUsers = allUsers.filter(u => u.role === role);
+      
+      // For admin users, include their permissions and admin role
+      if (role === 'admin') {
+        const usersWithPermissions = await Promise.all(
+          filteredUsers.map(async (user) => {
+            const permissions = await storage.getAdminPermissions(user.id);
+            return {
+              ...user,
+              adminRole: permissions?.adminRole || null,
+              permissions: permissions || null,
+            };
+          })
+        );
+        res.json(usersWithPermissions);
+      } else {
+        res.json(filteredUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching users by role:', error);
+      res.status(500).json({ message: 'Failed to fetch users' });
+    }
+  });
+
+  // Assign or update admin role for a user
+  app.patch('/api/admin/users/:id/admin-role', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { adminRole } = req.body;
+      const userId = req.params.id;
+      
+      if (!adminRole || !['super_admin', 'verification_admin', 'content_admin', 'support_admin', 'analytics_admin'].includes(adminRole)) {
+        return res.status(400).json({ message: 'Invalid admin role' });
+      }
+
+      // Check if user is an admin
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== 'admin') {
+        return res.status(400).json({ message: 'User must be an admin' });
+      }
+
+      // Get default permissions for the role
+      const { ROLE_PERMISSIONS } = await import('./rbac');
+      const defaultPermissions = ROLE_PERMISSIONS[adminRole as keyof typeof ROLE_PERMISSIONS];
+
+      // Upsert admin permissions with the new role and its default permissions
+      const permissions = await storage.upsertAdminPermissions({
+        adminUserId: userId,
+        adminRole: adminRole as any,
+        ...defaultPermissions,
+      } as any);
+
+      res.json(permissions);
+    } catch (error) {
+      console.error('Error updating admin role:', error);
+      res.status(500).json({ message: 'Failed to update admin role' });
+    }
+  });
+
+  // Update custom permissions for an admin user (Super Admin only)
+  app.put('/api/admin/users/:id/custom-permissions', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.id;
+      const permissions = req.body;
+
+      // Only super admins can update custom permissions
+      if (req.adminPermissions?.adminRole !== 'super_admin') {
+        return res.status(403).json({ message: 'Only Super Admins can update custom permissions' });
+      }
+
+      // Update admin permissions
+      const updated = await storage.updateAdminPermissions({
+        adminUserId: userId,
+        ...permissions,
+      } as any);
+
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating custom permissions:', error);
+      res.status(500).json({ message: 'Failed to update permissions' });
+    }
+  });
+
+  // ========================================================================
   // Activity Log Routes
   // ========================================================================
   app.get('/api/admin/activity-logs', isAuthenticated, isAdmin, async (req, res) => {
