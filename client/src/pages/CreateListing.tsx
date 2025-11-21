@@ -143,7 +143,7 @@ export default function CreateListing() {
     }));
   }, [listingForm.subcategory]);
 
-  if (authLoading || !isAuthenticated || !isSeller) {
+  if (authLoading || !isAuthenticated || (!isSeller && !isAdmin)) {
     return null;
   }
 
