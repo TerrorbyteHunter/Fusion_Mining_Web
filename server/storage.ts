@@ -30,6 +30,8 @@ import {
   adminAuditLogs,
   twoFactorAuth,
   sessions,
+  sellerVerificationRequests,
+  sellerVerificationDocuments,
   type AdminPermissions,
   type InsertAdminPermissions,
   type UpdateAdminPermissions,
@@ -94,6 +96,10 @@ import {
   type TwoFactorAuth,
   type InsertTwoFactorAuth,
   type UpdateTwoFactorAuth,
+  type SellerVerificationRequest,
+  type InsertSellerVerificationRequest,
+  type SellerVerificationDocument,
+  type InsertSellerVerificationDocument,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
@@ -316,6 +322,18 @@ export interface IStorage {
   getTwoFactorAuthStatus(userId: string): Promise<TwoFactorAuth | undefined>;
   enableTwoFactorAuth(userId: string): Promise<void>;
   disableTwoFactorAuth(userId: string): Promise<void>;
+
+  // Seller Verification operations
+  createVerificationRequest(sellerId: string): Promise<any>;
+  getVerificationRequestById(id: string): Promise<any>;
+  getVerificationRequestBySellerId(sellerId: string): Promise<any>;
+  getAllPendingVerificationRequests(): Promise<any[]>;
+  getAllVerificationRequests(): Promise<any[]>;
+  approveVerificationRequest(id: string, reviewerId: string): Promise<any>;
+  rejectVerificationRequest(id: string, reviewerId: string, reason: string): Promise<any>;
+  createVerificationDocument(data: any): Promise<any>;
+  getDocumentsByRequestId(requestId: string): Promise<any[]>;
+  updateUserVerificationStatus(userId: string, status: string, badgeColor?: string): Promise<User>;
 
   // User Management (Admin) operations
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
@@ -2095,6 +2113,213 @@ export class DatabaseStorage implements IStorage {
       .set({ ...data, updatedAt: new Date() })
       .where(eq(users.id, userId))
       .returning();
+    return updated;
+  }
+
+  // ========================================================================
+  // Seller Verification operations
+  // ========================================================================
+  async createVerificationRequest(sellerId: string): Promise<SellerVerificationRequest> {
+    // Check if there's already a pending request
+    const existing = await db
+      .select()
+      .from(sellerVerificationRequests)
+      .where(
+        and(
+          eq(sellerVerificationRequests.sellerId, sellerId),
+          eq(sellerVerificationRequests.status, 'pending')
+        )
+      )
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    const [request] = await db
+      .insert(sellerVerificationRequests)
+      .values({ sellerId })
+      .returning();
+    return request;
+  }
+
+  async getVerificationRequestById(id: string): Promise<SellerVerificationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(sellerVerificationRequests)
+      .where(eq(sellerVerificationRequests.id, id))
+      .limit(1);
+    return request;
+  }
+
+  async getVerificationRequestBySellerId(sellerId: string): Promise<SellerVerificationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(sellerVerificationRequests)
+      .where(eq(sellerVerificationRequests.sellerId, sellerId))
+      .orderBy(desc(sellerVerificationRequests.createdAt))
+      .limit(1);
+    return request;
+  }
+
+  async getAllPendingVerificationRequests(): Promise<any[]> {
+    const requests = await db
+      .select({
+        id: sellerVerificationRequests.id,
+        status: sellerVerificationRequests.status,
+        rejectionReason: sellerVerificationRequests.rejectionReason,
+        submittedAt: sellerVerificationRequests.submittedAt,
+        reviewedAt: sellerVerificationRequests.reviewedAt,
+        sellerId: users.id,
+        sellerEmail: users.email,
+        sellerFirstName: users.firstName,
+        sellerLastName: users.lastName,
+        sellerCompanyName: userProfiles.companyName,
+      })
+      .from(sellerVerificationRequests)
+      .leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .where(eq(sellerVerificationRequests.status, 'pending'))
+      .orderBy(desc(sellerVerificationRequests.submittedAt));
+    
+    return requests;
+  }
+
+  async getAllVerificationRequests(): Promise<any[]> {
+    const requests = await db
+      .select({
+        id: sellerVerificationRequests.id,
+        status: sellerVerificationRequests.status,
+        rejectionReason: sellerVerificationRequests.rejectionReason,
+        submittedAt: sellerVerificationRequests.submittedAt,
+        reviewedAt: sellerVerificationRequests.reviewedAt,
+        sellerId: users.id,
+        sellerEmail: users.email,
+        sellerFirstName: users.firstName,
+        sellerLastName: users.lastName,
+        sellerCompanyName: userProfiles.companyName,
+      })
+      .from(sellerVerificationRequests)
+      .leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .orderBy(desc(sellerVerificationRequests.submittedAt));
+    
+    return requests;
+  }
+
+  async approveVerificationRequest(id: string, reviewerId: string): Promise<SellerVerificationRequest> {
+    // Get the request first to get the seller ID
+    const request = await this.getVerificationRequestById(id);
+    if (!request) {
+      throw new Error('Verification request not found');
+    }
+
+    // Get the seller's membership tier
+    const seller = await this.getUserById(request.sellerId);
+    if (!seller) {
+      throw new Error('Seller not found');
+    }
+
+    // Determine badge color based on membership tier
+    const badgeColorMap: Record<string, string> = {
+      basic: '', // No badge for basic tier
+      standard: 'blue',
+      premium: 'gold',
+    };
+    const badgeColor = badgeColorMap[seller.membershipTier] || '';
+
+    // Update verification request
+    const [updated] = await db
+      .update(sellerVerificationRequests)
+      .set({
+        status: 'approved',
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId,
+        updatedAt: new Date(),
+      })
+      .where(eq(sellerVerificationRequests.id, id))
+      .returning();
+
+    // Update user verification status
+    await this.updateUserVerificationStatus(request.sellerId, 'approved', badgeColor);
+
+    // Log activity
+    await this.logAdminAudit({
+      adminId: reviewerId,
+      action: 'verification_approved',
+      targetType: 'seller_verification_request',
+      targetId: id,
+      changes: { status: 'approved', sellerId: request.sellerId },
+    });
+
+    return updated;
+  }
+
+  async rejectVerificationRequest(id: string, reviewerId: string, reason: string): Promise<SellerVerificationRequest> {
+    const request = await this.getVerificationRequestById(id);
+    if (!request) {
+      throw new Error('Verification request not found');
+    }
+
+    const [updated] = await db
+      .update(sellerVerificationRequests)
+      .set({
+        status: 'rejected',
+        rejectionReason: reason,
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId,
+        updatedAt: new Date(),
+      })
+      .where(eq(sellerVerificationRequests.id, id))
+      .returning();
+
+    // Update user verification status
+    await this.updateUserVerificationStatus(request.sellerId, 'rejected');
+
+    // Log activity
+    await this.logAdminAudit({
+      adminId: reviewerId,
+      action: 'verification_rejected',
+      targetType: 'seller_verification_request',
+      targetId: id,
+      changes: { status: 'rejected', reason, sellerId: request.sellerId },
+    });
+
+    return updated;
+  }
+
+  async createVerificationDocument(data: InsertSellerVerificationDocument): Promise<SellerVerificationDocument> {
+    const [document] = await db
+      .insert(sellerVerificationDocuments)
+      .values(data)
+      .returning();
+    return document;
+  }
+
+  async getDocumentsByRequestId(requestId: string): Promise<SellerVerificationDocument[]> {
+    return await db
+      .select()
+      .from(sellerVerificationDocuments)
+      .where(eq(sellerVerificationDocuments.requestId, requestId))
+      .orderBy(desc(sellerVerificationDocuments.uploadedAt));
+  }
+
+  async updateUserVerificationStatus(userId: string, status: string, badgeColor?: string): Promise<User> {
+    const updateData: any = {
+      verificationStatus: status as any,
+      updatedAt: new Date(),
+    };
+    
+    if (badgeColor !== undefined) {
+      updateData.badgeColor = badgeColor;
+    }
+
+    const [updated] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+    
     return updated;
   }
 }
