@@ -1,0 +1,64 @@
+Implement Seller Verification and Tier-Based Badges (Fusion Mining Platform)
+Goal: Allow sellers to apply for verification by uploading required documents. Add an admin dashboard section to review, approve, or reject seller verification requests. Display verification badges on seller accounts and listings. Buyers will be verified automatically based on their membership tier. Sellers must apply manually.
+Seller Verification Workflow:
+1. 	In the seller dashboard, add a "Request Verification" section.
+2. 	Sellers must upload the following documents:
+• 	Company Certificate of Incorporation
+• 	Company Profile
+• 	Shareholder or Director List
+• 	Tax Certificate
+• 	Letter of Authorization (if the person registering is not a director)
+• 	IDs of directors
+3. 	Show verification status to the seller: Pending, Approved, or Rejected.
+4. 	If rejected, display the rejection reason provided by the admin.
+Admin Dashboard:
+1. 	Add a section called "Seller Verification Requests" in the admin dashboard.
+2. 	Display a list of all pending requests with seller details.
+3. 	Show all uploaded documents for each request.
+4. 	Admin actions:
+• 	Approve request: Seller receives a "Verified Seller" badge.
+• 	Reject request: Admin must provide a rejection reason.
+5. 	Log all admin actions in the activity logs with timestamp, admin ID, and decision.
+Tier-Based Verification Badges:
+1. 	Buyers are verified automatically based on their membership tier.
+2. 	Sellers receive a verification badge only after admin approval.
+3. 	Badge colors and labels:
+• 	Basic Tier: No badge
+• 	Standard Tier: Blue badge labeled "Verified Standard"
+• 	Premium Tier: Gold badge labeled "Verified Premium"
+4. 	Display badges on:
+• 	Seller profile page
+• 	Listings created by the seller
+• 	Search results and deal pages
+Database and Backend:
+1. 	Create a table called seller_verification_requests with the following fields:
+• 	request_id
+• 	seller_id
+• 	status (pending, approved, rejected)
+• 	rejection_reason
+• 	submitted_at
+• 	reviewed_at
+2. 	Create a table called seller_verification_documents linked to request_id with file paths and document type.
+3. 	Extend the user table with fields:
+• 	verification_status
+• 	badge_color
+4. 	API endpoints:
+• 	POST /api/seller/verification/apply → seller submits documents
+• 	GET /api/admin/seller-verification-requests → list all requests
+• 	POST /api/admin/seller-verification/:id/approve → approve request
+• 	POST /api/admin/seller-verification/:id/reject → reject request
+Frontend:
+1. 	Seller dashboard:
+• 	Upload form with progress indicators
+• 	Display current verification status
+2. 	Admin dashboard:
+• 	Table of requests with filters (pending, approved, rejected)
+• 	Document viewer for uploaded files
+• 	Approve and Reject buttons with input for rejection reason
+3. 	Badge component:
+• 	Display badge with correct color and label based on tier and verification status
+Security:
+1. 	Only authenticated sellers can submit verification requests.
+2. 	Only admins with permission can review and manage requests.
+3. 	Validate file types and size limits.
+4. 	Store documents securely with access restricted to admins.
