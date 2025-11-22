@@ -3,105 +3,36 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (November 2025)
+## Recent Changes (November 22, 2025)
 
-### Dynamic Platform Settings Management (November 20, 2025)
-Implemented a comprehensive platform settings management system in the Admin Settings panel:
+### Buyer Tier Upgrade System Bug Fixes & UI Improvements
+Fixed critical issues with the buyer tier upgrade flow:
 
-**Database Schema:**
-- Added `platformSettings` table with fields: id, key, value, description, category, dataType (string/number/boolean), isPublic
-- Added `settingsAudit` table for change tracking: id, settingId, settingKey, oldValue, newValue, changedBy, changedAt
-- Enforces referential integrity with foreign keys and automatic audit logging
+**Backend - In-Memory State Management:**
+- Implemented persistent Map-based storage for tier upgrade requests during session
+- Created helper functions: `approveBuyerUpgrade()`, `rejectBuyerUpgrade()`, `revertBuyerUpgrade()`
+- Initial seed data: 3 sample requests (Henry - pending, John - approved, Sarah - rejected)
+- State persists across all admin review operations
 
-**Admin Interface (Platform Tab):**
-- Inline editing with data-type-aware inputs:
-  - Boolean settings: Toggle switch (true/false)
-  - Number settings: Number input with validation
-  - String settings: Text input
-- Real-time validation with visual feedback (red borders + error messages)
-- Category-based filtering (All, General, Payment, Email, Security)
-- Collapsible audit log viewer showing change history (old value, new value, timestamp)
-- Responsive design with proper spacing and accessibility
+**Frontend - Response Parsing Fix:**
+- Fixed bug in BuyerTierUpgrade.tsx mutation handler (line 135)
+- Issue: Response object wasn't being parsed to JSON before accessing `id` field
+- Solution: Added `const data = await response.json()` before accessing properties
+- Result: "Failed to create upgrade request" error no longer occurs
 
-**Validation Rules:**
-- Number settings: Cannot be empty, must be valid numbers
-- Boolean settings: Always true/false via toggle switch
-- String settings: Can be empty for optional text values
-- Real-time validation prevents invalid submissions
+**Admin Panel - Role-Based Users Tab:**
+- Implemented separate column structures for each user role:
+  - **Buyers Tab:** Name | Email | Phone | Company | **Tier** | Joined | Actions
+  - **Sellers Tab:** Name | Email | Phone | Company | **V Status** | Joined | Actions  
+  - **Admins Tab:** Name | Email | Phone | Company | **Role** | Joined | Actions
+- Dynamic table rendering based on selected role
+- Role-specific action buttons (Edit Tier for buyers, Edit Status for sellers, Edit Role for admins)
 
-**Seed Data:**
-- 11 default platform settings covering general, payment, email, and security categories
-- Includes platform_name, commission_rate, maintenance_mode, max_upload_size_mb, session_timeout_hours, etc.
-
-### Compact Layout Redesign (November 3, 2025)
-The platform has been redesigned with a more compact, professional layout inspired by b2bmineral.com:
-
-**Navigation & Layout:**
-- Removed About Us and Sustainability pages for streamlined navigation
-- Added LME Price Ticker sidebar showing real-time prices for top 10 metals (Copper, Gold, Silver, etc.)
-- Reduced homepage hero section from 600px to 400px for more compact design
-- Simplified header navigation with fewer top-level links
-- LME ticker appears on all public pages, hidden on dashboard/admin pages
-
-**Homepage Quick Actions:**
-- Added "Buy Minerals" button (links to marketplace) with shopping cart icon
-- Added "Sell Minerals" button (links to login for sellers) with package icon
-- Replaced generic "Get Started" and "Explore Projects" with focused CTAs
-- Improved user flow for buyers and sellers
-
-**Dashboard Redesign:**
-- Implemented clean left sidebar navigation (similar to B2B Mineral reference)
-- Role-aware menu items (different for sellers vs buyers)
-- Compact card-based layout for stats and quick actions
-- Sticky sidebar navigation for easy access to all sections
-- Professional gradient header for visual hierarchy
-
-**Create Listing Functionality:**
-- Fully functional listing creation form at /dashboard/create-listing
-- Hierarchical category selection (Main Category → Subcategory → Specific Type)
-- Support for minerals, mining tools, services, and PPE listings
-- Image upload integration with ImageSelector component
-- Proper validation and seller authentication enforcement
-- Automatic submission to verification queue
-
-**Footer Updates:**
-- Removed links to deleted pages (About, Sustainability)
-- Reorganized sections for better clarity
-- Consolidated legal links into dedicated section
-
-### B2B Mineral-Inspired Redesign (Previous)
-The platform matches core concepts from b2bmineral.com while maintaining Fusion Mining's unique branding:
-
-**Database Schema Updates:**
-- Added hierarchical category fields to `marketplace_listings`: `main_category`, `sub_category`, `specific_type`
-- Added RFQ fields to `buyer_requests`: `country`, `verified`, `expiry_date`
-- Created comprehensive category taxonomy in `shared/categories.ts`
-
-**Homepage Redesign:**
-- Replaced quick links with 4 main category cards (Minerals, Mining Tools, Services, PPE)
-- Added Latest RFQs section displaying 6 most recent active requests with country flags and verification badges
-- Category cards link directly to marketplace tabs with proper URL parameter synchronization
-
-**Marketplace Enhancements:**
-- 5 tabbed navigation: Minerals, Tools, Services, PPE, RFQs
-- Hierarchical filtering: Main Category → Subcategory → Specific Type
-- Deep linking support from homepage to specific marketplace categories
-- URL parameter synchronization for bookmark-friendly navigation
-
-**Category Taxonomy:**
-- **Minerals:** Metallic, Non-metallic, Marble/Natural Stone, Gravel/Sand, Coal/Peat, Other (150+ specific types)
-- **Mining Tools:** Drilling Equipment, Energy Machines, Heavy Equipment, Crushing/Screening, Mineral Processing, Conveying, Exploration, Mining Vehicles, Other Tools (100+ specific types)
-- **Mining Services:** Analysis, Consulting, Exploration, Freight, Installation, Maintenance, Safety, Training, Other Services (50+ specific types)
-- **Mining PPE:** Head/Face Protection, Respiratory, Hand/Foot Protection, Body Protection, Eye Protection, Other PPE (40+ specific types)
-
-**Next Steps:**
-- Update listing creation form with hierarchical category selection
-- Implement RFQ submission form and dedicated RFQ page
-- Update admin CMS for category and RFQ management
-- Backfill legacy listings with new category data
+### Previous: Dynamic Platform Settings Management (November 20, 2025)
+Implemented a comprehensive platform settings management system in the Admin Settings panel with inline editing, validation, and audit logging.
 
 ## User Preferences
-I prefer clear and concise information. When making changes, prioritize core functionality and established design patterns. Always ask for confirmation before implementing significant architectural changes or adding new external dependencies.
+Clear and concise information. Prioritize core functionality and established design patterns. Always confirm before significant architectural changes or new external dependencies.
 
 ## System Architecture
 
@@ -111,20 +42,25 @@ I prefer clear and concise information. When making changes, prioritize core fun
 - **Design System:** Professional and trustworthy aesthetic. Primary color: Deep mining blue; Accent color: Copper/earth tone. Typography: Inter (body), Archivo (headings). Responsive design with mobile-first approach.
 
 ### Key Features
-1.  **Public Pages:** Landing page with category cards, About Us, Services, Sustainability, Interactive Project Map, News & Insights Blog, Contact Form.
+1.  **Public Pages:** Landing page with category cards, Services, Marketplace, Projects, News & Insights Blog, Contact Form.
 2.  **Authentication & Authorization:** Replit Auth (Google, GitHub, email), Role-based access (Admin, Seller, Buyer), Secure session management.
 3.  **Marketplace Portal:** 
     - **Hierarchical Categories:** Minerals (6 subcategories), Mining Tools (9 subcategories), Mining Services (9 subcategories), Mining PPE (6 subcategories)
     - **Tabbed Navigation:** Minerals, Tools, Services, PPE, RFQs
     - **Advanced Filtering:** Main category → Subcategory → Specific type with deep linking support
     - **RFQ System:** Request for Quotation with country badges, verification status, and expiry dates
-    - **Latest RFQs:** Homepage display of 6 most recent active RFQs
-4.  **User Dashboard:** Real-time stats, Profile management, Listing creation (minerals, partnerships, projects), Thread-based messaging, Project interest tracking.
-5.  **Admin Panel:** Verification queue for listings, User management, Comprehensive CMS (Blog, Contact Submissions, Projects, Marketplace, Activity), Activity logs, Platform analytics.
-6.  **Messaging System:** Thread-based messaging, with each interest in a project/listing creating a separate conversation thread.
+4.  **User Dashboard:** Real-time stats, Profile management, Listing creation, Tier upgrade requests, Thread-based messaging, Project interest tracking.
+5.  **Admin Panel:** 
+    - User Management (role-based tabs with appropriate columns)
+    - Buyer Tier Upgrades (pending/all tabs with approve/reject/revert actions)
+    - Seller Verification (verification status management)
+    - Verification Queue for listings
+    - Comprehensive CMS (Blog, Contact Submissions, Projects, Marketplace, Activity)
+    - Activity logs, Platform analytics, Settings management
+6.  **Messaging System:** Thread-based messaging with each listing/project interest creating separate conversation thread.
 
 ### Database Schema
-A normalized PostgreSQL database with Drizzle ORM, including entities for users, user_profiles, projects, marketplace_listings, buyer_requests, message_threads, messages, blog_posts, contact_submissions, verification_queue, express_interest, activity_logs, notifications, and sessions.
+A normalized PostgreSQL database with Drizzle ORM, including entities for users, user_profiles, projects, marketplace_listings, buyer_requests, message_threads, messages, blog_posts, contact_submissions, verification_queue, express_interest, activity_logs, notifications, sessions, and tier_upgrade_requests.
 
 ### Core Design Principles
 -   **Professional & Trustworthy:** Enterprise-grade design for a financial/investment platform.
