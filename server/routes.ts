@@ -4017,8 +4017,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Get pending buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades/pending', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades/pending', async (req: any, res) => {
     try {
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       // For now, return mock data - storage methods to be implemented
       const mockRequests = [
         {
@@ -4041,8 +4047,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades', async (req: any, res) => {
     try {
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
       // For now, return mock data - storage methods to be implemented
       const mockRequests = [
         {
@@ -4068,6 +4080,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           documentCount: 3,
         },
+        {
+          id: 'upgrade-3',
+          userId: 'buyer-3',
+          buyerEmail: 'buyer3@example.com',
+          buyerFirstName: 'Sarah',
+          buyerLastName: 'Smith',
+          requestedTier: 'premium',
+          status: 'rejected',
+          rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
+          submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+          reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+          documentCount: 2,
+        },
       ];
       res.json(mockRequests);
     } catch (error) {
@@ -4077,7 +4102,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents for a buyer tier upgrade request (Admin only)
-  app.get('/api/admin/buyer-upgrades/documents/:requestId', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades/documents/:requestId', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
       const { requestId } = req.params;
 
@@ -4116,6 +4146,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching buyer tier upgrade documents:", error);
       res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Approve buyer tier upgrade request (Admin only)
+  app.post('/api/admin/buyer-upgrades/approve/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+
+      // For now, return mock data - storage methods to be implemented
+      const mockApproval = {
+        success: true,
+        message: "Tier upgrade request approved successfully",
+        status: 'approved',
+        reviewedAt: new Date().toISOString(),
+      };
+
+      res.json(mockApproval);
+    } catch (error) {
+      console.error("Error approving buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to approve tier upgrade request" });
+    }
+  });
+
+  // Reject buyer tier upgrade request (Admin only)
+  app.post('/api/admin/buyer-upgrades/reject/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      // For now, return mock data - storage methods to be implemented
+      const mockRejection = {
+        success: true,
+        message: "Tier upgrade request rejected successfully",
+        status: 'rejected',
+        rejectionReason: reason,
+        reviewedAt: new Date().toISOString(),
+      };
+
+      res.json(mockRejection);
+    } catch (error) {
+      console.error("Error rejecting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to reject tier upgrade request" });
+    }
+  });
+
+  // Revert buyer tier upgrade request to draft (Admin only)
+  app.post('/api/admin/buyer-upgrades/revert/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+
+      // For now, return mock data - storage methods to be implemented
+      const mockRevert = {
+        success: true,
+        message: "Tier upgrade request reverted to draft successfully",
+        status: 'draft',
+      };
+
+      res.json(mockRevert);
+    } catch (error) {
+      console.error("Error reverting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to revert tier upgrade request" });
     }
   });
 

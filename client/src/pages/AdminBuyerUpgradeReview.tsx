@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,7 +20,11 @@ import {
   Clock,
   FileText,
   Eye,
+  Check,
+  X,
+  RotateCcw,
 } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AdminSidebar } from "@/components/AdminSidebar";
 
 interface BuyerUpgradeRequest {
@@ -42,9 +50,13 @@ interface UpgradeDocument {
 }
 
 export default function AdminBuyerUpgradeReview() {
+  const { toast } = useToast();
   const [selectedRequest, setSelectedRequest] = useState<BuyerUpgradeRequest | null>(null);
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Fetch pending upgrade requests
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery<BuyerUpgradeRequest[]>({
@@ -60,6 +72,72 @@ export default function AdminBuyerUpgradeReview() {
   const { data: documents, isLoading: documentsLoading } = useQuery<UpgradeDocument[]>({
     queryKey: ['/api/admin/buyer-upgrades/documents', selectedRequestId],
     enabled: !!selectedRequestId && documentsDialogOpen,
+  });
+
+  // Approve mutation
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => apiRequest('POST', `/api/admin/buyer-upgrades/approve/${id}`),
+    onSuccess: () => {
+      toast({
+        title: "Request Approved",
+        description: "Tier upgrade has been approved successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades'] });
+      setSelectedRequest(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to approve tier upgrade request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Reject mutation
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      apiRequest('POST', `/api/admin/buyer-upgrades/reject/${id}`, { reason }),
+    onSuccess: () => {
+      toast({
+        title: "Request Rejected",
+        description: "Tier upgrade has been rejected.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades'] });
+      setRejectDialogOpen(false);
+      setRejectionReason("");
+      setSelectedRequest(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reject tier upgrade request.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Revert mutation
+  const revertMutation = useMutation({
+    mutationFn: (id: string) => apiRequest('POST', `/api/admin/buyer-upgrades/revert/${id}`),
+    onSuccess: () => {
+      toast({
+        title: "Request Reverted",
+        description: "Tier upgrade request has been reverted to draft.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades'] });
+      setSelectedRequest(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to revert tier upgrade request.",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusBadge = (status: string) => {
@@ -92,6 +170,77 @@ export default function AdminBuyerUpgradeReview() {
     setSelectedRequest(request);
     setSelectedRequestId(request.id);
     setDocumentsDialogOpen(true);
+  };
+
+  const handleApprove = (request: BuyerUpgradeRequest) => {
+    setSelectedRequest(request);
+    approveMutation.mutate(request.id);
+  };
+
+  const handleRejectClick = (request: BuyerUpgradeRequest) => {
+    setSelectedRequest(request);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectSubmit = () => {
+    if (!selectedRequest || !rejectionReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a rejection reason.",
+        variant: "destructive",
+      });
+      return;
+    }
+    rejectMutation.mutate({ id: selectedRequest.id, reason: rejectionReason });
+  };
+
+  const handleRevert = (request: BuyerUpgradeRequest) => {
+    setSelectedRequest(request);
+    revertMutation.mutate(request.id);
+  };
+
+  const renderActionButtons = (request: BuyerUpgradeRequest) => {
+    if (request.status === 'approved' || request.status === 'rejected') {
+      return (
+        <Button
+          onClick={() => handleRevert(request)}
+          disabled={revertMutation.isPending}
+          variant="outline"
+          size="sm"
+          data-testid={`button-revert-${request.id}`}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          {revertMutation.isPending ? 'Reverting...' : 'Revert'}
+        </Button>
+      );
+    }
+
+    return (
+      <div className="flex gap-2 flex-wrap">
+        <Button
+          onClick={() => handleApprove(request)}
+          disabled={approveMutation.isPending}
+          variant="outline"
+          size="sm"
+          className="text-green-600 hover:text-green-700"
+          data-testid={`button-approve-${request.id}`}
+        >
+          <Check className="h-4 w-4 mr-2" />
+          {approveMutation.isPending ? 'Approving...' : 'Approve'}
+        </Button>
+        <Button
+          onClick={() => handleRejectClick(request)}
+          disabled={rejectMutation.isPending}
+          variant="outline"
+          size="sm"
+          className="text-red-600 hover:text-red-700"
+          data-testid={`button-reject-${request.id}`}
+        >
+          <X className="h-4 w-4 mr-2" />
+          Reject
+        </Button>
+      </div>
+    );
   };
 
   return (
@@ -168,7 +317,7 @@ export default function AdminBuyerUpgradeReview() {
                                 </div>
                               </div>
 
-                              <div className="flex gap-2 pt-2">
+                              <div className="flex gap-2 pt-2 flex-wrap">
                                 <Button
                                   onClick={() => handleViewDocuments(request)}
                                   variant="outline"
@@ -178,6 +327,7 @@ export default function AdminBuyerUpgradeReview() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Documents
                                 </Button>
+                                {renderActionButtons(request)}
                               </div>
                             </div>
                           </CardContent>
@@ -244,7 +394,14 @@ export default function AdminBuyerUpgradeReview() {
                                 </div>
                               </div>
 
-                              <div className="flex gap-2 pt-2">
+                              {request.rejectionReason && (
+                                <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
+                                  <p className="text-xs font-medium text-red-900 dark:text-red-200 mb-1">Rejection Reason:</p>
+                                  <p className="text-xs text-red-800 dark:text-red-300">{request.rejectionReason}</p>
+                                </div>
+                              )}
+
+                              <div className="flex gap-2 pt-2 flex-wrap">
                                 <Button
                                   onClick={() => handleViewDocuments(request)}
                                   variant="outline"
@@ -254,6 +411,7 @@ export default function AdminBuyerUpgradeReview() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   View Documents
                                 </Button>
+                                {renderActionButtons(request)}
                               </div>
                             </div>
                           </CardContent>
@@ -322,6 +480,55 @@ export default function AdminBuyerUpgradeReview() {
               <p className="text-muted-foreground">No documents uploaded</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Tier Upgrade Request</DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting {selectedRequest?.buyerFirstName}'s tier upgrade request
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="rejection-reason" className="text-sm">
+                Rejection Reason
+              </Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="Explain why this tier upgrade request is being rejected..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="mt-2 min-h-[120px]"
+                data-testid="textarea-rejection-reason"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3 pt-4">
+            <Button
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectionReason("");
+              }}
+              variant="outline"
+              data-testid="button-cancel-reject"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRejectSubmit}
+              disabled={rejectMutation.isPending || !rejectionReason.trim()}
+              variant="destructive"
+              data-testid="button-confirm-reject"
+            >
+              {rejectMutation.isPending ? 'Rejecting...' : 'Reject Request'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
