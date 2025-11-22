@@ -42,7 +42,6 @@ interface UpgradeDocument {
 }
 
 export default function AdminBuyerUpgradeReview() {
-  const { toast } = useToast();
   const [selectedRequest, setSelectedRequest] = useState<BuyerUpgradeRequest | null>(null);
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
