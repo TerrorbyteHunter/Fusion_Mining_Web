@@ -60,6 +60,47 @@ interface BuyerUpgradeRequest {
   documentCount: number;
 }
 
+interface TestUser {
+  id: string;
+  email: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  membershipTier: string;
+  verificationStatus: string;
+}
+
+// In-memory storage for test users
+const testUsersStore: Map<string, TestUser> = new Map([
+  ['test-buyer-789', {
+    id: 'test-buyer-789',
+    email: 'henry@fusionmining.com',
+    role: 'buyer',
+    firstName: 'Henry',
+    lastName: 'Pass',
+    membershipTier: 'basic',
+    verificationStatus: 'not_requested',
+  }],
+  ['test-seller-456', {
+    id: 'test-seller-456',
+    email: 'ray@fusionmining.com',
+    role: 'seller',
+    firstName: 'Ray',
+    lastName: 'Pass',
+    membershipTier: 'basic',
+    verificationStatus: 'approved',
+  }],
+  ['test-admin-123', {
+    id: 'test-admin-123',
+    email: 'admin@fusionmining.com',
+    role: 'admin',
+    firstName: 'Admin',
+    lastName: 'User',
+    membershipTier: 'basic',
+    verificationStatus: 'approved',
+  }],
+]);
+
 // In-memory storage for tier upgrade requests
 const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
   ['upgrade-1', {
@@ -110,13 +151,20 @@ function getPendingBuyerUpgrades(): BuyerUpgradeRequest[] {
   return Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'pending');
 }
 
-// Helper function to approve a request
+// Helper function to approve a request and update user tier
 function approveBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
   const request = buyerUpgradeRequests.get(id);
   if (request) {
     request.status = 'approved';
     request.reviewedAt = new Date().toISOString();
     buyerUpgradeRequests.set(id, request);
+    
+    // Update user's membershipTier
+    const user = testUsersStore.get(request.userId);
+    if (user) {
+      user.membershipTier = request.requestedTier;
+      testUsersStore.set(request.userId, user);
+    }
   }
   return request || null;
 }
@@ -429,31 +477,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       try {
-        // For hardcoded test users, return them with proper structure
+        // For hardcoded test users, return them from testUsersStore
         if (req.user && req.user.id && req.user.id.startsWith('test-')) {
-          const testUserData: any = {
-            id: req.user.id,
-            email: req.user.email,
-            role: req.user.role,
-            membershipTier: req.user.membershipTier || 'basic',
-          };
-          
-          // Add proper names for test users
-          if (req.user.id === 'test-seller-456') {
-            testUserData.firstName = 'Ray';
-            testUserData.lastName = 'Pass';
-            testUserData.verificationStatus = 'approved'; // Seller is verified
-          } else if (req.user.id === 'test-admin-123') {
-            testUserData.firstName = 'Admin';
-            testUserData.lastName = 'User';
-            testUserData.verificationStatus = 'approved';
-          } else if (req.user.id === 'test-buyer-789') {
-            testUserData.firstName = 'Henry';
-            testUserData.lastName = 'Pass';
-            testUserData.verificationStatus = 'not_requested';
+          const testUser = testUsersStore.get(req.user.id);
+          if (testUser) {
+            return res.json({
+              id: testUser.id,
+              email: testUser.email,
+              role: testUser.role,
+              firstName: testUser.firstName,
+              lastName: testUser.lastName,
+              membershipTier: testUser.membershipTier,
+              verificationStatus: testUser.verificationStatus,
+            });
           }
-          
-          return res.json(testUserData);
         }
         
         // For database users, fetch from storage

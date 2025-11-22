@@ -84,6 +84,7 @@ export default function AdminBuyerUpgradeReview() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/buyer-upgrades'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
       setSelectedRequest(null);
     },
     onError: () => {
