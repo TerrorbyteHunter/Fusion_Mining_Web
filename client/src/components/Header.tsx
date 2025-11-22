@@ -9,7 +9,8 @@ import {
   User, 
   LogOut, 
   LayoutDashboard,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle
 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -119,8 +120,11 @@ export function Header() {
                       <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.firstName || "User"} />
                       <AvatarFallback>{getUserInitials()}</AvatarFallback>
                     </Avatar>
-                    <span className="hidden md:inline">
+                    <span className="hidden md:flex items-center gap-1">
                       {user?.firstName || user?.email}
+                      {user?.verificationStatus === 'approved' && (
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" data-testid="badge-verified" />
+                      )}
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
