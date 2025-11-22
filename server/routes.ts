@@ -137,6 +137,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (authenticatedUser) {
           console.log('[DEMO LOGIN] Authenticated hardcoded user:', username);
+          
+          // Ensure the demo user exists in the database
+          try {
+            let dbUser = await storage.getUser(authenticatedUser.id);
+            if (!dbUser) {
+              console.log('[DEMO LOGIN] Creating demo user in database:', authenticatedUser.id);
+              await storage.upsertUser({
+                id: authenticatedUser.id,
+                email: authenticatedUser.email,
+                firstName: authenticatedUser.firstName,
+                lastName: authenticatedUser.lastName,
+              });
+              await storage.updateUserRole(authenticatedUser.id, authenticatedUser.role);
+            }
+          } catch (error) {
+            console.error('[DEMO LOGIN] Error creating demo user in database:', error);
+          }
         }
       }
       
