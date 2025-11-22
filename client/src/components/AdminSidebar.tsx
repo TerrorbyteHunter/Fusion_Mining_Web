@@ -101,15 +101,7 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     },
   ];
 
-  const navigate = (href: string) => {
-    window.location.href = href;
-  };
-
-  const handleClick = (item: typeof menuItems[0]) => {
-    if (item.href) {
-      navigate(item.href);
-      return;
-    }
+  const handleTabClick = (item: typeof menuItems[0]) => {
     if (item.tab && onTabChange) {
       onTabChange(item.tab);
     }
@@ -142,24 +134,48 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            // Determine if item is active
-            const isActive = activeTab === item.tab || (item.href && location === item.href);
             
-            return (
-              <Button
-                key={item.href || item.tab}
-                variant={isActive ? "secondary" : "ghost"}
-                className={cn(
-                  "w-full justify-start gap-3",
-                  isActive && "bg-primary/10 text-primary font-semibold"
-                )}
-                onClick={() => handleClick(item)}
-                data-testid={item.testId}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Button>
-            );
+            // For tab-based items
+            if (item.tab) {
+              const isActive = activeTab === item.tab;
+              return (
+                <Button
+                  key={item.tab}
+                  variant={isActive ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start gap-3",
+                    isActive && "bg-primary/10 text-primary font-semibold"
+                  )}
+                  onClick={() => handleTabClick(item)}
+                  data-testid={item.testId}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Button>
+              );
+            }
+            
+            // For href-based items - use Link for client-side navigation
+            if (item.href) {
+              const isActive = location === item.href;
+              return (
+                <Link key={item.href} href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start gap-3",
+                      isActive && "bg-primary/10 text-primary font-semibold"
+                    )}
+                    data-testid={item.testId}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            }
+            
+            return null;
           })}
         </div>
       </nav>
