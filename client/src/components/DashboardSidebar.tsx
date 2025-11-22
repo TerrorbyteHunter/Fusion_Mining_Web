@@ -11,7 +11,8 @@ import {
   Plus,
   ListOrdered,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -112,9 +113,17 @@ export function DashboardSidebar() {
             <p className="font-semibold truncate" data-testid="text-username">
               {user?.firstName || user?.email}
             </p>
-            <Badge variant="secondary" className="text-xs">
-              {isAdmin ? "Admin" : isSeller ? "Seller" : "Buyer"}
-            </Badge>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                {isAdmin ? "Admin" : isSeller ? "Seller" : "Buyer"}
+              </Badge>
+              {user?.verificationStatus === 'approved' && (
+                <Badge className="text-xs bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-200 flex items-center gap-1" data-testid="badge-verified-sidebar">
+                  <CheckCircle className="h-3 w-3" />
+                  Verified
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
       </div>
