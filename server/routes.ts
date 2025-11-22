@@ -42,6 +42,109 @@ function formatZodError(error: ZodError): string {
   return error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
 }
 
+// ========================================================================
+// In-Memory State Management for Demo/Development
+// ========================================================================
+
+interface BuyerUpgradeRequest {
+  id: string;
+  userId: string;
+  buyerEmail: string;
+  buyerFirstName: string;
+  buyerLastName: string;
+  requestedTier: string;
+  status: 'draft' | 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  documentCount: number;
+}
+
+// In-memory storage for tier upgrade requests
+const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
+  ['upgrade-1', {
+    id: 'upgrade-1',
+    userId: 'test-buyer-789',
+    buyerEmail: 'henry@fusionmining.com',
+    buyerFirstName: 'Henry',
+    buyerLastName: 'Brown',
+    requestedTier: 'premium',
+    status: 'pending',
+    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 4,
+  }],
+  ['upgrade-2', {
+    id: 'upgrade-2',
+    userId: 'buyer-2',
+    buyerEmail: 'buyer2@example.com',
+    buyerFirstName: 'John',
+    buyerLastName: 'Doe',
+    requestedTier: 'standard',
+    status: 'approved',
+    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 3,
+  }],
+  ['upgrade-3', {
+    id: 'upgrade-3',
+    userId: 'buyer-3',
+    buyerEmail: 'buyer3@example.com',
+    buyerFirstName: 'Sarah',
+    buyerLastName: 'Smith',
+    requestedTier: 'premium',
+    status: 'rejected',
+    rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
+    submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 2,
+  }],
+]);
+
+// Helper function to get all requests
+function getAllBuyerUpgrades(): BuyerUpgradeRequest[] {
+  return Array.from(buyerUpgradeRequests.values());
+}
+
+// Helper function to get pending requests
+function getPendingBuyerUpgrades(): BuyerUpgradeRequest[] {
+  return Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'pending');
+}
+
+// Helper function to approve a request
+function approveBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
+  const request = buyerUpgradeRequests.get(id);
+  if (request) {
+    request.status = 'approved';
+    request.reviewedAt = new Date().toISOString();
+    buyerUpgradeRequests.set(id, request);
+  }
+  return request || null;
+}
+
+// Helper function to reject a request
+function rejectBuyerUpgrade(id: string, reason: string): BuyerUpgradeRequest | null {
+  const request = buyerUpgradeRequests.get(id);
+  if (request) {
+    request.status = 'rejected';
+    request.rejectionReason = reason;
+    request.reviewedAt = new Date().toISOString();
+    buyerUpgradeRequests.set(id, request);
+  }
+  return request || null;
+}
+
+// Helper function to revert a request to draft
+function revertBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
+  const request = buyerUpgradeRequests.get(id);
+  if (request) {
+    request.status = 'draft';
+    request.rejectionReason = undefined;
+    request.reviewedAt = undefined;
+    buyerUpgradeRequests.set(id, request);
+  }
+  return request || null;
+}
+
 // Middleware to check if user has analytics access based on membership tier
 async function requireAnalyticsAccess(req: any, res: any, next: any) {
   try {
@@ -4025,21 +4128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // For now, return mock data - storage methods to be implemented
-      const mockRequests = [
-        {
-          id: 'upgrade-1',
-          userId: 'test-buyer-789',
-          buyerEmail: 'henry@fusionmining.com',
-          buyerFirstName: 'Henry',
-          buyerLastName: 'Brown',
-          requestedTier: 'premium',
-          status: 'pending',
-          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          documentCount: 4,
-        },
-      ];
-      res.json(mockRequests);
+      // Return pending requests from in-memory store
+      const pendingRequests = getPendingBuyerUpgrades();
+      res.json(pendingRequests);
     } catch (error) {
       console.error("Error fetching pending buyer tier upgrades:", error);
       res.status(500).json({ message: "Failed to fetch pending buyer tier upgrades" });
@@ -4055,46 +4146,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // For now, return mock data - storage methods to be implemented
-      const mockRequests = [
-        {
-          id: 'upgrade-1',
-          userId: 'test-buyer-789',
-          buyerEmail: 'henry@fusionmining.com',
-          buyerFirstName: 'Henry',
-          buyerLastName: 'Brown',
-          requestedTier: 'premium',
-          status: 'pending',
-          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          documentCount: 4,
-        },
-        {
-          id: 'upgrade-2',
-          userId: 'buyer-2',
-          buyerEmail: 'buyer2@example.com',
-          buyerFirstName: 'John',
-          buyerLastName: 'Doe',
-          requestedTier: 'standard',
-          status: 'approved',
-          submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          documentCount: 3,
-        },
-        {
-          id: 'upgrade-3',
-          userId: 'buyer-3',
-          buyerEmail: 'buyer3@example.com',
-          buyerFirstName: 'Sarah',
-          buyerLastName: 'Smith',
-          requestedTier: 'premium',
-          status: 'rejected',
-          rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
-          submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-          documentCount: 2,
-        },
-      ];
-      res.json(mockRequests);
+      // Return all requests from in-memory store
+      const allRequests = getAllBuyerUpgrades();
+      res.json(allRequests);
     } catch (error) {
       console.error("Error fetching buyer tier upgrades:", error);
       res.status(500).json({ message: "Failed to fetch buyer tier upgrades" });
@@ -4159,15 +4213,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // For now, return mock data - storage methods to be implemented
-      const mockApproval = {
+      // Update in-memory store
+      const updated = approveBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      res.json({
         success: true,
         message: "Tier upgrade request approved successfully",
         status: 'approved',
         reviewedAt: new Date().toISOString(),
-      };
-
-      res.json(mockApproval);
+      });
     } catch (error) {
       console.error("Error approving buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to approve tier upgrade request" });
@@ -4189,16 +4246,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
 
-      // For now, return mock data - storage methods to be implemented
-      const mockRejection = {
+      // Update in-memory store
+      const updated = rejectBuyerUpgrade(id, reason);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      res.json({
         success: true,
         message: "Tier upgrade request rejected successfully",
         status: 'rejected',
         rejectionReason: reason,
         reviewedAt: new Date().toISOString(),
-      };
-
-      res.json(mockRejection);
+      });
     } catch (error) {
       console.error("Error rejecting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to reject tier upgrade request" });
@@ -4215,14 +4275,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // For now, return mock data - storage methods to be implemented
-      const mockRevert = {
+      // Update in-memory store
+      const updated = revertBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      res.json({
         success: true,
         message: "Tier upgrade request reverted to draft successfully",
         status: 'draft',
-      };
-
-      res.json(mockRevert);
+      });
     } catch (error) {
       console.error("Error reverting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to revert tier upgrade request" });
