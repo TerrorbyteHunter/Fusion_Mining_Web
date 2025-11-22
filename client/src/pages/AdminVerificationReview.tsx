@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
+import { AdminSidebar } from "@/components/AdminSidebar";
 
 type VerificationStatus = 'not_requested' | 'pending' | 'approved' | 'rejected';
 
@@ -250,22 +251,25 @@ export default function AdminVerificationReview() {
   );
 
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Shield className="h-5 w-5 text-primary" />
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col">
+        <div className="container mx-auto px-6 py-8">
+          <div className="max-w-6xl mx-auto">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Shield className="h-5 w-5 text-primary" />
+                </div>
+                <h1 className="text-2xl font-bold" data-testid="text-page-title">
+                  Seller Verification Review
+                </h1>
+              </div>
+              <p className="text-muted-foreground">
+                Review and approve seller verification requests
+              </p>
             </div>
-            <h1 className="text-2xl font-bold" data-testid="text-page-title">
-              Seller Verification Review
-            </h1>
-          </div>
-          <p className="text-muted-foreground">
-            Review and approve seller verification requests
-          </p>
-        </div>
 
         {/* Tabs */}
         <Tabs defaultValue="pending" className="w-full">
@@ -446,6 +450,8 @@ export default function AdminVerificationReview() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+          </div>
+        </div>
       </div>
     </div>
   );
