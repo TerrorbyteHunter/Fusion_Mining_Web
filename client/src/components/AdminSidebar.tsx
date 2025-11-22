@@ -138,6 +138,26 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
             // For tab-based items
             if (item.tab) {
               const isActive = activeTab === item.tab;
+              
+              // If we're on a href-based page, navigate to /admin
+              if (!onTabChange) {
+                return (
+                  <Link key={item.tab} href="/admin">
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "w-full justify-start gap-3"
+                      )}
+                      data-testid={item.testId}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Button>
+                  </Link>
+                );
+              }
+              
+              // If we're on the Admin page with tab support
               return (
                 <Button
                   key={item.tab}

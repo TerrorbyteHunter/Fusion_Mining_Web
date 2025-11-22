@@ -5,12 +5,19 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 22, 2025)
 
-### Admin Sidebar Navigation - Fixed Multiple Highlighting Issue
-Fixed bug where multiple admin sidebar items were highlighted simultaneously, preventing navigation:
-- **Problem:** When clicking on "Seller Verification" or "Buyer Tier Upgrades", all href-based items would get highlighted
-- **Solution:** Unified sidebar item rendering by removing Link wrapper complexity and using `window.location.href` for navigation
-- **Impact:** Admin can now navigate smoothly between sidebar pages with only the current page highlighted
-- **Technical:** All items now use uniform Button rendering with simplified `activeTab` logic
+### Admin Sidebar Navigation - Fixed Navigation Between Tab & Href Pages
+Fixed critical navigation bug preventing movement between href-based pages and tab-based pages:
+- **Problems Fixed:**
+  1. Multiple items highlighted simultaneously on href-based pages
+  2. Tab-based items (Dashboard, Users, Listings, etc.) unclickable when on href-based pages (Settings, Content CMS, Seller Verification, Buyer Tier Upgrades)
+  3. Page reloads causing slow navigation
+- **Solution:** Smart rendering based on page type
+  - **On href-based pages:** Tab items render as Links to `/admin` (enables navigation back to tab pages)
+  - **On Admin page:** Tab items use onTabChange handler for instant tab switching
+  - **Href items:** Always use Link components for fast client-side navigation
+  - **Active state:** Each item type checks its own condition independently
+- **Impact:** Seamless navigation throughout admin panel with only ONE item highlighted at a time
+- **Technical:** AdminSidebar checks if onTabChange prop is provided to determine rendering strategy
 
 ### Dark/Light Theme Toggle - App-Wide Support
 Added complete dark/light theme toggle system:
