@@ -10,7 +10,10 @@ import {
   LogOut, 
   LayoutDashboard,
   ShieldCheck,
-  CheckCircle
+  CheckCircle,
+  Crown,
+  Zap,
+  Star
 } from "lucide-react";
 import { useState } from "react";
 import {
@@ -21,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/ui/notification-bell";
@@ -56,6 +60,28 @@ export function Header() {
   const getUserInitials = () => {
     if (!user) return "U";
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0].toUpperCase() || "U";
+  };
+
+  const getTierBadge = () => {
+    const tier = user?.membershipTier || 'basic';
+    const tierConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+      premium: { 
+        icon: <Crown className="h-3 w-3" />, 
+        label: 'Premium', 
+        className: 'bg-amber-600 hover:bg-amber-700' 
+      },
+      standard: { 
+        icon: <Zap className="h-3 w-3" />, 
+        label: 'Standard', 
+        className: 'bg-blue-600 hover:bg-blue-700' 
+      },
+      basic: { 
+        icon: <Star className="h-3 w-3" />, 
+        label: 'Basic', 
+        className: 'bg-gray-500 hover:bg-gray-600' 
+      },
+    };
+    return tierConfig[tier];
   };
 
   return (
@@ -108,6 +134,15 @@ export function Header() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             {isAuthenticated && isAdmin && <NotificationBell />}
+            {isAuthenticated && user?.role === 'buyer' && getTierBadge() && (
+              <Badge 
+                className={`${getTierBadge()?.className} text-white flex items-center gap-1 px-2.5 py-1`}
+                data-testid="badge-nav-tier"
+              >
+                {getTierBadge()?.icon}
+                <span className="hidden sm:inline text-xs font-medium">{getTierBadge()?.label}</span>
+              </Badge>
+            )}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
