@@ -21,7 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-type VerificationStatus = 'not_requested' | 'pending' | 'approved' | 'rejected';
+type VerificationStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 
 type DocumentType = 
   | 'certificate_of_incorporation'
@@ -153,6 +153,8 @@ export default function SellerVerification() {
         return <Badge variant="destructive">Rejected</Badge>;
       case 'pending':
         return <Badge className="bg-yellow-600">Pending Review</Badge>;
+      case 'draft':
+        return <Badge variant="secondary">In Progress</Badge>;
       default:
         return <Badge variant="secondary">Not Requested</Badge>;
     }
@@ -216,6 +218,16 @@ export default function SellerVerification() {
                   <AlertDescription>
                     Submit a verification request to get started. You'll need to upload supporting
                     documents to verify your business.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {request?.status === 'draft' && (
+                <Alert>
+                  <Clock className="h-4 w-4" />
+                  <AlertTitle>Uploading Documents</AlertTitle>
+                  <AlertDescription>
+                    You're in the process of uploading documents. Upload all required documents, then click Submit when ready.
                   </AlertDescription>
                 </Alert>
               )}
@@ -473,8 +485,8 @@ export default function SellerVerification() {
                   ))}
                 </div>
 
-                {/* Submit button - only show if not already pending/approved */}
-                {request.status !== 'pending' && request.status !== 'approved' && (
+                {/* Submit button - only show if in draft or rejected status */}
+                {(request.status === 'draft' || request.status === 'rejected') && (
                   <div className="pt-4 border-t">
                     <Button
                       onClick={() => submitVerificationMutation.mutate()}
