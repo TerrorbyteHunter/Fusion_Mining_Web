@@ -3664,6 +3664,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Submit verification request (Seller only) - sends request for review
+  app.post('/api/verification/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can submit verification" });
+      }
+
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      if (!request) {
+        return res.status(404).json({ message: "Verification request not found" });
+      }
+
+      // Check if request has at least one document
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      if (!documents || documents.length === 0) {
+        return res.status(400).json({ message: "Please upload at least one document before submitting" });
+      }
+
+      // Update request status to pending
+      const updatedRequest = await storage.updateVerificationRequestStatus(request.id, 'pending');
+      const updatedDocuments = await storage.getDocumentsByRequestId(request.id);
+      
+      console.log('[VERIFICATION] Request submitted:', request.id, 'Status changed to pending');
+      res.json({ ...updatedRequest, documents: updatedDocuments });
+    } catch (error) {
+      console.error("Error submitting verification request:", error);
+      res.status(500).json({ message: "Failed to submit verification request" });
+    }
+  });
+
   // Get current user's verification request (Seller)
   app.get('/api/verification/my-request', isAuthenticated, async (req: any, res) => {
     try {

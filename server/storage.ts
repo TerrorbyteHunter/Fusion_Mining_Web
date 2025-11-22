@@ -331,6 +331,7 @@ export interface IStorage {
   getAllVerificationRequests(): Promise<any[]>;
   approveVerificationRequest(id: string, reviewerId: string): Promise<any>;
   rejectVerificationRequest(id: string, reviewerId: string, reason: string): Promise<any>;
+  updateVerificationRequestStatus(id: string, status: string): Promise<any>;
   createVerificationDocument(data: any): Promise<any>;
   getDocumentsByRequestId(requestId: string): Promise<any[]>;
   updateUserVerificationStatus(userId: string, status: string, badgeColor?: string): Promise<User>;
@@ -2205,6 +2206,20 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sellerVerificationRequests.submittedAt));
     
     return requests;
+  }
+
+  async updateVerificationRequestStatus(id: string, status: string): Promise<SellerVerificationRequest> {
+    const [updated] = await db
+      .update(sellerVerificationRequests)
+      .set({
+        status: status as any,
+        submittedAt: status === 'pending' ? new Date() : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(sellerVerificationRequests.id, id))
+      .returning();
+
+    return updated;
   }
 
   async approveVerificationRequest(id: string, reviewerId: string): Promise<SellerVerificationRequest> {

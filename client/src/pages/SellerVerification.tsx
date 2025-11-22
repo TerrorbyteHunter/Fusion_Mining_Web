@@ -66,15 +66,34 @@ export default function SellerVerification() {
     mutationFn: () => apiRequest('POST', '/api/verification/request'),
     onSuccess: () => {
       toast({
-        title: "Verification Request Created",
-        description: "You can now upload documents to support your verification request.",
+        title: "Verification Started",
+        description: "Upload your documents and click Submit when ready.",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/verification/my-request'] });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create verification request. Please try again.",
+        description: "Failed to start verification. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Submit verification mutation
+  const submitVerificationMutation = useMutation({
+    mutationFn: () => apiRequest('POST', '/api/verification/submit'),
+    onSuccess: () => {
+      toast({
+        title: "Verification Submitted",
+        description: "Your verification request has been submitted for review. We'll get back to you within 1-2 business days.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/verification/my-request'] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to submit verification. Please try again.",
         variant: "destructive",
       });
     },
@@ -331,27 +350,43 @@ export default function SellerVerification() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {request.documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between gap-4 flex-wrap p-3 rounded-md border"
-                    data-testid={`document-${doc.id}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{doc.fileName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {documentTypeLabels[doc.documentType]}
-                        </p>
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  {request.documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between gap-4 flex-wrap p-3 rounded-md border"
+                      data-testid={`document-${doc.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">{doc.fileName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {documentTypeLabels[doc.documentType]}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(doc.uploadedAt).toLocaleDateString()}
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(doc.uploadedAt).toLocaleDateString()}
-                    </div>
+                  ))}
+                </div>
+
+                {/* Submit button - only show if not already pending/approved */}
+                {request.status !== 'pending' && request.status !== 'approved' && (
+                  <div className="pt-4 border-t">
+                    <Button
+                      onClick={() => submitVerificationMutation.mutate()}
+                      disabled={submitVerificationMutation.isPending}
+                      className="w-full"
+                      data-testid="button-submit-verification"
+                    >
+                      {submitVerificationMutation.isPending ? 'Submitting...' : 'Submit Verification Request'}
+                    </Button>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
