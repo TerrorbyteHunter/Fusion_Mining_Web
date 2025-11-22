@@ -267,6 +267,105 @@ export default function SellerVerification() {
           </CardContent>
         </Card>
 
+        {/* Required Documents List */}
+        {request && request.status !== 'approved' && (
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-base">Required Documents</CardTitle>
+                  <CardDescription className="text-xs">
+                    Please upload all the following documents to complete your verification
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="space-y-3">
+                  <div className="flex gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="flex-shrink-0 text-primary">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Certificate of Incorporation</p>
+                      <p className="text-xs text-muted-foreground">
+                        Official document proving your company is registered
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="flex-shrink-0 text-primary">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Company Profile</p>
+                      <p className="text-xs text-muted-foreground">
+                        Details about your company, business focus, and operations
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="flex-shrink-0 text-primary">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Shareholder List</p>
+                      <p className="text-xs text-muted-foreground">
+                        List of all shareholders and their ownership percentages
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="flex-shrink-0 text-primary">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Tax Certificate</p>
+                      <p className="text-xs text-muted-foreground">
+                        Current tax registration and compliance certificate
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 p-3 rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/50">
+                    <div className="flex-shrink-0 text-blue-600 dark:text-blue-400">
+                      <AlertCircle className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Letter of Authorization</p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Authorization letter from the company (required if you are not a director or shareholder)
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300 italic">
+                        Note: If you are a director or shareholder of the company, you may skip this document. Otherwise, you must provide a letter from a director or authorized person giving you permission to register and manage this account on behalf of the company.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 p-3 rounded-md bg-muted/50">
+                    <div className="flex-shrink-0 text-primary">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">Director ID</p>
+                      <p className="text-xs text-muted-foreground">
+                        National ID or passport of the company director/authorized representative
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Document Upload Section */}
         {request && request.status !== 'approved' && (
           <Card className="mb-6">
