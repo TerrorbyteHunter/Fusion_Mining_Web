@@ -14,6 +14,7 @@ import {
   FileText,
   Activity,
   Shield,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,12 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
       icon: Shield,
       href: "/admin/seller-verification",
       testId: "admin-sidebar-seller-verification"
+    },
+    {
+      label: "Buyer Tier Upgrades",
+      icon: TrendingUp,
+      href: "/admin/buyer-upgrades",
+      testId: "admin-sidebar-buyer-upgrades"
     },
     {
       label: "Analytics",
