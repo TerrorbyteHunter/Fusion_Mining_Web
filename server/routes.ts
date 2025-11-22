@@ -78,7 +78,7 @@ const testUsersStore: Map<string, TestUser> = new Map([
     role: 'buyer',
     firstName: 'Henry',
     lastName: 'Pass',
-    membershipTier: 'basic',
+    membershipTier: 'premium',
     verificationStatus: 'not_requested',
   }],
   ['test-seller-456', {
@@ -110,8 +110,9 @@ const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
     buyerFirstName: 'Henry',
     buyerLastName: 'Brown',
     requestedTier: 'premium',
-    status: 'pending',
+    status: 'approved',
     submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     documentCount: 4,
   }],
   ['upgrade-2', {
@@ -149,6 +150,18 @@ function getAllBuyerUpgrades(): BuyerUpgradeRequest[] {
 // Helper function to get pending requests
 function getPendingBuyerUpgrades(): BuyerUpgradeRequest[] {
   return Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'pending');
+}
+
+// Helper function to sync user tiers from approved requests (runs on startup)
+function initializeUserTiersFromApprovedRequests(): void {
+  const approvedRequests = Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'approved');
+  for (const request of approvedRequests) {
+    const user = testUsersStore.get(request.userId);
+    if (user) {
+      user.membershipTier = request.requestedTier;
+      testUsersStore.set(request.userId, user);
+    }
+  }
 }
 
 // Helper function to approve a request and update user tier
@@ -225,6 +238,9 @@ async function requireAnalyticsAccess(req: any, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize user tiers from approved requests on startup
+  initializeUserTiersFromApprovedRequests();
+
   // ========================================================================
   // Health Check Endpoint (for monitoring services like Render, Vercel, etc.)
   // ========================================================================
