@@ -1181,6 +1181,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/admin/users/:userId/verification-status', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { status } = req.body;
+      
+      if (!status || !['not_requested', 'pending', 'approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Invalid verification status" });
+      }
+      
+      // Verify the user exists and is a seller
+      const targetUser = await storage.getUserById(userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (targetUser.role !== 'seller') {
+        return res.status(400).json({ message: "Verification status can only be updated for sellers" });
+      }
+      
+      const updated = await storage.updateUserVerificationStatus(userId, status);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user verification status:", error);
+      res.status(500).json({ message: "Failed to update user verification status" });
+    }
+  });
+
   app.post('/api/admin/seed-sample-data', isAuthenticated, isAdmin, async (req, res) => {
     try {
       // Seed comprehensive sample data for testing

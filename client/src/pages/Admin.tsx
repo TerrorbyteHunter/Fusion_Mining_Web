@@ -55,6 +55,8 @@ export default function Admin() {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [editingTier, setEditingTier] = useState(false);
+  const [selectedVerificationStatus, setSelectedVerificationStatus] = useState<string>("");
+  const [editingVerification, setEditingVerification] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<string>("all");
@@ -376,6 +378,23 @@ export default function Admin() {
     },
   });
 
+  // Update user verification status mutation
+  const updateUserVerificationMutation = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: string }) => {
+      return await apiRequest("POST", `/api/admin/users/${userId}/verification-status`, { status });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Verification status updated", description: "Seller verification status has been updated successfully." });
+      setEditingUser(null);
+      setSelectedVerificationStatus("");
+      setEditingVerification(false);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update verification status", variant: "destructive" });
+    },
+  });
+
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: typeof newUserForm) => {
@@ -636,6 +655,7 @@ export default function Admin() {
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -654,6 +674,7 @@ export default function Admin() {
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -672,6 +693,7 @@ export default function Admin() {
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -1168,6 +1190,95 @@ export default function Admin() {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Verification Status Dialog */}
+          <Dialog open={editingVerification} onOpenChange={(open) => {
+            if (!open) {
+              setEditingVerification(false);
+              setEditingUser(null);
+              setSelectedVerificationStatus("");
+            }
+          }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ShieldCheck className="h-5 w-5" />
+                  Update Verification Status
+                </DialogTitle>
+                <DialogDescription>
+                  Change the verification status for {editingUser?.firstName} {editingUser?.lastName} ({editingUser?.email})
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="verification-select">Select New Verification Status</Label>
+                  <Select value={selectedVerificationStatus} onValueChange={setSelectedVerificationStatus}>
+                    <SelectTrigger id="verification-select" data-testid="select-verification-status">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="not_requested" data-testid="option-not-requested">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">Not Requested</Badge>
+                          <span className="text-xs text-muted-foreground">- No verification submitted</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="pending" data-testid="option-pending">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-yellow-600">Pending</Badge>
+                          <span className="text-xs text-muted-foreground">- Under review</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="approved" data-testid="option-approved">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-600">Verified</Badge>
+                          <span className="text-xs text-muted-foreground">- Approved seller</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="rejected" data-testid="option-rejected">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="destructive">Rejected</Badge>
+                          <span className="text-xs text-muted-foreground">- Verification denied</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-sm text-muted-foreground">
+                    Current status: {editingUser?.verificationStatus ? (
+                      editingUser.verificationStatus === 'approved' ? <Badge className="bg-green-600">Verified</Badge> :
+                      editingUser.verificationStatus === 'pending' ? <Badge className="bg-yellow-600">Pending</Badge> :
+                      editingUser.verificationStatus === 'rejected' ? <Badge variant="destructive">Rejected</Badge> :
+                      <Badge variant="secondary">Not Requested</Badge>
+                    ) : <Badge variant="secondary">Not Requested</Badge>}
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditingVerification(false);
+                    setEditingUser(null);
+                    setSelectedVerificationStatus("");
+                  }}
+                  data-testid="button-cancel-verification"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (editingUser && selectedVerificationStatus) {
+                      updateUserVerificationMutation.mutate({ userId: editingUser.id, status: selectedVerificationStatus });
+                    }
+                  }}
+                  disabled={!selectedVerificationStatus || updateUserVerificationMutation.isPending}
+                  data-testid="button-confirm-verification"
+                >
+                  {updateUserVerificationMutation.isPending ? "Updating..." : "Update Status"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Edit Listing Dialog */}
           <Dialog open={!!editingListing} onOpenChange={(open) => !open && setEditingListing(null)}>
             <DialogContent className="max-w-3xl">
@@ -1583,12 +1694,14 @@ function UserManagementSection({
   users, 
   onEdit, 
   onEditTier,
+  onEditVerification,
   onDelete, 
-  loading 
+  loading
 }: { 
   users: User[]; 
   onEdit: (u: User) => void;
-  onEditTier: (u: User) => void; 
+  onEditTier: (u: User) => void;
+  onEditVerification: (u: User) => void;
   onDelete: (u: User) => void;
   loading?: boolean;
 }) {
@@ -1609,6 +1722,19 @@ function UserManagementSection({
     );
   }
 
+  const getVerificationBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-green-600">Verified</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-600">Pending</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary">Not Requested</Badge>;
+    }
+  };
+
   return (
     <Card>
       <Table>
@@ -1617,7 +1743,7 @@ function UserManagementSection({
             <TableHead>Email</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Membership Tier</TableHead>
+            <TableHead>Tier / Status</TableHead>
             <TableHead>Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -1640,16 +1766,20 @@ function UserManagementSection({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge 
-                    variant={
-                      u.membershipTier === 'premium' ? 'default' : 
-                      u.membershipTier === 'standard' ? 'secondary' : 
-                      'outline'
-                    } 
-                    className="capitalize"
-                  >
-                    {u.membershipTier || 'basic'}
-                  </Badge>
+                  {u.role === 'seller' ? (
+                    getVerificationBadge(u.verificationStatus || 'not_requested')
+                  ) : (
+                    <Badge 
+                      variant={
+                        u.membershipTier === 'premium' ? 'default' : 
+                        u.membershipTier === 'standard' ? 'secondary' : 
+                        'outline'
+                      } 
+                      className="capitalize"
+                    >
+                      {u.membershipTier || 'basic'}
+                    </Badge>
+                  )}
                 </TableCell>
               <TableCell>{u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-'}</TableCell>
               <TableCell className="text-right">
@@ -1658,10 +1788,17 @@ function UserManagementSection({
                       <Edit className="h-4 w-4 mr-1" />
                       Role
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
-                      <Award className="h-4 w-4 mr-1" />
-                      Tier
-                    </Button>
+                    {u.role === 'seller' ? (
+                      <Button variant="outline" size="sm" onClick={() => onEditVerification(u)} data-testid={`button-edit-verification-${u.id}`}>
+                        <ShieldCheck className="h-4 w-4 mr-1" />
+                        Status
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
+                        <Award className="h-4 w-4 mr-1" />
+                        Tier
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}>
                       <Trash className="h-4 w-4" />
                     </Button>
@@ -1715,6 +1852,7 @@ function ListingManagementSection({
         <TableHeader>
           <TableRow>
             <TableHead>Title</TableHead>
+            <TableHead>Posted By</TableHead>
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Location</TableHead>
@@ -1725,7 +1863,7 @@ function ListingManagementSection({
         <TableBody>
           {listings.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                 No listings found
               </TableCell>
             </TableRow>
@@ -1733,6 +1871,9 @@ function ListingManagementSection({
             listings.map((l) => (
               <TableRow key={l.id}>
                 <TableCell className="font-medium">{l.title}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {l.sellerEmail || l.sellerId || 'Unknown Seller'}
+                </TableCell>
                 <TableCell>
                   <Badge variant="secondary">{l.type}</Badge>
                 </TableCell>
