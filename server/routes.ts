@@ -326,9 +326,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       try {
-        // For hardcoded test users, return them directly
+        // For hardcoded test users, return them with proper structure
         if (req.user && req.user.id && req.user.id.startsWith('test-')) {
-          return res.json(req.user);
+          const testUserData: any = {
+            id: req.user.id,
+            email: req.user.email,
+            role: req.user.role,
+            membershipTier: req.user.membershipTier || 'basic',
+          };
+          
+          // Add proper names for test users
+          if (req.user.id === 'test-seller-456') {
+            testUserData.firstName = 'Ray';
+            testUserData.lastName = 'Pass';
+            testUserData.verificationStatus = 'approved'; // Seller is verified
+          } else if (req.user.id === 'test-admin-123') {
+            testUserData.firstName = 'Admin';
+            testUserData.lastName = 'User';
+            testUserData.verificationStatus = 'approved';
+          } else if (req.user.id === 'test-buyer-789') {
+            testUserData.firstName = 'Henry';
+            testUserData.lastName = 'Pass';
+            testUserData.verificationStatus = 'not_requested';
+          }
+          
+          return res.json(testUserData);
         }
         
         // For database users, fetch from storage
