@@ -3751,6 +3751,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================================================
+  // Buyer Tier Upgrade Routes (Placeholder - storage methods need to be implemented)
+  // ========================================================================
+  
+  // Create tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can request tier upgrades" });
+      }
+
+      const { requestedTier } = req.body;
+      if (!requestedTier || !['standard', 'premium'].includes(requestedTier)) {
+        return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
+      }
+
+      // For now, return mock data - storage methods to be implemented
+      const mockRequest = {
+        id: `tier-upgrade-${Date.now()}`,
+        userId: req.user.id,
+        requestedTier,
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+      res.json(mockRequest);
+    } catch (error) {
+      console.error("Error creating tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to create tier upgrade request" });
+    }
+  });
+
+  // Get current user's tier upgrade request (Buyer)
+  app.get('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
+      }
+
+      // For now, return null - storage methods to be implemented
+      res.json(null);
+    } catch (error) {
+      console.error("Error fetching tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to fetch tier upgrade request" });
+    }
+  });
+
+  // Upload tier upgrade documents (Buyer only)
+  app.post('/api/buyer/tier-upgrade/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { requestId, documentType } = req.body;
+      
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      
+      // For now, return mock data - storage methods to be implemented
+      const mockDocument = {
+        id: `doc-${Date.now()}`,
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      res.json({
+        document: mockDocument,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading tier upgrade document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload document" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

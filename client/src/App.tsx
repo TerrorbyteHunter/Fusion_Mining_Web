@@ -35,6 +35,7 @@ import LegalTerms from "@/pages/LegalTerms";
 import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
 import DashboardLayout from "@/pages/DashboardLayout";
+import SellerVerification from "@/pages/SellerVerification";
 
 function Router() {
   const [location] = useLocation();
@@ -67,6 +68,7 @@ function Router() {
 
             {/* Protected Routes */}
             <Route path="/profile/:id" component={ProfileView} />
+            <Route path="/seller-verification" component={SellerVerification} />
             {/* Dashboard & user area routes */}
               {/* Dashboard area (keeps sidebar visible across subpages) */}
               <Route path="/dashboard" component={DashboardLayout} />
@@ -76,6 +78,7 @@ function Router() {
               <Route path="/dashboard/requests" component={DashboardLayout} />
               <Route path="/dashboard/profile" component={DashboardLayout} />
               <Route path="/dashboard/verification" component={DashboardLayout} />
+              <Route path="/dashboard/upgrade-tier" component={DashboardLayout} />
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
