@@ -3921,8 +3921,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: `tier-upgrade-${Date.now()}`,
         userId: req.user.id,
         requestedTier,
-        status: 'pending',
+        status: 'draft',
         submittedAt: new Date().toISOString(),
+        documents: [],
       };
       res.json(mockRequest);
     } catch (error) {
@@ -3985,6 +3986,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error uploading tier upgrade document:", error);
       res.status(500).json({ message: error.message || "Failed to upload document" });
+    }
+  });
+
+  // Submit tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
+      }
+
+      // For now, return mock data - storage methods to be implemented
+      // In a real implementation, this would update the request status to 'pending'
+      const mockSubmission = {
+        success: true,
+        message: "Tier upgrade request submitted successfully",
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      };
+
+      res.json(mockSubmission);
+    } catch (error: any) {
+      console.error("Error submitting tier upgrade request:", error);
+      res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
     }
   });
 
