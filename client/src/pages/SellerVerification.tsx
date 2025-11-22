@@ -126,19 +126,6 @@ export default function SellerVerification() {
     }
   };
 
-  const getStatusIcon = (status: VerificationStatus) => {
-    switch (status) {
-      case 'approved':
-        return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-      case 'rejected':
-        return <XCircle className="h-5 w-5 text-destructive" />;
-      case 'pending':
-        return <Clock className="h-5 w-5 text-yellow-600" />;
-      default:
-        return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
-    }
-  };
-
   const getStatusBadge = (status: VerificationStatus) => {
     switch (status) {
       case 'approved':

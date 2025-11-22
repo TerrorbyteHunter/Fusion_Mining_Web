@@ -5,6 +5,7 @@ import CreateListing from "./CreateListing";
 import DashboardListings from "./DashboardListings";
 import ProfileManagement from "./ProfileManagement";
 import SellerVerification from "./SellerVerification";
+import BuyerTierUpgrade from "./BuyerTierUpgrade";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
 
 export default function DashboardLayout() {
@@ -20,6 +21,7 @@ export default function DashboardLayout() {
           <Route path="/dashboard/requests" component={DashboardListings} />
           <Route path="/dashboard/profile" component={ProfileManagement} />
           <Route path="/dashboard/verification" component={SellerVerification} />
+          <Route path="/dashboard/upgrade-tier" component={BuyerTierUpgrade} />
         </Switch>
       </div>
     </div>

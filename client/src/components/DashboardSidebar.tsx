@@ -9,7 +9,9 @@ import {
   Package,
   Settings,
   Plus,
-  ListOrdered
+  ListOrdered,
+  TrendingUp,
+  ShieldCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,8 @@ export function DashboardSidebar() {
     if (!user) return "U";
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0].toUpperCase() || "U";
   };
+
+  const isSellerUnverified = isSeller && user?.verificationStatus !== 'approved';
 
   const menuItems = [
     {
@@ -59,6 +63,28 @@ export function DashboardSidebar() {
             icon: Plus,
             href: "/dashboard/create-listing",
             testId: "sidebar-create-listing",
+            highlight: true
+          }
+        ]
+      : []),
+    ...(!isSeller && !isAdmin
+      ? [
+          {
+            label: "Upgrade Tier",
+            icon: TrendingUp,
+            href: "/dashboard/upgrade-tier",
+            testId: "sidebar-upgrade-tier",
+            highlight: true
+          }
+        ]
+      : []),
+    ...(isSellerUnverified
+      ? [
+          {
+            label: "Get Verified",
+            icon: ShieldCheck,
+            href: "/dashboard/verification",
+            testId: "sidebar-get-verified",
             highlight: true
           }
         ]

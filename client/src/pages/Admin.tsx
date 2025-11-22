@@ -1872,7 +1872,7 @@ function ListingManagementSection({
               <TableRow key={l.id}>
                 <TableCell className="font-medium">{l.title}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {l.sellerEmail || l.sellerId || 'Unknown Seller'}
+                  {l.sellerId || 'Unknown Seller'}
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary">{l.type}</Badge>
