@@ -22,6 +22,7 @@ import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
 import AdminSettings from "@/pages/AdminSettings";
 import AdminVerificationReview from "@/pages/AdminVerificationReview";
+import AdminBuyerUpgradeReview from "@/pages/AdminBuyerUpgradeReview";
 import ProfileView from "@/pages/ProfileView";
 import ServicesCompliance from "@/pages/ServicesCompliance";
 // Dashboard pages are routed through DashboardLayout to keep sidebar visible
@@ -84,6 +85,7 @@ function Router() {
             <Route path="/admin/cms" component={AdminCMS} />
             <Route path="/admin/settings" component={AdminSettings} />
             <Route path="/admin/seller-verification" component={AdminVerificationReview} />
+            <Route path="/admin/buyer-upgrades" component={AdminBuyerUpgradeReview} />
 
             {/* Category Browsing Routes */}
             <Route path="/categories/:mainCategory/:subcategory?" component={CategoryBrowse} />

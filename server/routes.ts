@@ -4012,6 +4012,113 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ========================================================================
+  // Admin Buyer Tier Upgrade Routes
+  // ========================================================================
+
+  // Get pending buyer tier upgrade requests (Admin only)
+  app.get('/api/admin/buyer-upgrades/pending', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // For now, return mock data - storage methods to be implemented
+      const mockRequests = [
+        {
+          id: 'upgrade-1',
+          userId: 'test-buyer-789',
+          buyerEmail: 'henry@fusionmining.com',
+          buyerFirstName: 'Henry',
+          buyerLastName: 'Brown',
+          requestedTier: 'premium',
+          status: 'pending',
+          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          documentCount: 4,
+        },
+      ];
+      res.json(mockRequests);
+    } catch (error) {
+      console.error("Error fetching pending buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch pending buyer tier upgrades" });
+    }
+  });
+
+  // Get all buyer tier upgrade requests (Admin only)
+  app.get('/api/admin/buyer-upgrades', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // For now, return mock data - storage methods to be implemented
+      const mockRequests = [
+        {
+          id: 'upgrade-1',
+          userId: 'test-buyer-789',
+          buyerEmail: 'henry@fusionmining.com',
+          buyerFirstName: 'Henry',
+          buyerLastName: 'Brown',
+          requestedTier: 'premium',
+          status: 'pending',
+          submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          documentCount: 4,
+        },
+        {
+          id: 'upgrade-2',
+          userId: 'buyer-2',
+          buyerEmail: 'buyer2@example.com',
+          buyerFirstName: 'John',
+          buyerLastName: 'Doe',
+          requestedTier: 'standard',
+          status: 'approved',
+          submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          documentCount: 3,
+        },
+      ];
+      res.json(mockRequests);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch buyer tier upgrades" });
+    }
+  });
+
+  // Get documents for a buyer tier upgrade request (Admin only)
+  app.get('/api/admin/buyer-upgrades/documents/:requestId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { requestId } = req.params;
+
+      // For now, return mock data - storage methods to be implemented
+      const mockDocuments = [
+        {
+          id: 'doc-1',
+          documentType: 'certificate_of_incorporation',
+          fileName: 'Company_Certificate.pdf',
+          filePath: '/attached_assets/files/uploads/verification/cert.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-2',
+          documentType: 'company_profile',
+          fileName: 'Company_Profile.docx',
+          filePath: '/attached_assets/files/uploads/verification/profile.docx',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-3',
+          documentType: 'shareholder_list',
+          fileName: 'Shareholders.pdf',
+          filePath: '/attached_assets/files/uploads/verification/shareholders.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-4',
+          documentType: 'tax_certificate',
+          fileName: 'Tax_Certificate.pdf',
+          filePath: '/attached_assets/files/uploads/verification/tax.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ];
+      res.json(mockDocuments);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrade documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
