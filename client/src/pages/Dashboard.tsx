@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { 
   Package, 
@@ -14,7 +15,10 @@ import {
   TrendingUp,
   Users,
   FileText,
-  Shield
+  Shield,
+  Crown,
+  Zap,
+  Star
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -29,6 +33,29 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/stats"],
     enabled: isAuthenticated,
   });
+
+  const getTierBadge = () => {
+    const tier = user?.membershipTier || 'basic';
+    const tierConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+      premium: { 
+        icon: <Crown className="h-3 w-3" />, 
+        label: 'Premium Tier', 
+        className: 'bg-amber-600 hover:bg-amber-700' 
+      },
+      standard: { 
+        icon: <Zap className="h-3 w-3" />, 
+        label: 'Standard Tier', 
+        className: 'bg-blue-600 hover:bg-blue-700' 
+      },
+      basic: { 
+        icon: <Star className="h-3 w-3" />, 
+        label: 'Basic Tier', 
+        className: 'bg-gray-500 hover:bg-gray-600' 
+      },
+    };
+    const config = tierConfig[tier];
+    return config;
+  };
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -49,17 +76,34 @@ export default function Dashboard() {
     return null;
   }
 
+  const tierBadge = getTierBadge();
+
   return (
     <div className="flex-1">
         {/* Header */}
         <section className="py-6 border-b bg-gradient-to-r from-primary/5 to-primary/10">
           <div className="container mx-auto px-6">
-            <h1 className="text-2xl font-bold font-display mb-1" data-testid="text-page-title">
-              Welcome back, {user?.firstName || user?.email}!
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Here's what's happening with your account today
-            </p>
+            <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+              <div>
+                <h1 className="text-2xl font-bold font-display mb-1" data-testid="text-page-title">
+                  Welcome back, {user?.firstName || user?.email}!
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Here's what's happening with your account today
+                </p>
+              </div>
+              {user?.role === 'buyer' && tierBadge && (
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    className={`${tierBadge.className} text-white flex items-center gap-1.5 px-3 py-1.5`}
+                    data-testid="badge-membership-tier"
+                  >
+                    {tierBadge.icon}
+                    <span className="font-medium">{tierBadge.label}</span>
+                  </Badge>
+                </div>
+              )}
+            </div>
           </div>
         </section>
 

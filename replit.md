@@ -5,17 +5,29 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 22, 2025)
 
-### Buyer Tier Upgrade - Status Indication Implementation
+### Buyer Tier Display on Dashboard
+Added visual tier indicator on the buyer dashboard showing current membership tier:
+
+**Dashboard Header Enhancement:**
+- **Tier Badge Display:** Shows current tier with color-coded badge at top-right of dashboard header
+  - **Premium Tier:** Amber/gold badge with crown icon
+  - **Standard Tier:** Blue badge with lightning bolt icon
+  - **Basic Tier:** Gray badge with star icon
+- **Only for Buyers:** Badge displays only for buyer accounts, hidden for sellers and admins
+- **Location:** Positioned in the header section next to welcome message for easy visibility
+- **Test ID:** `badge-membership-tier` for testing
+
+**Buyer Tier Upgrade - Status Indication Implementation**
 Completed status indication feature for tier upgrade requests showing "Pending Review" and other statuses:
 
 **Backend Endpoints - Fixed & Enhanced:**
-- **GET `/api/buyer/tier-upgrade-request`:** Now returns actual tier upgrade request from in-memory store (previously returned null)
+- **GET `/api/buyer/tier-upgrade-request`:** Now returns actual tier upgrade request from in-memory store
   - Queries `buyerUpgradeRequests` Map and finds user's active request
   - Returns null if no active request exists
-- **POST `/api/buyer/tier-upgrade-request`:** Now stores request in in-memory Map (previously discarded)
+- **POST `/api/buyer/tier-upgrade-request`:** Now stores request in in-memory Map
   - Creates new request with 'draft' status
   - Stores in `buyerUpgradeRequests` Map for persistence during session
-- **POST `/api/buyer/tier-upgrade/submit`:** Now updates status from 'draft' to 'pending' (previously returned mock data)
+- **POST `/api/buyer/tier-upgrade/submit`:** Now updates status from 'draft' to 'pending'
   - Validates request ownership (user can only submit their own request)
   - Updates `submittedAt` timestamp
   - Triggers status display refresh on frontend
@@ -62,6 +74,7 @@ Clear and concise information. Prioritize core functionality and established des
     - **Advanced Filtering:** Main category → Subcategory → Specific type with deep linking support
     - **RFQ System:** Request for Quotation with country badges, verification status, and expiry dates
 4.  **User Dashboard:** Real-time stats, Profile management, Listing creation, Tier upgrade requests, Thread-based messaging, Project interest tracking.
+    - **Buyer Dashboard:** Shows current tier badge prominently in header
 5.  **Admin Panel:** 
     - User Management (role-based tabs with appropriate columns)
     - Buyer Tier Upgrades (pending/all tabs with approve/reject/revert actions)
