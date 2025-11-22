@@ -101,9 +101,14 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     },
   ];
 
+  const navigate = (href: string) => {
+    window.location.href = href;
+  };
+
   const handleClick = (item: typeof menuItems[0]) => {
     if (item.href) {
-      return; // Let Link handle it
+      navigate(item.href);
+      return;
     }
     if (item.tab && onTabChange) {
       onTabChange(item.tab);
@@ -137,29 +142,12 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
+            // Determine if item is active
             const isActive = activeTab === item.tab || (item.href && location === item.href);
-            
-            if (item.href) {
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start gap-3",
-                      isActive && "bg-primary/10 text-primary font-semibold"
-                    )}
-                    data-testid={item.testId}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Button>
-                </Link>
-              );
-            }
             
             return (
               <Button
-                key={item.tab}
+                key={item.href || item.tab}
                 variant={isActive ? "secondary" : "ghost"}
                 className={cn(
                   "w-full justify-start gap-3",
