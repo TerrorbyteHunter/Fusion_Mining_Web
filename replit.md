@@ -5,31 +5,43 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 22, 2025)
 
-### Buyer Tier Upgrade System Bug Fixes & UI Improvements
-Fixed critical issues with the buyer tier upgrade flow:
+### Buyer Tier Upgrade - Status Indication Implementation
+Completed status indication feature for tier upgrade requests showing "Pending Review" and other statuses:
 
-**Backend - In-Memory State Management:**
-- Implemented persistent Map-based storage for tier upgrade requests during session
-- Created helper functions: `approveBuyerUpgrade()`, `rejectBuyerUpgrade()`, `revertBuyerUpgrade()`
+**Backend Endpoints - Fixed & Enhanced:**
+- **GET `/api/buyer/tier-upgrade-request`:** Now returns actual tier upgrade request from in-memory store (previously returned null)
+  - Queries `buyerUpgradeRequests` Map and finds user's active request
+  - Returns null if no active request exists
+- **POST `/api/buyer/tier-upgrade-request`:** Now stores request in in-memory Map (previously discarded)
+  - Creates new request with 'draft' status
+  - Stores in `buyerUpgradeRequests` Map for persistence during session
+- **POST `/api/buyer/tier-upgrade/submit`:** Now updates status from 'draft' to 'pending' (previously returned mock data)
+  - Validates request ownership (user can only submit their own request)
+  - Updates `submittedAt` timestamp
+  - Triggers status display refresh on frontend
+
+**Frontend - Status Display:**
+- **Upgrade Status Card:** Shows badge with color-coded status
+  - Approved: Green badge
+  - Rejected: Red badge  
+  - Pending Review: Yellow badge (when submitted)
+  - In Progress: Secondary badge (draft status)
+- **Status Alert Box:** Displays contextual message based on status
+  - "Under Review" title for pending requests
+  - Message: "Your upgrade request for [tier] tier is being reviewed by our team. This typically takes 1-2 business days."
+- **Visual Flow:**
+  1. User selects tier → request created with 'draft' status
+  2. User uploads all 6 required documents
+  3. User submits → status changes to 'pending' 
+  4. Status display shows "Pending Review" badge and alert message
+
+**In-Memory State Management:**
+- `buyerUpgradeRequests` Map stores all tier upgrade requests during session
 - Initial seed data: 3 sample requests (Henry - pending, John - approved, Sarah - rejected)
-- State persists across all admin review operations
+- State persists across browser refreshes and user interactions during session
 
-**Frontend - Response Parsing Fix:**
-- Fixed bug in BuyerTierUpgrade.tsx mutation handler (line 135)
-- Issue: Response object wasn't being parsed to JSON before accessing `id` field
-- Solution: Added `const data = await response.json()` before accessing properties
-- Result: "Failed to create upgrade request" error no longer occurs
-
-**Admin Panel - Role-Based Users Tab:**
-- Implemented separate column structures for each user role:
-  - **Buyers Tab:** Name | Email | Phone | Company | **Tier** | Joined | Actions
-  - **Sellers Tab:** Name | Email | Phone | Company | **V Status** | Joined | Actions  
-  - **Admins Tab:** Name | Email | Phone | Company | **Role** | Joined | Actions
-- Dynamic table rendering based on selected role
-- Role-specific action buttons (Edit Tier for buyers, Edit Status for sellers, Edit Role for admins)
-
-### Previous: Dynamic Platform Settings Management (November 20, 2025)
-Implemented a comprehensive platform settings management system in the Admin Settings panel with inline editing, validation, and audit logging.
+### Previous: Buyer Tier Upgrade System Bug Fixes (Earlier in November 22)
+Fixed critical issues with the buyer tier upgrade flow and role-based Users tab implementation.
 
 ## User Preferences
 Clear and concise information. Prioritize core functionality and established design patterns. Always confirm before significant architectural changes or new external dependencies.

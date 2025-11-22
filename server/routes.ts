@@ -4019,16 +4019,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
       }
 
-      // For now, return mock data - storage methods to be implemented
-      const mockRequest = {
+      // Create and store in in-memory map
+      const newRequest: BuyerUpgradeRequest = {
         id: `tier-upgrade-${Date.now()}`,
         userId: req.user.id,
+        buyerEmail: req.user.email || '',
+        buyerFirstName: req.user.firstName || '',
+        buyerLastName: req.user.lastName || '',
         requestedTier,
         status: 'draft',
         submittedAt: new Date().toISOString(),
-        documents: [],
+        documentCount: 0,
       };
-      res.json(mockRequest);
+      buyerUpgradeRequests.set(newRequest.id, newRequest);
+      res.json(newRequest);
     } catch (error) {
       console.error("Error creating tier upgrade request:", error);
       res.status(500).json({ message: "Failed to create tier upgrade request" });
@@ -4042,8 +4046,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only buyers can access this endpoint" });
       }
 
-      // For now, return null - storage methods to be implemented
-      res.json(null);
+      // Find the user's tier upgrade request from in-memory store
+      let userRequest: BuyerUpgradeRequest | null = null;
+      for (const request of buyerUpgradeRequests.values()) {
+        if (request.userId === req.user.id) {
+          userRequest = request;
+          break;
+        }
+      }
+      
+      res.json(userRequest);
     } catch (error) {
       console.error("Error fetching tier upgrade request:", error);
       res.status(500).json({ message: "Failed to fetch tier upgrade request" });
@@ -4099,16 +4111,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
       }
 
-      // For now, return mock data - storage methods to be implemented
-      // In a real implementation, this would update the request status to 'pending'
-      const mockSubmission = {
+      const { requestId } = req.body;
+      if (!requestId) {
+        return res.status(400).json({ message: "Request ID is required" });
+      }
+
+      // Find and update the request in in-memory store
+      const request = buyerUpgradeRequests.get(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      if (request.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
+      }
+
+      // Update status to 'pending'
+      request.status = 'pending';
+      request.submittedAt = new Date().toISOString();
+      buyerUpgradeRequests.set(requestId, request);
+
+      res.json({
         success: true,
         message: "Tier upgrade request submitted successfully",
         status: 'pending',
         submittedAt: new Date().toISOString(),
-      };
-
-      res.json(mockSubmission);
+      });
     } catch (error: any) {
       console.error("Error submitting tier upgrade request:", error);
       res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
