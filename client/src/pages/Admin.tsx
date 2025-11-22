@@ -652,6 +652,7 @@ export default function Admin() {
 
                 <TabsContent value="buyer">
                   <UserManagementSection
+                    userRole="buyer"
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
@@ -671,6 +672,7 @@ export default function Admin() {
 
                 <TabsContent value="seller">
                   <UserManagementSection
+                    userRole="seller"
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
@@ -690,6 +692,7 @@ export default function Admin() {
 
                 <TabsContent value="admin">
                   <UserManagementSection
+                    userRole="admin"
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
                     onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
@@ -1691,6 +1694,7 @@ export default function Admin() {
 
 // User Management Section Component
 function UserManagementSection({ 
+  userRole,
   users, 
   onEdit, 
   onEditTier,
@@ -1698,6 +1702,7 @@ function UserManagementSection({
   onDelete, 
   loading
 }: { 
+  userRole: 'buyer' | 'seller' | 'admin';
   users: User[]; 
   onEdit: (u: User) => void;
   onEditTier: (u: User) => void;
@@ -1735,76 +1740,131 @@ function UserManagementSection({
     }
   };
 
+  // Define table structure based on role
+  const getTableHeaders = () => {
+    if (userRole === 'buyer') {
+      return ['Name', 'Email', 'Phone', 'Company', 'Tier', 'Joined', 'Actions'];
+    } else if (userRole === 'seller') {
+      return ['Name', 'Email', 'Phone', 'Company', 'V Status', 'Joined', 'Actions'];
+    } else {
+      return ['Name', 'Email', 'Phone', 'Company', 'Role', 'Joined', 'Actions'];
+    }
+  };
+
+  const renderTableCell = (u: User, headerIndex: number) => {
+    if (userRole === 'buyer') {
+      switch (headerIndex) {
+        case 0: return u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : '-';
+        case 1: return u.email;
+        case 2: return (u as any).phoneNumber || '-';
+        case 3: return (u as any).companyName || '-';
+        case 4: return (
+          <Badge 
+            variant={
+              u.membershipTier === 'premium' ? 'default' : 
+              u.membershipTier === 'standard' ? 'secondary' : 
+              'outline'
+            } 
+            className="capitalize"
+            data-testid={`text-tier-${u.id}`}
+          >
+            {u.membershipTier || 'basic'}
+          </Badge>
+        );
+        case 5: return u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-';
+        default: return null;
+      }
+    } else if (userRole === 'seller') {
+      switch (headerIndex) {
+        case 0: return u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : '-';
+        case 1: return u.email;
+        case 2: return (u as any).phoneNumber || '-';
+        case 3: return (u as any).companyName || '-';
+        case 4: return getVerificationBadge(u.verificationStatus || 'not_requested');
+        case 5: return u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-';
+        default: return null;
+      }
+    } else {
+      // admin role
+      switch (headerIndex) {
+        case 0: return u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : '-';
+        case 1: return u.email;
+        case 2: return (u as any).phoneNumber || '-';
+        case 3: return (u as any).companyName || '-';
+        case 4: return (
+          <Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'} data-testid={`text-role-${u.id}`}>
+            {u.role}
+          </Badge>
+        );
+        case 5: return u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-';
+        default: return null;
+      }
+    }
+  };
+
+  const headers = getTableHeaders();
+
   return (
     <Card>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Email</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Tier / Status</TableHead>
-            <TableHead>Joined</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
+            {headers.map((header) => (
+              <TableHead 
+                key={header}
+                className={header === 'Actions' ? 'text-right' : ''}
+                data-testid={`header-${header.toLowerCase().replace(/\s+/g, '-')}`}
+              >
+                {header}
+              </TableHead>
+            ))}
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={headers.length} className="text-center py-8 text-muted-foreground">
                 No users found
               </TableCell>
             </TableRow>
           ) : (
             users.map((u) => (
             <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
-              <TableCell className="font-medium">{u.email}</TableCell>
-              <TableCell>{u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : '-'}</TableCell>
-                <TableCell>
-                  <Badge variant={u.role === 'admin' ? 'destructive' : u.role === 'seller' ? 'default' : 'secondary'}>
-                    {u.role}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {u.role === 'seller' ? (
-                    getVerificationBadge(u.verificationStatus || 'not_requested')
-                  ) : (
-                    <Badge 
-                      variant={
-                        u.membershipTier === 'premium' ? 'default' : 
-                        u.membershipTier === 'standard' ? 'secondary' : 
-                        'outline'
-                      } 
-                      className="capitalize"
-                    >
-                      {u.membershipTier || 'basic'}
-                    </Badge>
-                  )}
-                </TableCell>
-              <TableCell>{u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-'}</TableCell>
-              <TableCell className="text-right">
-                <div className="flex gap-2 justify-end flex-wrap">
-                    <Button variant="outline" size="sm" onClick={() => onEdit(u)} data-testid={`button-edit-user-${u.id}`}>
-                      <Edit className="h-4 w-4 mr-1" />
-                      Role
-                    </Button>
-                    {u.role === 'seller' ? (
-                      <Button variant="outline" size="sm" onClick={() => onEditVerification(u)} data-testid={`button-edit-verification-${u.id}`}>
-                        <ShieldCheck className="h-4 w-4 mr-1" />
-                        Status
-                      </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
-                        <Award className="h-4 w-4 mr-1" />
-                        Tier
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}>
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
+              {headers.map((header, idx) => {
+                if (header === 'Actions') {
+                  return (
+                    <TableCell key="actions" className="text-right">
+                      <div className="flex gap-2 justify-end flex-wrap">
+                        <Button variant="outline" size="sm" onClick={() => onEdit(u)} data-testid={`button-edit-user-${u.id}`}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          {userRole === 'admin' ? 'Role' : userRole === 'seller' ? 'Status' : 'Edit'}
+                        </Button>
+                        {userRole === 'buyer' && (
+                          <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
+                            <Award className="h-4 w-4 mr-1" />
+                            Tier
+                          </Button>
+                        )}
+                        {userRole === 'seller' && (
+                          <Button variant="outline" size="sm" onClick={() => onEditVerification(u)} data-testid={`button-edit-verification-${u.id}`}>
+                            <ShieldCheck className="h-4 w-4 mr-1" />
+                            Status
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}>
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  );
+                }
+                return (
+                  <TableCell key={header} className={header === 'Name' ? 'font-medium' : ''}>
+                    {renderTableCell(u, idx)}
+                  </TableCell>
+                );
+              })}
+            </TableRow>
             ))
           )}
         </TableBody>
