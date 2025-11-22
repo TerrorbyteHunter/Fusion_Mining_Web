@@ -5,6 +5,37 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 22, 2025)
 
+### Admin Sidebar Navigation - Fixed Multiple Highlighting Issue
+Fixed bug where multiple admin sidebar items were highlighted simultaneously, preventing navigation:
+- **Problem:** When clicking on "Seller Verification" or "Buyer Tier Upgrades", all href-based items would get highlighted
+- **Solution:** Unified sidebar item rendering by removing Link wrapper complexity and using `window.location.href` for navigation
+- **Impact:** Admin can now navigate smoothly between sidebar pages with only the current page highlighted
+- **Technical:** All items now use uniform Button rendering with simplified `activeTab` logic
+
+### Dark/Light Theme Toggle - App-Wide Support
+Added complete dark/light theme toggle system:
+- **Theme Toggle Button:** Located in header between language switcher and user menu
+- **Icon:** Moon icon in light mode, Sun icon in dark mode
+- **Persistence:** Theme preference saved to localStorage, survives page refresh
+- **System Detection:** Auto-detects OS dark/light mode if no user preference saved
+- **Implementation:** React Context (ThemeContext) + Tailwind CSS dark mode
+- **Coverage:** All UI components automatically adapt with `dark:` CSS variants
+
+### Tier Persistence Across Server Restarts
+Fixed tier status resetting on server restart:
+- **Problem:** Approved tier upgrades would reset to "pending" when server restarted
+- **Solution:** 
+  - Updated seed data to initialize Henry Pass with "premium" tier and approved status
+  - Created `initializeUserTiersFromApprovedRequests()` function that runs on server startup
+  - Function syncs user tiers from approved tier upgrade requests
+- **Impact:** User's approved tier now persists across server restarts
+
+### Admin Users Tab - Fixed Tier Display for Elevated Buyers
+Fixed tier column showing incorrect tier for buyers who were elevated:
+- **Problem:** Admin Users tab showed "Basic" tier for Henry even after tier upgrade was approved
+- **Solution:** Updated `/api/admin/users` endpoint to merge test user data from `testUsersStore` 
+- **Impact:** Tier column now correctly displays elevated tier (Premium/Standard) for affected users
+
 ### Buyer Tier Display - Navigation Bar & Dashboard
 Added prominent tier indicator on buyer accounts visible in two locations:
 
