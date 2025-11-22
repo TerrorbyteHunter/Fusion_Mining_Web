@@ -129,7 +129,8 @@ export default function BuyerTierUpgrade() {
   const createUpgradeRequestMutation = useMutation({
     mutationFn: (tier: string) => apiRequest('POST', '/api/buyer/tier-upgrade-request', { requestedTier: tier }),
     onSuccess: async (response) => {
-      const upgradeId = (response as any)?.id;
+      const data = await response.json();
+      const upgradeId = data?.id;
       if (!upgradeId) {
         toast({
           title: "Error",
