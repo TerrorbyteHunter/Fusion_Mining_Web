@@ -90,6 +90,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   await setupAuth(app);
 
+  // ========================================================================
+  // Seed Demo Users (Important for database consistency)
+  // ========================================================================
+  try {
+    const demoUsers = [
+      {
+        id: 'test-admin-123',
+        email: 'admin@fusionmining.com',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+      },
+      {
+        id: 'test-seller-456',
+        email: 'ray@fusionmining.com',
+        firstName: 'Ray',
+        lastName: 'Pass',
+        role: 'seller',
+      },
+      {
+        id: 'test-buyer-789',
+        email: 'henry@fusionmining.com',
+        firstName: 'Henry',
+        lastName: 'Pass',
+        role: 'buyer',
+      },
+    ];
+
+    for (const demoUser of demoUsers) {
+      try {
+        const existing = await storage.getUser(demoUser.id);
+        if (!existing) {
+          console.log('[SEED] Creating demo user:', demoUser.id);
+          await storage.upsertUser({
+            id: demoUser.id,
+            email: demoUser.email,
+            firstName: demoUser.firstName,
+            lastName: demoUser.lastName,
+          });
+          await storage.updateUserRole(demoUser.id, demoUser.role);
+          console.log('[SEED] Demo user created:', demoUser.id);
+        }
+      } catch (error) {
+        console.error('[SEED] Error creating demo user:', demoUser.id, error);
+      }
+    }
+  } catch (error) {
+    console.error('[SEED] Error during demo user seeding:', error);
+  }
+
     // ========================================================================
     // Quick Login for DEMO/TESTING ONLY
     // WARNING: This is NOT secure and should NOT be used in production with real data
@@ -3574,6 +3624,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can request verification" });
+      }
+
+      // Ensure seller exists in database (important for demo users)
+      let seller = await storage.getUser(req.user.id);
+      if (!seller) {
+        console.log('[VERIFICATION] Creating missing seller in database:', req.user.id);
+        try {
+          await storage.upsertUser({
+            id: req.user.id,
+            email: req.user.email || 'seller@fusionmining.com',
+            firstName: req.user.firstName || 'Seller',
+            lastName: req.user.lastName || 'User',
+          });
+          console.log('[VERIFICATION] User upserted successfully');
+          
+          await storage.updateUserRole(req.user.id, 'seller');
+          console.log('[VERIFICATION] User role updated to seller');
+          
+          // Verify the user was created
+          seller = await storage.getUser(req.user.id);
+          if (!seller) {
+            throw new Error('User was not created in database after upsert');
+          }
+          console.log('[VERIFICATION] User confirmed in database');
+        } catch (userError) {
+          console.error('[VERIFICATION] Error creating user:', userError);
+          throw userError;
+        }
+      } else {
+        console.log('[VERIFICATION] Seller already exists in database');
       }
 
       const request = await storage.createVerificationRequest(req.user.id);
