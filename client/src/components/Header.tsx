@@ -29,6 +29,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
@@ -133,6 +134,7 @@ export function Header() {
           {/* Auth & User Menu */}
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
+            <ThemeToggle />
             {isAuthenticated && isAdmin && <NotificationBell />}
             {isAuthenticated && user?.role === 'buyer' && getTierBadge() && (
               <Badge 
