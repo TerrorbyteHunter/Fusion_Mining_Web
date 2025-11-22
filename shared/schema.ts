@@ -550,7 +550,7 @@ export const tierUsageTracking = pgTable("tier_usage_tracking", {
 // ============================================================================
 // Seller Verification
 // ============================================================================
-export const sellerVerificationRequestStatusEnum = pgEnum('seller_verification_request_status', ['pending', 'approved', 'rejected']);
+export const sellerVerificationRequestStatusEnum = pgEnum('seller_verification_request_status', ['draft', 'pending', 'approved', 'rejected']);
 export const sellerVerificationDocumentTypeEnum = pgEnum('seller_verification_document_type', [
   'certificate_of_incorporation',
   'company_profile',
@@ -563,7 +563,7 @@ export const sellerVerificationDocumentTypeEnum = pgEnum('seller_verification_do
 export const sellerVerificationRequests = pgTable("seller_verification_requests", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sellerId: varchar("seller_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  status: sellerVerificationRequestStatusEnum("status").notNull().default('pending'),
+  status: sellerVerificationRequestStatusEnum("status").notNull().default('draft'),
   rejectionReason: text("rejection_reason"),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
