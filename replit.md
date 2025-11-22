@@ -5,19 +5,26 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 22, 2025)
 
-### Buyer Tier Display on Dashboard
-Added visual tier indicator on the buyer dashboard showing current membership tier:
+### Buyer Tier Display - Navigation Bar & Dashboard
+Added prominent tier indicator on buyer accounts visible in two locations:
 
-**Dashboard Header Enhancement:**
-- **Tier Badge Display:** Shows current tier with color-coded badge at top-right of dashboard header
+**Navigation Bar (Header):**
+- **Location:** Top navigation bar, positioned between language switcher and user menu
+- **Visibility:** Only for buyer accounts (hidden for sellers and admins)
+- **Badge Styling:** Color-coded with tier-specific icons
   - **Premium Tier:** Amber/gold badge with crown icon
   - **Standard Tier:** Blue badge with lightning bolt icon
   - **Basic Tier:** Gray badge with star icon
-- **Only for Buyers:** Badge displays only for buyer accounts, hidden for sellers and admins
-- **Location:** Positioned in the header section next to welcome message for easy visibility
+- **Responsive:** Label hidden on small screens, icon always visible
+- **Test ID:** `badge-nav-tier` for testing
+
+**Dashboard Header:**
+- **Location:** Top-right of dashboard welcome section
+- **Visibility:** Only for buyer accounts
+- **Display:** Full tier name with matching icon and colors
 - **Test ID:** `badge-membership-tier` for testing
 
-**Buyer Tier Upgrade - Status Indication Implementation**
+### Buyer Tier Upgrade - Status Indication Implementation
 Completed status indication feature for tier upgrade requests showing "Pending Review" and other statuses:
 
 **Backend Endpoints - Fixed & Enhanced:**
@@ -52,9 +59,6 @@ Completed status indication feature for tier upgrade requests showing "Pending R
 - Initial seed data: 3 sample requests (Henry - pending, John - approved, Sarah - rejected)
 - State persists across browser refreshes and user interactions during session
 
-### Previous: Buyer Tier Upgrade System Bug Fixes (Earlier in November 22)
-Fixed critical issues with the buyer tier upgrade flow and role-based Users tab implementation.
-
 ## User Preferences
 Clear and concise information. Prioritize core functionality and established design patterns. Always confirm before significant architectural changes or new external dependencies.
 
@@ -74,7 +78,7 @@ Clear and concise information. Prioritize core functionality and established des
     - **Advanced Filtering:** Main category → Subcategory → Specific type with deep linking support
     - **RFQ System:** Request for Quotation with country badges, verification status, and expiry dates
 4.  **User Dashboard:** Real-time stats, Profile management, Listing creation, Tier upgrade requests, Thread-based messaging, Project interest tracking.
-    - **Buyer Dashboard:** Shows current tier badge prominently in header
+    - **Buyer Dashboard:** Shows current tier badge in header and on navigation bar
 5.  **Admin Panel:** 
     - User Management (role-based tabs with appropriate columns)
     - Buyer Tier Upgrades (pending/all tabs with approve/reject/revert actions)
