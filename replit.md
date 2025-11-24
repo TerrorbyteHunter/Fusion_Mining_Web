@@ -5,6 +5,42 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 24, 2025)
 
+### User Management Edit - Full User Information Editing
+Enhanced User Management in Admin panel to allow editing complete user information:
+
+**Features Added:**
+- **Comprehensive Edit Dialog:** Single unified dialog for editing all user information and role
+- **Editable Fields:**
+  - First Name
+  - Last Name
+  - Email Address
+  - Phone Number
+  - Company Name
+  - User Role (Admin/Seller/Buyer)
+- **Admin Permissions:** Still accessible for admin users via "Manage Permissions" button
+- **Separate Save Buttons:** Users can save user information and role changes independently
+- **Error Handling:** Comprehensive error messages for failed updates
+
+**Backend Implementation:**
+- New API endpoint: `PATCH /api/admin/users/:id/info`
+- Updates user basic info (firstName, lastName, email) in users table
+- Updates user profile info (phoneNumber, companyName) in user_profiles table
+- Automatically creates user profile if it doesn't exist
+- Returns updated user after successful save
+
+**Frontend Implementation:**
+- State management for user information form (firstName, lastName, email, phoneNumber, companyName)
+- useEffect hook to populate form when editing a user
+- New mutation (updateUserInfoMutation) for API calls
+- Organized dialog with sections for User Information and Role & Permissions
+- Test IDs for all input fields (input-first-name, input-last-name, input-email, input-phone, input-company)
+
+**Design:**
+- Max-width dialog (max-w-2xl) with scrollable content for smaller screens
+- Clear section separators and headings
+- 2-column grid for first/last name and phone/company fields
+- Responsive layout that adapts to screen size
+
 ### Complete Notification System Implementation
 Implemented a fully-functional real-time notification system for 4 key events:
 
