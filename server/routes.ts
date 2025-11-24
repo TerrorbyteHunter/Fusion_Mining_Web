@@ -3085,17 +3085,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const users = await storage.getAllUsers();
       
-      // Merge test user data from testUsersStore
+      // Fetch user profiles for phone numbers and company names
+      const profiles = await db.select().from(userProfiles);
+      const profileMap = new Map(profiles.map(p => [p.userId, p]));
+      
+      // Merge test user data from testUsersStore and profile data
       const mergedUsers = users.map(user => {
+        const profile = profileMap.get(user.id);
         const testUser = testUsersStore.get(user.id);
-        if (testUser) {
-          return {
-            ...user,
+        return {
+          ...user,
+          phoneNumber: profile?.phoneNumber || '-',
+          companyName: profile?.companyName || '-',
+          ...(testUser && {
             membershipTier: testUser.membershipTier,
             verificationStatus: testUser.verificationStatus,
-          };
-        }
-        return user;
+          }),
+        };
       });
       
       res.json(mergedUsers);
