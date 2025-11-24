@@ -14,6 +14,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 // Import all pages
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
+import TestLogin from "@/pages/TestLogin";
 import Signup from "@/pages/Signup";
 import Projects from "@/pages/Projects";
 import Marketplace from "@/pages/Marketplace";
@@ -59,6 +60,7 @@ function Router() {
             {/* Public Routes */}
             <Route path="/" component={Landing} />
             <Route path="/login" component={Login} />
+            <Route path="/test-login" component={TestLogin} />
             <Route path="/signup" component={Signup} />
             <Route path="/services" component={ServicesCompliance} />
             <Route path="/projects" component={Projects} />
