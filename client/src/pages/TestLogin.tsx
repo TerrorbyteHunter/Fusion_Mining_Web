@@ -205,23 +205,29 @@ export default function TestLogin() {
             <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold mb-3">Create Test User</h3>
-                <div className="space-y-2">
-                  <Input
-                    type="text"
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    placeholder="Username"
-                    className="h-10 text-sm border-2 border-gray-300 dark:border-gray-600"
-                    data-testid="input-new-username"
-                  />
-                  <Input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Password"
-                    className="h-10 text-sm border-2 border-gray-300 dark:border-gray-600"
-                    data-testid="input-new-password"
-                  />
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Username</label>
+                    <Input
+                      type="text"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      placeholder="Enter username"
+                      className="h-10 text-sm border-2 border-gray-300 dark:border-gray-600"
+                      data-testid="input-new-username"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Password</label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter password"
+                      className="h-10 text-sm border-2 border-gray-300 dark:border-gray-600"
+                      data-testid="input-new-password"
+                    />
+                  </div>
                   <Button 
                     type="button"
                     onClick={addCustomUser}
