@@ -5,29 +5,35 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 24, 2025)
 
-### Simple Test Login Page (Development Only)
+### Simple Test Login Page (Development Only) - IMPROVED
 Added a dedicated test login page for easy credential entry during development:
 
 **Test Login Features:**
-- **Username/Password Form** - Simple input fields for entering test credentials
-- **Quick Access Buttons** - Click to auto-fill admin, buyer, or seller credentials
-- **No Security** - For development testing only (Firebase will be used for production)
-- **Three Test Accounts:**
+- **Manual Entry** - Type username and password directly into clearly visible input fields
+- **Preset Test Accounts** - Three quick-fill buttons for common test credentials:
   - Admin: `admin` / `admin123`
   - Buyer: `henry` / `henry123`
   - Seller: `ray` / `ray123`
+- **Custom Test Users** - Create any custom username/password combinations on-the-fly for testing
+  - Add new test credentials instantly
+  - Delete custom users as needed
+  - Your custom users appear in a list below the creation form
+- **No Security** - For development testing only (Firebase will be used for production)
 - **Automatic Redirect** - Routes to admin panel for admins, dashboard for regular users
-- **Professional UI** - Matches app design with Fusion Mining branding
+- **Clear Visual Layout** - All form fields and options are prominently displayed and easy to find
 
-**How to Access:**
-- Navigate to `/test-login` in your app
-- Enter credentials manually or click a quick access button to auto-fill
-- Click "Sign In" to log in
+**How to Use:**
+1. Navigate to `/test-login`
+2. Choose one of three ways to log in:
+   - **Option A:** Type credentials manually and click "Sign In"
+   - **Option B:** Click a preset account button to auto-fill credentials, then click "Sign In"
+   - **Option C:** Create a custom test user, then use those credentials to log in
+3. You'll be redirected to the admin panel (if admin) or dashboard (if buyer/seller)
 
 **Backend Integration:**
-- Uses existing `/api/login` endpoint (already implemented)
+- Uses existing `/api/login` endpoint
 - Supports both database auth and hardcoded test credentials
-- Creates session for authenticated user
+- Creates secure session for authenticated user
 - Works with existing role-based access control
 
 ### Comprehensive Admin Audit Logging System
