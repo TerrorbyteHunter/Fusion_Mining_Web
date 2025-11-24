@@ -594,6 +594,66 @@ export default function Admin() {
                 </Card>
               </div>
 
+              {/* Simplified Analytics Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* User Role Distribution */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">User Distribution</CardTitle>
+                    <CardDescription>By role</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Buyers", value: stats.buyers },
+                            { name: "Sellers", value: stats.sellers },
+                            { name: "Admins", value: stats.admins },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          <Cell fill="#3b82f6" />
+                          <Cell fill="#10b981" />
+                          <Cell fill="#f59e0b" />
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+
+                {/* Listing Status Overview */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Listing Status</CardTitle>
+                    <CardDescription>Current distribution</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart
+                        data={[
+                          { name: "Approved", value: stats.approvedListings },
+                          { name: "Pending", value: stats.pendingVerifications },
+                          { name: "Total", value: stats.totalListings },
+                        ]}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="value" fill="#3b82f6" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+
       {/* Quick Actions */}
               <Card>
                 <CardHeader>
