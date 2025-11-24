@@ -101,6 +101,20 @@ const testUsersStore: Map<string, TestUser> = new Map([
   }],
 ]);
 
+// In-memory storage for notifications
+interface Notification {
+  id: string;
+  userId: string;
+  type: 'seller_verification' | 'verification_queue' | 'tier_upgrade' | 'message' | 'system';
+  title: string;
+  message: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+const notificationsStore: Map<string, Notification> = new Map();
+
 // In-memory storage for tier upgrade requests
 const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
   ['upgrade-1', {
@@ -204,6 +218,55 @@ function revertBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
     buyerUpgradeRequests.set(id, request);
   }
   return request || null;
+}
+
+// ============================================================================
+// Notification Helper Functions
+// ============================================================================
+
+function createNotification(
+  userId: string,
+  type: 'seller_verification' | 'verification_queue' | 'tier_upgrade' | 'message' | 'system',
+  title: string,
+  message: string,
+  link?: string
+): Notification {
+  const id = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const notification: Notification = {
+    id,
+    userId,
+    type,
+    title,
+    message,
+    link,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+  notificationsStore.set(id, notification);
+  return notification;
+}
+
+function getNotificationsForUser(userId: string): Notification[] {
+  return Array.from(notificationsStore.values())
+    .filter(n => n.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+function markNotificationAsRead(notificationId: string): void {
+  const notif = notificationsStore.get(notificationId);
+  if (notif) {
+    notif.read = true;
+    notificationsStore.set(notificationId, notif);
+  }
+}
+
+function markAllNotificationsAsRead(userId: string): void {
+  Array.from(notificationsStore.values())
+    .filter(n => n.userId === userId && !n.read)
+    .forEach(n => {
+      n.read = true;
+      notificationsStore.set(n.id, n);
+    });
 }
 
 // Middleware to check if user has analytics access based on membership tier
@@ -2518,6 +2581,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       const idempotencyKey = req.header('Idempotency-Key') || req.header('idempotency-key') || null;
       const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
+      
+      // Create notification for receiver
+      createNotification(
+        receiverId,
+        'message',
+        'New Message',
+        `${sender.firstName} ${sender.lastName} sent you a message`,
+        '/messages'
+      );
+      
       res.json(message);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -3878,6 +3951,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedRequest = await storage.updateVerificationRequestStatus(request.id, 'pending');
       const updatedDocuments = await storage.getDocumentsByRequestId(request.id);
       
+      // Create notification for seller
+      const seller = await storage.getUser(req.user.id);
+      if (seller) {
+        createNotification(
+          req.user.id,
+          'seller_verification',
+          'Verification Request Submitted',
+          'Your seller verification request has been submitted for review. We will review it within 2-3 business days.',
+          '/dashboard/seller-verification'
+        );
+      }
+      
+      // Create notification for all admins
+      const adminUser = await storage.getAdminUser();
+      if (adminUser) {
+        createNotification(
+          adminUser.id,
+          'seller_verification',
+          'New Seller Verification Request',
+          `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
+          '/admin?tab=seller-verification'
+        );
+      }
+      
       console.log('[VERIFICATION] Request submitted:', request.id, 'Status changed to pending');
       res.json({ ...updatedRequest, documents: updatedDocuments });
     } catch (error) {
@@ -4314,6 +4411,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
 
+      // Create notification for buyer
+      createNotification(
+        updated.userId,
+        'tier_upgrade',
+        'Tier Upgrade Approved',
+        `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
+        '/dashboard'
+      );
+
       res.json({
         success: true,
         message: "Tier upgrade request approved successfully",
@@ -4346,6 +4452,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
+
+      // Create notification for buyer
+      createNotification(
+        updated.userId,
+        'tier_upgrade',
+        'Tier Upgrade Rejected',
+        `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
+        '/dashboard'
+      );
 
       res.json({
         success: true,
@@ -4384,6 +4499,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error reverting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to revert tier upgrade request" });
+    }
+  });
+
+  // ========================================================================
+  // Notification Routes
+  // ========================================================================
+
+  // Get all notifications for current user
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const notifications = getNotificationsForUser(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Mark single notification as read
+  app.post('/api/notifications/:notificationId/read', isAuthenticated, async (req: any, res) => {
+    try {
+      const { notificationId } = req.params;
+      markNotificationAsRead(notificationId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read for current user
+  app.post('/api/notifications/mark-all-read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      markAllNotificationsAsRead(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
     }
   });
 
