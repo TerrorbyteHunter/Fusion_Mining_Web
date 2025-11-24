@@ -5,6 +5,31 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 24, 2025)
 
+### Simple Test Login Page (Development Only)
+Added a dedicated test login page for easy credential entry during development:
+
+**Test Login Features:**
+- **Username/Password Form** - Simple input fields for entering test credentials
+- **Quick Access Buttons** - Click to auto-fill admin, buyer, or seller credentials
+- **No Security** - For development testing only (Firebase will be used for production)
+- **Three Test Accounts:**
+  - Admin: `admin` / `admin123`
+  - Buyer: `henry` / `henry123`
+  - Seller: `ray` / `ray123`
+- **Automatic Redirect** - Routes to admin panel for admins, dashboard for regular users
+- **Professional UI** - Matches app design with Fusion Mining branding
+
+**How to Access:**
+- Navigate to `/test-login` in your app
+- Enter credentials manually or click a quick access button to auto-fill
+- Click "Sign In" to log in
+
+**Backend Integration:**
+- Uses existing `/api/login` endpoint (already implemented)
+- Supports both database auth and hardcoded test credentials
+- Creates session for authenticated user
+- Works with existing role-based access control
+
 ### Comprehensive Admin Audit Logging System
 Implemented full audit tracking for all admin actions on the platform:
 
