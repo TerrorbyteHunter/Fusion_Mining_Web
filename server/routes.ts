@@ -8,7 +8,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission } from "./localAuth";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users, userProfiles } from "@shared/schema";
+import { users, userProfiles, adminAuditLogs } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import {
@@ -3331,6 +3331,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Activity Log Routes
   // ========================================================================
+  // Admin audit logs with admin user details (for monitoring admin changes)
+  app.get('/api/admin/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      // Get admin audit logs with admin user information
+      const auditLogs = await db.query.adminAuditLogs.findMany({
+        limit,
+        orderBy: (auditLogs: any, { desc }: any) => [desc(auditLogs.createdAt)],
+        with: {
+          admin: {
+            columns: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        }
+      });
+      res.json(auditLogs);
+    } catch (error) {
+      console.error("Error fetching admin audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  // Helper endpoint to log admin actions
+  app.post('/api/admin/audit-log', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { action, targetType, targetId, changes } = req.body;
+
+      if (!action || !targetType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      await db.insert(adminAuditLogs).values({
+        adminId,
+        action,
+        targetType,
+        targetId: targetId || null,
+        changes: changes || null,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+        createdAt: new Date(),
+      });
+
+      res.json({ message: "Audit log recorded" });
+    } catch (error) {
+      console.error("Error logging admin action:", error);
+      res.status(500).json({ message: "Failed to log action" });
+    }
+  });
+
   app.get('/api/admin/activity-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
