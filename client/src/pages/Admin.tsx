@@ -51,6 +51,7 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("overview");
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
+  const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedTier, setSelectedTier] = useState<string>("");
@@ -864,43 +865,160 @@ export default function Admin() {
           {/* Verification Queue Tab */}
           {activeTab === "verification" && (
             <div className="p-6 space-y-6">
-                  <div>
+              <div>
                 <h2 className="text-2xl font-bold">Verification Queue</h2>
                 <p className="text-muted-foreground">{pendingListings.length} listings pending approval</p>
               </div>
 
-              {loadingQueue ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader>
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-4 w-1/2 mt-2" />
-                      </CardHeader>
+              {/* Verification Queue Type Tabs */}
+              <Tabs value={verificationQueueTab} onValueChange={(v) => setVerificationQueueTab(v as any)} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 mb-6">
+                  <TabsTrigger value="all" data-testid="tab-all-verification">All Pending</TabsTrigger>
+                  <TabsTrigger value="mineral" data-testid="tab-mineral-verification">Minerals</TabsTrigger>
+                  <TabsTrigger value="partnership" data-testid="tab-partnership-verification">Partnerships</TabsTrigger>
+                  <TabsTrigger value="project" data-testid="tab-project-verification">Projects</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="all">
+                  {loadingQueue ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                          <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-2" />
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : pendingListings.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold">No pending listings</p>
+                        <p className="text-muted-foreground">All listings have been reviewed</p>
+                      </CardContent>
                     </Card>
-                  ))}
-                  </div>
-              ) : pendingListings.length === 0 ? (
-                <Card>
-                  <CardContent className="py-12 text-center">
-                    <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-lg font-semibold">No pending listings</p>
-                    <p className="text-muted-foreground">All listings have been reviewed</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {pendingListings.map((l) => (
-                    <VerificationCard
-                      key={l.id}
-                      listing={l}
-                      onApprove={() => approveMutation.mutate(l.id)}
-                      onReject={() => rejectMutation.mutate(l.id)}
-                      loading={approveMutation.isPending || rejectMutation.isPending}
-                    />
-                  ))}
-                </div>
-              )}
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingListings.map((l) => (
+                        <VerificationCard
+                          key={l.id}
+                          listing={l}
+                          onApprove={() => approveMutation.mutate(l.id)}
+                          onReject={() => rejectMutation.mutate(l.id)}
+                          loading={approveMutation.isPending || rejectMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="mineral">
+                  {loadingQueue ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                          <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-2" />
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : pendingListings.filter(l => l.type === 'mineral').length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold">No pending minerals</p>
+                        <p className="text-muted-foreground">All mineral listings have been reviewed</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingListings.filter(l => l.type === 'mineral').map((l) => (
+                        <VerificationCard
+                          key={l.id}
+                          listing={l}
+                          onApprove={() => approveMutation.mutate(l.id)}
+                          onReject={() => rejectMutation.mutate(l.id)}
+                          loading={approveMutation.isPending || rejectMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="partnership">
+                  {loadingQueue ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                          <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-2" />
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : pendingListings.filter(l => l.type === 'partnership').length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold">No pending partnerships</p>
+                        <p className="text-muted-foreground">All partnership listings have been reviewed</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingListings.filter(l => l.type === 'partnership').map((l) => (
+                        <VerificationCard
+                          key={l.id}
+                          listing={l}
+                          onApprove={() => approveMutation.mutate(l.id)}
+                          onReject={() => rejectMutation.mutate(l.id)}
+                          loading={approveMutation.isPending || rejectMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="project">
+                  {loadingQueue ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                          <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-2" />
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : pendingListings.filter(l => l.type === 'project').length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold">No pending projects</p>
+                        <p className="text-muted-foreground">All project listings have been reviewed</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {pendingListings.filter(l => l.type === 'project').map((l) => (
+                        <VerificationCard
+                          key={l.id}
+                          listing={l}
+                          onApprove={() => approveMutation.mutate(l.id)}
+                          onReject={() => rejectMutation.mutate(l.id)}
+                          loading={approveMutation.isPending || rejectMutation.isPending}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
