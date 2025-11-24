@@ -102,7 +102,7 @@ export default function Sustainability() {
             ].map((metric, index) => (
               <Card key={index} className="text-center" data-testid={`metric-${index}`}>
                 <CardHeader>
-                  <div className="text-3xl font-bold font-display text-primary">
+                  <div className="text-3xl font-bold font-display text-green-600 dark:text-green-500">
                     {metric.value}
                   </div>
                   <CardDescription className="font-medium">
@@ -143,12 +143,12 @@ export default function Sustainability() {
                 {communityInitiatives.map((initiative, index) => (
                   <Card key={index} data-testid={`card-community-${index}`}>
                     <CardHeader>
-                      <initiative.icon className="h-12 w-12 text-chart-3 mb-4" />
+                      <initiative.icon className="h-12 w-12 text-green-600 dark:text-green-500 mb-4" />
                       <CardTitle className="text-xl">{initiative.title}</CardTitle>
                       <CardDescription>{initiative.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-chart-3/10 text-chart-3 text-sm font-medium">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 text-sm font-medium">
                         {initiative.impact}
                       </div>
                     </CardContent>
@@ -170,12 +170,12 @@ export default function Sustainability() {
                 {environmentalInitiatives.map((initiative, index) => (
                   <Card key={index} data-testid={`card-environment-${index}`}>
                     <CardHeader>
-                      <initiative.icon className="h-12 w-12 text-chart-3 mb-4" />
+                      <initiative.icon className="h-12 w-12 text-green-600 dark:text-green-500 mb-4" />
                       <CardTitle className="text-xl">{initiative.title}</CardTitle>
                       <CardDescription>{initiative.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-chart-3/10 text-chart-3 text-sm font-medium">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 dark:bg-green-950/30 text-green-700 dark:text-green-400 text-sm font-medium">
                         {initiative.impact}
                       </div>
                     </CardContent>
