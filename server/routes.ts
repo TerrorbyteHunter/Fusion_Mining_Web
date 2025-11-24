@@ -8,7 +8,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission } from "./localAuth";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users } from "@shared/schema";
+import { users, userProfiles } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import {
@@ -3142,6 +3142,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user role:", error);
       res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  // Update user information (name, email, phone, company)
+  app.patch('/api/admin/users/:id/info', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { firstName, lastName, email, phoneNumber, companyName } = req.body;
+      const userId = req.params.id;
+
+      // Update user basic info
+      if (firstName || lastName || email) {
+        const updateData: any = {};
+        if (firstName !== undefined) updateData.firstName = firstName;
+        if (lastName !== undefined) updateData.lastName = lastName;
+        if (email !== undefined) updateData.email = email;
+        
+        await db.update(users).set(updateData).where(eq(users.id, userId));
+      }
+
+      // Update user profile info (phone, company)
+      if (phoneNumber !== undefined || companyName !== undefined) {
+        const profileUpdateData: any = {};
+        if (phoneNumber !== undefined) profileUpdateData.phoneNumber = phoneNumber;
+        if (companyName !== undefined) profileUpdateData.companyName = companyName;
+
+        // Get or create user profile
+        const existingProfile = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
+        
+        if (existingProfile.length > 0) {
+          await db.update(userProfiles).set(profileUpdateData).where(eq(userProfiles.userId, userId));
+        } else {
+          await db.insert(userProfiles).values({
+            userId,
+            ...profileUpdateData,
+            profileType: 'individual'
+          });
+        }
+      }
+
+      // Return updated user
+      const updatedUser = await storage.getUser(userId);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user information:", error);
+      res.status(500).json({ message: "Failed to update user information" });
     }
   });
 

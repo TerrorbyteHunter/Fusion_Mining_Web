@@ -57,6 +57,13 @@ export default function Admin() {
   const [editingTier, setEditingTier] = useState(false);
   const [selectedVerificationStatus, setSelectedVerificationStatus] = useState<string>("");
   const [editingVerification, setEditingVerification] = useState(false);
+  const [userInfoForm, setUserInfoForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    companyName: ""
+  });
   const [userSearch, setUserSearch] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<string>("all");
@@ -109,6 +116,20 @@ export default function Admin() {
       }
     }
     loadPerms();
+  }, [editingUser]);
+
+  // Populate user info form when editing
+  useEffect(() => {
+    if (editingUser) {
+      setUserInfoForm({
+        firstName: editingUser.firstName || "",
+        lastName: editingUser.lastName || "",
+        email: editingUser.email || "",
+        phoneNumber: (editingUser as any).phoneNumber || "",
+        companyName: (editingUser as any).companyName || ""
+      });
+      setSelectedRole(editingUser.role);
+    }
   }, [editingUser]);
 
   const saveAdminPermsMutation = useMutation({
@@ -335,6 +356,22 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/verification-queue"] });
       toast({ title: "Listing Rejected", description: "The listing has been rejected." });
+    },
+  });
+
+  // Update user info mutation
+  const updateUserInfoMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingUser) return;
+      return await apiRequest("PATCH", `/api/admin/users/${editingUser.id}/info`, userInfoForm);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setEditingUser(null);
+      toast({ title: "User information updated", description: "The user's information has been updated successfully." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update user information", variant: "destructive" });
     },
   });
 
@@ -1598,34 +1635,105 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
 
-        {/* Edit User Role Dialog */}
+        {/* Edit User Dialog - Comprehensive */}
             <Dialog open={!!editingUser} onOpenChange={() => { setEditingUser(null); setShowPerms(false); }}>
-              <DialogContent>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Edit User Role</DialogTitle>
-              <DialogDescription>Change the role for {editingUser?.email}</DialogDescription>
+                  <DialogTitle>Edit User</DialogTitle>
+                  <DialogDescription>Update user information and role for {editingUser?.email}</DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
-              <Label className="block mb-2 font-medium">Role</Label>
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger data-testid="select-user-role">
-                      <SelectValue placeholder="Select a role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="seller">Seller</SelectItem>
-                      <SelectItem value="buyer">Buyer</SelectItem>
-                    </SelectContent>
-                  </Select>
+                
+                <div className="space-y-6 py-4">
+                  {/* User Information Section */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm">User Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="First name"
+                          value={userInfoForm.firstName}
+                          onChange={(e) => setUserInfoForm({ ...userInfoForm, firstName: e.target.value })}
+                          data-testid="input-first-name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Last name"
+                          value={userInfoForm.lastName}
+                          onChange={(e) => setUserInfoForm({ ...userInfoForm, lastName: e.target.value })}
+                          data-testid="input-last-name"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Email address"
+                        value={userInfoForm.email}
+                        onChange={(e) => setUserInfoForm({ ...userInfoForm, email: e.target.value })}
+                        data-testid="input-email"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="phoneNumber">Phone Number</Label>
+                        <Input
+                          id="phoneNumber"
+                          placeholder="Phone number"
+                          value={userInfoForm.phoneNumber}
+                          onChange={(e) => setUserInfoForm({ ...userInfoForm, phoneNumber: e.target.value })}
+                          data-testid="input-phone"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          placeholder="Company name"
+                          value={userInfoForm.companyName}
+                          onChange={(e) => setUserInfoForm({ ...userInfoForm, companyName: e.target.value })}
+                          data-testid="input-company"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Role Section */}
+                  <div className="space-y-3 pt-4 border-t">
+                    <h3 className="font-semibold text-sm">Role & Permissions</h3>
+                    <div>
+                      <Label htmlFor="role">Role</Label>
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger id="role" data-testid="select-user-role">
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="seller">Seller</SelectItem>
+                          <SelectItem value="buyer">Buyer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
+
                 <DialogFooter>
                   <Button variant="outline" onClick={() => { setEditingUser(null); setShowPerms(false); }} data-testid="button-cancel-edit-user">Cancel</Button>
                   {(editingUser?.role === 'admin' || selectedRole === 'admin') && (
-                    <Button variant="secondary" onClick={() => setShowPerms(true)}>Manage Permissions</Button>
+                    <Button variant="secondary" onClick={() => setShowPerms(true)} data-testid="button-manage-perms">Manage Permissions</Button>
                   )}
-              <Button onClick={() => { if (editingUser) { updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole }); } }} disabled={updateUserRoleMutation.isPending} data-testid="button-save-user-role">
-                {updateUserRoleMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
+                  <Button onClick={() => { if (editingUser) { updateUserInfoMutation.mutate(); } }} disabled={updateUserInfoMutation.isPending} data-testid="button-save-user-info">
+                    {updateUserInfoMutation.isPending ? "Saving..." : "Save User Info"}
+                  </Button>
+                  <Button onClick={() => { if (editingUser) { updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole }); } }} disabled={updateUserRoleMutation.isPending} data-testid="button-save-user-role">
+                    {updateUserRoleMutation.isPending ? "Saving..." : "Save Role"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
