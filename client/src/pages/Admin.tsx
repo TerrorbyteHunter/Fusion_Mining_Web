@@ -611,7 +611,7 @@ export default function Admin() {
                             { name: "Sellers", value: stats.sellers },
                             { name: "Admins", value: stats.admins },
                           ]}
-                          cx="50%"
+                          cx="45%"
                           cy="50%"
                           innerRadius={60}
                           outerRadius={80}
@@ -623,6 +623,7 @@ export default function Admin() {
                           <Cell fill="#f59e0b" />
                         </Pie>
                         <Tooltip />
+                        <Legend />
                       </PieChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -638,16 +639,17 @@ export default function Admin() {
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart
                         data={[
-                          { name: "Approved", value: stats.approvedListings },
-                          { name: "Pending", value: stats.pendingVerifications },
-                          { name: "Total", value: stats.totalListings },
+                          { name: "Approved", Listings: stats.approvedListings },
+                          { name: "Pending", Listings: stats.pendingVerifications },
+                          { name: "Total", Listings: stats.totalListings },
                         ]}
                       >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
                         <Tooltip />
-                        <Bar dataKey="value" fill="#3b82f6" />
+                        <Legend />
+                        <Bar dataKey="Listings" fill="#3b82f6" />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
