@@ -692,8 +692,8 @@ export default function Admin() {
                     userRole="buyer"
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
-                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
+                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -712,8 +712,8 @@ export default function Admin() {
                     userRole="seller"
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
-                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
+                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
@@ -732,8 +732,8 @@ export default function Admin() {
                     userRole="admin"
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setEditingUser(u); setSelectedTier(u.membershipTier); setEditingTier(true); }}
-                    onEditVerification={(u) => { setEditingUser(u); setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
+                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
                         toast({ title: "Cannot delete yourself", description: "You cannot delete your own account.", variant: "destructive" });
