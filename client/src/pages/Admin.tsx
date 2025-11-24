@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar } from "@/components/AdminSidebar";
-import type { MarketplaceListing, User, Message, ActivityLog, Project, BuyerRequest } from "@shared/schema";
+import type { MarketplaceListing, User, Message, Project, BuyerRequest } from "@shared/schema";
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
@@ -320,15 +320,40 @@ export default function Admin() {
     onError: () => toast({ title: 'Error', description: 'Failed to start conversation', variant: 'destructive' })
   });
 
-  // Fetch activity logs
-  const { data: activityLogs, isLoading: loadingActivity } = useQuery<ActivityLog[]>({
-    queryKey: ["/api/admin/activity-logs"],
+  // Fetch admin audit logs (who made what changes)
+  const { data: auditLogs, isLoading: loadingActivity } = useQuery<any[]>({
+    queryKey: ["/api/admin/audit-logs"],
     enabled: !!isAdmin && activeTab === "activity",
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/activity-logs");
-      return (await res.json()) as ActivityLog[];
+      const res = await apiRequest("GET", "/api/admin/audit-logs");
+      return (await res.json()) as any[];
     },
   });
+
+  // Helper function to log admin actions - used when performing admin operations
+  const logAdminAction = async (action: string, targetType: string, targetId?: string, changes?: any) => {
+    try {
+      await apiRequest("POST", "/api/admin/audit-log", {
+        action,
+        targetType,
+        targetId: targetId || null,
+        changes: changes || null,
+      });
+      // Refresh audit logs
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/audit-logs"] });
+    } catch (error) {
+      console.error("Failed to log admin action:", error);
+    }
+  };
+
+  // Log admin actions on user edits
+  const handleUserEdit = async (updatedUser: User) => {
+    await logAdminAction('user_updated', 'user', updatedUser.id, {
+      role: updatedUser.role,
+      membershipTier: updatedUser.membershipTier,
+      verificationStatus: updatedUser.verificationStatus
+    });
+  };
 
   // Fetch projects
   const { data: projects } = useQuery<Project[]>({
@@ -1822,8 +1847,8 @@ export default function Admin() {
           {activeTab === "activity" && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-2xl font-bold">Activity Logs</h2>
-                <p className="text-muted-foreground">Platform activity and user actions</p>
+                <h2 className="text-2xl font-bold">Admin Audit Logs</h2>
+                <p className="text-muted-foreground">Track all admin actions and changes made to the platform</p>
               </div>
 
               {loadingActivity ? (
@@ -1837,26 +1862,37 @@ export default function Admin() {
                     </Card>
                   ))}
                 </div>
-              ) : activityLogs && activityLogs.length > 0 ? (
+              ) : auditLogs && auditLogs.length > 0 ? (
                 <Card>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>User</TableHead>
+                        <TableHead>Admin Name</TableHead>
                         <TableHead>Action</TableHead>
-                        <TableHead>IP Address</TableHead>
-                        <TableHead>Date</TableHead>
+                        <TableHead>Target Type</TableHead>
+                        <TableHead>Details</TableHead>
+                        <TableHead>Date & Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {activityLogs.slice(0, 50).map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="font-medium">User {log.userId?.slice(0, 8) || "Unknown"}</TableCell>
-                          <TableCell>{log.activityType || "Unknown"}</TableCell>
-                          <TableCell className="font-mono text-xs">{log.ipAddress || "N/A"}</TableCell>
-                          <TableCell>{format(new Date(log.createdAt), "MMM d, yyyy HH:mm")}</TableCell>
-                        </TableRow>
-                      ))}
+                      {auditLogs.slice(0, 100).map((log: any) => {
+                        const adminName = log.admin ? `${log.admin.firstName} ${log.admin.lastName}` : "Unknown Admin";
+                        const actionLabel = log.action.replace(/_/g, ' ').toUpperCase();
+                        const targetLabel = log.targetType?.replace(/_/g, ' ') || 'N/A';
+                        return (
+                          <TableRow key={log.id} data-testid={`audit-log-${log.id}`}>
+                            <TableCell className="font-medium">{adminName}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{actionLabel}</Badge>
+                            </TableCell>
+                            <TableCell>{targetLabel}</TableCell>
+                            <TableCell className="text-xs max-w-xs truncate">
+                              {log.targetId ? `ID: ${log.targetId.slice(0, 8)}...` : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs">{format(new Date(log.createdAt), "MMM d, yyyy HH:mm:ss")}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </Card>
@@ -1864,8 +1900,8 @@ export default function Admin() {
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-lg font-semibold">No activity logs</p>
-                    <p className="text-muted-foreground">No activity has been recorded yet</p>
+                    <p className="text-lg font-semibold">No admin actions recorded yet</p>
+                    <p className="text-muted-foreground">Admin actions will appear here as you manage the platform</p>
                   </CardContent>
                 </Card>
               )}

@@ -5,6 +5,41 @@ Fusion Mining Limited is a full-stack mining investment and trading platform des
 
 ## Recent Changes (November 24, 2025)
 
+### Comprehensive Admin Audit Logging System
+Implemented full audit tracking for all admin actions on the platform:
+
+**Admin Audit Logs Features:**
+- **Admin Identification:** Shows admin name (not ID) for every recorded action
+- **Action Tracking:** Logs each admin action with timestamp, action type, and target
+- **Change History:** Records what was modified (role, tier, verification status, etc.)
+- **Searchable Logs:** View 100+ audit log entries with filtering by admin and action
+- **Security Audit:** IP address and user agent captured for each admin action
+- **Compliance Ready:** Full audit trail for monitoring and compliance requirements
+
+**Tracked Admin Actions:**
+- User edits (role changes, tier changes, verification status)
+- Listing approvals and rejections
+- Seller verification updates
+- Buyer tier upgrade decisions
+- Admin permission changes
+- Any other admin operations on the platform
+
+**Technical Implementation:**
+- New `/api/admin/audit-logs` endpoint with admin user details (joined with users table)
+- New `/api/admin/audit-log` POST endpoint for logging admin actions
+- Audit logs stored in `adminAuditLogs` table with: adminId, action, targetType, targetId, changes, ipAddress, userAgent, timestamp
+- Enhanced Activity Logs tab now displays admin audit trail instead of generic activity logs
+- Beautiful table view showing: Admin Name, Action, Target Type, Details, Date & Time
+- Responsive design with proper data formatting and truncation
+
+**Benefits for Founding Admin:**
+- ✅ See who made what changes and when
+- ✅ Monitor other admin activities on the platform  
+- ✅ Track user edits, approvals, rejections, and tier changes
+- ✅ Compliance audit trail for records and investigations
+- ✅ Security monitoring with IP addresses and timestamps
+- ✅ Full transparency across all admin operations
+
 ### Comprehensive Analytics Implementation - Admin Panel
 Added detailed analytics visualizations to the Admin Panel Analytics tab:
 
