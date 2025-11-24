@@ -14,7 +14,11 @@ import {
   Pickaxe,
   Package,
   ClipboardCheck,
-  Gavel
+  Gavel,
+  Truck,
+  AlertCircle,
+  Leaf,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

@@ -3,7 +3,47 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (November 22, 2025)
+## Recent Changes (November 24, 2025)
+
+### Complete Notification System Implementation
+Implemented a fully-functional real-time notification system for 4 key events:
+
+**Events Triggering Notifications:**
+1. **Seller Verification Requests** - Notifies seller on submission, notifies admins of new requests
+2. **Buyer Tier Upgrades** - Notifies buyer when tier upgrade approved (with tier name) or rejected (with reason)
+3. **Messages** - Notifies message receiver with sender name
+4. **Verification Queue Items** - Notifies admins of listings requiring verification review
+
+**Backend Implementation:**
+- In-memory notification storage with helper functions:
+  - `createNotification()` - Creates new notifications for users
+  - `getNotificationsForUser()` - Fetches user's notifications
+  - `markNotificationAsRead()` - Mark individual notification as read
+  - `markAllNotificationsAsRead()` - Batch mark all as read
+- API Endpoints:
+  - `GET /api/notifications` - Fetch all notifications
+  - `POST /api/notifications/:notificationId/read` - Mark single as read
+  - `POST /api/notifications/mark-all-read` - Mark all as read
+
+**Frontend Component (NotificationBell):**
+- Bell icon with unread count badge
+- Notification list with type, title, and message
+- Individual "Mark as read" buttons
+- "Mark all as read" option
+- Auto-refresh every 30 seconds
+- Click-to-navigate to relevant pages (direct links embedded in notifications)
+
+**Database Schema:**
+- Notifications table includes: type, title, message, link, read status, timestamp, userId
+
+**Services Page - Fixed Import Errors**
+Fixed missing icon imports causing "Truck is not defined" and "AlertCircle is not defined" errors:
+- Added missing icons: Truck, AlertCircle, Leaf, Users
+- Services page now displays correctly with all 8 service categories
+- Regulatory compliance cards display properly
+- All icons render without errors
+
+## Previous Changes (November 22, 2025)
 
 ### Admin Sidebar Navigation - Fixed Navigation Between Tab & Href Pages
 Fixed critical navigation bug preventing movement between href-based pages and tab-based pages:
