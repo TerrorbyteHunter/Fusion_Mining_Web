@@ -1309,45 +1309,6 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Admin Permissions Dialog (when editing an admin user) */}
-          <Dialog open={!!editingUser && editingUser.role === 'admin'} onOpenChange={(open) => !open && setEditingUser(null)}>
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Admin Permissions</DialogTitle>
-                <DialogDescription>Control what this admin can manage.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Users</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageUsers} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageUsers: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Listings</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageListings} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageListings: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Projects</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageProjects} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageProjects: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Blog</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageBlog} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageBlog: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>View Analytics</span>
-                  <input type="checkbox" checked={adminPermsForm.canViewAnalytics} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canViewAnalytics: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Messages</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageMessages} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageMessages: e.target.checked })} />
-                </label>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setEditingUser(null)}>Close</Button>
-                <Button onClick={() => saveAdminPermsMutation.mutate()} disabled={saveAdminPermsMutation.isPending}>Save</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           {/* Edit User Tier Dialog */}
           <Dialog open={editingTier} onOpenChange={(open) => {
