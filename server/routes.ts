@@ -401,8 +401,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // First, try to authenticate against the database
       try {
-        // Try to find user by email (username could be email)
-        const dbUser = await storage.getUserByEmail(username);
+        // Try to find user by email first (username could be email)
+        let dbUser = await storage.getUserByEmail(username);
+        
+        // If not found by email, try by username
+        if (!dbUser) {
+          dbUser = await storage.getUserByUsername(username);
+        }
         
         if (dbUser && dbUser.password) {
           // User found in database with password, verify with bcrypt
@@ -410,7 +415,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (isPasswordValid) {
             authenticatedUser = dbUser;
-            console.log('[DB AUTH] Authenticated user from database:', dbUser.email);
+            console.log('[DB AUTH] Authenticated user from database:', dbUser.email || dbUser.username);
           }
         }
       } catch (error) {
