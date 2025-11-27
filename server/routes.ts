@@ -3090,10 +3090,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const profiles = await db.select().from(userProfiles);
       const profileMap = new Map(profiles.map(p => [p.userId, p]));
       
+      // Fetch admin permissions for admin users
+      const adminUsers = users.filter(u => u.role === 'admin');
+      const adminPermissionsMap = new Map();
+      
+      for (const adminUser of adminUsers) {
+        try {
+          const permissions = await storage.getAdminPermissions(adminUser.id);
+          if (permissions) {
+            adminPermissionsMap.set(adminUser.id, permissions);
+          }
+        } catch (error) {
+          // If getting permissions fails, continue without it
+        }
+      }
+      
       // Merge test user data from testUsersStore and profile data
       const mergedUsers = users.map(user => {
         const profile = profileMap.get(user.id);
         const testUser = testUsersStore.get(user.id);
+        const adminPermissions = adminPermissionsMap.get(user.id);
+        
         return {
           ...user,
           phoneNumber: profile?.phoneNumber || '-',
@@ -3101,6 +3118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...(testUser && {
             membershipTier: testUser.membershipTier,
             verificationStatus: testUser.verificationStatus,
+          }),
+          ...(adminPermissions && {
+            adminRole: adminPermissions.adminRole,
           }),
         };
       });
