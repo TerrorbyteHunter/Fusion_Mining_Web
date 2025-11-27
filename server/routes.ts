@@ -1676,12 +1676,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminUserId = req.params.id;
       const payload = {
         adminUserId,
-        canManageUsers: req.body?.canManageUsers,
-        canManageListings: req.body?.canManageListings,
-        canManageProjects: req.body?.canManageProjects,
-        canManageBlog: req.body?.canManageBlog,
-        canViewAnalytics: req.body?.canViewAnalytics,
-        canManageMessages: req.body?.canManageMessages,
+        adminRole: req.body?.adminRole || 'content_admin',
+        canManageUsers: req.body?.canManageUsers ?? true,
+        canManageListings: req.body?.canManageListings ?? true,
+        canManageProjects: req.body?.canManageProjects ?? true,
+        canManageBlog: req.body?.canManageBlog ?? true,
+        canViewAnalytics: req.body?.canViewAnalytics ?? true,
+        canManageMessages: req.body?.canManageMessages ?? true,
       };
       const updated = await storage.upsertAdminPermissions(payload as any);
       res.json(updated);
