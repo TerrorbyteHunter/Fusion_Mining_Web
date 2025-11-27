@@ -53,6 +53,7 @@ export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [adminPermissions, setAdminPermissions] = useState<any>(null);
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
@@ -94,6 +95,22 @@ export default function Admin() {
     { value: 'support_admin', label: 'Support Admin', description: 'Handle user communication and issue resolution' },
     { value: 'analytics_admin', label: 'Analytics Admin', description: 'Monitor platform performance and fraud detection' },
   ];
+
+  // Load current admin's permissions on mount
+  useEffect(() => {
+    async function loadCurrentAdminPerms() {
+      if (isAdmin && user) {
+        try {
+          const res = await apiRequest('GET', '/api/auth/user');
+          const data = await res.json();
+          if (data?.adminPermissions) {
+            setAdminPermissions(data.adminPermissions);
+          }
+        } catch {}
+      }
+    }
+    loadCurrentAdminPerms();
+  }, [isAdmin, user]);
 
   useEffect(() => {
     async function loadPerms() {
@@ -531,7 +548,7 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} permissions={adminPermissions} />
       <div className="flex-1 flex flex-col">
       {/* Header */}
         <section className="py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
@@ -736,7 +753,7 @@ export default function Admin() {
           )}
 
           {/* Users Tab */}
-          {activeTab === "users" && (
+          {activeTab === "users" && adminPermissions?.canManageUsers && (
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -834,7 +851,7 @@ export default function Admin() {
           )}
 
           {/* Listings Tab */}
-          {activeTab === "listings" && (
+          {activeTab === "listings" && adminPermissions?.canManageListings && (
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -945,7 +962,7 @@ export default function Admin() {
           )}
 
           {/* Verification Queue Tab */}
-          {activeTab === "verification" && (
+          {activeTab === "verification" && adminPermissions?.canManageVerification && (
             <div className="p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-bold">Verification Queue</h2>
@@ -1105,7 +1122,7 @@ export default function Admin() {
           )}
 
           {/* Messages Tab */}
-          {activeTab === "messages" && (
+          {activeTab === "messages" && adminPermissions?.canManageMessages && (
             <div className="p-6 space-y-6">
               <div>
                 <div className="flex items-center justify-between">
@@ -1575,7 +1592,7 @@ export default function Admin() {
           </Dialog>
 
           {/* Analytics Tab */}
-          {activeTab === "analytics" && (
+          {activeTab === "analytics" && adminPermissions?.canViewAnalytics && (
             <div className="p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-bold">Platform Analytics</h2>
@@ -1796,7 +1813,7 @@ export default function Admin() {
           )}
 
           {/* Activity Logs Tab */}
-          {activeTab === "activity" && (
+          {activeTab === "activity" && adminPermissions?.canAccessAuditLogs && (
             <div className="p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-bold">Admin Audit Logs</h2>
@@ -1861,7 +1878,7 @@ export default function Admin() {
           )}
 
           {/* Settings Tab */}
-          {activeTab === "settings" && (
+          {activeTab === "settings" && adminPermissions?.canManageSettings && (
             <div className="p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-bold">Platform Settings</h2>

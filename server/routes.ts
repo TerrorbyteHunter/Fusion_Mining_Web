@@ -1733,6 +1733,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Admin Permissions Routes
   // ========================================================================
+  
+  // Helper function to get permissions based on admin role
+  function getPermissionsForRole(role: string) {
+    const basePerms = {
+      canManageUsers: false,
+      canManageListings: false,
+      canManageProjects: false,
+      canManageBlog: false,
+      canManageCMS: false,
+      canViewAnalytics: false,
+      canManageMessages: false,
+      canManageVerification: false,
+      canManageSettings: false,
+      canManageAdmins: false,
+      canAccessAuditLogs: false,
+      canManageDocuments: false,
+      canResetPasswords: false,
+      canForceLogout: false,
+    };
+    
+    switch(role) {
+      case 'super_admin':
+        return { ...basePerms, ...Object.keys(basePerms).reduce((acc, key) => ({...acc, [key]: true}), {}) };
+      case 'verification_admin':
+        return { ...basePerms, canManageVerification: true, canManageListings: true, canAccessAuditLogs: true, canManageUsers: true };
+      case 'content_admin':
+        return { ...basePerms, canManageBlog: true, canManageCMS: true, canManageSettings: true };
+      case 'support_admin':
+        return { ...basePerms, canManageMessages: true, canManageUsers: true, canAccessAuditLogs: true };
+      case 'analytics_admin':
+        return { ...basePerms, canViewAnalytics: true, canAccessAuditLogs: true };
+      default:
+        return basePerms;
+    }
+  }
+  
   app.get('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req, res) => {
     try {
       const perms = await storage.getAdminPermissions(req.params.id);
@@ -1746,15 +1782,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req: any, res) => {
     try {
       const adminUserId = req.params.id;
+      const adminRole = req.body?.adminRole || 'content_admin';
+      const rolePerms = getPermissionsForRole(adminRole);
+      
       const payload = {
         adminUserId,
-        adminRole: req.body?.adminRole || 'content_admin',
-        canManageUsers: req.body?.canManageUsers ?? true,
-        canManageListings: req.body?.canManageListings ?? true,
-        canManageProjects: req.body?.canManageProjects ?? true,
-        canManageBlog: req.body?.canManageBlog ?? true,
-        canViewAnalytics: req.body?.canViewAnalytics ?? true,
-        canManageMessages: req.body?.canManageMessages ?? true,
+        adminRole,
+        ...rolePerms,
       };
       const updated = await storage.upsertAdminPermissions(payload as any);
       res.json(updated);

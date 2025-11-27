@@ -18,12 +18,28 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface AdminPermissions {
+  canManageUsers?: boolean;
+  canManageListings?: boolean;
+  canManageProjects?: boolean;
+  canManageBlog?: boolean;
+  canManageCMS?: boolean;
+  canViewAnalytics?: boolean;
+  canManageMessages?: boolean;
+  canManageVerification?: boolean;
+  canManageSettings?: boolean;
+  canManageAdmins?: boolean;
+  canAccessAuditLogs?: boolean;
+  canManageDocuments?: boolean;
+}
+
 interface AdminSidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+  permissions?: AdminPermissions;
 }
 
-export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
+export function AdminSidebar({ activeTab, onTabChange, permissions }: AdminSidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
 
@@ -32,74 +48,91 @@ export function AdminSidebar({ activeTab, onTabChange }: AdminSidebarProps) {
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0].toUpperCase() || "A";
   };
 
-  const menuItems = [
+  const allMenuItems = [
     {
       label: "Dashboard",
       icon: LayoutDashboard,
       tab: "overview",
-      testId: "admin-sidebar-dashboard"
+      testId: "admin-sidebar-dashboard",
+      permission: null // Always visible
     },
     {
       label: "Users",
       icon: Users,
       tab: "users",
-      testId: "admin-sidebar-users"
+      testId: "admin-sidebar-users",
+      permission: 'canManageUsers'
     },
     {
       label: "Listings",
       icon: Package,
       tab: "listings",
-      testId: "admin-sidebar-listings"
+      testId: "admin-sidebar-listings",
+      permission: 'canManageListings'
     },
     {
       label: "Messages",
       icon: MessageSquare,
       tab: "messages",
-      testId: "admin-sidebar-messages"
+      testId: "admin-sidebar-messages",
+      permission: 'canManageMessages'
     },
     {
       label: "Verification Queue",
       icon: ShieldCheck,
       tab: "verification",
-      testId: "admin-sidebar-verification"
+      testId: "admin-sidebar-verification",
+      permission: 'canManageVerification'
     },
     {
       label: "Seller Verification",
       icon: Shield,
       href: "/admin/seller-verification",
-      testId: "admin-sidebar-seller-verification"
+      testId: "admin-sidebar-seller-verification",
+      permission: 'canManageVerification'
     },
     {
       label: "Buyer Tier Upgrades",
       icon: TrendingUp,
       href: "/admin/buyer-upgrades",
-      testId: "admin-sidebar-buyer-upgrades"
+      testId: "admin-sidebar-buyer-upgrades",
+      permission: 'canManageUsers'
     },
     {
       label: "Analytics",
       icon: BarChart3,
       tab: "analytics",
-      testId: "admin-sidebar-analytics"
+      testId: "admin-sidebar-analytics",
+      permission: 'canViewAnalytics'
     },
     {
       label: "Content CMS",
       icon: FileText,
       href: "/admin/cms",
-      testId: "admin-sidebar-cms"
+      testId: "admin-sidebar-cms",
+      permission: 'canManageCMS'
     },
     {
       label: "Activity Logs",
       icon: Activity,
       tab: "activity",
-      testId: "admin-sidebar-activity"
+      testId: "admin-sidebar-activity",
+      permission: 'canAccessAuditLogs'
     },
     {
       label: "Settings",
       icon: Settings,
       href: "/admin/settings",
-      testId: "admin-sidebar-settings"
+      testId: "admin-sidebar-settings",
+      permission: 'canManageSettings'
     },
   ];
+
+  // Filter menu items based on permissions
+  const menuItems = allMenuItems.filter(item => {
+    if (!item.permission) return true; // Always show items with no permission requirement
+    return permissions?.[item.permission as keyof AdminPermissions] ?? true; // Default to true for super admins
+  });
 
   const handleTabClick = (item: typeof menuItems[0]) => {
     if (item.tab && onTabChange) {
