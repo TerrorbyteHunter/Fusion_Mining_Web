@@ -2175,6 +2175,17 @@ function UserManagementSection({
     }
   };
 
+  const getAdminRoleLabel = (adminRole?: string): string => {
+    const roleMap: Record<string, string> = {
+      'super_admin': 'Super Admin',
+      'verification_admin': 'Verification Admin',
+      'content_admin': 'Content Admin',
+      'support_admin': 'Support Admin',
+      'analytics_admin': 'Analytics Admin',
+    };
+    return roleMap[adminRole || 'content_admin'] || 'Admin';
+  };
+
   const renderTableCell = (u: User, headerIndex: number) => {
     if (userRole === 'buyer') {
       switch (headerIndex) {
@@ -2217,7 +2228,7 @@ function UserManagementSection({
         case 3: return (u as any).companyName || '-';
         case 4: return (
           <Badge variant={u.role === 'admin' ? 'destructive' : 'secondary'} data-testid={`text-role-${u.id}`}>
-            {u.role}
+            {getAdminRoleLabel((u as any).adminRole)}
           </Badge>
         );
         case 5: return u.createdAt ? format(new Date(u.createdAt), "MMM d, yyyy") : '-';
