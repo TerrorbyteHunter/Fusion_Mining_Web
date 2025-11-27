@@ -112,6 +112,27 @@ export default function Admin() {
     loadCurrentAdminPerms();
   }, [isAdmin, user]);
 
+  // Redirect to overview if current tab is not accessible based on permissions
+  useEffect(() => {
+    if (!adminPermissions) return;
+    
+    const tabPermissionMap: Record<string, keyof typeof adminPermissions> = {
+      'users': 'canManageUsers',
+      'listings': 'canManageListings',
+      'verification': 'canManageVerification',
+      'messages': 'canManageMessages',
+      'analytics': 'canViewAnalytics',
+      'activity': 'canAccessAuditLogs',
+      'settings': 'canManageSettings',
+    };
+    
+    const requiredPermission = tabPermissionMap[activeTab];
+    if (requiredPermission && !adminPermissions[requiredPermission]) {
+      // User doesn't have permission for this tab, redirect to overview
+      setActiveTab('overview');
+    }
+  }, [adminPermissions, activeTab]);
+
   useEffect(() => {
     async function loadPerms() {
       if (editingUser && editingUser.role === 'admin') {
