@@ -3210,19 +3210,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !role) {
         return res.status(400).json({ message: 'Email and role are required' });
       }
-      // Password and username are ignored in current storage model; kept for future auth wiring
+      
+      // Hash password if provided
+      let hashedPassword: string | undefined = undefined;
+      if (password) {
+        const saltRounds = 10;
+        hashedPassword = await bcrypt.hash(password, saltRounds);
+        console.log('[CREATE USER] Password hashed for user:', email);
+      }
+      
       const user = await storage.upsertUser({
         email,
         firstName,
         lastName,
+        password: hashedPassword,
+        username: username || undefined,
         // allow setting role on creation
         // @ts-ignore
         role: role,
       });
+      
       // If admin, ensure a permissions row exists
       if (role === 'admin') {
         await storage.upsertAdminPermissions({ adminUserId: user.id } as any);
       }
+      
+      console.log('[CREATE USER] User created successfully:', { id: user.id, email, username, role });
       res.json(user);
     } catch (error) {
       console.error('Error creating user:', error);
@@ -3244,18 +3257,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user information (name, email, phone, company)
+  // Update user information (name, email, phone, company, password, username)
   app.patch('/api/admin/users/:id/info', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { firstName, lastName, email, phoneNumber, companyName } = req.body;
+      const { firstName, lastName, email, phoneNumber, companyName, password, username } = req.body;
       const userId = req.params.id;
 
       // Update user basic info
-      if (firstName || lastName || email) {
+      if (firstName || lastName || email || password || username) {
         const updateData: any = {};
         if (firstName !== undefined) updateData.firstName = firstName;
         if (lastName !== undefined) updateData.lastName = lastName;
         if (email !== undefined) updateData.email = email;
+        if (username !== undefined) updateData.username = username;
+        
+        // Hash password if provided
+        if (password) {
+          const saltRounds = 10;
+          updateData.password = await bcrypt.hash(password, saltRounds);
+          console.log('[UPDATE USER] Password updated and hashed for user:', userId);
+        }
         
         await db.update(users).set(updateData).where(eq(users.id, userId));
       }
