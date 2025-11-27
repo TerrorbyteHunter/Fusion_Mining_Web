@@ -3134,11 +3134,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const { email, password, firstName, lastName, role } = req.body || {};
+      const { email, password, username, firstName, lastName, role } = req.body || {};
       if (!email || !role) {
         return res.status(400).json({ message: 'Email and role are required' });
       }
-      // Password is ignored in current storage model; kept for future auth wiring
+      // Password and username are ignored in current storage model; kept for future auth wiring
       const user = await storage.upsertUser({
         email,
         firstName,

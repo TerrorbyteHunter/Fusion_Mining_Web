@@ -79,6 +79,7 @@ export default function Admin() {
   const [newUserForm, setNewUserForm] = useState({
     email: "",
     password: "",
+    username: "",
     firstName: "",
     lastName: "",
     role: "buyer" as "admin" | "seller" | "buyer"
@@ -1902,16 +1903,28 @@ export default function Admin() {
                   value={newUserForm.email}
                   onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
                   placeholder="user@example.com"
+                  data-testid="input-create-email"
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="username">Username (for test login)</Label>
+                <Input
+                  id="username"
+                  value={newUserForm.username}
+                  onChange={(e) => setNewUserForm({ ...newUserForm, username: e.target.value })}
+                  placeholder="e.g., john_doe"
+                  data-testid="input-create-username"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password">Password (for test login)</Label>
                 <Input
                   id="password"
                   type="password"
                   value={newUserForm.password}
                   onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
                   placeholder="Enter password"
+                  data-testid="input-create-password"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -1922,6 +1935,7 @@ export default function Admin() {
                     value={newUserForm.firstName}
                     onChange={(e) => setNewUserForm({ ...newUserForm, firstName: e.target.value })}
                     placeholder="John"
+                    data-testid="input-create-first-name"
                   />
                 </div>
                 <div>
@@ -1931,6 +1945,7 @@ export default function Admin() {
                     value={newUserForm.lastName}
                     onChange={(e) => setNewUserForm({ ...newUserForm, lastName: e.target.value })}
                     placeholder="Doe"
+                    data-testid="input-create-last-name"
                   />
                 </div>
               </div>
