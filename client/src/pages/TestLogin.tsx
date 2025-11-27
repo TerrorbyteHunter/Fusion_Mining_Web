@@ -84,7 +84,7 @@ export default function TestLogin() {
     setPassword(user.password);
   };
 
-  const addCustomUser = () => {
+  const addCustomUser = async () => {
     if (!newUsername.trim() || !newPassword.trim()) {
       toast({
         title: "Error",
@@ -94,14 +94,45 @@ export default function TestLogin() {
       return;
     }
 
-    setCustomUsers([...customUsers, { username: newUsername, password: newPassword }]);
-    setNewUsername("");
-    setNewPassword("");
-    
-    toast({
-      title: "Success",
-      description: `Custom user "${newUsername}" added`,
-    });
+    try {
+      // Register the custom credential with the backend
+      const response = await fetch("/api/register-test-credential", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: newUsername,
+          password: newPassword,
+          firstName: "Test",
+          lastName: "User",
+          role: "buyer"
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast({
+          title: "Error",
+          description: error.message || "Failed to register custom user",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setCustomUsers([...customUsers, { username: newUsername, password: newPassword }]);
+      setNewUsername("");
+      setNewPassword("");
+      
+      toast({
+        title: "Success",
+        description: `Custom user "${newUsername}" added and ready to login`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to register custom user",
+        variant: "destructive",
+      });
+    }
   };
 
   const removeCustomUser = (index: number) => {

@@ -101,6 +101,21 @@ const testUsersStore: Map<string, TestUser> = new Map([
   }],
 ]);
 
+// In-memory storage for custom test credentials (username/password combinations)
+interface TestCredential {
+  username: string;
+  password: string;
+  userId: string;
+  role: 'admin' | 'buyer' | 'seller';
+  firstName: string;
+  lastName: string;
+}
+const customTestCredentials: Map<string, TestCredential> = new Map([
+  ['admin', { username: 'admin', password: 'admin123', userId: 'test-admin-123', role: 'admin', firstName: 'Admin', lastName: 'User' }],
+  ['henry', { username: 'henry', password: 'henry123', userId: 'test-buyer-789', role: 'buyer', firstName: 'Henry', lastName: 'Pass' }],
+  ['ray', { username: 'ray', password: 'ray123', userId: 'test-seller-456', role: 'seller', firstName: 'Ray', lastName: 'Pass' }],
+]);
+
 // In-memory storage for notifications
 interface Notification {
   id: string;
@@ -402,22 +417,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('[DB AUTH] Database authentication error:', error);
       }
       
-      // If database authentication failed, fallback to hardcoded test users
+      // If database authentication failed, fallback to hardcoded test users and custom test credentials
       if (!authenticatedUser) {
         console.warn('⚠️  WARNING: Using demo login endpoint - NOT FOR PRODUCTION USE');
         
-        // Simple hardcoded users for testing (NO SECURITY)
-        const hardcodedUsers = {
-          admin: { id: 'test-admin-123', username: 'admin', password: 'admin123', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User', membershipTier: 'premium' },
-          henry: { id: 'test-buyer-789', username: 'henry', password: 'henry123', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass', membershipTier: 'standard' },
-          ray: { id: 'test-seller-456', username: 'ray', password: 'ray123', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass', membershipTier: 'premium' },
-        };
+        // Check custom test credentials first
+        const customCred = Array.from(customTestCredentials.values()).find(
+          c => c.username === username && c.password === password
+        );
         
-        authenticatedUser = Object.values(hardcodedUsers).find(u => u.username === username && u.password === password);
+        if (customCred) {
+          console.log('[CUSTOM TEST LOGIN] Authenticated custom test user:', username);
+          authenticatedUser = {
+            id: customCred.userId,
+            username: customCred.username,
+            password: customCred.password,
+            role: customCred.role,
+            email: `${customCred.username}@test.com`,
+            firstName: customCred.firstName,
+            lastName: customCred.lastName,
+            membershipTier: 'standard'
+          };
+        }
         
         if (authenticatedUser) {
-          console.log('[DEMO LOGIN] Authenticated hardcoded user:', username);
-          
           // Ensure the demo user exists in the database
           try {
             let dbUser = await storage.getUser(authenticatedUser.id);
@@ -439,6 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If no user authenticated, return error
       if (!authenticatedUser) {
+        console.log('[LOGIN] Failed authentication for username:', username);
         return res.status(401).json({ message: 'Invalid credentials' });
       }
       
@@ -455,6 +479,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json({ success: true, user: authenticatedUser });
       });
     });
+
+  // ========================================================================
+  // Register Test Credential Endpoint (DEVELOPMENT ONLY)
+  // ========================================================================
+  app.post('/api/register-test-credential', (req, res) => {
+    const { username, password, firstName, lastName, role } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+    
+    // Check if username already exists
+    if (customTestCredentials.has(username)) {
+      return res.status(400).json({ message: 'Username already exists' });
+    }
+    
+    // Generate a unique user ID
+    const userId = `test-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create the test credential
+    const credential: TestCredential = {
+      username,
+      password,
+      userId,
+      role: (role as 'admin' | 'buyer' | 'seller') || 'buyer',
+      firstName: firstName || 'Test',
+      lastName: lastName || 'User'
+    };
+    
+    customTestCredentials.set(username, credential);
+    console.log('[REGISTER TEST CREDENTIAL] Registered:', username, 'with role:', role);
+    
+    res.json({ 
+      success: true, 
+      credential: {
+        username,
+        userId,
+        role,
+        firstName,
+        lastName
+      }
+    });
+  });
   // ========================================================================
   // Development Test Login (DEVELOPMENT ONLY)
   // ========================================================================
