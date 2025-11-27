@@ -83,14 +83,15 @@ export default function Admin() {
     lastName: "",
     role: "buyer" as "admin" | "seller" | "buyer"
   });
-  const [adminPermsForm, setAdminPermsForm] = useState({
-    canManageUsers: true,
-    canManageListings: true,
-    canManageProjects: true,
-    canManageBlog: true,
-    canViewAnalytics: true,
-    canManageMessages: true,
-  });
+  const [adminRole, setAdminRole] = useState<'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin'>('super_admin');
+
+  const adminRoleOptions = [
+    { value: 'super_admin', label: 'Super Admin', description: 'Full platform control with all permissions' },
+    { value: 'verification_admin', label: 'Verification Admin', description: 'Handle compliance, KYC/AML, and listing approvals' },
+    { value: 'content_admin', label: 'Content Admin', description: 'Manage platform content, branding, and CMS' },
+    { value: 'support_admin', label: 'Support Admin', description: 'Handle user communication and issue resolution' },
+    { value: 'analytics_admin', label: 'Analytics Admin', description: 'Monitor platform performance and fraud detection' },
+  ];
 
   useEffect(() => {
     async function loadPerms() {
@@ -98,24 +99,10 @@ export default function Admin() {
         try {
           const res = await apiRequest('GET', `/api/admin/users/${editingUser.id}/permissions`);
           const data = await res.json();
-          if (data) {
-            setAdminPermsForm({
-              canManageUsers: !!data.canManageUsers,
-              canManageListings: !!data.canManageListings,
-              canManageProjects: !!data.canManageProjects,
-              canManageBlog: !!data.canManageBlog,
-              canViewAnalytics: !!data.canViewAnalytics,
-              canManageMessages: !!data.canManageMessages,
-            });
+          if (data && data.adminRole) {
+            setAdminRole(data.adminRole);
           } else {
-            setAdminPermsForm({
-              canManageUsers: true,
-              canManageListings: true,
-              canManageProjects: true,
-              canManageBlog: true,
-              canViewAnalytics: true,
-              canManageMessages: true,
-            });
+            setAdminRole('super_admin');
           }
         } catch {}
       }
@@ -140,13 +127,14 @@ export default function Admin() {
   const saveAdminPermsMutation = useMutation({
     mutationFn: async () => {
       if (!editingUser) return;
-      return await apiRequest('PATCH', `/api/admin/users/${editingUser.id}/permissions`, adminPermsForm);
+      return await apiRequest('PATCH', `/api/admin/users/${editingUser.id}/permissions`, { adminRole });
     },
     onSuccess: () => {
-      toast({ title: 'Permissions updated' });
+      toast({ title: 'Admin role updated' });
+      setShowPerms(false);
     },
     onError: () => {
-      toast({ title: 'Error', description: 'Failed to update permissions', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Failed to update admin role', variant: 'destructive' });
     }
   });
 
@@ -2113,40 +2101,34 @@ export default function Admin() {
 
           {/* Admin Permissions Dialog */}
           <Dialog open={showPerms && !!editingUser && (editingUser.role === 'admin' || selectedRole === 'admin')} onOpenChange={(open) => { if (!open) setShowPerms(false); }}>
-            <DialogContent className="max-w-xl">
+            <DialogContent className="max-w-2xl">
             <DialogHeader>
-                <DialogTitle>Admin Permissions</DialogTitle>
-                <DialogDescription>Control what this admin can manage.</DialogDescription>
+                <DialogTitle>Admin Role & Permissions</DialogTitle>
+                <DialogDescription>Select an admin role to assign permissions</DialogDescription>
             </DialogHeader>
-              <div className="space-y-3">
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Users</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageUsers} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageUsers: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Listings</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageListings} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageListings: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Projects</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageProjects} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageProjects: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Blog</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageBlog} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageBlog: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>View Analytics</span>
-                  <input type="checkbox" checked={adminPermsForm.canViewAnalytics} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canViewAnalytics: e.target.checked })} />
-                </label>
-                <label className="flex items-center justify-between py-2">
-                  <span>Manage Messages</span>
-                  <input type="checkbox" checked={adminPermsForm.canManageMessages} onChange={(e) => setAdminPermsForm({ ...adminPermsForm, canManageMessages: e.target.checked })} />
-                </label>
-            </div>
+              <div className="space-y-4">
+                <Label>Select Admin Role</Label>
+                <div className="grid gap-3">
+                  {adminRoleOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setAdminRole(option.value as any)}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        adminRole === option.value
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                      data-testid={`button-admin-role-${option.value}`}
+                    >
+                      <div className="font-semibold text-sm">{option.label}</div>
+                      <div className="text-xs text-muted-foreground">{option.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             <DialogFooter>
                 <Button variant="outline" onClick={() => setShowPerms(false)}>Close</Button>
-                <Button onClick={() => saveAdminPermsMutation.mutate()} disabled={saveAdminPermsMutation.isPending}>Save</Button>
+                <Button onClick={() => saveAdminPermsMutation.mutate()} disabled={saveAdminPermsMutation.isPending}>Save Role</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
