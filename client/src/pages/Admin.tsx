@@ -66,6 +66,7 @@ export default function Admin() {
     firstName: "",
     lastName: "",
     email: "",
+    username: "",
     phoneNumber: "",
     companyName: ""
   });
@@ -118,6 +119,7 @@ export default function Admin() {
         firstName: editingUser.firstName || "",
         lastName: editingUser.lastName || "",
         email: editingUser.email || "",
+        username: (editingUser as any).username || "",
         phoneNumber: (editingUser as any).phoneNumber || "",
         companyName: (editingUser as any).companyName || ""
       });
@@ -2015,6 +2017,16 @@ export default function Admin() {
                         value={userInfoForm.email}
                         onChange={(e) => setUserInfoForm({ ...userInfoForm, email: e.target.value })}
                         data-testid="input-email"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="username">Username (for test login)</Label>
+                      <Input
+                        id="username"
+                        placeholder="Username for test login"
+                        value={userInfoForm.username}
+                        onChange={(e) => setUserInfoForm({ ...userInfoForm, username: e.target.value })}
+                        data-testid="input-username"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
