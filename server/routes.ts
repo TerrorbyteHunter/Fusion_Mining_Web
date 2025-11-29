@@ -1722,6 +1722,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let adminPerms = undefined as any;
       if (user.role === 'admin') {
         adminPerms = await storage.getAdminPermissions(user.id);
+        // If Super Admin has no permissions in DB yet, create them
+        if (!adminPerms) {
+          const rolePerms = getPermissionsForRole('super_admin');
+          adminPerms = await storage.upsertAdminPermissions({
+            adminUserId: user.id,
+            adminRole: 'super_admin',
+            ...rolePerms,
+          } as any);
+        }
       }
       res.json({ ...user, adminPermissions: adminPerms || null });
     } catch (error) {
