@@ -103,9 +103,7 @@ export default function Admin() {
         try {
           const res = await apiRequest('GET', '/api/auth/user');
           const data = await res.json();
-          if (data?.adminPermissions) {
-            setAdminPermissions(data.adminPermissions);
-          }
+          setAdminPermissions(data?.adminPermissions);
         } catch {}
       }
     }
