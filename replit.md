@@ -3,7 +3,42 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (November 24, 2025)
+## Recent Changes (December 1, 2025)
+
+### Role-Based Admin Permissions System
+Implemented a comprehensive role-based permissions system for admin users:
+
+**Admin Role Types:**
+- **Super Admin** (`superadmin` / `super123`) - Full platform control with all permissions (founder-level access)
+- **Verification Admin** (`verifyadmin` / `verify123`) - Handle compliance, KYC/AML, and listing approvals
+- **Content Admin** (`contentadmin` / `content123`) - Manage platform content, branding, and CMS
+- **Support Admin** (`supportadmin` / `support123`) - Handle user communication and issue resolution
+- **Analytics Admin** (`analyticsadmin` / `analytics123`) - Monitor platform performance and fraud detection
+
+**Features:**
+- Dedicated admin login page at `/admin/login` with Quick Login (Demo) and Manual Login tabs
+- Role-specific sidebar navigation - admins only see menu items they have permission to access
+- Role badge display in sidebar showing the logged-in admin's role type
+- Permission-enforced tab content - unauthorized tabs redirect to overview
+- Automatic permission creation on login based on admin role type
+
+**Permission Mapping:**
+- `canManageUsers`: User management, role changes, tier upgrades
+- `canManageListings`: Marketplace listing management
+- `canManageVerification`: Verification queue, seller verification
+- `canManageCMS`: Content management system
+- `canViewAnalytics`: Platform analytics and reporting
+- `canManageMessages`: Message system access
+- `canAccessAuditLogs`: Activity logs and audit trail
+- `canManageSettings`: Platform settings
+
+**Technical Implementation:**
+- Admin permissions stored in `adminPermissions` table linked to users via `adminUserId`
+- `/api/admin/login` endpoint authenticates admins and creates role-specific permissions
+- RBAC middleware in `server/rbac.ts` provides role permission templates
+- AdminSidebar filters menu items based on logged-in admin's permissions
+
+## Previous Changes (November 24, 2025)
 
 ### Simple Test Login Page (Development Only) - IMPROVED
 Added a dedicated test login page for easy credential entry during development:
