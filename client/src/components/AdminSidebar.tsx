@@ -140,7 +140,7 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
   // Filter menu items based on permissions
   const menuItems = allMenuItems.filter(item => {
     if (!item.permission) return true; // Always show items with no permission requirement
-    return permissions?.[item.permission as keyof AdminPermissions] ?? true; // Default to true for super admins
+    return permissions?.[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
   });
 
   const handleTabClick = (item: typeof menuItems[0]) => {

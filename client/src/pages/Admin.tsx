@@ -53,22 +53,22 @@ export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
-  // Initialize with default super admin permissions as fallback
+  // Initialize with minimal permissions - only add what the backend returns
   const [adminPermissions, setAdminPermissions] = useState<any>({
-    canManageUsers: true,
-    canManageListings: true,
-    canManageProjects: true,
-    canManageBlog: true,
-    canManageCMS: true,
-    canViewAnalytics: true,
-    canManageMessages: true,
-    canManageVerification: true,
-    canManageSettings: true,
-    canManageAdmins: true,
-    canAccessAuditLogs: true,
-    canManageDocuments: true,
-    canResetPasswords: true,
-    canForceLogout: true,
+    canManageUsers: false,
+    canManageListings: false,
+    canManageProjects: false,
+    canManageBlog: false,
+    canManageCMS: false,
+    canViewAnalytics: false,
+    canManageMessages: false,
+    canManageVerification: false,
+    canManageSettings: false,
+    canManageAdmins: false,
+    canAccessAuditLogs: false,
+    canManageDocuments: false,
+    canResetPasswords: false,
+    canForceLogout: false,
   });
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
