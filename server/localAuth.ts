@@ -23,8 +23,23 @@ export function setupAuth(app: Express) {
     
     try {
       const user = await storage.getUser(id);
+      if (!user) return done(null, false);
+      
+      // For admin users, fetch and attach their admin role from permissions
+      if (user.role === 'admin') {
+        try {
+          const adminPerms = await storage.getAdminPermissions(id);
+          if (adminPerms?.adminRole) {
+            user.adminRole = adminPerms.adminRole;
+          }
+        } catch (e) {
+          console.error('Error fetching admin role in deserializeUser:', e);
+        }
+      }
+      
       return done(null, user);
     } catch (error) {
+      console.error('Error in deserializeUser:', error);
       return done(null, false);
     }
   });
