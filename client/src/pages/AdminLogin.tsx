@@ -280,7 +280,7 @@ export default function AdminLogin() {
 
           <div className="mt-6 pt-4 border-t text-center">
             <Button
-              variant="link"
+              variant="ghost"
               onClick={() => setLocation("/login")}
               className="text-sm text-muted-foreground"
               data-testid="link-user-login"

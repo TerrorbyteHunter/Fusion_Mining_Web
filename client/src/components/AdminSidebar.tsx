@@ -37,9 +37,18 @@ interface AdminSidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   permissions?: AdminPermissions;
+  adminRole?: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
 }
 
-export function AdminSidebar({ activeTab, onTabChange, permissions }: AdminSidebarProps) {
+const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "destructive" | "outline" | "secondary" }> = {
+  super_admin: { label: "Super Admin", variant: "destructive" },
+  verification_admin: { label: "Verification Admin", variant: "default" },
+  content_admin: { label: "Content Admin", variant: "secondary" },
+  support_admin: { label: "Support Admin", variant: "outline" },
+  analytics_admin: { label: "Analytics Admin", variant: "secondary" },
+};
+
+export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }: AdminSidebarProps) {
   const [location] = useLocation();
   const { user } = useAuth();
 
@@ -155,8 +164,12 @@ export function AdminSidebar({ activeTab, onTabChange, permissions }: AdminSideb
             <p className="font-semibold truncate text-sm" data-testid="admin-username">
               {user?.firstName || user?.email || "Admin"}
             </p>
-            <Badge variant="destructive" className="text-xs mt-1">
-              Administrator
+            <Badge 
+              variant={adminRole ? ADMIN_ROLE_LABELS[adminRole]?.variant : "destructive"} 
+              className="text-xs mt-1"
+              data-testid="badge-admin-role"
+            >
+              {adminRole ? ADMIN_ROLE_LABELS[adminRole]?.label : "Administrator"}
             </Badge>
           </div>
         </div>

@@ -112,7 +112,9 @@ export default function Admin() {
     { value: 'analytics_admin', label: 'Analytics Admin', description: 'Monitor platform performance and fraud detection' },
   ];
 
-  // Load current admin's permissions on mount
+  // Load current admin's permissions and role on mount
+  const [currentAdminRole, setCurrentAdminRole] = useState<'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin' | undefined>(undefined);
+  
   useEffect(() => {
     async function loadCurrentAdminPerms() {
       if (isAdmin && user) {
@@ -122,6 +124,9 @@ export default function Admin() {
           // Only update if backend returns valid permissions, otherwise keep defaults
           if (data?.adminPermissions) {
             setAdminPermissions(data.adminPermissions);
+            if (data.adminPermissions.adminRole) {
+              setCurrentAdminRole(data.adminPermissions.adminRole);
+            }
           }
         } catch {}
       }
@@ -392,15 +397,6 @@ export default function Admin() {
     }
   };
 
-  // Log admin actions on user edits
-  const handleUserEdit = async (updatedUser: User) => {
-    await logAdminAction('user_updated', 'user', updatedUser.id, {
-      role: updatedUser.role,
-      membershipTier: updatedUser.membershipTier,
-      verificationStatus: updatedUser.verificationStatus
-    });
-  };
-
   // Fetch projects
   const { data: projects } = useQuery<Project[]>({
     queryKey: ["/api/projects"],
@@ -517,7 +513,7 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       setCreateUserOpen(false);
-      setNewUserForm({ email: "", password: "", firstName: "", lastName: "", role: "buyer" });
+      setNewUserForm({ email: "", password: "", username: "", firstName: "", lastName: "", role: "buyer" });
       toast({ title: "User created", description: "New user has been created successfully." });
     },
     onError: () => {
@@ -586,7 +582,7 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} permissions={adminPermissions} />
+      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} permissions={adminPermissions} adminRole={currentAdminRole} />
       <div className="flex-1 flex flex-col">
       {/* Header */}
         <section className="py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
