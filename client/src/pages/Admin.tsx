@@ -119,7 +119,10 @@ export default function Admin() {
         try {
           const res = await apiRequest('GET', '/api/auth/user');
           const data = await res.json();
-          setAdminPermissions(data?.adminPermissions);
+          // Only update if backend returns valid permissions, otherwise keep defaults
+          if (data?.adminPermissions) {
+            setAdminPermissions(data.adminPermissions);
+          }
         } catch {}
       }
     }
