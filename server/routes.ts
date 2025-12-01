@@ -90,12 +90,48 @@ const testUsersStore: Map<string, TestUser> = new Map([
     membershipTier: 'basic',
     verificationStatus: 'approved',
   }],
-  ['test-admin-123', {
-    id: 'test-admin-123',
-    email: 'admin@fusionmining.com',
+  ['test-admin-super', {
+    id: 'test-admin-super',
+    email: 'superadmin@fusionmining.com',
     role: 'admin',
-    firstName: 'Admin',
-    lastName: 'User',
+    firstName: 'Super',
+    lastName: 'Admin',
+    membershipTier: 'premium',
+    verificationStatus: 'approved',
+  }],
+  ['test-admin-verification', {
+    id: 'test-admin-verification',
+    email: 'verifyadmin@fusionmining.com',
+    role: 'admin',
+    firstName: 'Verification',
+    lastName: 'Admin',
+    membershipTier: 'basic',
+    verificationStatus: 'approved',
+  }],
+  ['test-admin-content', {
+    id: 'test-admin-content',
+    email: 'contentadmin@fusionmining.com',
+    role: 'admin',
+    firstName: 'Content',
+    lastName: 'Admin',
+    membershipTier: 'basic',
+    verificationStatus: 'approved',
+  }],
+  ['test-admin-support', {
+    id: 'test-admin-support',
+    email: 'supportadmin@fusionmining.com',
+    role: 'admin',
+    firstName: 'Support',
+    lastName: 'Admin',
+    membershipTier: 'basic',
+    verificationStatus: 'approved',
+  }],
+  ['test-admin-analytics', {
+    id: 'test-admin-analytics',
+    email: 'analyticsadmin@fusionmining.com',
+    role: 'admin',
+    firstName: 'Analytics',
+    lastName: 'Admin',
     membershipTier: 'basic',
     verificationStatus: 'approved',
   }],
@@ -109,9 +145,14 @@ interface TestCredential {
   role: 'admin' | 'buyer' | 'seller';
   firstName: string;
   lastName: string;
+  adminRole?: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
 }
 const customTestCredentials: Map<string, TestCredential> = new Map([
-  ['admin', { username: 'admin', password: 'admin123', userId: 'test-admin-123', role: 'admin', firstName: 'Admin', lastName: 'User' }],
+  ['superadmin', { username: 'superadmin', password: 'super123', userId: 'test-admin-super', role: 'admin', firstName: 'Super', lastName: 'Admin', adminRole: 'super_admin' }],
+  ['verifyadmin', { username: 'verifyadmin', password: 'verify123', userId: 'test-admin-verification', role: 'admin', firstName: 'Verification', lastName: 'Admin', adminRole: 'verification_admin' }],
+  ['contentadmin', { username: 'contentadmin', password: 'content123', userId: 'test-admin-content', role: 'admin', firstName: 'Content', lastName: 'Admin', adminRole: 'content_admin' }],
+  ['supportadmin', { username: 'supportadmin', password: 'support123', userId: 'test-admin-support', role: 'admin', firstName: 'Support', lastName: 'Admin', adminRole: 'support_admin' }],
+  ['analyticsadmin', { username: 'analyticsadmin', password: 'analytics123', userId: 'test-admin-analytics', role: 'admin', firstName: 'Analytics', lastName: 'Admin', adminRole: 'analytics_admin' }],
   ['henry', { username: 'henry', password: 'henry123', userId: 'test-buyer-789', role: 'buyer', firstName: 'Henry', lastName: 'Pass' }],
   ['ray', { username: 'ray', password: 'ray123', userId: 'test-seller-456', role: 'seller', firstName: 'Ray', lastName: 'Pass' }],
 ]);
@@ -443,6 +484,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lastName: customCred.lastName,
             membershipTier: 'standard'
           };
+          
+          // If admin with specific role, create/update permissions
+          if (customCred.role === 'admin' && customCred.adminRole) {
+            try {
+              const { ROLE_PERMISSIONS } = await import('./rbac');
+              const rolePermissions = ROLE_PERMISSIONS[customCred.adminRole];
+              
+              // Ensure user exists in database first
+              let dbUser = await storage.getUser(customCred.userId);
+              if (!dbUser) {
+                console.log('[ADMIN LOGIN] Creating admin user in database:', customCred.userId);
+                await storage.upsertUser({
+                  id: customCred.userId,
+                  email: `${customCred.username}@fusionmining.com`,
+                  firstName: customCred.firstName,
+                  lastName: customCred.lastName,
+                });
+                await storage.updateUserRole(customCred.userId, 'admin');
+              }
+              
+              // Create/update admin permissions
+              console.log('[ADMIN LOGIN] Setting permissions for role:', customCred.adminRole);
+              await storage.upsertAdminPermissions({
+                adminUserId: customCred.userId,
+                adminRole: customCred.adminRole,
+                ...rolePermissions,
+              } as any);
+            } catch (error) {
+              console.error('[ADMIN LOGIN] Error setting admin permissions:', error);
+            }
+          }
         }
         
         if (authenticatedUser) {
@@ -527,6 +599,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
   });
+  
+  // ========================================================================
+  // Admin Login Endpoint (Dedicated admin portal login)
+  // ========================================================================
+  app.post('/api/admin/login', async (req: any, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
+    }
+    
+    // Only allow admin credentials
+    const adminCred = Array.from(customTestCredentials.values()).find(
+      c => c.username === username && c.password === password && c.role === 'admin'
+    );
+    
+    if (!adminCred) {
+      return res.status(401).json({ message: 'Invalid admin credentials' });
+    }
+    
+    console.log('[ADMIN LOGIN] Authenticating admin:', username, 'with role:', adminCred.adminRole);
+    
+    try {
+      // Ensure user exists in database
+      let dbUser = await storage.getUser(adminCred.userId);
+      if (!dbUser) {
+        console.log('[ADMIN LOGIN] Creating admin user in database:', adminCred.userId);
+        await storage.upsertUser({
+          id: adminCred.userId,
+          email: `${adminCred.username}@fusionmining.com`,
+          firstName: adminCred.firstName,
+          lastName: adminCred.lastName,
+        });
+        await storage.updateUserRole(adminCred.userId, 'admin');
+        dbUser = await storage.getUser(adminCred.userId);
+      }
+      
+      // Create/update admin permissions based on role
+      if (adminCred.adminRole) {
+        const { ROLE_PERMISSIONS } = await import('./rbac');
+        const rolePermissions = ROLE_PERMISSIONS[adminCred.adminRole];
+        
+        console.log('[ADMIN LOGIN] Setting permissions for role:', adminCred.adminRole);
+        await storage.upsertAdminPermissions({
+          adminUserId: adminCred.userId,
+          adminRole: adminCred.adminRole,
+          ...rolePermissions,
+        } as any);
+      }
+      
+      const authenticatedUser = {
+        id: adminCred.userId,
+        username: adminCred.username,
+        role: 'admin',
+        email: `${adminCred.username}@fusionmining.com`,
+        firstName: adminCred.firstName,
+        lastName: adminCred.lastName,
+        adminRole: adminCred.adminRole,
+      };
+      
+      req.login(authenticatedUser, (err: any) => {
+        if (err) {
+          console.error('[ADMIN LOGIN] Login error:', err);
+          return res.status(500).json({ message: 'Login failed' });
+        }
+        console.log('[ADMIN LOGIN] Successfully logged in admin:', username);
+        res.json({ success: true, user: authenticatedUser });
+      });
+    } catch (error) {
+      console.error('[ADMIN LOGIN] Error during admin login:', error);
+      res.status(500).json({ message: 'Admin login failed' });
+    }
+  });
+  
   // ========================================================================
   // Development Test Login (DEVELOPMENT ONLY)
   // ========================================================================
