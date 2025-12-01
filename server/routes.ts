@@ -1867,12 +1867,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) return res.status(404).json({ message: "User not found" });
       let adminPerms = undefined as any;
       
-      // Only retrieve existing admin permissions, don't create them here
+      // Retrieve admin permissions for admin users
       if (user && user.role === 'admin') {
         try {
           adminPerms = await storage.getAdminPermissions(user.id);
+          console.log('[AUTH/USER] Retrieved admin permissions:', adminPerms?.adminRole);
         } catch (e) {
           console.error('Error getting admin permissions:', e);
+        }
+        
+        // Fallback: if no permissions found, try to generate from session adminRole
+        if (!adminPerms && req.user.adminRole) {
+          console.log('[AUTH/USER] Permissions not found, using fallback for role:', req.user.adminRole);
+          adminPerms = {
+            adminRole: req.user.adminRole,
+            ...getPermissionsForRole(req.user.adminRole),
+          };
         }
       }
       
