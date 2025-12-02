@@ -148,6 +148,7 @@ interface TestCredential {
   adminRole?: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
 }
 const customTestCredentials: Map<string, TestCredential> = new Map([
+  ['admin', { username: 'admin', password: 'admin123', userId: 'test-admin-super', role: 'admin', firstName: 'Super', lastName: 'Admin', adminRole: 'super_admin' }],
   ['superadmin', { username: 'superadmin', password: 'super123', userId: 'test-admin-super', role: 'admin', firstName: 'Super', lastName: 'Admin', adminRole: 'super_admin' }],
   ['verifyadmin', { username: 'verifyadmin', password: 'verify123', userId: 'test-admin-verification', role: 'admin', firstName: 'Verification', lastName: 'Admin', adminRole: 'verification_admin' }],
   ['contentadmin', { username: 'contentadmin', password: 'content123', userId: 'test-admin-content', role: 'admin', firstName: 'Content', lastName: 'Admin', adminRole: 'content_admin' }],
@@ -778,6 +779,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.user && req.user.id && req.user.id.startsWith('test-')) {
           const testUser = testUsersStore.get(req.user.id);
           if (testUser) {
+            let adminPerms = undefined as any;
+            
+            // Fetch admin permissions for admin users from database
+            if (testUser.role === 'admin') {
+              try {
+                adminPerms = await storage.getAdminPermissions(testUser.id);
+                console.log('[DEV AUTH/USER] Retrieved admin permissions for', testUser.id, ':', adminPerms?.adminRole);
+                
+                // If no permissions exist in DB, try to create them based on credentials
+                if (!adminPerms) {
+                  const cred = Array.from(customTestCredentials.values()).find(c => c.userId === testUser.id);
+                  if (cred && cred.adminRole) {
+                    const { ROLE_PERMISSIONS } = await import('./rbac');
+                    const rolePermissions = ROLE_PERMISSIONS[cred.adminRole];
+                    console.log('[DEV AUTH/USER] Creating missing admin permissions for', testUser.id, 'role:', cred.adminRole);
+                    adminPerms = await storage.upsertAdminPermissions({
+                      adminUserId: testUser.id,
+                      adminRole: cred.adminRole,
+                      ...rolePermissions,
+                    } as any);
+                  }
+                }
+              } catch (e) {
+                console.error('[DEV AUTH/USER] Error getting admin permissions:', e);
+              }
+            }
+            
             return res.json({
               id: testUser.id,
               email: testUser.email,
@@ -786,6 +814,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               lastName: testUser.lastName,
               membershipTier: testUser.membershipTier,
               verificationStatus: testUser.verificationStatus,
+              adminPermissions: adminPerms || null,
             });
           }
         }
@@ -795,7 +824,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!user) {
           return res.status(404).json({ message: "User not found" });
         }
-        res.json(user);
+        
+        // Fetch admin permissions for admin users
+        let adminPerms = undefined as any;
+        if (user.role === 'admin') {
+          try {
+            adminPerms = await storage.getAdminPermissions(user.id);
+            console.log('[DEV AUTH/USER] Retrieved admin permissions for DB user:', adminPerms?.adminRole);
+          } catch (e) {
+            console.error('[DEV AUTH/USER] Error getting admin permissions:', e);
+          }
+        }
+        
+        res.json({ ...user, adminPermissions: adminPerms || null });
       } catch (error) {
         console.error("Error fetching user:", error);
         res.status(500).json({ message: "Failed to fetch user" });
@@ -805,9 +846,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     app.get('/api/test-accounts', async (req, res) => {
       try {
         const testAccounts = [
-          { id: 'test-admin-123', email: 'admin@fusionmining.com', role: 'admin', name: 'Admin User' },
-          { id: 'test-seller-456', email: 'ray@fusionmining.com', role: 'seller', name: 'Ray Pass' },
-          { id: 'test-buyer-789', email: 'henry@fusionmining.com', role: 'buyer', name: 'Henry Pass' },
+          { id: 'test-admin-super', email: 'superadmin@fusionmining.com', role: 'admin', name: 'Super Admin', adminRole: 'super_admin', credentials: 'superadmin / super123' },
+          { id: 'test-admin-verification', email: 'verifyadmin@fusionmining.com', role: 'admin', name: 'Verification Admin', adminRole: 'verification_admin', credentials: 'verifyadmin / verify123' },
+          { id: 'test-admin-content', email: 'contentadmin@fusionmining.com', role: 'admin', name: 'Content Admin', adminRole: 'content_admin', credentials: 'contentadmin / content123' },
+          { id: 'test-admin-support', email: 'supportadmin@fusionmining.com', role: 'admin', name: 'Support Admin', adminRole: 'support_admin', credentials: 'supportadmin / support123' },
+          { id: 'test-admin-analytics', email: 'analyticsadmin@fusionmining.com', role: 'admin', name: 'Analytics Admin', adminRole: 'analytics_admin', credentials: 'analyticsadmin / analytics123' },
+          { id: 'test-seller-456', email: 'ray@fusionmining.com', role: 'seller', name: 'Ray Pass', credentials: 'ray / ray123' },
+          { id: 'test-buyer-789', email: 'henry@fusionmining.com', role: 'buyer', name: 'Henry Pass', credentials: 'henry / henry123' },
         ];
         res.json(testAccounts);
       } catch (error) {
