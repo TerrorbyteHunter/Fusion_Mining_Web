@@ -3,7 +3,27 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (December 1, 2025)
+## Recent Changes (December 2, 2025)
+
+### Admin Permissions Backend Fix
+Fixed critical issue where admin permissions were not being returned from the `/api/auth/user` endpoint:
+
+**Issues Fixed:**
+- Development mode `/api/auth/user` endpoint now properly fetches `adminPermissions` from database
+- Auto-creates admin permissions on login based on role type if they don't exist
+- Backward compatibility maintained for legacy 'admin/admin123' credentials
+
+**Technical Implementation:**
+- `/api/auth/user` calls `storage.getAdminPermissions()` for admin users
+- Login handler seeds permissions when absent using `ROLE_PERMISSIONS` mapping
+- Permission creation only occurs once per admin, stored in `admin_permissions` table
+
+**Database Testing Script:**
+- Added `database_setup.sql` for local pgAdmin4 testing
+- Includes all enum types, table creation, and test admin/user data
+- Contains verification queries for inspecting users and permissions
+
+## Previous Changes (December 1, 2025)
 
 ### Role-Based Admin Permissions System
 Implemented a comprehensive role-based permissions system for admin users:
