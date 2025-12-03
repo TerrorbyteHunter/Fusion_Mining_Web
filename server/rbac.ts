@@ -18,7 +18,7 @@ export type Permission = keyof Omit<
   'id' | 'adminUserId' | 'adminRole' | 'createdAt' | 'updatedAt'
 >;
 
-export type AdminRole = 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
+export type AdminRole = 'super_admin' | 'verification_admin' | 'content_admin' | 'analytics_admin';
 
 // Default permissions for each admin role
 export const ROLE_PERMISSIONS: Record<AdminRole, Partial<Record<Permission, boolean>>> = {
@@ -38,22 +38,21 @@ export const ROLE_PERMISSIONS: Record<AdminRole, Partial<Record<Permission, bool
     canResetPasswords: true,
     canForceLogout: true,
   },
+  // Combined Verification & Support Admin:
+  // Handles compliance/KYC, listing approvals, and user support operations
   verification_admin: {
     canManageVerification: true,
     canManageListings: true,
     canViewAnalytics: true,
     canAccessAuditLogs: true,
+    canManageMessages: true,
+    canResetPasswords: true,
+    canForceLogout: true,
   },
   content_admin: {
     canManageBlog: true,
     canManageCMS: true,
     canManageDocuments: true,
-  },
-  support_admin: {
-    canManageMessages: true,
-    canResetPasswords: true,
-    canForceLogout: true,
-    canViewAnalytics: true,
   },
   analytics_admin: {
     canViewAnalytics: true,
@@ -171,9 +170,8 @@ export async function logAdminAction(
 export function getAdminRoleDisplayName(role: AdminRole): string {
   const roleNames: Record<AdminRole, string> = {
     super_admin: 'Super Admin',
-    verification_admin: 'Verification Admin',
+    verification_admin: 'Verification & Support Admin',
     content_admin: 'Content Admin',
-    support_admin: 'Support Admin',
     analytics_admin: 'Analytics Admin',
   };
   return roleNames[role] || role;

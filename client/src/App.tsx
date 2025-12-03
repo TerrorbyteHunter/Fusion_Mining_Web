@@ -40,6 +40,7 @@ import LegalPrivacy from "@/pages/LegalPrivacy";
 import LegalDisclaimer from "@/pages/LegalDisclaimer";
 import DashboardLayout from "@/pages/DashboardLayout";
 import SellerVerification from "@/pages/SellerVerification";
+import { SupportChatWidget } from "@/components/SupportChatWidget";
 
 function Router() {
   const [location] = useLocation();
@@ -48,7 +49,7 @@ function Router() {
   const showLMETicker = !isAdminSection && location !== '/login' && location !== '/signup';
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative">
       <Header />
       <div className="flex flex-1">
         {showLMETicker && (
@@ -76,15 +77,15 @@ function Router() {
             <Route path="/profile/:id" component={ProfileView} />
             <Route path="/seller-verification" component={SellerVerification} />
             {/* Dashboard & user area routes */}
-              {/* Dashboard area (keeps sidebar visible across subpages) */}
-              <Route path="/dashboard" component={DashboardLayout} />
-              <Route path="/dashboard/messages" component={DashboardLayout} />
-              <Route path="/dashboard/create-listing" component={DashboardLayout} />
-              <Route path="/dashboard/listings" component={DashboardLayout} />
-              <Route path="/dashboard/requests" component={DashboardLayout} />
-              <Route path="/dashboard/profile" component={DashboardLayout} />
-              <Route path="/dashboard/verification" component={DashboardLayout} />
-              <Route path="/dashboard/upgrade-tier" component={DashboardLayout} />
+            {/* Dashboard area (keeps sidebar visible across subpages) */}
+            <Route path="/dashboard" component={DashboardLayout} />
+            <Route path="/dashboard/messages" component={DashboardLayout} />
+            <Route path="/dashboard/create-listing" component={DashboardLayout} />
+            <Route path="/dashboard/listings" component={DashboardLayout} />
+            <Route path="/dashboard/requests" component={DashboardLayout} />
+            <Route path="/dashboard/profile" component={DashboardLayout} />
+            <Route path="/dashboard/verification" component={DashboardLayout} />
+            <Route path="/dashboard/upgrade-tier" component={DashboardLayout} />
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
@@ -106,6 +107,8 @@ function Router() {
         </main>
       </div>
       <Footer />
+      {/* Floating support assistant (shown on all pages) */}
+      <SupportChatWidget />
     </div>
   );
 }

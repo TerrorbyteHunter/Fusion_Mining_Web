@@ -123,6 +123,7 @@ ON CONFLICT (id) DO UPDATE SET
     first_name = EXCLUDED.first_name,
     last_name = EXCLUDED.last_name,
     role = EXCLUDED.role,
+    is_super_admin = true,
     updated_at = NOW();
 
 -- Super Admin Permissions (all permissions enabled)
@@ -148,7 +149,7 @@ ON CONFLICT (admin_user_id) DO UPDATE SET
 
 -- Verification Admin
 INSERT INTO users (id, email, username, password, first_name, last_name, role, membership_tier, verification_status)
-VALUES ('test-admin-verification', 'verifyadmin@fusionmining.com', 'verifyadmin', '$2b$10$demo', 'Verification', 'Admin', 'admin', 'basic', 'approved')
+VALUES ('test-admin-verification', 'verificationadmin@fusionmining.com', 'verificationadmin', '$2b$10$demo', 'Verification', 'Admin', 'admin', 'premium', 'approved')
 ON CONFLICT (id) DO UPDATE SET 
     email = EXCLUDED.email,
     username = EXCLUDED.username,
@@ -180,7 +181,7 @@ ON CONFLICT (admin_user_id) DO UPDATE SET
 
 -- Content Admin
 INSERT INTO users (id, email, username, password, first_name, last_name, role, membership_tier, verification_status)
-VALUES ('test-admin-content', 'contentadmin@fusionmining.com', 'contentadmin', '$2b$10$demo', 'Content', 'Admin', 'admin', 'basic', 'approved')
+VALUES ('test-admin-content', 'contentadmin@fusionmining.com', 'contentadmin', '$2b$10$demo', 'Content', 'Admin', 'admin', 'premium', 'approved')
 ON CONFLICT (id) DO UPDATE SET 
     email = EXCLUDED.email,
     username = EXCLUDED.username,
@@ -212,7 +213,7 @@ ON CONFLICT (admin_user_id) DO UPDATE SET
 
 -- Support Admin
 INSERT INTO users (id, email, username, password, first_name, last_name, role, membership_tier, verification_status)
-VALUES ('test-admin-support', 'supportadmin@fusionmining.com', 'supportadmin', '$2b$10$demo', 'Support', 'Admin', 'admin', 'basic', 'approved')
+VALUES ('test-admin-support', 'supportadmin@fusionmining.com', 'supportadmin', '$2b$10$demo', 'Support', 'Admin', 'admin', 'premium', 'approved')
 ON CONFLICT (id) DO UPDATE SET 
     email = EXCLUDED.email,
     username = EXCLUDED.username,
@@ -244,7 +245,7 @@ ON CONFLICT (admin_user_id) DO UPDATE SET
 
 -- Analytics Admin
 INSERT INTO users (id, email, username, password, first_name, last_name, role, membership_tier, verification_status)
-VALUES ('test-admin-analytics', 'analyticsadmin@fusionmining.com', 'analyticsadmin', '$2b$10$demo', 'Analytics', 'Admin', 'admin', 'basic', 'approved')
+VALUES ('test-admin-analytics', 'analyticsadmin@fusionmining.com', 'analyticsadmin', '$2b$10$demo', 'Analytics', 'Admin', 'admin', 'premium', 'approved')
 ON CONFLICT (id) DO UPDATE SET 
     email = EXCLUDED.email,
     username = EXCLUDED.username,

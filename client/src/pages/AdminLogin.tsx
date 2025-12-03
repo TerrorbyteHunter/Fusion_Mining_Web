@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mountain, Crown, Shield, FileText, Headphones, BarChart3, Lock } from "lucide-react";
+import { Mountain, Crown, Shield, FileText, BarChart3, Lock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,8 +35,8 @@ const adminAccounts: AdminAccount[] = [
     username: "verifyadmin",
     password: "verify123",
     role: "verification_admin",
-    label: "Verification Admin",
-    description: "Handle compliance, KYC/AML, and listing approvals",
+    label: "Verification & Support Admin",
+    description: "Handle compliance, KYC/AML, listing approvals, and user support operations",
     icon: Shield,
     color: "text-blue-600",
   },
@@ -49,16 +49,6 @@ const adminAccounts: AdminAccount[] = [
     description: "Manage platform content, branding, and CMS",
     icon: FileText,
     color: "text-green-600",
-  },
-  {
-    id: "support_admin",
-    username: "supportadmin",
-    password: "support123",
-    role: "support_admin",
-    label: "Support Admin",
-    description: "Handle user communication and issue resolution",
-    icon: Headphones,
-    color: "text-purple-600",
   },
   {
     id: "analytics_admin",

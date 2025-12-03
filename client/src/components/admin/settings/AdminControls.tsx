@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 
 interface AdminRoleDefinition {
-  role: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
+  role: 'super_admin' | 'verification_admin' | 'content_admin' | 'analytics_admin';
   label: string;
   description: string;
   icon: any;
@@ -42,14 +42,17 @@ const adminRoleDefinitions: AdminRoleDefinition[] = [
   },
   {
     role: 'verification_admin',
-    label: 'Verification Admin',
-    description: 'Handle compliance, KYC/AML, and listing approvals',
+    label: 'Verification & Support Admin',
+    description: 'Handle compliance, KYC/AML, listing approvals, and user support operations',
     icon: ShieldCheck,
     color: 'text-blue-600 dark:text-blue-500',
     permissions: [
       { label: 'Manage Verification', value: true },
       { label: 'Manage Listings', value: true },
       { label: 'Manage Documents', value: true },
+      { label: 'Manage Messages', value: true },
+      { label: 'Reset Passwords', value: true },
+      { label: 'Force Logout Users', value: true },
       { label: 'View Analytics', value: true },
       { label: 'Access Audit Logs', value: true },
     ],
@@ -65,20 +68,6 @@ const adminRoleDefinitions: AdminRoleDefinition[] = [
       { label: 'Manage Projects', value: true },
       { label: 'Manage Documents', value: true },
       { label: 'View Analytics', value: true },
-    ],
-  },
-  {
-    role: 'support_admin',
-    label: 'Support Admin',
-    description: 'Handle user communication and issue resolution',
-    icon: MessageSquare,
-    color: 'text-green-600 dark:text-green-500',
-    permissions: [
-      { label: 'Manage Messages', value: true },
-      { label: 'Reset Passwords', value: true },
-      { label: 'Force Logout Users', value: true },
-      { label: 'View Analytics', value: true },
-      { label: 'Access Audit Logs', value: true },
     ],
   },
   {
@@ -109,7 +98,7 @@ export function AdminControls() {
             <CardTitle>Admin Role Types & Capabilities</CardTitle>
           </div>
           <CardDescription>
-            Five specialized admin roles with different permissions and responsibilities
+            Four specialized admin roles with different permissions and responsibilities
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

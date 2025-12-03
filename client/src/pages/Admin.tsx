@@ -1,5 +1,6 @@
 // Comprehensive Admin Dashboard with full management capabilities
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -52,7 +53,36 @@ import {
 export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [location, navigate] = useLocation();
+
+  // Derive initial tab from ?tab= query parameter so sidebar links like
+  // /admin?tab=users can deep-link directly to a specific section.
+  const getInitialTab = () => {
+    try {
+      const [, search = ""] = location.split("?");
+      const params = new URLSearchParams(search);
+      const tab = params.get("tab");
+      if (tab) return tab;
+    } catch {
+      // ignore and fall back to overview
+    }
+    return "overview";
+  };
+
+  const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
+
+  // Keep URL in sync when the active tab changes inside the Admin dashboard
+  const setActiveTab = (tab: string) => {
+    setActiveTabState(tab);
+    try {
+      const [path, search = ""] = location.split("?");
+      const params = new URLSearchParams(search);
+      params.set("tab", tab);
+      navigate(`${path}?${params.toString()}`);
+    } catch {
+      // If URL parsing fails for any reason, still update state
+    }
+  };
   // Initialize with minimal permissions - only add what the backend returns
   const [adminPermissions, setAdminPermissions] = useState<any>({
     canManageUsers: false,

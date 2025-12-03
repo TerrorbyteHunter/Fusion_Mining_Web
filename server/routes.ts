@@ -35,6 +35,8 @@ import {
   insertDocumentTemplateSchema,
   updateDocumentTemplateSchema,
 } from "@shared/schema";
+import { askSupportBot, type ChatHistoryItem } from "./ai/gemini";
+import { askHuggingFace, formatChatPrompt } from "./ai/hf";
 // import { getSession } from "./replitAuth";
 
 // Helper function to format Zod errors
@@ -2607,35 +2609,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Either projectId or listingId is required" });
       }
 
-      let sellerId = null;
-      let threadTitle = title;
+      const currentUser = await storage.getUserById(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let buyerId: string | null = userId;
+      let sellerId: string | null = null;
+      let adminId: string | null = null;
+      let threadTitle = title as string | undefined;
+
+      const adminUser = await storage.getAdminUser();
+      adminId = adminUser?.id || null;
 
       if (projectId) {
         const project = await storage.getProjectById(projectId);
         if (!project) {
           return res.status(404).json({ message: "Project not found" });
         }
-        const adminUser = await storage.getAdminUser();
-        sellerId = adminUser?.id || null;
+
+        // Project interests should go to the project owner
+        sellerId = project.ownerId;
         threadTitle = threadTitle || `Inquiry about: ${project.name}`;
       } else if (listingId) {
         const listing = await storage.getMarketplaceListingById(listingId);
         if (!listing) {
           return res.status(404).json({ message: "Listing not found" });
         }
-        // Always set admin as the seller for buyer inquiries
-        const adminUser = await storage.getAdminUser();
-        sellerId = adminUser?.id || null;
+
+        // Listing inquiries should go to the listing's seller
+        sellerId = listing.sellerId;
         threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
       }
 
       const thread = await storage.createMessageThread({
-        title: threadTitle,
+        title: threadTitle!,
         type: projectId ? 'project_interest' : 'marketplace_inquiry',
         projectId,
         listingId,
-        buyerId: userId,
+        buyerId,
         sellerId,
+        adminId,
         createdBy: userId,
         status: 'open',
       });
@@ -2775,6 +2789,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error closing thread:", error);
       res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+
+  // ========================================================================
+  // AI Assistant Chat (Gemini 1.5 Flash)
+  // ========================================================================
+  app.post("/api/assistant/chat", async (req: any, res) => {
+    try {
+      const userId = req.user ? (req.user.claims?.sub || req.user.id) : null;
+      const { message, history } = req.body as {
+        message?: string;
+        history?: ChatHistoryItem[];
+      };
+
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "message is required" });
+      }
+
+      const safeHistory: ChatHistoryItem[] = Array.isArray(history)
+        ? history
+            .filter((h: any) => h && typeof h.content === "string")
+            .map((h: any) => ({
+              role: h.role === "assistant" ? "assistant" : "user",
+              content: h.content,
+            }))
+        : [];
+
+      let reply = "";
+
+      // Priority: HF Inference API (if configured)
+      const hfApiKey = process.env.HF_API_KEY;
+      const hfModel = process.env.HF_MODEL || "deepseek-ai/DeepSeek-V3.2:novita";
+
+      // If the configured HF model looks like a modern/chat model (e.g. contains
+      // "llama" or a provider slash), prefer the router endpoint which is
+      // required by many newer models. Set HF_USE_ROUTER at runtime so
+      // `askHuggingFace` will use the router path.
+      try {
+        const m = String(hfModel || "").toLowerCase();
+        if (!process.env.HF_USE_ROUTER && (m.includes("llama") || hfModel.includes("/"))) {
+          process.env.HF_USE_ROUTER = "1";
+          console.debug("HF_USE_ROUTER enabled for model:", hfModel);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      if (hfApiKey) {
+        try {
+          const prompt = formatChatPrompt(message, safeHistory);
+          reply = await askHuggingFace(hfModel, prompt, hfApiKey);
+        } catch (hfErr) {
+          console.error("HF Inference failed, falling back to Gemini/local:", hfErr);
+          reply = await askSupportBot(message, safeHistory);
+        }
+      } else {
+        // Fallback: Gemini or local
+        reply = await askSupportBot(message, safeHistory);
+      }
+
+      // NOTE: For now we just return the reply.
+      // Later, we can also persist this into message_threads/messages
+      // so admins can review conversations.
+
+      res.json({ reply, userId });
+    } catch (error: any) {
+      console.error("Assistant chat error:", error);
+
+      // If the provider returned a quota / rate-limit error, surface a
+      // clear 429 to the client and include a Retry-After header when
+      // possible so clients/frontend can back off gracefully.
+      try {
+        if (error && (error.status === 429 || (error?.errorDetails && Array.isArray(error.errorDetails)))) {
+          // Try to extract retry info from the provider error details
+          let retryDelay: string | null = null;
+          const details = error.errorDetails || [];
+          for (const d of details) {
+            if (d && typeof d === 'object' && d['@type'] && d['@type'].includes('RetryInfo')) {
+              retryDelay = d.retryDelay || null;
+              break;
+            }
+          }
+
+          // If we have a retryDelay like "1s" or "30s" attempt to convert
+          // it to seconds and set the standard Retry-After header.
+          if (retryDelay && typeof retryDelay === 'string') {
+            const m = /^\s*(\d+(?:\.\d+)?)(s|m|h)?\s*$/i.exec(retryDelay);
+            if (m) {
+              const val = Number(m[1]);
+              const unit = (m[2] || 's').toLowerCase();
+              let seconds = val;
+              if (unit === 'm') seconds = val * 60;
+              if (unit === 'h') seconds = val * 3600;
+              res.setHeader('Retry-After', String(Math.ceil(seconds)));
+            }
+          }
+
+          return res.status(429).json({ message: "Assistant quota exceeded; please try again later", retryDelay });
+        }
+      } catch (innerErr) {
+        console.error("Error while handling assistant error details:", innerErr);
+      }
+
+      res.status(500).json({ message: "Assistant is temporarily unavailable" });
     }
   });
 

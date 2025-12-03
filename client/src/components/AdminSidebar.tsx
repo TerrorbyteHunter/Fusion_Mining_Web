@@ -36,21 +36,35 @@ interface AdminPermissions {
 interface AdminSidebarProps {
   activeTab?: string;
   onTabChange?: (tab: string) => void;
-  permissions?: AdminPermissions;
-  adminRole?: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
+  /**
+   * Optional explicit permissions/adminRole. If not provided, we fall back to
+   * values derived from useAuth() so that standalone admin pages (settings,
+   * CMS, verification review, etc.) still get the correct navigation.
+   */
+  permissions?: AdminPermissions | null;
+  adminRole?: "super_admin" | "verification_admin" | "content_admin" | "analytics_admin";
 }
 
 const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "destructive" | "outline" | "secondary" }> = {
   super_admin: { label: "Super Admin", variant: "destructive" },
-  verification_admin: { label: "Verification Admin", variant: "default" },
+  // Shortened label to avoid overlap in the sidebar badge
+  verification_admin: { label: "Verify & Support Admin", variant: "default" },
   content_admin: { label: "Content Admin", variant: "secondary" },
-  support_admin: { label: "Support Admin", variant: "outline" },
   analytics_admin: { label: "Analytics Admin", variant: "secondary" },
 };
 
 export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }: AdminSidebarProps) {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user, permissions: authPermissions } = useAuth();
+
+  // Prefer explicitly passed-in permissions (used on the main Admin dashboard),
+  // but fall back to the permissions coming from useAuth() so that other admin
+  // pages still render the full sidebar for the current admin user.
+  const effectivePermissions: AdminPermissions | null =
+    (permissions as AdminPermissions | null) ?? (authPermissions as AdminPermissions | null) ?? null;
+
+  const effectiveAdminRole =
+    adminRole ?? (authPermissions as any)?.adminPermissions?.adminRole ?? (permissions as any)?.adminRole;
 
   const getUserInitials = () => {
     if (!user) return "A";
@@ -138,9 +152,9 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
   ];
 
   // Filter menu items based on permissions
-  const menuItems = allMenuItems.filter(item => {
+  const menuItems = allMenuItems.filter((item) => {
     if (!item.permission) return true; // Always show items with no permission requirement
-    return permissions?.[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
+    return effectivePermissions?.[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
   });
 
   const handleTabClick = (item: typeof menuItems[0]) => {
@@ -164,12 +178,12 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
             <p className="font-semibold truncate text-sm" data-testid="admin-username">
               {user?.firstName || user?.email || "Admin"}
             </p>
-            <Badge 
-              variant={adminRole ? ADMIN_ROLE_LABELS[adminRole]?.variant : "destructive"} 
+            <Badge
+              variant={effectiveAdminRole ? ADMIN_ROLE_LABELS[effectiveAdminRole]?.variant : "destructive"}
               className="text-xs mt-1"
               data-testid="badge-admin-role"
             >
-              {adminRole ? ADMIN_ROLE_LABELS[adminRole]?.label : "Administrator"}
+              {effectiveAdminRole ? ADMIN_ROLE_LABELS[effectiveAdminRole]?.label : "Administrator"}
             </Badge>
           </div>
         </div>
@@ -185,10 +199,13 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
             if (item.tab) {
               const isActive = activeTab === item.tab;
               
-              // If we're on a href-based page, navigate to /admin
+              // If we're on a href-based page (no onTabChange), navigate to the
+              // Admin dashboard with the appropriate ?tab= query so the tab
+              // selection is preserved and deep-linkable.
               if (!onTabChange) {
+                const href = `/admin?tab=${item.tab}`;
                 return (
-                  <Link key={item.tab} href="/admin">
+                  <Link key={item.tab} href={href}>
                     <Button
                       variant="ghost"
                       className={cn(
