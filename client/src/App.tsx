@@ -41,6 +41,7 @@ import LegalDisclaimer from "@/pages/LegalDisclaimer";
 import DashboardLayout from "@/pages/DashboardLayout";
 import SellerVerification from "@/pages/SellerVerification";
 import { SupportChatWidget } from "@/components/SupportChatWidget";
+import CreateBuyerRequest from "@/pages/CreateBuyerRequest";
 
 function Router() {
   const [location] = useLocation();
@@ -81,6 +82,7 @@ function Router() {
             <Route path="/dashboard" component={DashboardLayout} />
             <Route path="/dashboard/messages" component={DashboardLayout} />
             <Route path="/dashboard/create-listing" component={DashboardLayout} />
+            <Route path="/dashboard/create-rfq" component={DashboardLayout} />
             <Route path="/dashboard/listings" component={DashboardLayout} />
             <Route path="/dashboard/requests" component={DashboardLayout} />
             <Route path="/dashboard/profile" component={DashboardLayout} />

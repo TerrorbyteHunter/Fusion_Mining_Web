@@ -186,6 +186,7 @@ export interface IStorage {
   createBuyerRequest(request: InsertBuyerRequest): Promise<BuyerRequest>;
   getBuyerRequests(): Promise<BuyerRequest[]>;
   getBuyerRequestById(id: string): Promise<BuyerRequest | undefined>;
+  updateBuyerRequestStatus(id: string, status: string): Promise<BuyerRequest>;
 
   // Message Thread operations
   createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
@@ -825,6 +826,18 @@ export class DatabaseStorage implements IStorage {
       .from(buyerRequests)
       .where(eq(buyerRequests.id, id));
     return request;
+  }
+
+  async updateBuyerRequestStatus(id: string, status: string): Promise<BuyerRequest> {
+    const [updated] = await db
+      .update(buyerRequests)
+      .set({
+        status,
+        updatedAt: new Date(),
+      })
+      .where(eq(buyerRequests.id, id))
+      .returning();
+    return updated;
   }
 
   // ========================================================================

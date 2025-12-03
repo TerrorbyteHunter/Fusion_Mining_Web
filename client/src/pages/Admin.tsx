@@ -107,6 +107,7 @@ export default function Admin() {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [editingTier, setEditingTier] = useState(false);
+  const [tierUser, setTierUser] = useState<User | null>(null);
   const [selectedVerificationStatus, setSelectedVerificationStatus] = useState<string>("");
   const [editingVerification, setEditingVerification] = useState(false);
   const [userInfoForm, setUserInfoForm] = useState({
@@ -508,7 +509,7 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({ title: "Tier updated", description: "User membership tier has been updated successfully." });
-      setEditingUser(null);
+      setTierUser(null);
       setSelectedTier("");
       setEditingTier(false);
     },
@@ -856,7 +857,11 @@ export default function Admin() {
                     userRole="buyer"
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditTier={(u) => { 
+                      setTierUser(u);
+                      setSelectedTier(u.membershipTier); 
+                      setEditingTier(true); 
+                    }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
@@ -876,7 +881,11 @@ export default function Admin() {
                     userRole="seller"
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditTier={(u) => { 
+                      setTierUser(u);
+                      setSelectedTier(u.membershipTier); 
+                      setEditingTier(true); 
+                    }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
@@ -896,7 +905,11 @@ export default function Admin() {
                     userRole="admin"
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { setSelectedTier(u.membershipTier); setEditingTier(true); }}
+                    onEditTier={(u) => { 
+                      setTierUser(u);
+                      setSelectedTier(u.membershipTier); 
+                      setEditingTier(true); 
+                    }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
                       if (u.id === user?.id) {
@@ -1398,7 +1411,7 @@ export default function Admin() {
           <Dialog open={editingTier} onOpenChange={(open) => {
             if (!open) {
               setEditingTier(false);
-              setEditingUser(null);
+              setTierUser(null);
               setSelectedTier("");
             }
           }}>
@@ -1409,7 +1422,7 @@ export default function Admin() {
                   Update Membership Tier
                 </DialogTitle>
                 <DialogDescription>
-                  Change the membership tier for {editingUser?.firstName} {editingUser?.lastName} ({editingUser?.email})
+                  Change the membership tier for {tierUser?.firstName} {tierUser?.lastName} ({tierUser?.email})
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
@@ -1441,7 +1454,7 @@ export default function Admin() {
                     </SelectContent>
                   </Select>
                   <p className="text-sm text-muted-foreground">
-                    Current tier: <Badge variant="outline" className="capitalize">{editingUser?.membershipTier || 'basic'}</Badge>
+                    Current tier: <Badge variant="outline" className="capitalize">{tierUser?.membershipTier || 'basic'}</Badge>
                   </p>
                 </div>
               </div>
@@ -1450,7 +1463,7 @@ export default function Admin() {
                   variant="outline" 
                   onClick={() => {
                     setEditingTier(false);
-                    setEditingUser(null);
+                    setTierUser(null);
                     setSelectedTier("");
                   }}
                   data-testid="button-cancel-tier"
@@ -1459,8 +1472,8 @@ export default function Admin() {
                 </Button>
                 <Button
                   onClick={() => {
-                    if (editingUser && selectedTier) {
-                      updateUserTierMutation.mutate({ userId: editingUser.id, tier: selectedTier });
+                    if (tierUser && selectedTier) {
+                      updateUserTierMutation.mutate({ userId: tierUser.id, tier: selectedTier });
                     }
                   }}
                   disabled={!selectedTier || updateUserTierMutation.isPending}

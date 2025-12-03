@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
@@ -13,6 +15,8 @@ export default function DashboardListings() {
   const { user, isAuthenticated } = useAuth();
   const isSeller = user?.role === "seller";
   const userId = user?.id || (user as any)?.claims?.sub;
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -34,6 +38,31 @@ export default function DashboardListings() {
       const res = await apiRequest("GET", "/api/marketplace/buyer-requests");
       return await res.json();
     }
+  });
+
+  const closeRequestMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/marketplace/buyer-requests/${id}/close`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to close request");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Request closed",
+        description: "Your RFQ has been marked as closed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to close request",
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredSellerListings = useMemo(() => {
@@ -100,6 +129,11 @@ export default function DashboardListings() {
           {isSeller && (
             <Link href="/dashboard/create-listing">
               <Button data-testid="button-create-listing">Create listing</Button>
+            </Link>
+          )}
+          {!isSeller && (
+            <Link href="/dashboard/create-rfq">
+              <Button data-testid="button-create-rfq">Create RFQ</Button>
             </Link>
           )}
         </div>
@@ -197,6 +231,19 @@ export default function DashboardListings() {
                       </div>
                       {r.createdAt && (
                         <p className="text-xs text-muted-foreground mt-3">Created {format(new Date(r.createdAt), "MMM d, yyyy")}</p>
+                      )}
+                      {r.status === "active" && (
+                        <div className="mt-4 flex justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => closeRequestMutation.mutate(r.id)}
+                            disabled={closeRequestMutation.isPending}
+                            data-testid={`button-close-request-${r.id}`}
+                          >
+                            {closeRequestMutation.isPending ? "Closing..." : "Close RFQ"}
+                          </Button>
+                        </div>
                       )}
                     </CardContent>
                   </Card>

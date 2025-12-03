@@ -777,27 +777,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       try {
-        // For hardcoded test users, return them from testUsersStore
+        // For hardcoded test users, prefer live database values for tier/status,
+        // but keep convenience fields from the in-memory store.
         if (req.user && req.user.id && req.user.id.startsWith('test-')) {
           const testUser = testUsersStore.get(req.user.id);
           if (testUser) {
             let adminPerms = undefined as any;
-            
+
+            // Fetch the real user record from the database
+            const dbUser = await storage.getUser(testUser.id);
+
             // Fetch admin permissions for admin users from database
-            if (testUser.role === 'admin') {
+            if ((dbUser?.role || testUser.role) === 'admin') {
               try {
-                adminPerms = await storage.getAdminPermissions(testUser.id);
-                console.log('[DEV AUTH/USER] Retrieved admin permissions for', testUser.id, ':', adminPerms?.adminRole);
-                
+                const permsUserId = dbUser?.id || testUser.id;
+                adminPerms = await storage.getAdminPermissions(permsUserId);
+                console.log('[DEV AUTH/USER] Retrieved admin permissions for', permsUserId, ':', adminPerms?.adminRole);
+
                 // If no permissions exist in DB, try to create them based on credentials
                 if (!adminPerms) {
-                  const cred = Array.from(customTestCredentials.values()).find(c => c.userId === testUser.id);
+                  const cred = Array.from(customTestCredentials.values()).find(c => c.userId === permsUserId);
                   if (cred && cred.adminRole) {
                     const { ROLE_PERMISSIONS } = await import('./rbac');
                     const rolePermissions = ROLE_PERMISSIONS[cred.adminRole];
-                    console.log('[DEV AUTH/USER] Creating missing admin permissions for', testUser.id, 'role:', cred.adminRole);
+                    console.log('[DEV AUTH/USER] Creating missing admin permissions for', permsUserId, 'role:', cred.adminRole);
                     adminPerms = await storage.upsertAdminPermissions({
-                      adminUserId: testUser.id,
+                      adminUserId: permsUserId,
                       adminRole: cred.adminRole,
                       ...rolePermissions,
                     } as any);
@@ -807,7 +812,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 console.error('[DEV AUTH/USER] Error getting admin permissions:', e);
               }
             }
-            
+
+            // If we have a DB user, trust its membershipTier / verificationStatus
+            if (dbUser) {
+              return res.json({
+                ...dbUser,
+                // Preserve any extra convenience fields from test user store
+                firstName: dbUser.firstName || testUser.firstName,
+                lastName: dbUser.lastName || testUser.lastName,
+                email: dbUser.email || testUser.email,
+                adminPermissions: adminPerms || null,
+              });
+            }
+
+            // Fallback: no DB user, use test user as before
             return res.json({
               id: testUser.id,
               email: testUser.email,
@@ -820,7 +838,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
           }
         }
-        
+
         // For database users, fetch from storage
         const user = await storage.getUser(req.user.id);
         if (!user) {
@@ -2539,6 +2557,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Allow buyers to close their own RFQs (buyer requests)
+  app.patch('/api/marketplace/buyer-requests/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const buyerId = req.user.claims?.sub || req.user.id;
+      const id = req.params.id;
+
+      const existing = await storage.getBuyerRequestById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      if (existing.buyerId !== buyerId) {
+        return res.status(403).json({ message: "You are not allowed to modify this request" });
+      }
+
+      const updated = await storage.updateBuyerRequestStatus(id, "closed");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error closing buyer request:", error);
+      res.status(500).json({ message: "Failed to close request" });
+    }
+  });
+
   app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
     try {
       const sellerId = req.user.claims?.sub || req.user.id;
@@ -3547,10 +3587,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...user,
           phoneNumber: profile?.phoneNumber || '-',
           companyName: profile?.companyName || '-',
-          ...(testUser && {
-            membershipTier: testUser.membershipTier,
-            verificationStatus: testUser.verificationStatus,
-          }),
+          // For admin user management, always trust the real database values
+          // for membershipTier and verificationStatus, not any testUser overrides.
           ...(adminPermissions && {
             adminRole: adminPermissions.adminRole,
           }),
