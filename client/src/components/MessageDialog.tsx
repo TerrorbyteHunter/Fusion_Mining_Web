@@ -72,14 +72,21 @@ export function MessageDialog({
         : content;
 
       const idKey = generateIdempotencyKey();
+      const messagePayload: any = {
+        receiverId: recipientId,
+        subject: subject || `Re: ${listingTitle || "Marketplace Inquiry"}`,
+        content: messageContent,
+      };
+
+      // Include relatedListingId for authorization context if available
+      if (listingId) {
+        messagePayload.relatedListingId = listingId;
+      }
+
       return await apiRequest(
         "POST",
         "/api/messages",
-        {
-          receiverId: recipientId,
-          subject: subject || `Re: ${listingTitle || "Marketplace Inquiry"}`,
-          content: messageContent,
-        },
+        messagePayload,
         { "Idempotency-Key": idKey }
       );
     },

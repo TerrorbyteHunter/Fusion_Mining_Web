@@ -346,7 +346,13 @@ export default function BuyerTierUpgrade() {
               <Card
                 key={tierInfo.tier}
                 className={`relative transition-all ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''} ${isCurrent ? 'opacity-50 cursor-not-allowed' : 'hover-elevate cursor-pointer'}`}
-                onClick={() => !isCurrent && !upgradeRequest && setSelectedTier(tierInfo.tier)}
+                onClick={() => {
+                  // Allow selection if no request, or if request is approved/rejected (can upgrade again)
+                  const canSelect = !isCurrent && (!upgradeRequest || upgradeRequest.status === 'approved' || upgradeRequest.status === 'rejected');
+                  if (canSelect) {
+                    setSelectedTier(tierInfo.tier);
+                  }
+                }}
                 data-testid={`card-tier-${tierInfo.tier}`}
               >
                 {isCurrent && (
@@ -381,7 +387,7 @@ export default function BuyerTierUpgrade() {
         </div>
 
         {/* Request Upgrade Button */}
-        {!upgradeRequest && selectedTier && selectedTier !== currentTier && (
+        {(!upgradeRequest || upgradeRequest.status === 'approved' || upgradeRequest.status === 'rejected') && selectedTier && selectedTier !== currentTier && (
           <div className="mb-8">
             <Button
               onClick={() => setModalOpen(true)}

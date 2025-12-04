@@ -103,7 +103,7 @@ export default function Marketplace() {
   
   const [activeTab, setActiveTab] = useState("minerals");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedMainCategory, setSelectedMainCategory] = useState<string>("all");
+  const [selectedMainCategory, setSelectedMainCategory] = useState<string>("minerals");
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
@@ -150,19 +150,26 @@ export default function Marketplace() {
   });
 
   const handleContactSeller = (listing: MarketplaceListingWithSeller) => {
-    if (!adminContact?.id) {
+    // Use seller ID if available, otherwise fall back to admin
+    const recipientId = listing.sellerId || listing.seller?.id;
+    const recipientName = listing.seller 
+      ? `${listing.seller.firstName || ''} ${listing.seller.lastName || ''}`.trim() || 'Seller'
+      : adminContact?.name || 'Administrator';
+    const recipientEmail = listing.seller?.email || adminContact?.email;
+
+    if (!recipientId) {
       toast({
         title: "Error",
-        description: "Could not contact administrator. Please try again later.",
+        description: "Could not contact seller. Please try again later.",
         variant: "destructive",
       });
       return;
     }
 
     setSelectedRecipient({
-      id: adminContact.id,
-      name: adminContact.name || 'Administrator',
-      email: adminContact.email,
+      id: recipientId,
+      name: recipientName,
+      email: recipientEmail,
       subject: `Inquiry about: ${listing.title}`,
       listingTitle: listing.title,
       listingId: listing.id,
@@ -236,11 +243,25 @@ export default function Marketplace() {
       }
     }
     
-    const matchesSubcategory = selectedSubcategory === "all" || 
-      listing.mineralSubcategory === selectedSubcategory ||
-      listing.toolSubcategory === selectedSubcategory ||
-      listing.serviceSubcategory === selectedSubcategory ||
-      listing.ppeSubcategory === selectedSubcategory;
+    // Subcategory filter should only check the relevant field based on main category
+    let matchesSubcategory = true;
+    if (selectedSubcategory !== "all") {
+      if (selectedMainCategory === "minerals") {
+        matchesSubcategory = listing.mineralSubcategory === selectedSubcategory;
+      } else if (selectedMainCategory === "mining_equipment") {
+        matchesSubcategory = listing.toolSubcategory === selectedSubcategory || listing.ppeSubcategory === selectedSubcategory;
+      } else if (selectedMainCategory === "mining_services") {
+        matchesSubcategory = listing.serviceSubcategory === selectedSubcategory;
+      } else {
+        // When main category is "all", match any subcategory
+        matchesSubcategory = 
+          listing.mineralSubcategory === selectedSubcategory ||
+          listing.toolSubcategory === selectedSubcategory ||
+          listing.serviceSubcategory === selectedSubcategory ||
+          listing.ppeSubcategory === selectedSubcategory;
+      }
+    }
+    
     const matchesSearch = !searchQuery || 
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -294,19 +315,19 @@ export default function Marketplace() {
         <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-8">
-              <TabsTrigger value="minerals" data-testid="tab-minerals" onClick={() => setSelectedMainCategory("minerals")}>
+              <TabsTrigger value="minerals" data-testid="tab-minerals" onClick={() => { setSelectedMainCategory("minerals"); setSelectedSubcategory("all"); }}>
                 <Gem className="mr-2 h-4 w-4" />
                 Minerals
               </TabsTrigger>
-              <TabsTrigger value="mining_equipment" data-testid="tab-equipment" onClick={() => setSelectedMainCategory("mining_equipment")}>
+              <TabsTrigger value="mining_equipment" data-testid="tab-equipment" onClick={() => { setSelectedMainCategory("mining_equipment"); setSelectedSubcategory("all"); }}>
                 <Wrench className="mr-2 h-4 w-4" />
                 Equipment
               </TabsTrigger>
-              <TabsTrigger value="mining_services" data-testid="tab-services" onClick={() => setSelectedMainCategory("mining_services")}>
+              <TabsTrigger value="mining_services" data-testid="tab-services" onClick={() => { setSelectedMainCategory("mining_services"); setSelectedSubcategory("all"); }}>
                 <Briefcase className="mr-2 h-4 w-4" />
                 Services
               </TabsTrigger>
-              <TabsTrigger value="requests" data-testid="tab-requests" onClick={() => setSelectedMainCategory("all")}>
+              <TabsTrigger value="requests" data-testid="tab-requests" onClick={() => { setSelectedMainCategory("all"); setSelectedSubcategory("all"); }}>
                 <Package className="mr-2 h-4 w-4" />
                 RFQs
               </TabsTrigger>
@@ -472,7 +493,7 @@ export default function Marketplace() {
                                   Preparing...
                                 </>
                               ) : (
-                                'Inquire Again'
+                                'Contact Seller Again'
                               )}
                             </Button>
                           </div>
@@ -490,7 +511,7 @@ export default function Marketplace() {
                                 Preparing...
                               </>
                             ) : (
-                              'Inquire'
+                              'Contact Seller'
                             )}
                           </Button>
                         )}
@@ -866,6 +887,7 @@ export default function Marketplace() {
           recipientEmail={selectedRecipient.email}
           defaultSubject={selectedRecipient.subject}
           listingTitle={selectedRecipient.listingTitle}
+          listingId={selectedRecipient.listingId}
         />
       )}
     </div>
