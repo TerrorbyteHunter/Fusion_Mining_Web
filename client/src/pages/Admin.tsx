@@ -43,7 +43,7 @@ import {
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
   MapPin, Award
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import Messages from "./Messages";
 import { format } from "date-fns";
 import {
   BarChart, Bar, PieChart, Pie, AreaChart, Area,
@@ -327,79 +327,14 @@ export default function Admin() {
     },
   });
 
-  // Fetch messages
-  const { data: messages, isLoading: loadingMessages } = useQuery<Message[]>({
+  // Fetch messages (used for overview/analytics stats)
+  const { data: messages } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
-    enabled: !!isAdmin && activeTab === "messages",
+    enabled: !!isAdmin,
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/messages");
       return (await res.json()) as Message[];
     },
-  });
-  // Categorized threads for improved admin messaging
-  const [messagesCategory, setMessagesCategory] = useState<'all'|'project'|'marketplace'|'seller'|'buyer'>('all');
-  const { data: categorizedThreads } = useQuery<any>({
-    queryKey: ["/api/admin/threads/categorized"],
-    enabled: !!isAdmin && activeTab === 'messages',
-    refetchInterval: 5000,
-  });
-  const [viewMessage, setViewMessage] = useState<Message | null>(null);
-  const [startConvOpen, setStartConvOpen] = useState(false);
-  const [startConvForm, setStartConvForm] = useState({ userId: '', subject: '', content: '', listingId: '', projectId: '' });
-  // Threads and chat state
-  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
-  const { data: threadMessages } = useQuery<Message[]>({
-    queryKey: ["/api/threads", selectedThreadId, "messages"],
-    enabled: !!isAdmin && activeTab === 'messages' && !!selectedThreadId,
-    queryFn: async () => {
-      const res = await apiRequest('GET', `/api/threads/${selectedThreadId}/messages`);
-      return (await res.json()) as Message[];
-    },
-    refetchInterval: 3000,
-  });
-  const { data: threadDetails } = useQuery<any>({
-    queryKey: ["/api/threads", selectedThreadId, "details"],
-    enabled: !!isAdmin && activeTab === 'messages' && !!selectedThreadId,
-    queryFn: async () => {
-      const res = await apiRequest('GET', `/api/threads/${selectedThreadId}/details`);
-      return await res.json();
-    },
-    refetchInterval: 10000,
-  });
-  const sendChatMessageMutation = useMutation({
-    mutationFn: async ({ content }: { content: string }) => {
-      if (!selectedThreadId) return;
-      return await apiRequest('POST', `/api/threads/${selectedThreadId}/messages`, { content });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThreadId, "messages"] });
-    }
-  });
-  const [chatInput, setChatInput] = useState('');
-  const startConversationMutation = useMutation({
-    mutationFn: async () => {
-      // Choose endpoint based on context
-      if (startConvForm.listingId || startConvForm.projectId) {
-        return await apiRequest('POST', '/api/admin/threads/start', {
-          receiverId: startConvForm.userId,
-          subject: startConvForm.subject,
-          content: startConvForm.content,
-          listingId: startConvForm.listingId || undefined,
-          projectId: startConvForm.projectId || undefined,
-        });
-      }
-      return await apiRequest('POST', '/api/admin/messages/start', {
-        receiverId: startConvForm.userId,
-        subject: startConvForm.subject,
-        content: startConvForm.content,
-      });
-    },
-    onSuccess: () => {
-      setStartConvOpen(false);
-      setStartConvForm({ userId: '', subject: '', content: '', listingId: '', projectId: '' });
-      toast({ title: 'Conversation started' });
-    },
-    onError: () => toast({ title: 'Error', description: 'Failed to start conversation', variant: 'destructive' })
   });
 
   // Fetch admin audit logs (who made what changes)
@@ -1200,212 +1135,10 @@ export default function Admin() {
 
           {/* Messages Tab */}
           {activeTab === "messages" && adminPermissions?.canManageMessages && (
-            <div className="p-6 space-y-6">
-              <div>
-                <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Messages & Support</h2>
-                <p className="text-muted-foreground">Manage all platform messages</p>
-                  </div>
-                  <Button onClick={() => setStartConvOpen(true)}>Start Conversation</Button>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant={messagesCategory==='all'?'default':'outline'} onClick={() => setMessagesCategory('all')}>All</Button>
-                <Button variant={messagesCategory==='project'?'default':'outline'} onClick={() => setMessagesCategory('project')}>Project Inquiries</Button>
-                <Button variant={messagesCategory==='marketplace'?'default':'outline'} onClick={() => setMessagesCategory('marketplace')}>Marketplace Inquiries</Button>
-                <Button variant={messagesCategory==='seller'?'default':'outline'} onClick={() => setMessagesCategory('seller')}>Admin ↔ Seller</Button>
-                <Button variant={messagesCategory==='buyer'?'default':'outline'} onClick={() => setMessagesCategory('buyer')}>Admin ↔ Buyer</Button>
-              </div>
-
-              {loadingMessages ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader>
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-4 w-full mt-2" />
-              </CardHeader>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Threads list */}
-                  <Card className="lg:col-span-1">
-                    <CardHeader>
-                      <CardTitle>Threads</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 max-h-[70vh] overflow-auto">
-                      {/* Project Inquiries */}
-                      <div>
-                        <div className="text-xs uppercase text-muted-foreground mb-2">Project Inquiries</div>
-                        <div className="space-y-1">
-                          {(categorizedThreads?.projectInquiries || []).map((t: any) => (
-                            <Button key={t.id} variant={selectedThreadId===t.id? 'secondary':'ghost'} className="w-full justify-start" onClick={() => setSelectedThreadId(t.id)}>
-                              {t.title || 'Conversation'}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Marketplace Inquiries */}
-                      <div>
-                        <div className="text-xs uppercase text-muted-foreground mb-2">Marketplace Inquiries</div>
-                        <div className="space-y-1">
-                          {(categorizedThreads?.marketplaceInquiries || []).map((t: any) => (
-                            <Button key={t.id} variant={selectedThreadId===t.id? 'secondary':'ghost'} className="w-full justify-start" onClick={() => setSelectedThreadId(t.id)}>
-                              {t.title || 'Conversation'}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Admin ↔ Seller */}
-                      <div>
-                        <div className="text-xs uppercase text-muted-foreground mb-2">Admin ↔ Seller</div>
-                        <div className="space-y-1">
-                          {(categorizedThreads?.sellerCommunication || []).map((t: any) => (
-                            <Button key={t.id} variant={selectedThreadId===t.id? 'secondary':'ghost'} className="w-full justify-start" onClick={() => setSelectedThreadId(t.id)}>
-                              {t.title || 'Conversation'}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Admin ↔ Buyer */}
-                      <div>
-                        <div className="text-xs uppercase text-muted-foreground mb-2">Admin ↔ Buyer</div>
-                        <div className="space-y-1">
-                          {(categorizedThreads?.adminToBuyer || []).map((t: any) => (
-                            <Button key={t.id} variant={selectedThreadId===t.id? 'secondary':'ghost'} className="w-full justify-start" onClick={() => setSelectedThreadId(t.id)}>
-                              {t.title || 'Conversation'}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Chat panel */}
-                  <Card className="lg:col-span-2 flex flex-col h-[70vh]">
-                    <CardHeader>
-                      <CardTitle>
-                        {threadDetails ? (
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={undefined} alt={threadDetails?.buyer?.firstName || threadDetails?.seller?.firstName || 'User'} />
-                              <AvatarFallback>
-                                {(threadDetails?.buyer?.firstName?.[0] || threadDetails?.seller?.firstName?.[0] || 'U')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <div className="font-semibold">
-                                {threadDetails?.buyer?.email || threadDetails?.seller?.email || 'Conversation'}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {threadDetails?.project?.name || threadDetails?.listing?.title || ''}
-                              </div>
-                            </div>
-                          </div>
-                        ) : 'Conversation'}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-auto space-y-2">
-                      {(threadMessages || []).map((m) => (
-                        <div key={m.id} className={`flex ${m.senderId===user?.id? 'justify-end':'justify-start'}`}>
-                          <div className={`${m.senderId===user?.id? 'bg-primary text-primary-foreground':'bg-muted'} rounded-2xl px-3 py-2 max-w-[70%] whitespace-pre-wrap`}>
-                            <div className="text-sm">{m.content}</div>
-                            <div className="text-[10px] opacity-70 mt-1">{format(new Date(m.createdAt), 'MMM d, h:mm a')}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </CardContent>
-                    <div className="p-4 border-t flex gap-2">
-                      <Input placeholder="Type a message" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key==='Enter' && chatInput.trim()) { sendChatMessageMutation.mutate({ content: chatInput }); setChatInput(''); } }} />
-                      <Button onClick={() => { if (chatInput.trim()) { sendChatMessageMutation.mutate({ content: chatInput }); setChatInput(''); } }}>Send</Button>
-                    </div>
-                  </Card>
-                </div>
-              )}
-
-              <Dialog open={!!viewMessage} onOpenChange={(open) => !open && setViewMessage(null)}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>{viewMessage?.subject || 'Message'}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-2">
-                    <div className="text-sm text-muted-foreground">From: {viewMessage?.senderId}</div>
-                    <div className="text-sm whitespace-pre-wrap">{viewMessage?.content}</div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setViewMessage(null)}>Close</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={startConvOpen} onOpenChange={setStartConvOpen}>
-                <DialogContent className="max-w-xl">
-                  <DialogHeader>
-                    <DialogTitle>Start Conversation</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div>
-                      <Label>User</Label>
-                      <Select value={startConvForm.userId} onValueChange={(v) => setStartConvForm({ ...startConvForm, userId: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select user" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(users || []).map(u => (
-                            <SelectItem key={u.id} value={u.id}>{u.email}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label>Listing (optional)</Label>
-                        <Select value={startConvForm.listingId} onValueChange={(v) => setStartConvForm({ ...startConvForm, listingId: v, projectId: '' })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select listing" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(allListings || []).slice(0, 100).map(l => (
-                              <SelectItem key={l.id} value={l.id}>{l.title}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Project (optional)</Label>
-                        <Select value={startConvForm.projectId} onValueChange={(v) => setStartConvForm({ ...startConvForm, projectId: v, listingId: '' })}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select project" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(projects || []).slice(0, 100).map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div>
-                      <Label>Subject</Label>
-                      <Input value={startConvForm.subject} onChange={(e) => setStartConvForm({ ...startConvForm, subject: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label>Message</Label>
-                      <Input value={startConvForm.content} onChange={(e) => setStartConvForm({ ...startConvForm, content: e.target.value })} />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setStartConvOpen(false)}>Cancel</Button>
-                    <Button onClick={() => startConversationMutation.mutate()} disabled={startConversationMutation.isPending || !startConvForm.userId || !startConvForm.content}>Send</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+            <div className="p-6">
+              <Messages />
             </div>
           )}
-
 
           {/* Edit User Tier Dialog */}
           <Dialog open={editingTier} onOpenChange={(open) => {
@@ -2391,24 +2124,27 @@ function UserManagementSection({
                   return (
                     <TableCell key="actions" className="text-right">
                       <div className="flex gap-2 justify-end flex-wrap">
-                        <Button variant="outline" size="sm" onClick={() => onEdit(u)} data-testid={`button-edit-user-${u.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEdit(u)}
+                          data-testid={`button-edit-user-${u.id}`}
+                        >
                           <Edit className="h-4 w-4 mr-1" />
-                          {userRole === 'admin' ? 'Role' : userRole === 'seller' ? 'Status' : 'Edit'}
+                          Edit
                         </Button>
-                        {userRole === 'buyer' && (
-                          <Button variant="outline" size="sm" onClick={() => onEditTier(u)} data-testid={`button-edit-tier-${u.id}`}>
-                            <Award className="h-4 w-4 mr-1" />
-                            Tier
-                          </Button>
-                        )}
-                        {userRole === 'seller' && (
-                          <Button variant="outline" size="sm" onClick={() => onEditVerification(u)} data-testid={`button-edit-verification-${u.id}`}>
-                            <ShieldCheck className="h-4 w-4 mr-1" />
-                            Status
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => onDelete(u)} data-testid={`button-delete-user-${u.id}`}>
-                          <Trash className="h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (userRole === 'buyer') onEditTier(u);
+                            else if (userRole === 'seller') onEditVerification(u);
+                            else onEdit(u);
+                          }}
+                          data-testid={`button-status-user-${u.id}`}
+                        >
+                          <ShieldCheck className="h-4 w-4 mr-1" />
+                          Status
                         </Button>
                       </div>
                     </TableCell>

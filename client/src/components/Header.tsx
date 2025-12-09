@@ -135,7 +135,7 @@ export function Header() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <ThemeToggle />
-            {isAuthenticated && isAdmin && <NotificationBell />}
+            {isAuthenticated && <NotificationBell />}
             {isAuthenticated && user?.role === 'buyer' && getTierBadge() && (
               <Badge 
                 className={`${getTierBadge()?.className} text-white flex items-center gap-1 px-2.5 py-1`}

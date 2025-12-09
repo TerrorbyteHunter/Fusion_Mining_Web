@@ -980,6 +980,228 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ========================================================================
+  // Support Ticket Operations (Privacy-Controlled)
+  // ========================================================================
+
+  /**
+   * Get admin support tickets (ONLY threads marked as admin support).
+   * Privacy: Admins can ONLY see support tickets, never buyer-seller conversations
+   */
+  async getAdminSupportTickets(
+    filters?: { status?: string; priority?: string; assignedAdminId?: string }
+  ): Promise<MessageThread[]> {
+    let query = db
+      .select()
+      .from(messageThreads)
+      .where(eq(messageThreads.isAdminSupport, true));
+
+    if (filters?.status) {
+      query = query.where(eq(messageThreads.ticketStatus, filters.status as any));
+    }
+    if (filters?.priority) {
+      query = query.where(eq(messageThreads.ticketPriority, filters.priority as any));
+    }
+    if (filters?.assignedAdminId) {
+      query = query.where(eq(messageThreads.assignedAdminId, filters.assignedAdminId));
+    }
+
+    return await query.orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  /**
+   * Claim a support ticket (assign to an admin).
+   * Changes ticketStatus to 'in_progress'
+   */
+  async claimSupportTicket(ticketId: string, adminId: string): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({
+        assignedAdminId: adminId,
+        ticketStatus: 'in_progress',
+      })
+      .where(and(
+        eq(messageThreads.id, ticketId),
+        eq(messageThreads.isAdminSupport, true)
+      ))
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Resolve a support ticket with optional notes.
+   * Changes ticketStatus to 'resolved'
+   */
+  async resolveSupportTicket(
+    ticketId: string,
+    notes?: string
+  ): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({
+        ticketStatus: 'resolved',
+        resolvedAt: new Date(),
+      })
+      .where(and(
+        eq(messageThreads.id, ticketId),
+        eq(messageThreads.isAdminSupport, true)
+      ))
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Create a new support ticket (user-initiated).
+   * User can contact admin about account/verification/payment issues
+   */
+  async createSupportTicket(
+    userId: string,
+    title: string,
+    description: string,
+    priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal'
+  ): Promise<MessageThread> {
+    const [thread] = await db
+      .insert(messageThreads)
+      .values({
+        title,
+        type: 'general',
+        createdBy: userId,
+        buyerId: userId,
+        context: 'general',
+        status: 'open',
+        isAdminSupport: true,
+        ticketStatus: 'open',
+        ticketPriority: priority,
+      })
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Update a support ticket's status.
+   */
+  async updateTicketStatus(
+    ticketId: string,
+    status: 'open' | 'in_progress' | 'waiting_user' | 'resolved'
+  ): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({
+        ticketStatus: status,
+      })
+      .where(and(
+        eq(messageThreads.id, ticketId),
+        eq(messageThreads.isAdminSupport, true)
+      ))
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Update a support ticket's priority.
+   */
+  async updateTicketPriority(
+    ticketId: string,
+    priority: 'low' | 'normal' | 'high' | 'urgent'
+  ): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({
+        ticketPriority: priority,
+      })
+      .where(and(
+        eq(messageThreads.id, ticketId),
+        eq(messageThreads.isAdminSupport, true)
+      ))
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Update a support ticket's assigned admin.
+   */
+  async updateTicketAssignee(
+    ticketId: string,
+    adminId: string | null
+  ): Promise<MessageThread> {
+    const [thread] = await db
+      .update(messageThreads)
+      .set({
+        assignedAdminId: adminId,
+      })
+      .where(and(
+        eq(messageThreads.id, ticketId),
+        eq(messageThreads.isAdminSupport, true)
+      ))
+      .returning();
+    return thread;
+  }
+
+  /**
+   * Return analytics summary: user role counts, listing status counts,
+   * and simple weekly activity aggregates (last 4 weeks).
+   */
+  async getAnalyticsSummary(): Promise<any> {
+    // Fetch base datasets (small scale assumed for admin analytics)
+    const allUsers = await db.select().from(users);
+    const allListings = await db.select().from(marketplaceListings);
+    const allMessages = await db.select().from(messages);
+
+    const usersByRole = {
+      buyers: allUsers.filter((u: any) => (u.role || '').toLowerCase() === 'buyer').length,
+      sellers: allUsers.filter((u: any) => (u.role || '').toLowerCase() === 'seller').length,
+      admins: allUsers.filter((u: any) => (u.role || '').toLowerCase() === 'admin').length,
+    };
+
+    const listingsByStatus = {
+      approved: allListings.filter((l: any) => (l.status || '').toLowerCase() === 'approved').length,
+      pending: allListings.filter((l: any) => (l.status || '').toLowerCase() === 'pending').length,
+      total: allListings.length,
+    };
+
+    // Compute weekly activity for last 4 weeks (Sunday-based weeks)
+    const now = new Date();
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setHours(0, 0, 0, 0);
+    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+
+    const weeklyActivity: Array<any> = [];
+    for (let i = 3; i >= 0; i--) {
+      const start = new Date(currentWeekStart);
+      start.setDate(start.getDate() - (7 * i));
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+
+      const listingsCount = allListings.filter((l: any) => {
+        const c = l.createdAt ? new Date(l.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+
+      const messagesCount = allMessages.filter((m: any) => {
+        const c = m.createdAt ? new Date(m.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+
+      const usersCount = allUsers.filter((u: any) => {
+        const c = u.createdAt ? new Date(u.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+
+      weeklyActivity.push({
+        week: `${start.toISOString().slice(0,10)}`,
+        listings: listingsCount,
+        messages: messagesCount,
+        users: usersCount,
+      });
+    }
+
+    return {
+      usersByRole,
+      listingsByStatus,
+      weeklyActivity,
+    };
+  }
+
+  // ========================================================================
   // Message operations
   // ========================================================================
   async getMessagesByThreadId(threadId: string): Promise<Message[]> {
@@ -1688,19 +1910,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSustainabilityContent(): Promise<SustainabilityContent[]> {
-    return await db
-      .select()
-      .from(sustainabilityContent)
-      .orderBy(sustainabilityContent.order);
+      try {
+        return await db
+          .select()
+          .from(sustainabilityContent)
+          .orderBy(sustainabilityContent.order);
+      } catch (err: any) {
+        if (err?.code === '42P01') return [];
+        throw err;
+      }
   }
 
   async getSustainabilityContentById(id: string): Promise<SustainabilityContent | undefined> {
-    const [item] = await db
-      .select()
-      .from(sustainabilityContent)
-      .where(eq(sustainabilityContent.id, id))
-      .limit(1);
-    return item;
+      try {
+        const [item] = await db
+          .select()
+          .from(sustainabilityContent)
+          .where(eq(sustainabilityContent.id, id))
+          .limit(1);
+        return item;
+      } catch (err: any) {
+        if (err?.code === '42P01') return undefined;
+        throw err;
+      }
   }
 
   async updateSustainabilityContent(id: string, content: Partial<InsertSustainabilityContent>): Promise<SustainabilityContent> {
@@ -1885,43 +2117,73 @@ export class DatabaseStorage implements IStorage {
   // Platform Settings operations
   // ========================================================================
   async getAllPlatformSettings(): Promise<PlatformSetting[]> {
-    return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+      try {
+        return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+      } catch (err: any) {
+        if (err?.code === '42P01') return [];
+        throw err;
+      }
   }
 
   async createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting> {
-    const [created] = await db.insert(platformSettings).values(setting).returning();
-    return created;
+      try {
+        const [created] = await db.insert(platformSettings).values(setting).returning();
+        return created;
+      } catch (err: any) {
+        if (err?.code === '42P01') throw new Error('Platform settings table missing');
+        throw err;
+      }
   }
 
   async updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting> {
-    const { id, ...updates } = setting;
-    const [updated] = await db
-      .update(platformSettings)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(platformSettings.id, id!))
-      .returning();
-    return updated;
+      try {
+        const { id, ...updates } = setting;
+        const [updated] = await db
+          .update(platformSettings)
+          .set({ ...updates, updatedAt: new Date() })
+          .where(eq(platformSettings.id, id!))
+          .returning();
+        return updated;
+      } catch (err: any) {
+        if (err?.code === '42P01') throw new Error('Platform settings table missing');
+        throw err;
+      }
   }
 
   async deletePlatformSetting(id: string): Promise<void> {
-    await db.delete(platformSettings).where(eq(platformSettings.id, id));
+      try {
+        await db.delete(platformSettings).where(eq(platformSettings.id, id));
+      } catch (err: any) {
+        if (err?.code === '42P01') return;
+        throw err;
+      }
   }
 
   async getPlatformSettingByKey(key: string): Promise<PlatformSetting | undefined> {
-    const [setting] = await db
-      .select()
-      .from(platformSettings)
-      .where(eq(platformSettings.key, key))
-      .limit(1);
-    return setting;
+      try {
+        const [setting] = await db
+          .select()
+          .from(platformSettings)
+          .where(eq(platformSettings.key, key))
+          .limit(1);
+        return setting;
+      } catch (err: any) {
+        if (err?.code === '42P01') return undefined;
+        throw err;
+      }
   }
 
   async getPlatformSettingsByCategory(category: string): Promise<PlatformSetting[]> {
-    return await db
-      .select()
-      .from(platformSettings)
-      .where(eq(platformSettings.category, category))
-      .orderBy(platformSettings.key);
+      try {
+        return await db
+          .select()
+          .from(platformSettings)
+          .where(eq(platformSettings.category, category))
+          .orderBy(platformSettings.key);
+      } catch (err: any) {
+        if (err?.code === '42P01') return [];
+        throw err;
+      }
   }
 
   // ========================================================================

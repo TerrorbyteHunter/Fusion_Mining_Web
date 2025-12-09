@@ -1,6 +1,6 @@
 // Seed script for development testing
 import { db } from "./db";
-import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits } from "@shared/schema";
+import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits, messageThreads, messages } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function seed() {
@@ -643,6 +643,210 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
     });
 
     console.log("✓ Contact settings upserted");
+
+    // Create support tickets for testing
+    console.log("Creating support tickets...");
+    
+    await db.insert(messageThreads).values([
+      {
+        id: "ticket-001",
+        title: "Account verification not working",
+        type: "general",
+        createdBy: "test-buyer-789",
+        buyerId: "test-buyer-789",
+        context: "general",
+        status: "open",
+        isAdminSupport: true,
+        ticketStatus: "open",
+        ticketPriority: "high",
+        lastMessageAt: new Date(),
+      },
+      {
+        id: "ticket-002",
+        title: "Payment issue with subscription",
+        type: "general",
+        createdBy: "test-seller-456",
+        buyerId: "test-seller-456",
+        context: "general",
+        status: "open",
+        isAdminSupport: true,
+        ticketStatus: "in_progress",
+        ticketPriority: "urgent",
+        assignedAdminId: "test-admin-123",
+        lastMessageAt: new Date(),
+      },
+      {
+        id: "ticket-003",
+        title: "How to list products on marketplace",
+        type: "general",
+        createdBy: "test-seller-456",
+        buyerId: "test-seller-456",
+        context: "general",
+        status: "open",
+        isAdminSupport: true,
+        ticketStatus: "waiting_user",
+        ticketPriority: "normal",
+        assignedAdminId: "test-admin-123",
+        lastMessageAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: "ticket-004",
+        title: "Listing approval delay",
+        type: "general",
+        createdBy: "test-seller-456",
+        buyerId: "test-seller-456",
+        context: "general",
+        status: "closed",
+        isAdminSupport: true,
+        ticketStatus: "resolved",
+        ticketPriority: "normal",
+        assignedAdminId: "test-admin-123",
+        resolvedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        lastMessageAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      },
+      {
+        id: "ticket-005",
+        title: "KYC documentation rejected - please help",
+        type: "general",
+        createdBy: "test-buyer-789",
+        buyerId: "test-buyer-789",
+        context: "general",
+        status: "open",
+        isAdminSupport: true,
+        ticketStatus: "open",
+        ticketPriority: "high",
+        lastMessageAt: new Date(),
+      },
+      {
+        id: "ticket-006",
+        title: "Can't reset password",
+        type: "general",
+        createdBy: "test-buyer-789",
+        buyerId: "test-buyer-789",
+        context: "general",
+        status: "closed",
+        isAdminSupport: true,
+        ticketStatus: "resolved",
+        ticketPriority: "high",
+        assignedAdminId: "test-admin-123",
+        resolvedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        lastMessageAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+    ]).onConflictDoNothing();
+
+    console.log("✓ Support tickets created");
+
+    // Create sample messages for support tickets
+    console.log("Creating sample messages for tickets...");
+    await db.insert(messages).values([
+      // ticket-001: Account verification not working
+      {
+        threadId: "ticket-001",
+        senderId: "test-buyer-789",
+        receiverId: "test-admin-123",
+        subject: "Account verification not working",
+        content: "Hi, I submitted my verification documents but the status remains pending for days. Can someone help?",
+        read: false,
+        unread: true,
+        context: 'general',
+        createdAt: new Date(),
+      },
+      // ticket-002: Payment issue with subscription
+      {
+        threadId: "ticket-002",
+        senderId: "test-seller-456",
+        receiverId: "test-admin-123",
+        subject: "Payment issue with subscription",
+        content: "My subscription renewal failed but I was charged twice. Please advise.",
+        read: false,
+        unread: true,
+        context: 'general',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
+      },
+      {
+        threadId: "ticket-002",
+        senderId: "test-admin-123",
+        receiverId: "test-seller-456",
+        subject: "Re: Payment issue with subscription",
+        content: "Thanks — I've located the duplicate charge and initiated a refund. Expect it within 3-5 business days.",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
+      },
+      // ticket-003: How to list products on marketplace (waiting for user)
+      {
+        threadId: "ticket-003",
+        senderId: "test-admin-123",
+        receiverId: "test-seller-456",
+        subject: "Re: How to list products on marketplace",
+        content: "Please provide the product images and the desired listing details. I can assist with publishing.",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000 + 1000 * 60 * 30),
+      },
+      // ticket-004: Listing approval delay (resolved)
+      {
+        threadId: "ticket-004",
+        senderId: "test-seller-456",
+        receiverId: "test-admin-123",
+        subject: "Listing approval delay",
+        content: "My listing has been pending approval for over a week. Any update?",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+      },
+      {
+        threadId: "ticket-004",
+        senderId: "test-admin-123",
+        receiverId: "test-seller-456",
+        subject: "Re: Listing approval delay",
+        content: "Apologies — the listing was approved and is now live. Thanks for your patience.",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      },
+      // ticket-005: KYC documentation rejected
+      {
+        threadId: "ticket-005",
+        senderId: "test-buyer-789",
+        receiverId: "test-admin-123",
+        subject: "KYC documentation rejected - please help",
+        content: "I received a rejection notice for my KYC submission. What documents do I need to provide?",
+        read: false,
+        unread: true,
+        context: 'general',
+        createdAt: new Date(),
+      },
+      // ticket-006: Can't reset password (resolved)
+      {
+        threadId: "ticket-006",
+        senderId: "test-buyer-789",
+        receiverId: "test-admin-123",
+        subject: "Can't reset password",
+        content: "I tried the password reset link but it fails with an error. Please assist.",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      },
+      {
+        threadId: "ticket-006",
+        senderId: "test-admin-123",
+        receiverId: "test-buyer-789",
+        subject: "Re: Can't reset password",
+        content: "We've reset your password manually. Please check your email for a temporary link and update your password after login.",
+        read: true,
+        unread: false,
+        context: 'general',
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      },
+    ] as any).onConflictDoNothing();
+
+    console.log("✓ Sample messages created");
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log("\nTest Account Credentials:");

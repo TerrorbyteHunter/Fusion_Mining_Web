@@ -9,6 +9,7 @@ import { setupAuth, isAuthenticated, isAdmin, isSeller, requireAdminPermission }
 import { ZodError } from "zod";
 import { db } from "./db";
 import { users, userProfiles, adminAuditLogs } from "@shared/schema";
+import { sql } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import {
@@ -160,20 +161,6 @@ const customTestCredentials: Map<string, TestCredential> = new Map([
   ['ray', { username: 'ray', password: 'ray123', userId: 'test-seller-456', role: 'seller', firstName: 'Ray', lastName: 'Pass' }],
 ]);
 
-// In-memory storage for notifications
-interface Notification {
-  id: string;
-  userId: string;
-  type: 'seller_verification' | 'verification_queue' | 'tier_upgrade' | 'message' | 'system';
-  title: string;
-  message: string;
-  link?: string;
-  read: boolean;
-  createdAt: string;
-}
-
-const notificationsStore: Map<string, Notification> = new Map();
-
 // In-memory storage for tier upgrade requests
 const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
   ['upgrade-1', {
@@ -280,55 +267,9 @@ function revertBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
 }
 
 // ============================================================================
-// Notification Helper Functions
+// In-Memory State Management (continued)
 // ============================================================================
 
-function createNotification(
-  userId: string,
-  type: 'seller_verification' | 'verification_queue' | 'tier_upgrade' | 'message' | 'system',
-  title: string,
-  message: string,
-  link?: string
-): Notification {
-  const id = `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const notification: Notification = {
-    id,
-    userId,
-    type,
-    title,
-    message,
-    link,
-    read: false,
-    createdAt: new Date().toISOString(),
-  };
-  notificationsStore.set(id, notification);
-  return notification;
-}
-
-function getNotificationsForUser(userId: string): Notification[] {
-  return Array.from(notificationsStore.values())
-    .filter(n => n.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
-function markNotificationAsRead(notificationId: string): void {
-  const notif = notificationsStore.get(notificationId);
-  if (notif) {
-    notif.read = true;
-    notificationsStore.set(notificationId, notif);
-  }
-}
-
-function markAllNotificationsAsRead(userId: string): void {
-  Array.from(notificationsStore.values())
-    .filter(n => n.userId === userId && !n.read)
-    .forEach(n => {
-      n.read = true;
-      notificationsStore.set(n.id, n);
-    });
-}
-
-// Middleware to check if user has analytics access based on membership tier
 async function requireAnalyticsAccess(req: any, res: any, next: any) {
   try {
     const userId = req.user?.claims?.sub || req.user?.id;
@@ -1606,8 +1547,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     });
 
+    async function ensurePlatformSettingsTables() {
+      try {
+        await db.execute(sql`select 1 from "platform_settings" limit 1`);
+      } catch (err: any) {
+        if (err?.code !== '42P01') throw err;
+
+        // Create enum if missing
+        await db.execute(sql`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'setting_data_type') THEN
+              CREATE TYPE setting_data_type AS ENUM ('boolean', 'number', 'string', 'json');
+            END IF;
+          END $$;
+        `);
+
+        // Create platform_settings table if missing
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS "platform_settings" (
+            "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+            "key" varchar(100) NOT NULL UNIQUE,
+            "value" text NOT NULL,
+            "data_type" setting_data_type NOT NULL DEFAULT 'string',
+            "description" text,
+            "category" varchar(50) NOT NULL,
+            "is_public" boolean NOT NULL DEFAULT false,
+            "updated_by" varchar REFERENCES "users"("id"),
+            "updated_at" timestamptz NOT NULL DEFAULT now()
+          );
+        `);
+
+        // Create settings_audit table if missing
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS "settings_audit" (
+            "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+            "setting_key" varchar(100) NOT NULL,
+            "old_value" text,
+            "new_value" text NOT NULL,
+            "changed_by" varchar NOT NULL REFERENCES "users"("id"),
+            "changed_at" timestamptz NOT NULL DEFAULT now()
+          );
+        `);
+
+        await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_key" ON "settings_audit" ("setting_key");`);
+        await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_changed_by" ON "settings_audit" ("changed_by");`);
+        await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_changed_at" ON "settings_audit" ("changed_at");`);
+      }
+    }
+
     app.post('/api/seed-platform-settings', async (req, res) => {
       try {
+        await ensurePlatformSettingsTables();
+
         const settings = [
           {
             key: 'platform_name',
@@ -1702,14 +1694,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         for (const setting of settings) {
           try {
             await storage.createPlatformSetting(setting as any);
-          } catch (error) {
-            // Ignore duplicates
+          } catch (error: any) {
+            // Ignore duplicates and keep going
+            if (error?.code !== '23505') {
+              console.warn('Seed setting skipped:', setting.key, error?.message);
+            }
           }
         }
 
+        // Return the latest snapshot so the client can refresh immediately
+        const allSettings = await storage.getAllPlatformSettings();
+
         res.json({ 
           message: "Platform settings seeded successfully",
-          count: settings.length
+          count: allSettings.length,
+          settings: allSettings,
         });
       } catch (error) {
         console.error("Error seeding platform settings:", error);
@@ -2712,36 +2711,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoint to get all threads
+  // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
   app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const threads = await storage.getAllMessageThreads();
-      res.json(threads);
+      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
+      // They can NEVER see buyer-seller marketplace conversations
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
     } catch (error) {
-      console.error("Error fetching all threads:", error);
-      res.status(500).json({ message: "Failed to fetch threads" });
+      console.error("Error fetching admin support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
     }
   });
 
-  // Admin endpoint to get categorized threads
+  // Admin endpoint to get categorized support tickets
   app.get('/api/admin/threads/categorized', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const allThreads = await storage.getAllMessageThreads();
+      // PRIVACY CONTROL: Only support tickets
+      const allTickets = await storage.getAdminSupportTickets();
       
-      const projectInquiries = allThreads.filter(t => t.type === 'project_interest');
-      const marketplaceInquiries = allThreads.filter(t => t.type === 'marketplace_inquiry');
-      const sellerCommunication = allThreads.filter(t => t.type === 'admin_to_seller');
-      const adminToBuyer = allThreads.filter(t => t.type === 'admin_to_buyer');
+      const open = allTickets.filter(t => t.ticketStatus === 'open');
+      const inProgress = allTickets.filter(t => t.ticketStatus === 'in_progress');
+      const waitingUser = allTickets.filter(t => t.ticketStatus === 'waiting_user');
+      const resolved = allTickets.filter(t => t.ticketStatus === 'resolved');
       
       res.json({
-        projectInquiries,
-        marketplaceInquiries,
-        sellerCommunication,
-        adminToBuyer,
+        open,
+        inProgress,
+        waitingUser,
+        resolved,
       });
     } catch (error) {
-      console.error("Error fetching categorized threads:", error);
-      res.status(500).json({ message: "Failed to fetch categorized threads" });
+      console.error("Error fetching categorized support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
     }
   });
 
@@ -2829,6 +2835,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error closing thread:", error);
       res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+
+  // ========================================================================
+  // Support Ticket Routes (Privacy-Compliant Admin Support Only)
+  // ========================================================================
+
+  // User creates a support ticket
+  app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { title, description, priority } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ message: "Title and description are required" });
+      }
+
+      const ticket = await storage.createSupportTicket(userId, title, description, priority);
+      
+      // Create first message in the ticket thread
+      await storage.createMessage({
+        threadId: ticket.id,
+        senderId: userId,
+        receiverId: 'admin', // Will be matched to actual admin later
+        subject: title,
+        content: description,
+        context: 'general',
+      });
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating support ticket:", error);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Admin claims a support ticket
+  app.post('/api/admin/support/tickets/:id/claim', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const ticketId = req.params.id;
+
+      const ticket = await storage.claimSupportTicket(ticketId, adminId);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error claiming support ticket:", error);
+      res.status(500).json({ message: "Failed to claim support ticket" });
+    }
+  });
+
+  // Admin resolves a support ticket
+  app.patch('/api/admin/support/tickets/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { notes } = req.body;
+
+      const ticket = await storage.resolveSupportTicket(ticketId, notes);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error resolving support ticket:", error);
+      res.status(500).json({ message: "Failed to resolve support ticket" });
+    }
+  });
+
+  // Admin gets all support tickets (with filtering)
+  app.get('/api/admin/support/tickets', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  // Update a support ticket's status
+  app.patch('/api/threads/:id/ticket-status', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const validStatuses = ['open', 'in_progress', 'waiting_user', 'resolved'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      const ticket = await storage.updateTicketStatus(ticketId, status);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Update a support ticket's priority
+  app.patch('/api/threads/:id/ticket-priority', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { priority } = req.body;
+
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+
+      const validPriorities = ['low', 'normal', 'high', 'urgent'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
+
+      const ticket = await storage.updateTicketPriority(ticketId, priority);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+
+  // Update a support ticket's assignee
+  app.patch('/api/threads/:id/ticket-assign', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { assignedAdminId } = req.body;
+
+      const ticket = await storage.updateTicketAssignee(ticketId, assignedAdminId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket assignee:", error);
+      res.status(500).json({ message: "Failed to update ticket assignee" });
+    }
+  });
+
+  // Admin analytics summary
+  app.get('/api/admin/analytics', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary();
+      return res.json(summary);
+    } catch (err) {
+      console.error('Analytics error', err);
+      return res.status(500).json({ error: 'Failed to fetch analytics' });
     }
   });
 
@@ -3055,14 +3220,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const idempotencyKey = req.header('Idempotency-Key') || req.header('idempotency-key') || null;
       const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
       
-      // Create notification for receiver
-      createNotification(
-        receiverId,
-        'message',
-        'New Message',
-        `${sender.firstName} ${sender.lastName} sent you a message`,
-        '/messages'
-      );
+      // Create notification for receiver (persisted to storage)
+      await storage.createNotification({
+        userId: receiverId,
+        type: 'message',
+        title: 'New Message',
+        message: `${sender.firstName} ${sender.lastName} sent you a message`,
+        link: '/messages',
+      });
       
       res.json(message);
     } catch (error: any) {
@@ -4571,25 +4736,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for seller
       const seller = await storage.getUser(req.user.id);
       if (seller) {
-        createNotification(
-          req.user.id,
-          'seller_verification',
-          'Verification Request Submitted',
-          'Your seller verification request has been submitted for review. We will review it within 2-3 business days.',
-          '/dashboard/seller-verification'
-        );
+        await storage.createNotification({
+          userId: req.user.id,
+          type: 'seller_verification',
+          title: 'Verification Request Submitted',
+          message: 'Your seller verification request has been submitted for review. We will review it within 2-3 business days.',
+          link: '/dashboard/seller-verification',
+        });
       }
       
       // Create notification for all admins
       const adminUser = await storage.getAdminUser();
       if (adminUser) {
-        createNotification(
-          adminUser.id,
-          'seller_verification',
-          'New Seller Verification Request',
-          `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
-          '/admin?tab=seller-verification'
-        );
+        await storage.createNotification({
+          userId: adminUser.id,
+          type: 'seller_verification',
+          title: 'New Seller Verification Request',
+          message: `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
+          link: '/admin?tab=seller-verification',
+        });
       }
       
       console.log('[VERIFICATION] Request submitted:', request.id, 'Status changed to pending');
@@ -5029,13 +5194,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create notification for buyer
-      createNotification(
-        updated.userId,
-        'tier_upgrade',
-        'Tier Upgrade Approved',
-        `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
-        '/dashboard'
-      );
+      await storage.createNotification({
+        userId: updated.userId,
+        type: 'tier_upgrade',
+        title: 'Tier Upgrade Approved',
+        message: `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
+        link: '/dashboard',
+      });
 
       res.json({
         success: true,
@@ -5071,13 +5236,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create notification for buyer
-      createNotification(
-        updated.userId,
-        'tier_upgrade',
-        'Tier Upgrade Rejected',
-        `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
-        '/dashboard'
-      );
+      await storage.createNotification({
+        userId: updated.userId,
+        type: 'tier_upgrade',
+        title: 'Tier Upgrade Rejected',
+        message: `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
+        link: '/dashboard',
+      });
 
       res.json({
         success: true,

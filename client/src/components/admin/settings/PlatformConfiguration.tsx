@@ -57,8 +57,19 @@ export function PlatformConfiguration() {
   });
 
   const seedPlatformSettingsMutation = useMutation({
-    mutationFn: async () => apiRequest("POST", "/api/seed-platform-settings"),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/seed-platform-settings");
+      try {
+        return await res.json();
+      } catch {
+        return null;
+      }
+    },
+    onSuccess: (data) => {
+      if (data?.settings) {
+        // Immediately update cache so UI reflects the seeded defaults
+        queryClient.setQueryData(["/api/admin/settings/platform"], data.settings);
+      }
       toast({ title: "Success", description: "Platform settings seeded successfully" });
       refetchSettings();
     },

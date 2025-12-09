@@ -211,6 +211,8 @@ export const buyerRequests = pgTable("buyer_requests", {
 // Messaging
 // ============================================================================
 export const threadStatusEnum = pgEnum('thread_status', ['open', 'closed']);
+export const ticketStatusEnum = pgEnum('ticket_status', ['open', 'in_progress', 'waiting_user', 'resolved', 'closed']);
+export const ticketPriorityEnum = pgEnum('ticket_priority', ['low', 'normal', 'high', 'urgent']);
 export const messageContextEnum = pgEnum('message_context', ['marketplace', 'project_interest', 'general']);
 export const threadTypeEnum = pgEnum('thread_type', ['project_interest', 'marketplace_inquiry', 'admin_to_seller', 'admin_to_buyer', 'general']);
 
@@ -228,6 +230,12 @@ export const messageThreads = pgTable("message_threads", {
   status: threadStatusEnum("status").notNull().default('open'),
   lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Support ticket fields (privacy-controlled)
+  isAdminSupport: boolean("is_admin_support").notNull().default(false),
+  assignedAdminId: varchar("assigned_admin_id").references(() => users.id, { onDelete: 'set null' }),
+  ticketStatus: ticketStatusEnum("ticket_status").default('open'),
+  ticketPriority: ticketPriorityEnum("ticket_priority").default('normal'),
+  resolvedAt: timestamp("resolved_at"),
 }, (table) => [
   index("IDX_thread_buyer_id").on(table.buyerId),
   index("IDX_thread_seller_id").on(table.sellerId),
@@ -237,6 +245,8 @@ export const messageThreads = pgTable("message_threads", {
   index("IDX_thread_listing_id").on(table.listingId),
   index("IDX_thread_context").on(table.context),
   index("IDX_thread_type").on(table.type),
+  index("IDX_thread_is_admin_support").on(table.isAdminSupport),
+  index("IDX_thread_ticket_status").on(table.ticketStatus),
 ]);
 
 export const messages = pgTable("messages", {

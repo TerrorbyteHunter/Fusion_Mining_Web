@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import {
   Popover,
   PopoverContent,
@@ -28,6 +28,7 @@ export function NotificationBell() {
   // Fetch notifications
   const { data: notifications = [], refetch: refetchNotifications } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: isAuthenticated,
   });
 

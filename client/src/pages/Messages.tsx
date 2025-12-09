@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone, MapPin, Building2, Copy, Eye, MessageCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone, MapPin, Building2, Copy, Eye, MessageCircle, CheckCircle } from "lucide-react";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -36,6 +37,25 @@ export default function Messages() {
   } | null>(null);
   const [userDetailsDialogOpen, setUserDetailsDialogOpen] = useState(false);
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
+
+  const renderMessageContent = (content: string) => {
+    const attachmentMatch = content.match(/Attachment:\s*(.+?)\s*-\s*(https?:\/\/\S+|\S+)/i);
+    if (attachmentMatch) {
+      const [, filename, url] = attachmentMatch;
+      return (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="text-primary underline break-all"
+          data-testid="attachment-link"
+        >
+          {filename || 'Attachment'}
+        </a>
+      );
+    }
+    return <span className="whitespace-pre-wrap break-words">{content}</span>;
+  };
 
   // Fetch threads
   const { data: threads, isLoading: threadsLoading, refetch: refetchThreads } = useQuery<MessageThread[]>({
@@ -157,6 +177,81 @@ export default function Messages() {
     },
   });
 
+  // Mutation to update ticket status
+  const updateTicketStatusMutation = useMutation({
+    mutationFn: async ({ threadId, status }: { threadId: string; status: string }) => {
+      const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-status`, { status });
+      return resp.json();
+    },
+    onSuccess: () => {
+      refetchThreads();
+      if (selectedThread) {
+        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      }
+      toast({
+        title: "Success",
+        description: "Ticket status updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update ticket status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to update ticket priority
+  const updateTicketPriorityMutation = useMutation({
+    mutationFn: async ({ threadId, priority }: { threadId: string; priority: string }) => {
+      const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-priority`, { priority });
+      return resp.json();
+    },
+    onSuccess: () => {
+      refetchThreads();
+      if (selectedThread) {
+        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      }
+      toast({
+        title: "Success",
+        description: "Ticket priority updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update ticket priority",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to update ticket assignee
+  const updateTicketAssigneeMutation = useMutation({
+    mutationFn: async ({ threadId, assignedAdminId }: { threadId: string; assignedAdminId: string | null }) => {
+      const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-assign`, { assignedAdminId });
+      return resp.json();
+    },
+    onSuccess: () => {
+      refetchThreads();
+      if (selectedThread) {
+        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      }
+      toast({
+        title: "Success",
+        description: "Ticket assignee updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update ticket assignee",
+        variant: "destructive",
+      });
+    },
+  });
+
   // When threadMessages load, mark unread messages in that thread as read
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
@@ -194,27 +289,33 @@ export default function Messages() {
     const isAdmin = user?.role === 'admin';
 
     let base: (MessageThread & { unreadCount?: number })[] = [];
-    switch (activeTab) {
-      case "inbox":
-        base = processedThreads.filter(t => 
-          (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
-        );
-        break;
-      case "projects":
-        base = processedThreads.filter(t => 
-          (t as any).context === 'project_interest' || !!t.projectId
-        );
-        break;
-      case "sellers":
-        base = processedThreads.filter(t => {
-          if (isAdmin) return !!t.sellerId;
-          if (t.sellerId === currentUserId) return true;
-          if (t.buyerId === currentUserId && !!t.sellerId) return true;
-          return false;
-        });
-        break;
-      default:
-        base = processedThreads;
+    
+    // PRIVACY CONTROL: Admins ONLY see support tickets
+    if (isAdmin) {
+      base = processedThreads.filter(t => (t as any).isAdminSupport === true);
+    } else {
+      // Non-admins see normal conversations
+      switch (activeTab) {
+        case "inbox":
+          base = processedThreads.filter(t => 
+            (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
+          );
+          break;
+        case "projects":
+          base = processedThreads.filter(t => 
+            (t as any).context === 'project_interest' || !!t.projectId
+          );
+          break;
+        case "sellers":
+          base = processedThreads.filter(t => {
+            if (t.sellerId === currentUserId) return true;
+            if (t.buyerId === currentUserId && !!t.sellerId) return true;
+            return false;
+          });
+          break;
+        default:
+          base = processedThreads;
+      }
     }
 
     const q = threadSearchQuery.trim().toLowerCase();
@@ -284,27 +385,40 @@ export default function Messages() {
       {/* Header */}
       <section className="py-8 border-b bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold font-display" data-testid="text-page-title">Messages</h1>
-            <div className="ml-4 text-sm text-muted-foreground">{totalUnread} unread</div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-8 w-8 text-primary" />
+              <h1 className="text-3xl font-bold font-display" data-testid="text-page-title">
+                {user?.role === "admin" ? "Support Center" : "Messages"}
+              </h1>
+              <div className="ml-4 text-sm text-muted-foreground">{totalUnread} unread</div>
+            </div>
           </div>
-          <p className="text-muted-foreground mt-2">Manage your conversations about projects and listings</p>
+          <p className="text-muted-foreground mt-2">
+            {user?.role === "admin" 
+              ? "Support tickets from users - Manage and resolve support requests"
+              : "Manage your conversations about projects and listings"}
+          </p>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="flex-1 py-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-16rem)]">
+      <section className="flex-1 py-8 flex min-h-0">
+        <div className="container mx-auto px-4 flex-1 min-h-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 h-full">
             {/* Sidebar - Threads List */}
-            <div className="lg:col-span-4 space-y-4 overflow-auto">
+            <div className="lg:col-span-4 space-y-4 overflow-auto min-h-0">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="flex w-full items-center gap-1" data-testid="tabs-messages">
-                  <TabsTrigger value="inbox" data-testid="tab-inbox">Inbox</TabsTrigger>
-                  <TabsTrigger value="projects" data-testid="tab-projects">Projects Interest</TabsTrigger>
-                  {user?.role !== "buyer" && (
-                    <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
+                  {user?.role !== "admin" && (
+                    <>
+                      <TabsTrigger value="inbox" data-testid="tab-inbox">Inbox</TabsTrigger>
+                      <TabsTrigger value="projects" data-testid="tab-projects">Projects Interest</TabsTrigger>
+                      <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
+                    </>
+                  )}
+                  {user?.role === "admin" && (
+                    <TabsTrigger value="sellers" data-testid="tab-support-tickets">Support Tickets</TabsTrigger>
                   )}
                   {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
                 </TabsList>
@@ -341,12 +455,23 @@ export default function Messages() {
                                 <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                {thread.projectId && (<Badge variant="secondary" className="ml-2">Project Interest</Badge>)}
-                                {thread.listingId && (<Badge variant="outline" className="ml-2">Listing Inquiry</Badge>)}
-                                {/* Show user type (either buyer/seller/admin) if available */}
-                                <Badge variant={`${selectedThread?.id === thread.id ? "default" : "secondary"}`} className="ml-2">
-                                  {thread.sellerId === user?.id ? "Buyer" : "Seller"}
-                                </Badge>
+                                {(thread as any).ticketStatus && (
+                                  <Badge variant={
+                                    (thread as any).ticketStatus === 'open' ? 'outline' :
+                                    (thread as any).ticketStatus === 'in_progress' ? 'secondary' :
+                                    (thread as any).ticketStatus === 'resolved' ? 'default' : 'secondary'
+                                  }>
+                                    {(thread as any).ticketStatus}
+                                  </Badge>
+                                )}
+                                {(thread as any).ticketPriority && (
+                                  <Badge variant={
+                                    (thread as any).ticketPriority === 'urgent' ? 'destructive' :
+                                    (thread as any).ticketPriority === 'high' ? 'secondary' : 'outline'
+                                  }>
+                                    {(thread as any).ticketPriority}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </CardHeader>
@@ -356,8 +481,8 @@ export default function Messages() {
                       <Card className="text-center py-8">
                         <CardContent>
                           <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No seller conversations yet</p>
-                          <p className="text-sm text-muted-foreground mt-2">Conversations where you are the seller will appear here.</p>
+                          <p className="text-muted-foreground">No support tickets</p>
+                          <p className="text-sm text-muted-foreground mt-1">Support tickets will appear here when users contact support.</p>
                         </CardContent>
                       </Card>
                     )}
@@ -481,7 +606,7 @@ export default function Messages() {
             </div>
 
             {/* Main Panel - Thread Messages */}
-            <div className="lg:col-span-8">
+            <div className="lg:col-span-8 flex flex-col min-h-0">
               {selectedThread ? (
                 <Card className="h-full flex flex-col">
                   <CardHeader className="border-b">
@@ -522,6 +647,72 @@ export default function Messages() {
                             </div>
 
                             <p className="text-sm text-muted-foreground mb-3 truncate">{selectedThread.status === "open" ? "Active conversation" : "Closed"}</p>
+
+                            {/* Support Ticket Controls (Admin Only) */}
+                            {user?.role === 'admin' && (selectedThread as any).isAdminSupport && (
+                              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <label className="text-xs font-semibold text-foreground mb-1 block">Status</label>
+                                      <Select
+                                        value={(selectedThread as any).ticketStatus || 'open'}
+                                        onValueChange={(newStatus) => {
+                                          updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: newStatus });
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="open">Open</SelectItem>
+                                          <SelectItem value="in_progress">In Progress</SelectItem>
+                                          <SelectItem value="waiting_user">Waiting User</SelectItem>
+                                          <SelectItem value="resolved">Resolved</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <div>
+                                      <label className="text-xs font-semibold text-foreground mb-1 block">Priority</label>
+                                      <Select
+                                        value={(selectedThread as any).ticketPriority || 'normal'}
+                                        onValueChange={(newPriority) => {
+                                          updateTicketPriorityMutation.mutate({ threadId: selectedThread.id, priority: newPriority });
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-8 text-xs">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="low">Low</SelectItem>
+                                          <SelectItem value="normal">Normal</SelectItem>
+                                          <SelectItem value="high">High</SelectItem>
+                                          <SelectItem value="urgent">Urgent</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                  </div>
+                                  {(selectedThread as any).ticketStatus !== 'resolved' && (
+                                    <Button
+                                      size="sm"
+                                      className="w-full h-8 text-xs"
+                                      onClick={() => {
+                                        updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: 'resolved' });
+                                      }}
+                                      disabled={updateTicketStatusMutation.isPending}
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-2" />
+                                      Mark as Resolved
+                                    </Button>
+                                  )}
+                                  {(selectedThread as any).ticketStatus === 'resolved' && (
+                                    <div className="text-xs text-green-600 dark:text-green-400 font-medium text-center">
+                                      ✓ Ticket Resolved
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
 
                             {/* Quick sender details (email / phone / company / location / role) */}
                             {otherParticipant && otherParticipant.user && (
@@ -612,7 +803,7 @@ export default function Messages() {
                         return (
                           <div key={msg.id} className={`flex ${isFromMe ? "justify-end" : "justify-start"}`} data-testid={`message-${msg.id}`}>
                             <div className={`max-w-[80%] rounded-lg p-4 ${isFromMe ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              <p className="text-sm">{renderMessageContent(msg.content)}</p>
                               <p className={`text-xs mt-2 ${isFromMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{format(new Date(msg.createdAt), "MMM d, HH:mm")}</p>
                             </div>
                           </div>

@@ -42,7 +42,7 @@ interface AdminSidebarProps {
    * CMS, verification review, etc.) still get the correct navigation.
    */
   permissions?: AdminPermissions | null;
-  adminRole?: "super_admin" | "verification_admin" | "content_admin" | "analytics_admin";
+  adminRole?: "super_admin" | "verification_admin" | "content_admin" | "support_admin" | "analytics_admin";
 }
 
 const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "destructive" | "outline" | "secondary" }> = {
