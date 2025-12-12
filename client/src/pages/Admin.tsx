@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -41,7 +41,7 @@ import type { MarketplaceListing, User, Message, Project, BuyerRequest } from "@
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
-  MapPin, Award
+  MapPin, Award, RefreshCw
 } from "lucide-react";
 import Messages from "./Messages";
 import { format } from "date-fns";
@@ -176,6 +176,7 @@ export default function Admin() {
       'messages': 'canManageMessages',
       'analytics': 'canViewAnalytics',
       'activity': 'canAccessAuditLogs',
+      'admin-activities': 'canAccessAuditLogs',
       'settings': 'canManageSettings',
     };
     
@@ -337,12 +338,39 @@ export default function Admin() {
     },
   });
 
-  // Fetch admin audit logs (who made what changes)
-  const { data: auditLogs, isLoading: loadingActivity } = useQuery<any[]>({
-    queryKey: ["/api/admin/audit-logs"],
+  // Fetch activity logs (all user activities)
+  const [activityFilter, setActivityFilter] = useState<string>("all");
+  const [activitySearchQuery, setActivitySearchQuery] = useState<string>("");
+  
+  const { data: activityLogs, isLoading: loadingActivity, refetch: refetchActivityLogs } = useQuery<any[]>({
+    queryKey: ["/api/admin/activity-logs", activityFilter],
     enabled: !!isAdmin && activeTab === "activity",
     queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/audit-logs");
+      const params = new URLSearchParams();
+      params.append("limit", "500");
+      if (activityFilter !== "all") {
+        params.append("activityType", activityFilter);
+      }
+      const res = await apiRequest("GET", `/api/admin/activity-logs?${params.toString()}`);
+      return (await res.json()) as any[];
+    },
+  });
+
+  // Date filter state for Admin Activities
+  const [adminActivitiesDateFrom, setAdminActivitiesDateFrom] = useState<string>("");
+  const [adminActivitiesDateTo, setAdminActivitiesDateTo] = useState<string>("");
+  const [adminActivitiesActionFilter, setAdminActivitiesActionFilter] = useState<string>("all");
+  
+  // Fetch admin audit logs (admin-specific actions)
+  const { data: adminAuditLogs, isLoading: loadingAdminActivities, refetch: refetchAdminActivities } = useQuery<any[]>({
+    queryKey: ["/api/admin/audit-logs", adminActivitiesDateFrom, adminActivitiesDateTo, adminActivitiesActionFilter],
+    enabled: !!isAdmin && activeTab === "admin-activities",
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (adminActivitiesDateFrom) params.append("from", adminActivitiesDateFrom);
+      if (adminActivitiesDateTo) params.append("to", adminActivitiesDateTo);
+      if (adminActivitiesActionFilter !== "all") params.append("action", adminActivitiesActionFilter);
+      const res = await apiRequest("GET", `/api/admin/audit-logs?${params.toString()}`);
       return (await res.json()) as any[];
     },
   });
@@ -1626,9 +1654,47 @@ export default function Admin() {
           {activeTab === "activity" && adminPermissions?.canAccessAuditLogs && (
             <div className="p-6 space-y-6">
               <div>
-                <h2 className="text-2xl font-bold">Admin Audit Logs</h2>
-                <p className="text-muted-foreground">Track all admin actions and changes made to the platform</p>
+                <h2 className="text-2xl font-bold">Activity Logs</h2>
+                <p className="text-muted-foreground">Monitor buyer and seller activities including logins, listings, messages, and more (Admin activities are shown in Admin Activities tab)</p>
               </div>
+
+              {/* Filters and Search */}
+              <Card>
+                <CardHeader>
+                  <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                    <div className="flex-1 w-full md:w-auto">
+                      <Input
+                        placeholder="Search activities..."
+                        value={activitySearchQuery}
+                        onChange={(e) => setActivitySearchQuery(e.target.value)}
+                        className="max-w-md"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Select value={activityFilter} onValueChange={setActivityFilter}>
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Filter by type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Activities</SelectItem>
+                          <SelectItem value="login">Logins</SelectItem>
+                          <SelectItem value="logout">Logouts</SelectItem>
+                          <SelectItem value="listing_created">Listings Created</SelectItem>
+                          <SelectItem value="listing_approved">Listings Approved</SelectItem>
+                          <SelectItem value="listing_rejected">Listings Rejected</SelectItem>
+                          <SelectItem value="message_sent">Messages Sent</SelectItem>
+                          <SelectItem value="interest_expressed">Interest Expressed</SelectItem>
+                          <SelectItem value="profile_updated">Profile Updates</SelectItem>
+                          <SelectItem value="blog_post_created">Blog Posts</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="icon" onClick={() => refetchActivityLogs()}>
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
 
               {loadingActivity ? (
                 <div className="space-y-4">
@@ -1641,45 +1707,296 @@ export default function Admin() {
                     </Card>
                   ))}
                 </div>
-              ) : auditLogs && auditLogs.length > 0 ? (
+              ) : activityLogs && activityLogs.length > 0 ? (
                 <Card>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Admin Name</TableHead>
-                        <TableHead>Action</TableHead>
-                        <TableHead>Target Type</TableHead>
-                        <TableHead>Details</TableHead>
-                        <TableHead>Date & Time</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {auditLogs.slice(0, 100).map((log: any) => {
-                        const adminName = log.admin ? `${log.admin.firstName} ${log.admin.lastName}` : "Unknown Admin";
-                        const actionLabel = log.action.replace(/_/g, ' ').toUpperCase();
-                        const targetLabel = log.targetType?.replace(/_/g, ' ') || 'N/A';
-                        return (
-                          <TableRow key={log.id} data-testid={`audit-log-${log.id}`}>
-                            <TableCell className="font-medium">{adminName}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{actionLabel}</Badge>
-                            </TableCell>
-                            <TableCell>{targetLabel}</TableCell>
-                            <TableCell className="text-xs max-w-xs truncate">
-                              {log.targetId ? `ID: ${log.targetId.slice(0, 8)}...` : "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">{format(new Date(log.createdAt), "MMM d, yyyy HH:mm:ss")}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Activity Type</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>IP Address</TableHead>
+                          <TableHead>Date & Time</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activityLogs
+                          .filter((log: any) => {
+                            if (activitySearchQuery) {
+                              const searchLower = activitySearchQuery.toLowerCase();
+                              return (
+                                log.description?.toLowerCase().includes(searchLower) ||
+                                log.user?.email?.toLowerCase().includes(searchLower) ||
+                                log.user?.firstName?.toLowerCase().includes(searchLower) ||
+                                log.user?.lastName?.toLowerCase().includes(searchLower) ||
+                                log.activityType?.toLowerCase().includes(searchLower)
+                              );
+                            }
+                            return true;
+                          })
+                          .map((log: any) => {
+                            const userName = log.user 
+                              ? `${log.user.firstName || ''} ${log.user.lastName || ''}`.trim() || log.user.email || log.user.username || 'Unknown User'
+                              : 'Guest/System';
+                            const userRole = log.user?.role || 'N/A';
+                            const activityTypeLabel = log.activityType.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                            
+                            return (
+                              <TableRow key={log.id} data-testid={`activity-log-${log.id}`}>
+                                <TableCell>
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{userName}</span>
+                                    <span className="text-xs text-muted-foreground">{userRole}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={
+                                    log.activityType === 'login' ? 'default' :
+                                    log.activityType === 'logout' ? 'secondary' :
+                                    log.activityType === 'listing_approved' ? 'default' :
+                                    log.activityType === 'listing_rejected' ? 'destructive' :
+                                    'outline'
+                                  }>
+                                    {activityTypeLabel}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="max-w-md">
+                                  <div className="text-sm">{log.description}</div>
+                                  {log.metadata && (
+                                    <details className="mt-1">
+                                      <summary className="text-xs text-muted-foreground cursor-pointer">View details</summary>
+                                      <pre className="text-xs mt-1 p-2 bg-muted rounded overflow-auto max-h-32">
+                                        {JSON.stringify(log.metadata, null, 2)}
+                                      </pre>
+                                    </details>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex flex-col gap-1">
+                                    <span className="text-xs font-mono text-foreground font-semibold">
+                                      {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1' 
+                                        ? 'localhost (::1)' 
+                                        : log.ipAddress || 'N/A'}
+                                    </span>
+                                    {log.userAgent && (
+                                      <span className="text-xs text-muted-foreground truncate max-w-xs" title={log.userAgent}>
+                                        {log.userAgent.length > 40 ? `${log.userAgent.substring(0, 40)}...` : log.userAgent}
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                  {format(new Date(log.createdAt), "MMM d, yyyy HH:mm:ss")}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {activityLogs.length >= 500 && (
+                    <CardFooter className="text-sm text-muted-foreground">
+                      Showing latest 500 activities. Use filters to narrow down results.
+                    </CardFooter>
+                  )}
                 </Card>
               ) : (
                 <Card>
                   <CardContent className="py-12 text-center">
                     <Activity className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-lg font-semibold">No admin actions recorded yet</p>
+                    <p className="text-lg font-semibold">No activities recorded yet</p>
+                    <p className="text-muted-foreground">Platform activities will appear here as users interact with the system</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {/* Admin Activities Tab */}
+          {activeTab === "admin-activities" && adminPermissions?.canAccessAuditLogs && (
+            <div className="p-6 space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Admin Activities</h2>
+                <p className="text-muted-foreground">Monitor all administrative actions and changes made by admins</p>
+              </div>
+
+              {/* Filters and Search */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Admin Audit Trail</CardTitle>
+                  <CardDescription>Track all admin actions including user management, listing approvals, and system changes</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="date-from">From Date</Label>
+                          <Input
+                            id="date-from"
+                            type="date"
+                            value={adminActivitiesDateFrom}
+                            onChange={(e) => setAdminActivitiesDateFrom(e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="date-to">To Date</Label>
+                          <Input
+                            id="date-to"
+                            type="date"
+                            value={adminActivitiesDateTo}
+                            onChange={(e) => setAdminActivitiesDateTo(e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="action-filter">Action Type</Label>
+                          <Select value={adminActivitiesActionFilter} onValueChange={setAdminActivitiesActionFilter}>
+                            <SelectTrigger id="action-filter" className="w-full">
+                              <SelectValue placeholder="All Actions" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Actions</SelectItem>
+                              <SelectItem value="user_created">User Created</SelectItem>
+                              <SelectItem value="user_updated">User Updated</SelectItem>
+                              <SelectItem value="user_deleted">User Deleted</SelectItem>
+                              <SelectItem value="user_role_changed">User Role Changed</SelectItem>
+                              <SelectItem value="listing_approved">Listing Approved</SelectItem>
+                              <SelectItem value="listing_rejected">Listing Rejected</SelectItem>
+                              <SelectItem value="project_created">Project Created</SelectItem>
+                              <SelectItem value="project_updated">Project Updated</SelectItem>
+                              <SelectItem value="blog_post_created">Blog Post Created</SelectItem>
+                              <SelectItem value="blog_post_updated">Blog Post Updated</SelectItem>
+                              <SelectItem value="blog_post_deleted">Blog Post Deleted</SelectItem>
+                              <SelectItem value="settings_updated">Settings Updated</SelectItem>
+                              <SelectItem value="permissions_updated">Permissions Updated</SelectItem>
+                              <SelectItem value="verification_approved">Verification Approved</SelectItem>
+                              <SelectItem value="verification_rejected">Verification Rejected</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        {(adminActivitiesDateFrom || adminActivitiesDateTo || adminActivitiesActionFilter !== "all") && (
+                          <Button 
+                            variant="outline" 
+                            onClick={() => {
+                              setAdminActivitiesDateFrom("");
+                              setAdminActivitiesDateTo("");
+                              setAdminActivitiesActionFilter("all");
+                            }}
+                          >
+                            Clear Filters
+                          </Button>
+                        )}
+                        <Button variant="outline" size="icon" onClick={() => refetchAdminActivities()}>
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {loadingAdminActivities ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i}>
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-full mt-2" />
+                      </CardHeader>
+                    </Card>
+                  ))}
+                </div>
+              ) : adminAuditLogs && adminAuditLogs.length > 0 ? (
+                <Card>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Admin</TableHead>
+                          <TableHead>Action</TableHead>
+                          <TableHead>Target</TableHead>
+                          <TableHead>Details</TableHead>
+                          <TableHead>IP Address</TableHead>
+                          <TableHead>Date & Time</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {adminAuditLogs.map((log: any) => {
+                          const adminName = log.admin 
+                            ? `${log.admin.firstName || ''} ${log.admin.lastName || ''}`.trim() || log.admin.email || 'Unknown Admin'
+                            : log.adminId || 'Unknown Admin';
+                          const actionLabel = log.action.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+                          const targetLabel = log.targetType?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'N/A';
+                          
+                          return (
+                            <TableRow key={log.id} data-testid={`admin-audit-log-${log.id}`}>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{adminName}</span>
+                                  {log.admin?.email && (
+                                    <span className="text-xs text-muted-foreground">{log.admin.email}</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={
+                                  log.action.includes('delete') || log.action.includes('reject') ? 'destructive' :
+                                  log.action.includes('approve') || log.action.includes('create') ? 'default' :
+                                  'outline'
+                                }>
+                                  {actionLabel}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{targetLabel}</TableCell>
+                              <TableCell className="max-w-md">
+                                <div className="text-sm">
+                                  {log.targetId ? (
+                                    <span className="font-mono text-xs">{log.targetId.slice(0, 8)}...</span>
+                                  ) : '—'}
+                                </div>
+                                {log.changes && (
+                                  <details className="mt-1">
+                                    <summary className="text-xs text-muted-foreground cursor-pointer">View changes</summary>
+                                    <pre className="text-xs mt-1 p-2 bg-muted rounded overflow-auto max-h-32">
+                                      {JSON.stringify(log.changes, null, 2)}
+                                    </pre>
+                                  </details>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-xs font-mono text-foreground font-semibold">
+                                    {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1' 
+                                      ? 'localhost (::1)' 
+                                      : log.ipAddress || 'N/A'}
+                                  </span>
+                                  {log.userAgent && (
+                                    <span className="text-xs text-muted-foreground truncate max-w-xs" title={log.userAgent}>
+                                      {log.userAgent.length > 40 ? `${log.userAgent.substring(0, 40)}...` : log.userAgent}
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {format(new Date(log.createdAt), "MMM d, yyyy HH:mm:ss")}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Card>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <ShieldCheck className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-lg font-semibold">No admin activities recorded yet</p>
                     <p className="text-muted-foreground">Admin actions will appear here as you manage the platform</p>
                   </CardContent>
                 </Card>

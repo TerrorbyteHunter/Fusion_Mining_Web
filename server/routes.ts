@@ -699,8 +699,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     // Logout endpoint
-    app.post('/api/logout', (req, res) => {
-      req.logout(() => {
+    app.post('/api/logout', async (req: any, res) => {
+      const userId = req.user?.id || req.user?.claims?.sub;
+      
+      req.logout(async () => {
+        // Log logout activity
+        if (userId) {
+          try {
+            const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || 
+                             (req.headers['x-real-ip'] as string) || 
+                             req.ip || 
+                             req.socket.remoteAddress || 
+                             null;
+            await storage.createActivityLog({
+              userId,
+              activityType: 'logout',
+              description: `User logged out`,
+              ipAddress,
+              userAgent: req.get('user-agent') || null,
+            });
+          } catch (logError) {
+            console.error('[ACTIVITY LOG] Failed to log logout:', logError);
+          }
+        }
+        
         res.json({ message: "Logout successful" });
       });
     });
@@ -2146,6 +2168,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
       });
       const profile = await storage.updateUserProfile(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId,
+          activityType: 'profile_updated',
+          description: `Updated user profile`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { profileId: profile.id },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log profile update:', logError);
+      }
+      
       res.json(profile);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -2486,6 +2523,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sellerId,
       });
       const listing = await storage.createMarketplaceListing(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: sellerId,
+          activityType: 'listing_created',
+          description: `Created marketplace listing: "${listing.title || listing.id}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { listingId: listing.id, listingType: listing.listingType },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log listing creation:', logError);
+      }
+      
       res.json(listing);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -2816,6 +2868,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const message = await storage.createMessage(validatedData);
       await storage.updateThreadLastMessage(threadId);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: senderId,
+          activityType: 'message_sent',
+          description: `Sent message in thread: "${thread.title || threadId}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { threadId, messageId: message.id, receiverId },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log message:', logError);
+      }
 
       res.json(message);
     } catch (error: any) {
@@ -3511,6 +3577,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authorId,
       });
       const post = await storage.createBlogPost(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: authorId,
+          activityType: 'blog_post_created',
+          description: `Created blog post: "${post.title || post.id}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { postId: post.id, slug: post.slug },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log blog post creation:', logError);
+      }
+      
       res.json(post);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -3791,7 +3872,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
+      const listing = await storage.getListing(listingId);
       await storage.approveListing(listingId, reviewerId);
+      
+      // Log activity
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: 'listing_approved',
+            description: `Listing "${listing.title || listingId}" was approved by admin`,
+            ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+            userAgent: req.get('user-agent') || null,
+            metadata: { listingId, reviewerId },
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG] Failed to log listing approval:', logError);
+        }
+      }
+      
       res.json({ message: "Listing approved successfully" });
     } catch (error) {
       console.error("Error approving listing:", error);
@@ -3803,7 +3902,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const reviewerId = req.user.claims?.sub || req.user.id;
       const listingId = req.params.id;
+      const listing = await storage.getListing(listingId);
       await storage.rejectListing(listingId, reviewerId);
+      
+      // Log activity
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: 'listing_rejected',
+            description: `Listing "${listing.title || listingId}" was rejected by admin`,
+            ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+            userAgent: req.get('user-agent') || null,
+            metadata: { listingId, reviewerId },
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG] Failed to log listing rejection:', logError);
+        }
+      }
+      
       res.json({ message: "Listing rejected successfully" });
     } catch (error) {
       console.error("Error rejecting listing:", error);
@@ -4103,23 +4220,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin audit logs with admin user details (for monitoring admin changes)
   app.get('/api/admin/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      // Get admin audit logs with admin user information
-      const auditLogs = await db.query.adminAuditLogs.findMany({
-        limit,
-        orderBy: (auditLogs: any, { desc }: any) => [desc(auditLogs.createdAt)],
-        with: {
-          admin: {
-            columns: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            }
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 500;
+      const fromDate = req.query.from as string | undefined;
+      const toDate = req.query.to as string | undefined;
+      const action = req.query.action as string | undefined;
+      
+      let auditLogs = await storage.getAdminAuditLogs();
+      
+      // Filter by action type if provided
+      if (action && action !== "all") {
+        auditLogs = auditLogs.filter(log => log.action === action);
+      }
+      
+      // Filter by date range if provided
+      if (fromDate || toDate) {
+        auditLogs = auditLogs.filter(log => {
+          const logDate = new Date(log.createdAt);
+          if (fromDate && logDate < new Date(fromDate)) return false;
+          if (toDate) {
+            const toDateEnd = new Date(toDate);
+            toDateEnd.setHours(23, 59, 59, 999); // Include entire end date
+            if (logDate > toDateEnd) return false;
           }
-        }
-      });
-      res.json(auditLogs);
+          return true;
+        });
+      }
+      
+      res.json(auditLogs.slice(0, limit));
     } catch (error) {
       console.error("Error fetching admin audit logs:", error);
       res.status(500).json({ message: "Failed to fetch audit logs" });
@@ -4156,9 +4283,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/admin/activity-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 500;
+      const activityType = req.query.activityType as string | undefined;
+      const userId = req.query.userId as string | undefined;
       const logs = await storage.getActivityLogs(limit);
-      res.json(logs);
+      
+      // Filter out admin activities - only show buyer and seller activities
+      let filteredLogs = logs.filter(log => {
+        // Exclude logs where user is an admin
+        return log.user?.role !== 'admin';
+      });
+      
+      // Filter by activity type if provided
+      if (activityType) {
+        filteredLogs = filteredLogs.filter(log => log.activityType === activityType);
+      }
+      if (userId) {
+        filteredLogs = filteredLogs.filter(log => log.userId === userId);
+      }
+      
+      res.json(filteredLogs);
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });

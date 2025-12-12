@@ -143,6 +143,13 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
       permission: 'canAccessAuditLogs'
     },
     {
+      label: "Admin Activities",
+      icon: ShieldCheck,
+      tab: "admin-activities",
+      testId: "admin-sidebar-admin-activities",
+      permission: 'canAccessAuditLogs'
+    },
+    {
       label: "Settings",
       icon: Settings,
       href: "/admin/settings",

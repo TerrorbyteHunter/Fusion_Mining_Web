@@ -18,7 +18,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { MessageThread, Message, User } from "@shared/schema";
-// Admin contact submissions page removed - merged into Messages
 
 export default function Messages() {
   const { user, isAuthenticated } = useAuth();
@@ -292,6 +291,38 @@ export default function Messages() {
     },
   });
 
+  // Fetch contact submissions (admin only)
+  const { data: contactSubmissions, isLoading: contactSubmissionsLoading, refetch: refetchContactSubmissions } = useQuery<any[]>({
+    queryKey: ['/api/contact/submissions'],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/contact/submissions");
+      return response.json();
+    },
+    enabled: user?.role === "admin" && isAuthenticated,
+  });
+
+  // Mutation to update contact submission status
+  const updateSubmissionStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const resp = await apiRequest("PATCH", `/api/contact/submissions/${id}`, { status });
+      return resp.json();
+    },
+    onSuccess: () => {
+      refetchContactSubmissions();
+      toast({
+        title: "Success",
+        description: "Submission status updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update submission status",
+        variant: "destructive",
+      });
+    },
+  });
+
   // When threadMessages load, mark unread messages in that thread as read
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
@@ -467,7 +498,9 @@ export default function Messages() {
                   {user?.role === "admin" && (
                     <TabsTrigger value="sellers" data-testid="tab-support-tickets">Support Tickets</TabsTrigger>
                   )}
-                  {/* Contact submissions tab removed; use Support Tickets under Messages */}
+                  {user?.role === "admin" && (
+                    <TabsTrigger value="contact-submissions" data-testid="tab-contact-submissions">Contact Submissions</TabsTrigger>
+                  )}
                   {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
                 </TabsList>
 
@@ -649,6 +682,71 @@ export default function Messages() {
                         )}
                       </TabsContent>
                     </Tabs>
+                  </TabsContent>
+
+                  <TabsContent value="contact-submissions" className="space-y-2">
+                    {contactSubmissionsLoading ? (
+                      Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
+                    ) : (!contactSubmissions || contactSubmissions.length === 0) ? (
+                      <Card className="text-center py-8">
+                        <CardContent>
+                          <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-muted-foreground">No contact submissions found</p>
+                          <p className="text-sm text-muted-foreground mt-1">Contact form submissions will appear here.</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+                        {contactSubmissions.map((s: any) => (
+                          <Card key={s.id} className="cursor-pointer transition-all hover:shadow-md">
+                            <CardHeader className="p-4">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h3 className="font-semibold text-sm truncate">{s.name}</h3>
+                                    <Badge variant={s.status === 'contacted' ? 'default' : s.status === 'resolved' ? 'secondary' : 'outline'}>
+                                      {s.status}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mb-2">{s.email}</p>
+                                  {s.phone && (
+                                    <p className="text-xs text-muted-foreground mb-2">
+                                      <Phone className="h-3 w-3 inline mr-1" />
+                                      <a href={`tel:${s.phone}`} className="text-primary hover:underline">{s.phone}</a>
+                                    </p>
+                                  )}
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">Subject: {s.subject}</p>
+                                  <p className="text-xs text-muted-foreground">{format(new Date(s.createdAt), "MMM d, yyyy HH:mm")}</p>
+                                </div>
+                                <div className="flex flex-col gap-2 flex-shrink-0">
+                                  <Button 
+                                    size="sm" 
+                                    variant={s.status === 'contacted' ? 'default' : 'outline'}
+                                    onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'contacted' })} 
+                                    disabled={s.status === 'contacted' || updateSubmissionStatusMutation.isLoading}
+                                  >
+                                    {s.status === 'contacted' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                                    Mark Contacted
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant={s.status === 'resolved' ? 'secondary' : 'destructive'}
+                                    onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })} 
+                                    disabled={s.status === 'resolved' || updateSubmissionStatusMutation.isLoading}
+                                  >
+                                    {s.status === 'resolved' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                                    Mark Resolved
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="mt-3 pt-3 border-t">
+                                <p className="text-sm whitespace-pre-line">{s.message}</p>
+                              </div>
+                            </CardHeader>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </TabsContent>
                   </>
                 )}
@@ -891,7 +989,23 @@ export default function Messages() {
                   </div>
                 </Card>
               ) : (
-                <Card className="h-full flex items-center justify-center"><CardContent className="text-center py-12"><MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" /><h3 className="text-lg font-semibold mb-2">No thread selected</h3><p className="text-muted-foreground">Select a conversation from the list to view messages</p></CardContent></Card>
+                <Card className="h-full flex items-center justify-center">
+                  <CardContent className="text-center py-12">
+                    {activeTab === "contact-submissions" ? (
+                      <>
+                        <Mail className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">Contact Submissions</h3>
+                        <p className="text-muted-foreground">View and manage contact form submissions from the sidebar</p>
+                      </>
+                    ) : (
+                      <>
+                        <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No thread selected</h3>
+                        <p className="text-muted-foreground">Select a conversation from the list to view messages</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
           </div>

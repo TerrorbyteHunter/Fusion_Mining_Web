@@ -1715,12 +1715,43 @@ export class DatabaseStorage implements IStorage {
     return log;
   }
 
-  async getActivityLogs(limit: number = 100): Promise<ActivityLog[]> {
-    return await db
-      .select()
+  async getActivityLogs(limit: number = 100): Promise<(ActivityLog & { user?: User | null })[]> {
+    const results = await db
+      .select({
+        id: activityLogs.id,
+        userId: activityLogs.userId,
+        activityType: activityLogs.activityType,
+        description: activityLogs.description,
+        ipAddress: activityLogs.ipAddress,
+        userAgent: activityLogs.userAgent,
+        metadata: activityLogs.metadata,
+        createdAt: activityLogs.createdAt,
+        user: {
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          profileImageUrl: users.profileImageUrl,
+        },
+      })
       .from(activityLogs)
+      .leftJoin(users, eq(activityLogs.userId, users.id))
       .orderBy(desc(activityLogs.createdAt))
       .limit(limit);
+    
+    return results.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      activityType: r.activityType,
+      description: r.description,
+      ipAddress: r.ipAddress,
+      userAgent: r.userAgent,
+      metadata: r.metadata,
+      createdAt: r.createdAt,
+      user: r.user?.id ? r.user as User : null,
+    }));
   }
 
   async getUserActivityLogs(userId: string, limit: number = 50): Promise<ActivityLog[]> {
@@ -2336,20 +2367,67 @@ export class DatabaseStorage implements IStorage {
   // ========================================================================
   // Admin Audit Log operations
   // ========================================================================
-  async getAdminAuditLogs(adminId?: string): Promise<AdminAuditLog[]> {
+  async getAdminAuditLogs(adminId?: string): Promise<(AdminAuditLog & { admin?: User | null })[]> {
+    const baseQuery = db
+      .select({
+        id: adminAuditLogs.id,
+        adminId: adminAuditLogs.adminId,
+        action: adminAuditLogs.action,
+        targetType: adminAuditLogs.targetType,
+        targetId: adminAuditLogs.targetId,
+        changes: adminAuditLogs.changes,
+        ipAddress: adminAuditLogs.ipAddress,
+        userAgent: adminAuditLogs.userAgent,
+        createdAt: adminAuditLogs.createdAt,
+        admin: {
+          id: users.id,
+          email: users.email,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          role: users.role,
+          profileImageUrl: users.profileImageUrl,
+        },
+      })
+      .from(adminAuditLogs)
+      .leftJoin(users, eq(adminAuditLogs.adminId, users.id));
+    
     if (adminId) {
-      return await db
-        .select()
-        .from(adminAuditLogs)
+      const results = await baseQuery
         .where(eq(adminAuditLogs.adminId, adminId))
         .orderBy(desc(adminAuditLogs.createdAt))
         .limit(200);
+      
+      return results.map(r => ({
+        id: r.id,
+        adminId: r.adminId,
+        action: r.action,
+        targetType: r.targetType,
+        targetId: r.targetId,
+        changes: r.changes,
+        ipAddress: r.ipAddress,
+        userAgent: r.userAgent,
+        createdAt: r.createdAt,
+        admin: r.admin?.id ? r.admin as User : null,
+      }));
     }
-    return await db
-      .select()
-      .from(adminAuditLogs)
+    
+    const results = await baseQuery
       .orderBy(desc(adminAuditLogs.createdAt))
       .limit(200);
+    
+    return results.map(r => ({
+      id: r.id,
+      adminId: r.adminId,
+      action: r.action,
+      targetType: r.targetType,
+      targetId: r.targetId,
+      changes: r.changes,
+      ipAddress: r.ipAddress,
+      userAgent: r.userAgent,
+      createdAt: r.createdAt,
+      admin: r.admin?.id ? r.admin as User : null,
+    }));
   }
 
   async logAdminAudit(data: InsertAdminAuditLog): Promise<void> {
