@@ -1164,8 +1164,8 @@ export default function AdminCMS() {
                   </div>
                   <div className="pt-4 border-t">
                     <p className="text-sm text-muted-foreground mb-3">Contact form submissions are automatically logged and can be reviewed in the system.</p>
-                    <Button variant="outline" onClick={() => setLocation('/admin/contact-submissions')} data-testid="button-view-submissions">
-                      View Contact Submissions
+                    <Button variant="outline" onClick={() => setLocation('/dashboard/messages')} data-testid="button-view-submissions">
+                      View Contact Submissions (Messages)
                     </Button>
                   </div>
                 </CardContent>

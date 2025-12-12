@@ -35,6 +35,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function Projects() {
   const { toast } = useToast();
@@ -43,6 +45,9 @@ export default function Projects() {
   const [selectedMineral, setSelectedMineral] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
+  const [openProjectDialog, setOpenProjectDialog] = useState<string | null>(null);
+  const [projectMessage, setProjectMessage] = useState<string>("");
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   // Fetch projects
   const { data: projects, isLoading } = useQuery<ProjectWithOwner[]>({
@@ -116,7 +121,7 @@ export default function Projects() {
         title: "Thread Created",
         description: "You can now message about this project",
       });
-      window.location.href = "/messages";
+      window.location.href = "/dashboard/messages";
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -163,7 +168,26 @@ export default function Projects() {
       }, 1000);
       return;
     }
-    contactSellerMutation.mutate(projectId);
+    setOpenProjectDialog(projectId);
+    setProjectMessage("");
+  };
+
+  const sendProjectMessage = async (projectId: string, message: string) => {
+    try {
+      setIsSendingMessage(true);
+      const thread = await apiRequest("POST", "/api/threads", { projectId });
+      if (thread && thread.id) {
+        await apiRequest("POST", `/api/threads/${thread.id}/messages`, { content: message });
+      }
+      toast({ title: "Message Sent", description: "Conversation created. Redirecting to messages." });
+      setOpenProjectDialog(null);
+      window.location.href = "/dashboard/messages";
+    } catch (err) {
+      console.error("Failed to send project message:", err);
+      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   // Filter projects

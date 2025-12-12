@@ -22,100 +22,114 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
   const { toast } = useToast();
   const { user } = useAuth();
   const [replyContent, setReplyContent] = useState("");
-  const sendingRef = useRef(false);
+          <Separator />
 
-  const { data: messageDetails, isLoading } = useQuery({
-    queryKey: ['/api/messages', messageId, 'details'],
-    queryFn: async () => {
-      if (!messageId) return null;
-      const response = await fetch(`/api/messages/${messageId}/details`, {
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const error = new Error('Failed to fetch message details');
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        throw error;
-      }
-      return response.json();
-    },
-    enabled: !!messageId && open
-  });
+          {/* Sender Information - only visible to admins */}
+          {user?.role === 'admin' && (
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Sender Information
+              </h3>
 
-  // If this message is related to a listing, fetch that listing so we can show the
-  // actual listing seller (even when an admin posted on behalf of the seller).
-  const listingId = messageDetails?.message?.relatedListingId;
-  const { data: listingData } = useQuery({
-    queryKey: ['/api/marketplace/listings', listingId],
-    queryFn: async () => {
-      if (!listingId) return null;
-      const resp = await fetch(`/api/marketplace/listings/${listingId}`, { credentials: 'include' });
-      if (!resp.ok) throw new Error('Failed to fetch listing');
-      return resp.json();
-    },
-    enabled: !!listingId,
-  });
+              <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+                {/* If contact submission info exists, prefer it */}
+                {contact ? (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground">Name</Label>
+                        <p className="font-medium">{contact.name || 'N/A'}</p>
+                      </div>
+                    </div>
 
-  const replyMutation = useMutation({
-    mutationFn: async (content: string) => {
-      if (!messageDetails?.sender?.id) return;
-      const idKey = generateIdempotencyKey();
-      return await apiRequest(
-        "POST",
-        "/api/messages",
-        {
-          receiverId: messageDetails.sender.id,
-          subject: `Re: ${messageDetails.message.subject || 'Your message'}`,
-          content,
-          relatedProjectId: messageDetails.message.relatedProjectId,
-          relatedListingId: messageDetails.message.relatedListingId,
-        },
-        { "Idempotency-Key": idKey }
-      );
-    },
-    onSuccess: () => {
-      toast({
-        title: "Reply Sent",
-        description: "Your reply has been sent successfully",
-      });
-      setReplyContent("");
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      // Refresh the message details to show the new reply
-      queryClient.invalidateQueries({ queryKey: ['/api/messages', messageId, 'details'] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to send reply",
-        variant: "destructive",
-      });
-    },
-  });
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground">Email</Label>
+                        <p className="font-medium">{contact.email || 'N/A'}</p>
+                      </div>
+                    </div>
 
-  const closeMutation = useMutation({
-    mutationFn: async () => {
-      if (!messageId) return;
-      return await apiRequest('PATCH', `/api/messages/${messageId}/close`);
-    },
-    onSuccess: () => {
-      toast({ title: 'Conversation closed', description: 'This conversation has been closed.' });
-      queryClient.invalidateQueries({ queryKey: ['/api/messages'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/messages', messageId, 'details'] });
-      onOpenChange(false);
-    },
-    onError: () => {
-      toast({ title: 'Error', description: 'Failed to close conversation', variant: 'destructive' });
-    },
-  });
+                    <div className="flex items-start gap-3">
+                      <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground">Phone</Label>
+                        <p className="font-medium">{contact.phone || 'N/A'}</p>
+                      </div>
+                    </div>
 
-  const handleReply = async () => {
-    if (!replyContent.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a reply message",
+                    <div>
+                      <Label className="text-muted-foreground">Message</Label>
+                      <p className="whitespace-pre-wrap">{renderLinkified(contact.message)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground">Name</Label>
+                        <p className="font-medium">{sender?.firstName} {sender?.lastName}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                      <div>
+                        <Label className="text-muted-foreground">Email</Label>
+                        <p className="font-medium">{sender?.email || 'N/A'}</p>
+                      </div>
+                    </div>
+
+                    {senderProfile?.companyName && (
+                      <div className="flex items-start gap-3">
+                        <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground">Company</Label>
+                          <p className="font-medium">{senderProfile.companyName}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {senderProfile?.phoneNumber && (
+                      <div className="flex items-start gap-3">
+                        <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground">Phone</Label>
+                          <p className="font-medium">{senderProfile.phoneNumber}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {senderProfile?.location && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                        <div>
+                          <Label className="text-muted-foreground">Location</Label>
+                          <p className="font-medium">{senderProfile.location}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex items-start gap-3">
+                      <div className="h-5 w-5 flex items-center justify-center">
+                        <div className={`w-2 h-2 rounded-full ${
+                          sender?.role === 'admin' ? 'bg-purple-500' :
+                          sender?.role === 'seller' ? 'bg-blue-500' : 'bg-green-500'
+                        }`} />
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Role</Label>
+                        <p className="font-medium capitalize">{sender?.role || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         variant: "destructive",
       });
       return;
@@ -149,11 +163,35 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
   }
 
   const { message, sender, senderProfile } = messageDetails;
+  // If this message was auto-created from a contact form submission, storage
+  // may attach `contactSubmission` with the visitor's name/email/phone/message.
+  const contact = (messageDetails as any).contactSubmission as any | undefined;
+
   // Prefer the listing's seller name when available (admin may post on behalf of seller)
   const sellerDisplayName = listingData?.sellerName;
-  const sortedConversation = (messageDetails.conversation || []).slice().sort((a: any, b: any) => {
-    return new Date(a.message.createdAt).getTime() - new Date(b.message.createdAt).getTime();
-  });
+
+  const sortedConversation = (messageDetails.conversation || [])
+    .slice()
+    .sort((a: any, b: any) => new Date(a.message.createdAt).getTime() - new Date(b.message.createdAt).getTime());
+
+  // Helper: convert plain text with admin/internal links into clickable anchors
+  const renderLinkified = (text: string | null | undefined) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+|\/admin[^\s]*)/g;
+    const parts = text.split(urlRegex).filter(Boolean);
+    return parts.map((part, idx) => {
+      if (urlRegex.test(part)) {
+        urlRegex.lastIndex = 0;
+        const href = part.startsWith('/') ? part : part;
+        return (
+          <a key={idx} href={href} className="text-primary underline" target="_blank" rel="noreferrer">
+            {part}
+          </a>
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -254,7 +292,7 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
                           : 'bg-muted'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap text-sm">{displayContent}</p>
+                      <p className="whitespace-pre-wrap text-sm">{renderLinkified(displayContent)}</p>
                     </div>
                     <p className="text-xs text-muted-foreground px-1">
                       {format(new Date(msg.message.createdAt), "MMM d, h:mm a")}
@@ -273,7 +311,26 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 <User className="h-5 w-5" />
                 Sender Information
-              </h3>
+                  const renderLinkified = (text: string) => {
+                    if (!text) return null;
+                    const urlRegex = /(https?:\/\/[^\s]+|\/admin[^\s]*)/g;
+                    const parts = text.split(urlRegex).filter(Boolean);
+                    return parts.map((part, idx) => {
+                      if (urlRegex.test(part)) {
+                        // Reset lastIndex for global regex usage
+                        urlRegex.lastIndex = 0;
+                        const href = part.startsWith('/') ? part : part;
+                        return (
+                          <a key={idx} href={href} className="text-primary underline" target="_blank" rel="noreferrer">
+                            {part}
+                          </a>
+                        );
+                      }
+                      return <span key={idx}>{part}</span>;
+                    });
+                  };
+
+                  return (
 
               <div className="bg-muted/30 p-4 rounded-lg space-y-3">
                 <div className="flex items-start gap-3">
@@ -283,7 +340,7 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
                     <p className="font-medium">
                       {sender?.firstName} {sender?.lastName}
                     </p>
-                  </div>
+                          <p className="whitespace-pre-wrap text-sm">{renderLinkified(displayContent)}</p>
                 </div>
 
                 <div className="flex items-start gap-3">

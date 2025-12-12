@@ -5,6 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { VerificationBadge } from "@/components/VerificationBadge";
@@ -17,6 +18,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { MessageThread, Message, User } from "@shared/schema";
+// Admin contact submissions page removed - merged into Messages
 
 export default function Messages() {
   const { user, isAuthenticated } = useAuth();
@@ -37,6 +39,10 @@ export default function Messages() {
   } | null>(null);
   const [userDetailsDialogOpen, setUserDetailsDialogOpen] = useState(false);
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
+  // Contact Admin dialog state (visible to buyers and sellers)
+  const [openContactAdminDialog, setOpenContactAdminDialog] = useState(false);
+  const [contactAdminSubject, setContactAdminSubject] = useState("");
+  const [contactAdminMessage, setContactAdminMessage] = useState("");
 
   const renderMessageContent = (content: string) => {
     const attachmentMatch = content.match(/Attachment:\s*(.+?)\s*-\s*(https?:\/\/\S+|\S+)/i);
@@ -69,6 +75,24 @@ export default function Messages() {
     },
     enabled: isAuthenticated,
   });
+
+  // If threadId query param is present, auto-open that thread once threads load
+  useEffect(() => {
+    if (!threads || threads.length === 0) return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tid = params.get('threadId');
+      if (!tid) return;
+      const found = threads.find(t => t.id === tid);
+      if (found) {
+        setSelectedThread(found as any);
+        // ensure the main panel shows the thread
+        setActiveTab(found.projectId ? 'projects' : 'inbox');
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [threads]);
 
   // Fetch all messages for the user (used to compute unread per-thread)
   const { data: allMessages } = useQuery<Message[]>({
@@ -252,6 +276,22 @@ export default function Messages() {
     },
   });
 
+  // Mutation to contact admin
+  const contactAdminMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return await apiRequest("POST", "/api/contact", payload);
+    },
+    onSuccess: () => {
+      setOpenContactAdminDialog(false);
+      setContactAdminSubject("");
+      setContactAdminMessage("");
+      toast({ title: "Message sent", description: "Administrators will respond soon." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
+    },
+  });
+
   // When threadMessages load, mark unread messages in that thread as read
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
@@ -393,6 +433,13 @@ export default function Messages() {
               </h1>
               <div className="ml-4 text-sm text-muted-foreground">{totalUnread} unread</div>
             </div>
+            <div className="flex items-center gap-2">
+              {user?.role !== 'admin' && (
+                <Button size="sm" variant="secondary" onClick={() => setOpenContactAdminDialog(true)} data-testid="button-contact-admin-messages">
+                  Contact Admin
+                </Button>
+              )}
+            </div>
           </div>
           <p className="text-muted-foreground mt-2">
             {user?.role === "admin" 
@@ -420,10 +467,11 @@ export default function Messages() {
                   {user?.role === "admin" && (
                     <TabsTrigger value="sellers" data-testid="tab-support-tickets">Support Tickets</TabsTrigger>
                   )}
+                  {/* Contact submissions tab removed; use Support Tickets under Messages */}
                   {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
                 </TabsList>
 
-                {activeTab !== "users" && (
+                {activeTab !== "users" && activeTab !== "contact-submissions" && (
                   <div className="px-1 pb-2">
                     <input
                       type="text"
@@ -542,6 +590,7 @@ export default function Messages() {
                 </TabsContent>
 
                 {user?.role === "admin" && (
+                  <>
                   <TabsContent value="users">
                     <Tabs value={usersSubTab} onValueChange={setUsersSubTab} className="w-full">
                       <TabsList className="flex w-full items-center gap-1 mb-2">
@@ -601,6 +650,7 @@ export default function Messages() {
                       </TabsContent>
                     </Tabs>
                   </TabsContent>
+                  </>
                 )}
               </Tabs>
             </div>
@@ -991,6 +1041,31 @@ export default function Messages() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Contact Admin Dialog */}
+      <Dialog open={openContactAdminDialog} onOpenChange={setOpenContactAdminDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Contact Admin</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Subject" value={contactAdminSubject} onChange={(e) => setContactAdminSubject(e.target.value)} />
+            <Textarea placeholder="Message" value={contactAdminMessage} onChange={(e) => setContactAdminMessage(e.target.value)} className="min-h-32" />
+          </div>
+          <div className="mt-4 flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setOpenContactAdminDialog(false)}>Cancel</Button>
+            <Button disabled={!contactAdminMessage.trim() || contactAdminMutation.isLoading} onClick={() => {
+              const payload = {
+                name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || undefined,
+                email: user?.email,
+                subject: contactAdminSubject || 'Message from Messages',
+                message: contactAdminMessage,
+              };
+              contactAdminMutation.mutate(payload);
+            }}>{contactAdminMutation.isLoading ? 'Sending...' : 'Send'}</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

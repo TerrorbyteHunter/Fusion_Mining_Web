@@ -24,6 +24,7 @@ import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
 import AdminSettings from "@/pages/AdminSettings";
+// AdminContactSubmissions removed; contact submissions are managed via Messages
 import AdminVerificationReview from "@/pages/AdminVerificationReview";
 import AdminBuyerUpgradeReview from "@/pages/AdminBuyerUpgradeReview";
 import ProfileView from "@/pages/ProfileView";
@@ -91,6 +92,7 @@ function Router() {
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />
+            {/* Removed /admin/contact-submissions route - use Messages (support) instead */}
             <Route path="/admin/settings" component={AdminSettings} />
             <Route path="/admin/seller-verification" component={AdminVerificationReview} />
             <Route path="/admin/buyer-upgrades" component={AdminBuyerUpgradeReview} />

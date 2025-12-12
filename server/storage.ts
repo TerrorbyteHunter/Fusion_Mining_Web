@@ -1498,10 +1498,33 @@ export class DatabaseStorage implements IStorage {
       )
       .orderBy(desc(messages.createdAt));
 
-    return {
+    const payload: any = {
       ...result[0],
       conversation: conversationMessages
     };
+
+    // If this message looks like an auto-created contact submission relay,
+    // attempt to parse the submitter details from the message content so the
+    // client can display the visitor's name/email/phone even though the
+    // message sender is an internal admin user.
+    try {
+      const content: string = (mainMessage && (mainMessage.content || '')) as string;
+      // Expect content like: "Contact submission from NAME <email>\nPhone: PHONE\n\nMESSAGE...\n\nView thread: /dashboard/messages?threadId=THREAD_ID"
+      const m = content.match(/Contact submission from\s+([^<\n]+)\s*<([^>]+)>[\s\S]*?Phone:\s*([^\n\r]*)[\s\S]*?\n\n([\s\S]*?)(?:\n\nView (?:submission|thread):\s*[^\s]+(?:id=|\?threadId=)([a-f0-9\-]+))?/i);
+      if (m) {
+        payload.contactSubmission = {
+          name: (m[1] || '').trim(),
+          email: (m[2] || '').trim(),
+          phone: (m[3] || '').trim(),
+          message: (m[4] || '').trim(),
+          submissionId: m[5] || undefined,
+        };
+      }
+    } catch (err) {
+      // parsing should not break the endpoint
+    }
+
+    return payload;
   }
 
   // ========================================================================

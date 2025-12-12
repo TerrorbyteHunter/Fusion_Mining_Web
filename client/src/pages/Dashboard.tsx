@@ -1,5 +1,5 @@
 // User dashboard with overview and quick actions
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +20,12 @@ import {
   Zap,
   Star
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -77,6 +83,35 @@ export default function Dashboard() {
   }
 
   const tierBadge = getTierBadge();
+
+  const [openAdminDialog, setOpenAdminDialog] = useState(false);
+  const [adminSubject, setAdminSubject] = useState("");
+  const [adminMessage, setAdminMessage] = useState("");
+
+  const contactAdminMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return await apiRequest("POST", "/api/contact", payload);
+    },
+    onSuccess: () => {
+      setOpenAdminDialog(false);
+      setAdminSubject("");
+      setAdminMessage("");
+      toast({ title: "Message sent", description: "We'll get back to you soon." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
+    },
+  });
+
+  const sendContactToAdmin = () => {
+    const payload = {
+      name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || undefined,
+      email: user?.email,
+      subject: adminSubject || "Contact from dashboard",
+      message: adminMessage,
+    };
+    contactAdminMutation.mutate(payload);
+  };
 
   return (
     <div className="flex-1">
@@ -230,6 +265,22 @@ export default function Dashboard() {
                 </Card>
               </Link>
 
+              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full" onClick={() => setOpenAdminDialog(true)} data-testid="card-contact-admin">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm">Contact Admin</CardTitle>
+                      <CardDescription className="text-xs">
+                        Send a message to site administrators
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+              </Card>
+
               {isSeller && (
                 <>
                   <Link href="/dashboard/create-listing">
@@ -292,6 +343,22 @@ export default function Dashboard() {
             </div>
           </div>
         </section>
+        {/* Contact Admin Dialog */}
+        <Dialog open={openAdminDialog} onOpenChange={(open) => setOpenAdminDialog(open)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Contact Admin</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input placeholder="Subject" value={adminSubject} onChange={(e) => setAdminSubject(e.target.value)} />
+              <Textarea placeholder="Message" value={adminMessage} onChange={(e) => setAdminMessage(e.target.value)} className="min-h-32" />
+            </div>
+            <DialogFooter className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={() => setOpenAdminDialog(false)}>Cancel</Button>
+              <Button disabled={!adminMessage.trim() || contactAdminMutation.isLoading} onClick={sendContactToAdmin}>{contactAdminMutation.isLoading ? 'Sending...' : 'Send'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
   );
 }

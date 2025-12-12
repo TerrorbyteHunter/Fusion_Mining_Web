@@ -3627,6 +3627,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertContactSubmissionSchema.parse(req.body);
       const submission = await storage.createContactSubmission(validatedData);
+      
+      // Also create an internal support thread so admins see the submission in Messages
+      try {
+        const adminUser = await storage.getAdminUser();
+        let thread: any = null;
+        if (adminUser) {
+          // If the requester is authenticated, create a thread owned by them so
+          // the conversation appears in their Messages view. Otherwise create
+          // an internal admin-side thread for unauthenticated submissions.
+          const requesterId = (req as any).user ? ((req as any).user.claims?.sub || (req as any).user.id) : null;
+
+          if (requesterId) {
+            thread = await storage.createMessageThread({
+              title: submission.subject || 'Contact Admin',
+              type: 'support',
+              projectId: null,
+              listingId: null,
+              buyerId: requesterId,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: requesterId,
+              context: 'support',
+              status: 'open',
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: 'open',
+            } as any);
+
+            const content = `Contact submission from ${submission.name || ''} <${submission.email || ''}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: requesterId,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: 'support',
+              isAutoRelay: false,
+            } as any);
+
+            await storage.updateThreadLastMessage(thread.id);
+          } else {
+            // Unauthenticated submission: create an internal admin thread and a relay message
+            thread = await storage.createMessageThread({
+              title: submission.subject || 'Contact Form Submission',
+              type: 'support',
+              projectId: null,
+              listingId: null,
+              buyerId: null,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: adminUser.id,
+              context: 'support',
+              status: 'open',
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: 'open',
+            } as any);
+
+            const content = `Contact submission from ${submission.name} <${submission.email}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: adminUser.id,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: 'support',
+              isAutoRelay: true,
+            } as any);
+
+            await storage.updateThreadLastMessage(thread.id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create support thread for contact submission:', err);
+      }
+
+      // Notify all admin users about the new contact submission
+      try {
+        const adminUsers = await storage.getUsersByRole('admin');
+        for (const admin of adminUsers) {
+          await storage.createNotification({
+            userId: admin.id,
+            type: 'message',
+            title: 'New Contact Submission',
+            message: `${submission.name || 'Visitor'} submitted a contact: ${submission.subject || 'No subject'}`,
+            link: thread ? `/dashboard/messages?threadId=${thread.id}` : `/dashboard/messages`,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create admin notifications for contact submission:', err);
+      }
+      
       res.json(submission);
     } catch (error: any) {
       if (error instanceof ZodError) {
@@ -5289,48 +5381,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Get all notifications for current user
-  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const notifications = getNotificationsForUser(userId);
-      res.json(notifications);
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-      res.status(500).json({ message: "Failed to fetch notifications" });
-    }
-  });
-
-  // Mark single notification as read
-  app.post('/api/notifications/:notificationId/read', isAuthenticated, async (req: any, res) => {
-    try {
-      const { notificationId } = req.params;
-      markNotificationAsRead(notificationId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking notification as read:", error);
-      res.status(500).json({ message: "Failed to mark notification as read" });
-    }
-  });
-
-  // Mark all notifications as read for current user
-  app.post('/api/notifications/mark-all-read', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = req.user?.claims?.sub || req.user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      markAllNotificationsAsRead(userId);
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking all notifications as read:", error);
-      res.status(500).json({ message: "Failed to mark all notifications as read" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;
