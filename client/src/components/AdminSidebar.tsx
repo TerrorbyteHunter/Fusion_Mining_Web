@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
   Users,
@@ -15,8 +16,10 @@ import {
   Activity,
   Shield,
   TrendingUp,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface AdminPermissions {
   canManageUsers?: boolean;
@@ -43,6 +46,11 @@ interface AdminSidebarProps {
    */
   permissions?: AdminPermissions | null;
   adminRole?: "super_admin" | "verification_admin" | "content_admin" | "support_admin" | "analytics_admin";
+  /**
+   * Control mobile sidebar state externally (for header integration)
+   */
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "destructive" | "outline" | "secondary" }> = {
@@ -53,9 +61,21 @@ const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "d
   analytics_admin: { label: "Analytics Admin", variant: "secondary" },
 };
 
-export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }: AdminSidebarProps) {
+export function AdminSidebar({ 
+  activeTab, 
+  onTabChange, 
+  permissions, 
+  adminRole,
+  mobileOpen: externalMobileOpen,
+  onMobileOpenChange 
+}: AdminSidebarProps) {
   const [location] = useLocation();
   const { user, permissions: authPermissions } = useAuth();
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+  
+  // Use external state if provided, otherwise use internal state
+  const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
+  const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
 
   // Prefer explicitly passed-in permissions (used on the main Admin dashboard),
   // but fall back to the permissions coming from useAuth() so that other admin
@@ -168,14 +188,20 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
     if (item.tab && onTabChange) {
       onTabChange(item.tab);
     }
+    setMobileOpen(false);
   };
 
-  return (
-    <aside className="w-64 bg-card border-r min-h-screen sticky top-0 h-screen flex flex-col">
+  const handleLinkClick = () => {
+    setMobileOpen(false);
+  };
+
+  // Shared sidebar content component
+  const SidebarContent = () => (
+    <>
       {/* User Info */}
-      <div className="p-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
+      <div className="p-4 md:p-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 border-2 border-primary">
+          <Avatar className="h-10 w-10 md:h-12 md:w-12 border-2 border-primary">
             <AvatarImage src={user?.profileImageUrl || undefined} />
             <AvatarFallback className="bg-destructive text-destructive-foreground">
               {getUserInitials()}
@@ -197,7 +223,7 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4 overflow-y-auto">
+      <nav className="flex-1 p-3 md:p-4 overflow-y-auto">
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -216,12 +242,13 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
                     <Button
                       variant="ghost"
                       className={cn(
-                        "w-full justify-start gap-3"
+                        "w-full justify-start gap-3 text-sm"
                       )}
+                      onClick={handleLinkClick}
                       data-testid={item.testId}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.label}</span>
+                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">{item.label}</span>
                     </Button>
                   </Link>
                 );
@@ -233,14 +260,14 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
                   key={item.tab}
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start gap-3",
+                    "w-full justify-start gap-3 text-sm",
                     isActive && "bg-primary/10 text-primary font-semibold"
                   )}
                   onClick={() => handleTabClick(item)}
                   data-testid={item.testId}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Button>
               );
             }
@@ -253,13 +280,14 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
-                      "w-full justify-start gap-3",
+                      "w-full justify-start gap-3 text-sm",
                       isActive && "bg-primary/10 text-primary font-semibold"
                     )}
+                    onClick={handleLinkClick}
                     data-testid={item.testId}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{item.label}</span>
                   </Button>
                 </Link>
               );
@@ -271,7 +299,7 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t bg-accent/10">
+      <div className="p-3 md:p-4 border-t bg-accent/10">
         <p className="text-xs text-muted-foreground text-center">
           Fusion Mining Limited
         </p>
@@ -279,7 +307,38 @@ export function AdminSidebar({ activeTab, onTabChange, permissions, adminRole }:
           Admin Panel v1.0
         </p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Sheet Menu */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-64 p-0 flex flex-col pt-0">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 bg-card border-r min-h-screen sticky top-0 h-screen flex-col">
+        <SidebarContent />
+      </aside>
+    </>
+  );
+}
+
+// Export a component for the mobile menu trigger to be used in Admin page header
+export function AdminMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
+  return (
+    <Button 
+      variant="outline" 
+      size="icon" 
+      onClick={onOpen}
+      className="md:hidden"
+      data-testid="button-admin-mobile-menu"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
   );
 }
 

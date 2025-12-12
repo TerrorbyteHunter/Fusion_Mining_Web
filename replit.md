@@ -3,7 +3,30 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (December 2, 2025)
+## Recent Changes (December 12, 2025)
+
+### Mobile Optimization - iPhone SE Minimum Support
+Implemented comprehensive mobile responsiveness across the entire platform:
+
+**Sidebar Components Refactored:**
+- AdminSidebar.tsx - Uses external state control via props (mobileOpen, onMobileOpenChange)
+- Exported AdminMobileMenuTrigger component for header integration
+- DashboardSidebar.tsx - Similar refactor with DashboardMobileMenuTrigger export
+- Removed fixed-position triggers that caused overlay issues on small screens
+
+**Layout Updates:**
+- Admin.tsx - Mobile menu trigger integrated into header, responsive padding and typography
+- DashboardLayout.tsx - Added mobile header with integrated menu trigger
+- Tables use overflow-x-auto for horizontal scrolling on mobile
+- Responsive text sizes and spacing throughout
+
+**Technical Improvements:**
+- Sheet components accept external state for better parent control
+- Hamburger menu triggers placed in headers (not fixed position)
+- Proper responsive breakpoints using md: and lg: prefixes
+- Fixed LSP errors in Projects.tsx with void statements for unused variables
+
+## Previous Changes (December 2, 2025)
 
 ### Admin Permissions Backend Fix
 Fixed critical issue where admin permissions were not being returned from the `/api/auth/user` endpoint:

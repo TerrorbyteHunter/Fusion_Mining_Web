@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   LayoutDashboard,
   MessageSquare,
@@ -12,13 +13,28 @@ import {
   ListOrdered,
   TrendingUp,
   ShieldCheck,
-  CheckCircle
+  CheckCircle,
+  Menu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  mobileOpen?: boolean;
+  onMobileOpenChange?: (open: boolean) => void;
+}
+
+export function DashboardSidebar({ 
+  mobileOpen: externalMobileOpen,
+  onMobileOpenChange 
+}: DashboardSidebarProps = {}) {
   const [location] = useLocation();
   const { user, isSeller, isAdmin } = useAuth();
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+  
+  // Use external state if provided, otherwise use internal state
+  const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
+  const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
 
   const getUserInitials = () => {
     if (!user) return "U";
@@ -26,6 +42,10 @@ export function DashboardSidebar() {
   };
 
   const isSellerUnverified = isSeller && user?.verificationStatus !== 'approved';
+  
+  const handleLinkClick = () => {
+    setMobileOpen(false);
+  };
 
   const menuItems = [
     {
@@ -98,19 +118,20 @@ export function DashboardSidebar() {
     }
   ];
 
-  return (
-    <aside className="w-64 bg-card border-r min-h-screen sticky top-16 h-[calc(100vh-4rem)] flex flex-col">
+  // Shared sidebar content component
+  const SidebarContent = () => (
+    <>
       {/* User Info */}
-      <div className="p-6 border-b bg-accent/20">
+      <div className="p-4 md:p-6 border-b bg-accent/20">
         <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12">
+          <Avatar className="h-10 w-10 md:h-12 md:w-12">
             <AvatarImage src={user?.profileImageUrl || undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground">
               {getUserInitials()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate" data-testid="text-username">
+            <p className="font-semibold truncate text-sm" data-testid="text-username">
               {user?.firstName || user?.email}
             </p>
             <div className="flex items-center gap-2 flex-wrap">
@@ -129,7 +150,7 @@ export function DashboardSidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-4 overflow-y-auto">
+      <nav className="flex-1 p-3 md:p-4 overflow-y-auto">
         <div className="space-y-1">
             {menuItems.map((item) => {
             const Icon = item.icon;
@@ -141,13 +162,14 @@ export function DashboardSidebar() {
                 <Button
                   variant={isActive ? "secondary" : "ghost"}
                   className={cn(
-                    "w-full justify-start gap-3",
+                    "w-full justify-start gap-3 text-sm",
                     item.highlight && "border border-primary/20 hover:bg-primary/10"
                   )}
+                  onClick={handleLinkClick}
                   data-testid={item.testId}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Button>
               </Link>
             );
@@ -156,7 +178,7 @@ export function DashboardSidebar() {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t bg-accent/10">
+      <div className="p-3 md:p-4 border-t bg-accent/10">
         <p className="text-xs text-muted-foreground text-center">
           Fusion Mining Limited
         </p>
@@ -164,6 +186,37 @@ export function DashboardSidebar() {
           © 2024 All rights reserved
         </p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Sheet Menu */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-64 p-0 flex flex-col pt-0">
+          <SidebarContent />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 bg-card border-r min-h-screen sticky top-16 h-[calc(100vh-4rem)] flex-col">
+        <SidebarContent />
+      </aside>
+    </>
+  );
+}
+
+// Export a component for the mobile menu trigger to be used in Dashboard pages
+export function DashboardMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
+  return (
+    <Button 
+      variant="outline" 
+      size="icon" 
+      onClick={onOpen}
+      className="md:hidden"
+      data-testid="button-dashboard-mobile-menu"
+    >
+      <Menu className="h-5 w-5" />
+    </Button>
   );
 }

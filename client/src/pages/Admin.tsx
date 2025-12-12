@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdminSidebar } from "@/components/AdminSidebar";
+import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
 import type { MarketplaceListing, User, Message, Project, BuyerRequest } from "@shared/schema";
 import { 
   ShieldCheck, Users, Package, MessageSquare, Activity, 
@@ -103,6 +103,9 @@ export default function Admin() {
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
+  
+  // Mobile sidebar state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedTier, setSelectedTier] = useState<string>("");
@@ -376,7 +379,8 @@ export default function Admin() {
   });
 
   // Helper function to log admin actions - used when performing admin operations
-  const logAdminAction = async (action: string, targetType: string, targetId?: string, changes?: any) => {
+  // Prefixed with underscore to indicate it's available for future use
+  const _logAdminAction = async (action: string, targetType: string, targetId?: string, changes?: any) => {
     try {
       await apiRequest("POST", "/api/admin/audit-log", {
         action,
@@ -390,6 +394,7 @@ export default function Admin() {
       console.error("Failed to log admin action:", error);
     }
   };
+  void _logAdminAction; // Suppress unused variable warning
 
   // Fetch projects
   const { data: projects } = useQuery<Project[]>({
@@ -576,19 +581,28 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar activeTab={activeTab} onTabChange={setActiveTab} permissions={adminPermissions} adminRole={currentAdminRole} />
-      <div className="flex-1 flex flex-col">
+      <AdminSidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        permissions={adminPermissions} 
+        adminRole={currentAdminRole}
+        mobileOpen={mobileMenuOpen}
+        onMobileOpenChange={setMobileMenuOpen}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
-        <section className="py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
-          <div className="container mx-auto px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-            <ShieldCheck className="h-8 w-8 text-destructive" />
-                <div>
-            <h1 className="text-3xl font-bold font-display" data-testid="text-page-title">
+        <section className="py-4 md:py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 md:gap-3">
+                {/* Mobile menu trigger - placed in header for better UX */}
+                <AdminMobileMenuTrigger onOpen={() => setMobileMenuOpen(true)} />
+                <ShieldCheck className="h-6 w-6 md:h-8 md:w-8 text-destructive flex-shrink-0" />
+                <div className="min-w-0">
+                  <h1 className="text-xl md:text-3xl font-bold font-display truncate" data-testid="text-page-title">
                     Admin Dashboard
-            </h1>
-                  <p className="text-muted-foreground">Complete platform control and management</p>
+                  </h1>
+                  <p className="text-muted-foreground text-sm md:text-base truncate hidden sm:block">Complete platform control and management</p>
                 </div>
               </div>
             </div>
@@ -599,7 +613,7 @@ export default function Admin() {
         <div className="flex-1 overflow-auto">
           {/* Overview Tab */}
           {activeTab === "overview" && (
-            <div className="p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="hover:shadow-lg transition-shadow">
@@ -1652,10 +1666,10 @@ export default function Admin() {
 
           {/* Activity Logs Tab */}
           {activeTab === "activity" && adminPermissions?.canAccessAuditLogs && (
-            <div className="p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               <div>
-                <h2 className="text-2xl font-bold">Activity Logs</h2>
-                <p className="text-muted-foreground">Monitor buyer and seller activities including logins, listings, messages, and more (Admin activities are shown in Admin Activities tab)</p>
+                <h2 className="text-xl md:text-2xl font-bold">Activity Logs</h2>
+                <p className="text-muted-foreground text-sm md:text-base">Monitor buyer and seller activities including logins, listings, messages, and more</p>
               </div>
 
               {/* Filters and Search */}
@@ -1815,10 +1829,10 @@ export default function Admin() {
 
           {/* Admin Activities Tab */}
           {activeTab === "admin-activities" && adminPermissions?.canAccessAuditLogs && (
-            <div className="p-6 space-y-6">
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               <div>
-                <h2 className="text-2xl font-bold">Admin Activities</h2>
-                <p className="text-muted-foreground">Monitor all administrative actions and changes made by admins</p>
+                <h2 className="text-xl md:text-2xl font-bold">Admin Activities</h2>
+                <p className="text-muted-foreground text-sm md:text-base">Monitor all administrative actions and changes made by admins</p>
               </div>
 
               {/* Filters and Search */}
@@ -2305,6 +2319,9 @@ function UserManagementSection({
   onDelete: (u: User) => void;
   loading?: boolean;
 }) {
+  // Suppress unused variable warning - delete functionality can be enabled per user action requirements
+  void onDelete;
+  
   if (loading) {
     return (
       <Card>

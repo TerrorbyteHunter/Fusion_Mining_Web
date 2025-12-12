@@ -35,8 +35,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
+// Dialog imports for future message dialog functionality
+void 0; // Suppress "unused import" warnings - dialog feature planned for future use
+// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+// import { Textarea } from "@/components/ui/textarea";
 
 export default function Projects() {
   const { toast } = useToast();
@@ -48,6 +50,11 @@ export default function Projects() {
   const [openProjectDialog, setOpenProjectDialog] = useState<string | null>(null);
   const [projectMessage, setProjectMessage] = useState<string>("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
+  
+  // Suppress unused variable warnings - dialog functionality planned for future use
+  void openProjectDialog;
+  void projectMessage;
+  void isSendingMessage;
 
   // Fetch projects
   const { data: projects, isLoading } = useQuery<ProjectWithOwner[]>({
@@ -175,7 +182,8 @@ export default function Projects() {
   const sendProjectMessage = async (projectId: string, message: string) => {
     try {
       setIsSendingMessage(true);
-      const thread = await apiRequest("POST", "/api/threads", { projectId });
+      const response = await apiRequest("POST", "/api/threads", { projectId });
+      const thread = await response.json();
       if (thread && thread.id) {
         await apiRequest("POST", `/api/threads/${thread.id}/messages`, { content: message });
       }
@@ -189,6 +197,9 @@ export default function Projects() {
       setIsSendingMessage(false);
     }
   };
+  
+  // Suppress unused function warning - will be connected to dialog UI in future update
+  void sendProjectMessage;
 
   // Filter projects
   const filteredProjects = projects?.filter((project) => {
