@@ -1,7 +1,7 @@
-import { requireAuth, requireAdmin, requireSeller, getClerkUser } from './clerk';
+import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, getClerkUser } from './clerk';
 import { storage } from './storage';
 
-export { requireAuth, requireAdmin, requireSeller };
+export { requireAuth, requireAdmin, requireSeller, requireAdminPermission };
 
 // Helper function to sync Clerk user with database
 export const syncClerkUser = async (clerkUserId: string) => {

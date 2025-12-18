@@ -43,6 +43,22 @@ export const requireSeller = (req: any, res: Response, next: NextFunction) => {
   next();
 };
 
+// Middleware to require specific admin permission (placeholder - always allows for now)
+export const requireAdminPermission = (permission: string) => {
+  return (req: any, res: Response, next: NextFunction) => {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    // For now, if user is admin, allow all permissions
+    // This can be extended to check specific permissions later
+    const role = req.auth.user?.publicMetadata?.role;
+    if (role !== 'admin') {
+      return res.status(403).json({ message: `Admin permission '${permission}' required` });
+    }
+    next();
+  };
+};
+
 // Helper to get user from Clerk
 export const getClerkUser = async (userId: string) => {
   try {
