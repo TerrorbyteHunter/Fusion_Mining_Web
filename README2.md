@@ -20,10 +20,9 @@ Fusion Mining Limited is a comprehensive full-stack mining investment and tradin
 **Backend:**
 - Node.js with Express
 - TypeScript for type safety
-- Simple credential-based login (testing phase: admin/admin123)
-- PostgreSQL (Neon) via DATABASE_URL
+- Clerk for authentication and user management
+- PostgreSQL (Neon Serverless) via DATABASE_URL
 - Drizzle ORM for database operations
-- Passport.js for session management
 
 **Design System:**
 - Primary color: Deep mining blue (217 91% 20%)
@@ -61,10 +60,10 @@ The application uses a normalized PostgreSQL database with the following main en
    - Contact form
 
 2. **Authentication & Authorization**
-   - Simple credential-based login for testing (admin/admin123)
+   - Clerk-based authentication with email verification
    - Role-based access control (Admin, Seller, Buyer)
-   - Secure session management with PostgreSQL storage
-   - Test users available without database storage
+   - Secure user management with Clerk
+   - Admin roles managed via Clerk user metadata
 
 3. **Marketplace Portal**
    - Mineral listings with detailed specifications
@@ -200,19 +199,18 @@ npm run db:generate
 npm run db:studio
 ```
 
-### Authentication Flow (Testing Phase)
+### Authentication Flow
 
-1. User navigates to `/login` or clicks "Log In" button
-2. User enters credentials (admin/admin123)
-3. POST request to `/api/login` validates credentials
-4. Passport.js creates session with hardcoded user data
-5. Session stored in memory (test users) or PostgreSQL (database users)
-6. User redirected to `/dashboard` on successful login
+1. User navigates to `/signup` to create an account or `/login` to sign in
+2. Clerk handles email verification and password security
+3. Upon successful authentication, user data is synced with the platform database
+4. User roles are determined by Clerk user metadata (`publicMetadata.role`)
+5. Admin users have additional permissions based on their role configuration
 
-**Test Credentials:**
-- Username: `admin`
-- Password: `admin123`
-- Role: Admin (full platform access)
+**Admin Setup:**
+- Admin users are designated in Clerk Dashboard by setting user metadata
+- First admin should be set up manually in Clerk after initial signup
+- Admin roles provide access to management features and CMS
 
 ### Design Principles
 

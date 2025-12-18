@@ -34,6 +34,7 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 
 ### Frontend
 - **React 18** with TypeScript
+- **Clerk** for authentication and user management
 - **Wouter** for routing
 - **TanStack Query v5** for data fetching
 - **Shadcn UI** with Radix UI primitives
@@ -46,8 +47,7 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 - **TypeScript** for type safety
 - **PostgreSQL** (Neon) via DATABASE_URL
 - **Drizzle ORM** for database operations
-- **Simple Login** (testing phase - admin/admin123)
-- **Passport.js** for session management
+- **Clerk** for authentication middleware
 
 ### Design System
 - **Primary Color**: Deep mining blue (#0A2463)
@@ -59,14 +59,38 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 
 ### Prerequisites
 - Node.js 20+
-- PostgreSQL database (provided by Replit)
-- Replit account for authentication
+- PostgreSQL database
+- Clerk account (free tier available)
 
 ### Environment Variables
-The following environment variables are automatically configured:
-- `DATABASE_URL` - PostgreSQL connection string (required)
-- `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` - Database credentials
-- `SESSION_SECRET` - Session encryption secret (auto-generated)
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Clerk Authentication (Get these from https://clerk.com)
+CLERK_SECRET_KEY=sk_test_your_secret_key_here
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+
+# Development
+NODE_ENV=development
+```
+
+### Clerk Setup
+1. **Create a Clerk Application**
+   - Go to [clerk.com](https://clerk.com) and create a free account
+   - Create a new application
+   - Copy the `CLERK_SECRET_KEY` and `VITE_CLERK_PUBLISHABLE_KEY`
+
+2. **Configure Sign-in/Sign-up Options**
+   - In Clerk Dashboard → User & Authentication → Email, Phone, etc.
+   - Enable email-based authentication
+   - Configure redirect URLs for your domain
+
+3. **User Roles Setup**
+   - In Clerk Dashboard, you can set user metadata for roles
+   - Admin users should have `publicMetadata.role = "admin"`
 
 ### Local Development Setup
 
@@ -82,12 +106,7 @@ The following environment variables are automatically configured:
    ```
 
 3. **Configure Environment Variables**
-   Create a `.env` file in the root directory:
-   ```env
-   DATABASE_URL=postgresql://user:password@host:port/database
-   NODE_ENV=development
-   SESSION_SECRET=your-secret-key-here
-   ```
+   - Create `.env` file with the variables above
 
 4. **Setup Database**
    ```bash
@@ -98,6 +117,7 @@ The following environment variables are automatically configured:
 5. **Start Development Server**
    ```bash
    npm run dev
+   ```
    ```
    The application will start on `http://localhost:5000`
 
@@ -126,32 +146,31 @@ The database includes:
 - Contact submissions
 - Verification queue
 
-## 👥 Login Credentials (Testing Only - NO SECURITY)
+## � Authentication
 
-### Simple Test Accounts
-For local development and testing, use these hardcoded credentials:
+This platform uses **Clerk** for secure authentication and user management.
 
-**Admin Account (Full Access):**
-- Username: `admin`
-- Password: `admin123`
-- Access: Admin panel at `/admin/cms`
+### User Registration & Login
+- **Sign Up**: Users can create accounts at `/signup`
+- **Sign In**: Users login at `/login`
+- **Email Verification**: Required for account activation
+- **Password Reset**: Built-in password recovery
 
-**Buyer Account:**
-- Username: `henry`
-- Password: `henry123`
-- Access: Buyer dashboard, create buyer requests
+### Admin Access
+- Admin users are designated in Clerk by setting `publicMetadata.role = "admin"`
+- Admin login uses the same Clerk authentication flow
+- Admin panel access is controlled by role metadata
 
-**Seller Account:**
-- Username: `ray`
-- Password: `ray123`
-- Access: Seller dashboard, create marketplace listings
-
-**How to Login:**
-1. Navigate to `/login` or click "Log In" in the header
-2. Enter username and password
-3. Click "Login" button
-
-**⚠️ IMPORTANT:** These are hardcoded credentials with NO SECURITY for testing purposes only. Do not use in production!
+### First Admin Setup
+To create the first admin user:
+1. Sign up as a regular user at `/signup`
+2. In Clerk Dashboard, find the user and set their public metadata:
+   ```json
+   {
+     "role": "admin"
+   }
+   ```
+3. The user can now access admin features
 
 ## 📁 Project Structure
 
@@ -312,6 +331,77 @@ After adding the table, the existing message creation endpoint will accept `Idem
 
 - App standardized to ZMW and USD (replace any ZAR values in sample data with ZMW).
 
+## 🔄 Handover Notes (Important for Company Transfer)
+
+This project was developed using personal accounts and services. When transferring to Fusion Mining Limited, please update the following:
+
+### Accounts & Services to Transfer/Change
+
+#### 1. **Clerk Authentication**
+- **Current**: Personal Clerk account used for development
+- **Action Required**: 
+  - Create a company Clerk account at [clerk.com](https://clerk.com)
+  - Transfer the application to the company account
+  - Update `CLERK_SECRET_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` in production
+  - Reconfigure redirect URLs for the company domain
+  - Transfer any existing user data if needed
+
+#### 2. **Database (Neon PostgreSQL)**
+- **Current**: Personal Neon account
+- **Action Required**:
+  - Create a company Neon account
+  - Migrate the database to the company account
+  - Update `DATABASE_URL` in production environment
+  - Ensure database backups are transferred
+
+#### 3. **Domain & Hosting**
+- **Current**: Development URLs (localhost, Replit, etc.)
+- **Action Required**:
+  - Register company domain (e.g., fusionmining.com)
+  - Set up production hosting (Vercel, Render, AWS, etc.)
+  - Update Clerk redirect URLs to production domain
+  - Configure SSL certificates
+
+#### 4. **Email Services**
+- **Current**: Clerk handles email verification with default templates
+- **Action Required**:
+  - Customize email templates with company branding
+  - Set up custom SMTP if needed
+  - Update sender email addresses
+
+#### 5. **Third-party Services**
+- **Current**: None actively integrated
+- **Future**: When adding services like payment processors, file storage, etc., use company accounts
+
+### Environment Variables to Update
+
+Create new `.env.production` file with company credentials:
+
+```env
+# Company Clerk Keys
+CLERK_SECRET_KEY=sk_live_your_company_key
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_your_company_key
+
+# Company Database
+DATABASE_URL=postgresql://company_db_url
+
+# Production Settings
+NODE_ENV=production
+```
+
+### Security Considerations
+
+- **API Keys**: Never commit real API keys to version control
+- **Environment Variables**: Use secure secret management in production
+- **User Data**: Ensure GDPR/CCPA compliance for user data handling
+- **Access Control**: Set up proper admin role assignments in Clerk
+
+### Development vs Production
+
+- **Development**: Uses free Clerk tier, local database
+- **Production**: Upgrade to appropriate paid plans based on usage
+- **Testing**: Set up staging environment with separate Clerk app
+
 ## 🤝 Contributing
 
 This is a production platform for Fusion Mining Limited. For feature requests or bug reports, contact the development team.
@@ -332,4 +422,4 @@ Proprietary - © 2024 Fusion Mining Limited
 - UI components from Shadcn
 - Icons from Lucide React
 - Database hosted on Neon
-- Simple credential-based login for testing
+- Clerk for secure authentication

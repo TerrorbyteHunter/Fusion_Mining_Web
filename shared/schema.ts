@@ -43,6 +43,7 @@ export const verificationStatusEnum = pgEnum('verification_status', ['not_reques
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  clerkId: varchar("clerk_id").unique(),
   email: varchar("email").unique(),
   username: varchar("username").unique(),
   password: varchar("password"),

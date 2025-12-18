@@ -3,7 +3,37 @@
 ## Overview
 Fusion Mining Limited is a full-stack mining investment and trading platform designed to connect investors, miners, and partners across Zambia. Its primary purpose is to facilitate mineral trading, investment opportunities, and partnership formation, providing a verified marketplace for mining activities. The platform aims to be a comprehensive hub for the Zambian mining sector, driving economic growth and transparency.
 
-## Recent Changes (December 12, 2025)
+## Recent Changes (December 18, 2025)
+
+### Clerk Authentication Integration
+Migrated from custom authentication to Clerk for production-ready user management:
+
+**Authentication Updates:**
+- Replaced Passport.js and custom login with Clerk SDK
+- Implemented SignIn and SignUp components from Clerk React
+- Added Clerk user ID mapping in database schema
+- Updated middleware to use Clerk authentication tokens
+- Removed hardcoded test credentials and fallback auth
+
+**Security Improvements:**
+- Enterprise-grade authentication with Clerk
+- Email verification for user registration
+- Secure password handling and reset functionality
+- Role-based access control via Clerk user metadata
+- SOC 2 compliant user management
+
+**Admin Setup:**
+- Admin users designated via Clerk metadata (`publicMetadata.role = "admin"`)
+- Removed separate admin login endpoint - unified authentication
+- Admin permissions still managed in platform database
+- First admin setup requires manual metadata configuration in Clerk
+
+**Database Changes:**
+- Added `clerk_id` column to users table for Clerk integration
+- User sync mechanism between Clerk and platform database
+- Backward compatibility maintained for existing user data
+
+## Previous Changes (December 12, 2025)
 
 ### Mobile Optimization - iPhone SE Minimum Support
 Implemented comprehensive mobile responsiveness across the entire platform:
@@ -178,13 +208,13 @@ Clear and concise information. Prioritize core functionality and established des
 ## System Architecture
 
 ### Technology Stack
--   **Frontend:** React 18 (TypeScript), Wouter, TanStack Query v5, Shadcn UI (Radix UI), Tailwind CSS, React Hook Form (Zod), Lucide React.
--   **Backend:** Node.js (Express, TypeScript), Replit Auth, PostgreSQL (Neon Serverless), Drizzle ORM, Passport.js.
+-   **Frontend:** React 18 (TypeScript), Clerk React, Wouter, TanStack Query v5, Shadcn UI (Radix UI), Tailwind CSS, React Hook Form (Zod), Lucide React.
+-   **Backend:** Node.js (Express, TypeScript), Clerk SDK, PostgreSQL (Neon Serverless), Drizzle ORM.
 -   **Design System:** Professional and trustworthy aesthetic. Primary color: Deep mining blue; Accent color: Copper/earth tone. Typography: Inter (body), Archivo (headings). Responsive design with mobile-first approach.
 
 ### Key Features
 1.  **Public Pages:** Landing page with category cards, Services, Marketplace, Projects, News & Insights Blog, Contact Form.
-2.  **Authentication & Authorization:** Replit Auth (Google, GitHub, email), Role-based access (Admin, Seller, Buyer), Secure session management.
+2.  **Authentication & Authorization:** Clerk authentication (email/password), Role-based access (Admin, Seller, Buyer), Secure user management with metadata.
 3.  **Marketplace Portal:** Hierarchical categories (Minerals, Mining Tools, Mining Services, Mining PPE), Tabbed navigation, Advanced filtering, RFQ System with country badges, verification status, and expiry dates.
 4.  **User Dashboard:** Real-time stats, Profile management, Listing creation, Tier upgrade requests, Thread-based messaging, Project interest tracking, Prominent tier display for buyers.
 5.  **Admin Panel:** User Management (role-based tabs, comprehensive editing of user info), Buyer Tier Upgrades (management of pending/approved/rejected requests), Seller Verification, Verification Queue for listings, Comprehensive CMS, Activity logs, Platform analytics (KPIs, charts), Settings.
@@ -203,7 +233,7 @@ A normalized PostgreSQL database with Drizzle ORM, including entities for users,
 -   **Consistent:** Unified design system.
 
 ## External Dependencies
--   **Replit Auth:** For user authentication (OpenID Connect).
+-   **Clerk:** For user authentication and management (SOC 2 compliant).
 -   **PostgreSQL (Neon Serverless):** Primary database.
 -   **TanStack Query:** Data fetching and state management.
 -   **Shadcn UI / Radix UI:** UI component library.
@@ -211,6 +241,5 @@ A normalized PostgreSQL database with Drizzle ORM, including entities for users,
 -   **Wouter:** Client-side routing.
 -   **Zod:** Schema validation.
 -   **Lucide React:** Icons.
--   **Passport.js:** Session management.
 -   **Drizzle ORM:** Object-relational mapper for database operations.
 -   **Recharts:** Data visualization library.

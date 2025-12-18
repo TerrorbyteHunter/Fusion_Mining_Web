@@ -3,10 +3,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import passport from "passport";
-import pg from "pg";
 
 const app = express();
 app.use(express.json());
@@ -35,48 +31,6 @@ app.use(cors({
   origin: corsOrigin || true,
   credentials: true,
 }));
-
-// PostgreSQL session store setup (only when DATABASE_URL is provided)
-let sessionStore: any | undefined;
-if (process.env.DATABASE_URL) {
-  try {
-    const PgStore = connectPgSimple(session);
-    sessionStore = new PgStore({
-      conString: process.env.DATABASE_URL,
-      tableName: 'sessions',
-      createTableIfMissing: true,
-    });
-    console.log('Postgres session store initialized');
-  } catch (err) {
-    console.log('Warning: failed to initialize Postgres session store. Falling back to default MemoryStore. Error:', (err as Error).message);
-    sessionStore = undefined;
-  }
-} else {
-  console.log('No DATABASE_URL set — using MemoryStore for sessions (not recommended for production).');
-}
-
-// Session setup (use Postgres store when available, otherwise MemoryStore)
-app.use(session({
-  store: sessionStore as any,
-  secret: process.env.SESSION_SECRET || 'dev-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // use secure cookies in production
-    httpOnly: true,
-    sameSite: (process.env.COOKIE_SAMESITE as any) || (process.env.NODE_ENV === 'production' ? 'none' : 'lax'),
-    domain: process.env.COOKIE_DOMAIN || undefined,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
-
-// Initialize passport
-app.use(passport.initialize());
-app.use(passport.session());
-
-// Load admin permissions for authenticated admin users
-import { loadAdminPermissions } from "./rbac";
-app.use(loadAdminPermissions);
 
 app.use((req, res, next) => {
   const start = Date.now();

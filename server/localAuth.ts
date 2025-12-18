@@ -1,89 +1,53 @@
-import passport from "passport";
-import type { Express, RequestHandler } from "express";
-import { storage } from "./storage";
+import { requireAuth, requireAdmin, requireSeller, getClerkUser } from './clerk';
+import { storage } from './storage';
 
-export function setupAuth(app: Express) {
-  app.use(passport.initialize());
-  app.use(passport.session());
+export { requireAuth, requireAdmin, requireSeller };
 
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
+// Helper function to sync Clerk user with database
+export const syncClerkUser = async (clerkUserId: string) => {
+  try {
+    // Check if user exists in our database
+    let dbUser = await storage.getUserByClerkId(clerkUserId);
 
-  passport.deserializeUser(async (id: string, done) => {
-    const testUsers: { [key: string]: any } = {
-      'test-admin-123': { id: 'test-admin-123', username: 'admin', role: 'admin', email: 'admin@fusionmining.com', firstName: 'Admin', lastName: 'User' },
-      'test-buyer-789': { id: 'test-buyer-789', username: 'henry', role: 'buyer', email: 'henry@fusionmining.com', firstName: 'Henry', lastName: 'Pass' },
-      'test-seller-456': { id: 'test-seller-456', username: 'ray', role: 'seller', email: 'ray@fusionmining.com', firstName: 'Ray', lastName: 'Pass' },
-    };
-    
-    if (testUsers[id]) {
-      return done(null, testUsers[id]);
+    if (!dbUser) {
+      // Get user from Clerk
+      const clerkUser = await getClerkUser(clerkUserId);
+      if (!clerkUser) {
+        throw new Error('User not found in Clerk');
+      }
+
+      // Create user in our database
+      const email = clerkUser.emailAddresses[0]?.emailAddress;
+      const firstName = clerkUser.firstName || '';
+      const lastName = clerkUser.lastName || '';
+
+      if (!email) {
+        throw new Error('User email not found');
+      }
+
+      // Create user
+      dbUser = await storage.upsertUser({
+        clerkId: clerkUserId,
+        email,
+        firstName,
+        lastName,
+      });
+
+      // Set default role based on metadata or default to buyer
+      const role = clerkUser.publicMetadata?.role || 'buyer';
+      await storage.updateUserRole(dbUser.id, role);
+
+      // Create default profile
+      await storage.createUserProfile({
+        userId: dbUser.id,
+        profileType: 'individual',
+        verified: false,
+      });
     }
-    
-    try {
-      const user = await storage.getUser(id);
-      if (!user) return done(null, false);
-      
-      // For admin users, fetch and attach their admin role from permissions
-      if (user.role === 'admin') {
-        try {
-          const adminPerms = await storage.getAdminPermissions(id);
-          if (adminPerms?.adminRole) {
-            user.adminRole = adminPerms.adminRole;
-          }
-        } catch (e) {
-          console.error('Error fetching admin role in deserializeUser:', e);
-        }
-      }
-      
-      return done(null, user);
-    } catch (error) {
-      console.error('Error in deserializeUser:', error);
-      return done(null, false);
-    }
-  });
-}
 
-export const isAuthenticated: RequestHandler = (req: any, res, next) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: "Unauthorized" });
+    return dbUser;
+  } catch (error) {
+    console.error('Error syncing Clerk user:', error);
+    throw error;
   }
-  next();
 };
-
-export const isAdmin: RequestHandler = (req: any, res, next) => {
-  if (!req.isAuthenticated() || req.user.role !== "admin") {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-  next();
-};
-
-export const isSeller: RequestHandler = (req: any, res, next) => {
-  if (!req.isAuthenticated() || req.user.role !== "seller") {
-    return res.status(403).json({ message: "Forbidden" });
-  }
-  next();
-};
-
-// RBAC: require specific admin permission
-export function requireAdminPermission(permissionKey: string): RequestHandler {
-  return async (req: any, res, next) => {
-    try {
-      if (!req.isAuthenticated() || req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Forbidden' });
-      }
-      const perms = await storage.getAdminPermissions(req.user.id);
-      // If no permissions row exists, treat as Super User (allow)
-      if (!perms) {
-        return next();
-      }
-      if (!(perms as any)[permissionKey]) {
-        return res.status(403).json({ message: 'Insufficient permissions' });
-      }
-      next();
-    } catch (err) {
-      return res.status(500).json({ message: 'Permission check failed' });
-    }
-  };
-}

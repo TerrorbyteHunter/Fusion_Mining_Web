@@ -1,13 +1,13 @@
 // Main navigation header component
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { 
-  Mountain, 
-  Menu, 
-  X, 
-  User, 
-  LogOut, 
+import { useAuth } from '@clerk/clerk-react';
+import {
+  Mountain,
+  Menu,
+  X,
+  User,
+  LogOut,
   LayoutDashboard,
   ShieldCheck,
   CheckCircle,
@@ -34,9 +34,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { user, isAuthenticated, isAdmin } = useAuth();
+  const { userId, user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t } = useLanguage();
+
+  const isAuthenticated = !!userId;
+  const isAdmin = user?.publicMetadata?.role === 'admin';
 
   const navItems = [
     { label: t('nav.home'), path: "/", key: "home" },
@@ -48,19 +51,15 @@ export function Header() {
     { label: t('nav.contact'), path: "/contact", key: "contact" },
   ];
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("POST", "/api/logout", {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries();
-      window.location.href = "/";
-    },
-  });
+  const handleSignOut = async () => {
+    await signOut();
+    queryClient.invalidateQueries();
+    window.location.href = "/";
+  };
 
   const getUserInitials = () => {
     if (!user) return "U";
-    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0].toUpperCase() || "U";
+    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.primaryEmailAddress?.emailAddress?.[0].toUpperCase() || "U";
   };
 
   const getTierBadge = () => {
@@ -182,8 +181,7 @@ export function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => logoutMutation.mutate()}
-                    disabled={logoutMutation.isPending}
+                    onClick={handleSignOut}
                     className="flex items-center gap-2 text-destructive cursor-pointer"
                     data-testid="button-logout"
                   >
