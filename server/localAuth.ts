@@ -1,4 +1,4 @@
-import { requireAuth, requireAdmin, requireSeller, requireAdminPermission } from './clerk';
+import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, getClerkUser } from './clerk';
 import { storage } from './storage';
 
 export { requireAuth, requireAdmin, requireSeller, requireAdminPermission };
