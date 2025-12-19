@@ -25,17 +25,17 @@ export const syncClerkUser = async (clerkUserId: string) => {
         throw new Error('User email not found');
       }
 
+      // Set default role based on metadata (public or unsafe) or default to buyer
+      const role = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || 'buyer';
+
       // Create user
       dbUser = await storage.upsertUser({
         clerkId: clerkUserId,
         email,
         firstName,
         lastName,
+        role: role as any,
       });
-
-      // Set default role based on metadata or default to buyer
-      const role = clerkUser.publicMetadata?.role || 'buyer';
-      await storage.updateUserRole(dbUser.id, role);
 
       // Create default profile
       await storage.createUserProfile({
