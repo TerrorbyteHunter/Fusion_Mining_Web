@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { requireAuth, requireAdmin, syncClerkUser } from "./localAuth";
+import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, syncClerkUser } from "./localAuth";
 import { ZodError } from "zod";
 import { db } from "./db";
 import { users, userProfiles, adminAuditLogs } from "@shared/schema";
@@ -1869,9 +1869,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/projects', async (req: any, res) => {
     try {
       const projects = await storage.getProjects();
-      const isAdmin = req.user && req.user.role === 'admin';
+      const requireAdmin = req.user && req.user.role === 'admin';
       
-      const filteredProjects = isAdmin 
+      const filteredProjects = requireAdmin 
         ? projects 
         : projects.filter(p => p.status === 'active');
       
@@ -2136,13 +2136,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/marketplace/listings', async (req: any, res) => {
     try {
       const { type, status } = req.query;
-      const isAdmin = req.user && req.user.role === 'admin';
+      const requireAdmin = req.user && req.user.role === 'admin';
       const listings = await storage.getMarketplaceListings({
         type: type as string,
         status: status as string,
       });
       
-      const filteredListings = isAdmin 
+      const filteredListings = requireAdmin 
         ? listings 
         : listings.filter(l => l.status === 'approved');
       
@@ -2435,7 +2435,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
   app.get('/api/threads/all', requireAuth, requireAdmin, async (req: any, res) => {
     try {
-      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
+      // PRIVACY CONTROL: Admins ONLY see support tickets (requireAdminSupport=true)
       // They can NEVER see buyer-seller marketplace conversations
       const status = req.query.status as string | undefined;
       const priority = req.query.priority as string | undefined;
@@ -3099,9 +3099,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const main = messageDetails.message;
       const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
       const user = await storage.getUser(currentUserId);
-      const isAdminUser = user?.role === 'admin';
+      const requireAdminUser = user?.role === 'admin';
 
-      if (!isParticipant && !isAdminUser) {
+      if (!isParticipant && !requireAdminUser) {
         return res.status(403).json({ message: 'Not authorized to close this conversation' });
       }
 
@@ -3148,8 +3148,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Allow if requesting own profile or admin
       const requestingUser = await storage.getUser(currentUserId);
-      const isAdminUser = requestingUser?.role === 'admin';
-      if (!isAdminUser && currentUserId !== targetId) {
+      const requireAdminUser = requestingUser?.role === 'admin';
+      if (!requireAdminUser && currentUserId !== targetId) {
         return res.status(403).json({ message: 'Not authorized to view this user' });
       }
 
@@ -3167,7 +3167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only include message previews for admin users or the owner
-      if (isAdminUser || currentUserId === targetId) {
+      if (requireAdminUser || currentUserId === targetId) {
         try {
           const msgs = await storage.getMessagesByUserId(targetId);
           // provide a small preview: last 5 messages
@@ -3400,7 +3400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdBy: requesterId,
               context: 'support',
               status: 'open',
-              isAdminSupport: true,
+              requireAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
             } as any);
@@ -3430,7 +3430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdBy: adminUser.id,
               context: 'support',
               status: 'open',
-              isAdminSupport: true,
+              requireAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
             } as any);
@@ -4136,7 +4136,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================================
 
   // Platform Settings
-  app.get('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/platform', requireAuth, requireAdmin, async (req, res) => {
     try {
       const settings = await storage.getAllPlatformSettings();
       res.json(settings);
@@ -4146,7 +4146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post('/api/admin/settings/platform', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       const validatedData = insertPlatformSettingSchema.parse({ ...req.body, updatedBy: req.user.id });
       const setting = await storage.createPlatformSetting(validatedData);
@@ -4160,7 +4160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.patch('/api/admin/settings/platform/:id', requireAuth, requireAdmin, async (req: any, res) => {
     try {
       // Get the current setting to log the old value
       const currentSetting = await storage.getAllPlatformSettings();
@@ -4189,7 +4189,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/platform/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       await storage.deletePlatformSetting(req.params.id);
       res.json({ message: "Platform setting deleted successfully" });
@@ -4200,7 +4200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings by category
-  app.get('/api/admin/settings/platform/category/:category', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/platform/category/:category', requireAuth, requireAdmin, async (req, res) => {
     try {
       const settings = await storage.getPlatformSettingsByCategory(req.params.category);
       res.json(settings);
@@ -4211,7 +4211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings audit logs
-  app.get('/api/admin/settings/audit', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/audit', requireAuth, requireAdmin, async (req, res) => {
     try {
       const { settingKey, limit } = req.query;
       const logs = await storage.getSettingsAuditLogs(
@@ -4226,7 +4226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email Templates
-  app.get('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/email-templates', requireAuth, requireAdmin, async (req, res) => {
     try {
       const templates = await storage.getAllEmailTemplates();
       res.json(templates);
@@ -4236,7 +4236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
+  app.post('/api/admin/settings/email-templates', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertEmailTemplateSchema.parse(req.body);
       const template = await storage.createEmailTemplate(validatedData);
@@ -4250,7 +4250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/email-templates/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = updateEmailTemplateSchema.parse({ ...req.body, id: req.params.id });
       const template = await storage.updateEmailTemplate(validatedData);
@@ -4264,7 +4264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/email-templates/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       await storage.deleteEmailTemplate(req.params.id);
       res.json({ message: "Email template deleted successfully" });
@@ -4275,7 +4275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login History
-  app.get('/api/admin/settings/login-history', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/login-history', requireAuth, requireAdmin, async (req, res) => {
     try {
       const userId = req.query.userId as string | undefined;
       const history = await storage.getLoginHistory(userId);
@@ -4287,7 +4287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verification Rules
-  app.get('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/verification-rules', requireAuth, requireAdmin, async (req, res) => {
     try {
       const rules = await storage.getAllVerificationRules();
       res.json(rules);
@@ -4297,7 +4297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
+  app.post('/api/admin/settings/verification-rules', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertVerificationRuleSchema.parse(req.body);
       const rule = await storage.createVerificationRule(validatedData);
@@ -4311,7 +4311,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/verification-rules/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = updateVerificationRuleSchema.parse({ ...req.body, id: req.params.id });
       const rule = await storage.updateVerificationRule(validatedData);
@@ -4325,7 +4325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/verification-rules/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       await storage.deleteVerificationRule(req.params.id);
       res.json({ message: "Verification rule deleted successfully" });
@@ -4336,7 +4336,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document Templates
-  app.get('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/document-templates', requireAuth, requireAdmin, async (req, res) => {
     try {
       const templates = await storage.getAllDocumentTemplates();
       res.json(templates);
@@ -4346,7 +4346,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
+  app.post('/api/admin/settings/document-templates', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = insertDocumentTemplateSchema.parse(req.body);
       const template = await storage.createDocumentTemplate(validatedData);
@@ -4360,7 +4360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/document-templates/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       const validatedData = updateDocumentTemplateSchema.parse({ ...req.body, id: req.params.id });
       const template = await storage.updateDocumentTemplate(validatedData);
@@ -4374,7 +4374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/document-templates/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
       await storage.deleteDocumentTemplate(req.params.id);
       res.json({ message: "Document template deleted successfully" });
@@ -4385,7 +4385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Audit Logs
-  app.get('/api/admin/settings/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
+  app.get('/api/admin/settings/audit-logs', requireAuth, requireAdmin, async (req, res) => {
     try {
       const adminId = req.query.adminId as string | undefined;
       const logs = await storage.getAdminAuditLogs(adminId);
@@ -4397,7 +4397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Management (Admin Controls)
-  app.patch('/api/admin/users/:id/password-reset', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/password-reset', requireAuth, requireAdmin, async (req, res) => {
     try {
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 6) {
@@ -4424,7 +4424,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users/:id/force-logout', isAuthenticated, isAdmin, async (req, res) => {
+  app.post('/api/admin/users/:id/force-logout', requireAuth, requireAdmin, async (req, res) => {
     try {
       await storage.forceUserLogout(req.params.id);
       
@@ -4446,7 +4446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:id/role', isAuthenticated, isAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/role', requireAuth, requireAdmin, async (req, res) => {
     try {
       const { role } = req.body;
       if (!['admin', 'buyer', 'seller'].includes(role)) {
@@ -4474,7 +4474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account Settings (for current admin user)
-  app.patch('/api/account/profile', isAuthenticated, async (req: any, res) => {
+  app.patch('/api/account/profile', requireAuth, async (req: any, res) => {
     try {
       const { firstName, lastName, email, profileImageUrl } = req.body;
       const updatedUser = await storage.updateUserInfo(req.user.id, {
@@ -4490,7 +4490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/password-change', isAuthenticated, async (req: any, res) => {
+  app.post('/api/account/password-change', requireAuth, async (req: any, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
       
@@ -4524,7 +4524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/account/login-history', isAuthenticated, async (req: any, res) => {
+  app.get('/api/account/login-history', requireAuth, async (req: any, res) => {
     try {
       const history = await storage.getLoginHistory(req.user.id);
       res.json(history);
@@ -4535,7 +4535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Two-Factor Authentication
-  app.get('/api/account/2fa/status', isAuthenticated, async (req: any, res) => {
+  app.get('/api/account/2fa/status', requireAuth, async (req: any, res) => {
     try {
       const twoFAStatus = await storage.getTwoFactorAuthStatus(req.user.id);
       res.json(twoFAStatus);
@@ -4545,7 +4545,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/2fa/enable', isAuthenticated, async (req: any, res) => {
+  app.post('/api/account/2fa/enable', requireAuth, async (req: any, res) => {
     try {
       // In a real implementation, this would generate a TOTP secret and QR code
       // For now, we'll create a placeholder
@@ -4557,7 +4557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/2fa/disable', isAuthenticated, async (req: any, res) => {
+  app.post('/api/account/2fa/disable', requireAuth, async (req: any, res) => {
     try {
       await storage.disableTwoFactorAuth(req.user.id);
       res.json({ message: "2FA disabled successfully" });
@@ -4572,7 +4572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   
   // Create verification request (Seller only)
-  app.post('/api/verification/request', isAuthenticated, async (req: any, res) => {
+  app.post('/api/verification/request', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can request verification" });
@@ -4617,7 +4617,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit verification request (Seller only) - sends request for review
-  app.post('/api/verification/submit', isAuthenticated, async (req: any, res) => {
+  app.post('/api/verification/submit', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can submit verification" });
@@ -4671,7 +4671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current user's verification request (Seller)
-  app.get('/api/verification/my-request', isAuthenticated, async (req: any, res) => {
+  app.get('/api/verification/my-request', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can access this endpoint" });
@@ -4693,7 +4693,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all verification requests (Admin only)
-  app.get('/api/verification/requests', isAuthenticated, async (req: any, res) => {
+  app.get('/api/verification/requests', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4708,7 +4708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get pending verification requests (Admin only)
-  app.get('/api/verification/requests/pending', isAuthenticated, async (req: any, res) => {
+  app.get('/api/verification/requests/pending', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4723,7 +4723,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents for a verification request (Admin only)
-  app.get('/api/verification/documents/:requestId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/verification/documents/:requestId', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4738,7 +4738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve verification request (Admin only)
-  app.post('/api/verification/approve/:id', isAuthenticated, async (req: any, res) => {
+  app.post('/api/verification/approve/:id', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4753,7 +4753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject verification request (Admin only)
-  app.post('/api/verification/reject/:id', isAuthenticated, async (req: any, res) => {
+  app.post('/api/verification/reject/:id', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4807,7 +4807,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload verification file endpoint
-  app.post('/api/verification/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+  app.post('/api/verification/upload', requireAuth, verificationUpload.single('file'), async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can upload verification documents" });
@@ -4859,7 +4859,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   
   // Create tier upgrade request (Buyer only)
-  app.post('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+  app.post('/api/buyer/tier-upgrade-request', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can request tier upgrades" });
@@ -4891,7 +4891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current user's tier upgrade request (Buyer)
-  app.get('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+  app.get('/api/buyer/tier-upgrade-request', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can access this endpoint" });
@@ -4914,7 +4914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload tier upgrade documents (Buyer only)
-  app.post('/api/buyer/tier-upgrade/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+  app.post('/api/buyer/tier-upgrade/upload', requireAuth, verificationUpload.single('file'), async (req: any, res) => {
     try {
       if (req.user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
@@ -4956,7 +4956,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit tier upgrade request (Buyer only)
-  app.post('/api/buyer/tier-upgrade/submit', isAuthenticated, async (req: any, res) => {
+  app.post('/api/buyer/tier-upgrade/submit', requireAuth, async (req: any, res) => {
     try {
       if (req.user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
