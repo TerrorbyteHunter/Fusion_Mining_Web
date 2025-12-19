@@ -94,6 +94,8 @@ NODE_ENV=development
 
 ### Local Development Setup
 
+#### On Local Machine
+
 1. **Clone the Repository**
    ```bash
    git clone <repository-url>
@@ -106,25 +108,50 @@ NODE_ENV=development
    ```
 
 3. **Configure Environment Variables**
-   - Create `.env` file with the variables above
+   Create `.env` file in the root directory:
+   ```env
+   # Database - Use local PostgreSQL or Neon
+   DATABASE_URL=postgresql://user:password@localhost:5432/fusion_mining
+
+   # Clerk Authentication (Get from https://dashboard.clerk.com/apps)
+   CLERK_SECRET_KEY=sk_test_your_secret_key_here
+   VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+
+   # Development
+   NODE_ENV=development
+   ```
 
 4. **Setup Database**
    ```bash
    npm run db:push
    ```
-   This will create all necessary tables in your PostgreSQL database.
+   This will apply all migrations and create necessary tables.
+   
+   **Note**: The migrations already include Clerk ID support:
+   - `migrations/0014_add_clerk_id.sql` - Adds `clerk_id` column to users table
 
 5. **Start Development Server**
    ```bash
    npm run dev
    ```
-   ```
    The application will start on `http://localhost:5000`
 
 6. **Access the Application**
    - Frontend: `http://localhost:5000`
-   - Login: `http://localhost:5000/login`
-   - Admin Panel: `http://localhost:5000/admin/cms` (after logging in as admin)
+   - Clerk Sign-Up: `http://localhost:5000/signup`
+   - Clerk Sign-In: `http://localhost:5000/login`
+   - Admin Panel: `http://localhost:5000/admin/cms` (requires admin role)
+
+#### Getting Clerk Keys for Local Testing
+
+1. Go to [Clerk Dashboard](https://dashboard.clerk.com/)
+2. Select your application
+3. Navigate to **API Keys** → **Show API Keys**
+4. Copy:
+   - **NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY** → Use as `VITE_CLERK_PUBLISHABLE_KEY` in `.env`
+   - **CLERK_SECRET_KEY** → Copy the secret key (click eye icon to reveal)
+5. Paste both into your `.env` file
+6. Run `npm run dev` - Clerk authentication should now work
 
 ### Quick Start with Replit
 On Replit, the setup is automatic:
