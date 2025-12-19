@@ -1,7 +1,7 @@
 // Main navigation header component
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useSafeAuth } from "@/hooks/useSafeAuth";
+import { useAuth } from '@clerk/clerk-react';
 import {
   Mountain,
   Menu,
@@ -34,7 +34,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { userId, user, signOut } = useSafeAuth();
+  const { userId, user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t } = useLanguage();
 
