@@ -30,6 +30,9 @@ import {
   Check,
   FileText,
   X,
+  CreditCard,
+  Banknote,
+  Smartphone,
 } from "lucide-react";
 
 type DocumentType = 
@@ -62,6 +65,28 @@ interface PendingDocument {
   id: string;
 }
 
+interface PaymentMethod {
+  id: string;
+  method: string;
+  name: string;
+  description: string;
+  instructions: string;
+  accountDetails: any;
+}
+
+interface TierUpgradePayment {
+  id: string;
+  upgradeRequestId: string;
+  userId: string;
+  requestedTier: string;
+  paymentMethod: string;
+  amount: number;
+  currency: string;
+  status: string;
+  proofOfPaymentUrl?: string;
+  submittedAt: string;
+}
+
 export default function BuyerTierUpgrade() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -71,11 +96,28 @@ export default function BuyerTierUpgrade() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<DocumentType>('certificate_of_incorporation');
   const [submitting, setSubmitting] = useState(false);
+  
+  // Payment flow state
+  const [currentStep, setCurrentStep] = useState<'documents' | 'payment' | 'proof'>('documents');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
+  const [proofOfPaymentFile, setProofOfPaymentFile] = useState<File | null>(null);
+  const [createdPayment, setCreatedPayment] = useState<TierUpgradePayment | null>(null);
 
   // Fetch current tier upgrade request
   const { data: upgradeRequest, isLoading } = useQuery<TierUpgradeRequest | null>({
     queryKey: ['/api/buyer/tier-upgrade-request'],
     enabled: !!user && user.role === 'buyer',
+  });
+
+  // Fetch payment methods
+  const { data: paymentMethods } = useQuery<PaymentMethod[]>({
+    queryKey: ['/api/payment-methods'],
+  });
+
+  // Fetch existing payment for upgrade request
+  const { data: existingPayment } = useQuery<TierUpgradePayment | null>({
+    queryKey: ['/api/buyer/tier-upgrade/payment', upgradeRequest?.id],
+    enabled: !!upgradeRequest?.id,
   });
 
   const membershipTiers = [
@@ -199,6 +241,64 @@ export default function BuyerTierUpgrade() {
     },
   });
 
+  // Create payment mutation
+  const createPaymentMutation = useMutation({
+    mutationFn: (paymentData: { upgradeRequestId: string; paymentMethod: string; amount: number }) =>
+      apiRequest('POST', '/api/buyer/tier-upgrade/payment', paymentData),
+    onSuccess: async (response) => {
+      const data = await response.json();
+      setCreatedPayment(data);
+      setCurrentStep('proof');
+      toast({
+        title: "Payment Method Selected",
+        description: "Please upload proof of payment to complete your request.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create payment record. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Upload proof of payment mutation
+  const uploadProofMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      const response = await fetch('/api/buyer/tier-upgrade/payment/proof', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to upload proof');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success!",
+        description: "Proof of payment uploaded successfully. Your tier upgrade request is now complete and pending admin review.",
+      });
+      setModalOpen(false);
+      setCurrentStep('documents');
+      setSelectedPaymentMethod("");
+      setProofOfPaymentFile(null);
+      setCreatedPayment(null);
+      setPendingDocuments([]);
+      setSelectedTier("");
+      queryClient.invalidateQueries({ queryKey: ['/api/buyer/tier-upgrade-request'] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload proof of payment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleAddDocument = async () => {
     if (!selectedFile) {
       toast({
@@ -242,6 +342,43 @@ export default function BuyerTierUpgrade() {
     setSubmitting(true);
     createUpgradeRequestMutation.mutate(selectedTier);
     setSubmitting(false);
+  };
+
+  const handleSelectPaymentMethod = () => {
+    if (!selectedPaymentMethod || !upgradeRequest?.id) {
+      toast({
+        title: "Error",
+        description: "Please select a payment method.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const tier = membershipTiers.find(t => t.tier === selectedTier);
+    const amount = tier?.tier === 'standard' ? 50 : tier?.tier === 'premium' ? 200 : 0;
+
+    createPaymentMutation.mutate({
+      upgradeRequestId: upgradeRequest.id,
+      paymentMethod: selectedPaymentMethod,
+      amount,
+    });
+  };
+
+  const handleUploadProof = () => {
+    if (!proofOfPaymentFile || !createdPayment?.id) {
+      toast({
+        title: "Error",
+        description: "Please select a proof of payment file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', proofOfPaymentFile);
+    formData.append('paymentId', createdPayment.id);
+
+    uploadProofMutation.mutate(formData);
   };
 
   const getStatusBadge = (status: string) => {
@@ -404,11 +541,41 @@ export default function BuyerTierUpgrade() {
         <Dialog open={modalOpen} onOpenChange={setModalOpen}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Upgrade to {selectedTierInfo?.name}</DialogTitle>
+              <DialogTitle>
+                {currentStep === 'documents' && `Upgrade to ${selectedTierInfo?.name}`}
+                {currentStep === 'payment' && 'Select Payment Method'}
+                {currentStep === 'proof' && 'Upload Proof of Payment'}
+              </DialogTitle>
               <DialogDescription>
-                Upload your business verification documents to complete your upgrade request
+                {currentStep === 'documents' && 'Upload your business verification documents to complete your upgrade request'}
+                {currentStep === 'payment' && 'Choose your preferred payment method for the tier upgrade'}
+                {currentStep === 'proof' && 'Upload proof of payment to complete your request'}
               </DialogDescription>
             </DialogHeader>
+
+            {/* Step Indicator */}
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <div className={`flex items-center ${currentStep === 'documents' ? 'text-primary' : currentStep === 'payment' || currentStep === 'proof' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'documents' ? 'bg-primary text-primary-foreground' : currentStep === 'payment' || currentStep === 'proof' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  1
+                </div>
+                <span className="ml-2 text-sm">Documents</span>
+              </div>
+              <div className={`w-8 h-0.5 ${currentStep === 'payment' || currentStep === 'proof' ? 'bg-green-600' : 'bg-muted'}`} />
+              <div className={`flex items-center ${currentStep === 'payment' ? 'text-primary' : currentStep === 'proof' ? 'text-green-600' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'payment' ? 'bg-primary text-primary-foreground' : currentStep === 'proof' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+                  2
+                </div>
+                <span className="ml-2 text-sm">Payment</span>
+              </div>
+              <div className={`w-8 h-0.5 ${currentStep === 'proof' ? 'bg-green-600' : 'bg-muted'}`} />
+              <div className={`flex items-center ${currentStep === 'proof' ? 'text-primary' : 'text-muted-foreground'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'proof' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                  3
+                </div>
+                <span className="ml-2 text-sm">Proof</span>
+              </div>
+            </div>
 
             <div className="space-y-6">
               {/* Tier Summary */}
@@ -417,132 +584,266 @@ export default function BuyerTierUpgrade() {
                 <p className="text-xs text-muted-foreground">{selectedTierInfo?.price}</p>
               </div>
 
-              {/* Required Documents Info */}
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Required Documents</AlertTitle>
-                <AlertDescription>
-                  Please upload all required business verification documents:
-                </AlertDescription>
-              </Alert>
+              {/* Documents Step */}
+              {currentStep === 'documents' && (
+                <>
+                  {/* Required Documents Info */}
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Required Documents</AlertTitle>
+                    <AlertDescription>
+                      Please upload all required business verification documents:
+                    </AlertDescription>
+                  </Alert>
 
-              <div className="space-y-2 text-sm">
-                <p className="font-medium">Documents needed:</p>
-                <ul className="space-y-1 text-muted-foreground text-xs">
-                  <li>a) Company Certificate of Incorporation</li>
-                  <li>b) Company Profile</li>
-                  <li>c) Shareholder/Director List</li>
-                  <li>d) Tax Certificate</li>
-                  <li>e) Letter of Authorization (if applicable)</li>
-                </ul>
-              </div>
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium">Documents needed:</p>
+                    <ul className="space-y-1 text-muted-foreground text-xs">
+                      <li>a) Company Certificate of Incorporation</li>
+                      <li>b) Company Profile</li>
+                      <li>c) Shareholder/Director List</li>
+                      <li>d) Tax Certificate</li>
+                      <li>e) Letter of Authorization (if applicable)</li>
+                    </ul>
+                  </div>
 
-              {/* Document Upload Form */}
-              <div className="space-y-4 border-t pt-4">
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="modal-document-type" className="text-sm">Document Type</Label>
-                    <Select
-                      value={documentType}
-                      onValueChange={(value) => setDocumentType(value as DocumentType)}
+                  {/* Document Upload Form */}
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="space-y-3">
+                      <div>
+                        <Label htmlFor="modal-document-type" className="text-sm">Document Type</Label>
+                        <Select
+                          value={documentType}
+                          onValueChange={(value) => setDocumentType(value as DocumentType)}
+                        >
+                          <SelectTrigger id="modal-document-type" data-testid="select-modal-document-type" className="mt-1">
+                            <SelectValue placeholder="Select document type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(documentTypeLabels).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="modal-file-upload" className="text-sm">Select File</Label>
+                        <Input
+                          id="modal-file-upload"
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          data-testid="input-modal-file-upload"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Accepted formats: PDF, JPG, PNG, DOC (Max 20MB)
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleAddDocument}
+                      disabled={!selectedFile}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      data-testid="button-add-document"
                     >
-                      <SelectTrigger id="modal-document-type" data-testid="select-modal-document-type" className="mt-1">
-                        <SelectValue placeholder="Select document type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(documentTypeLabels).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Add Document
+                    </Button>
+                  </div>
+
+                  {/* Uploaded Documents List */}
+                  {pendingDocuments.length > 0 && (
+                    <div className="space-y-3 border-t pt-4">
+                      <p className="text-sm font-medium">Documents to Upload ({pendingDocuments.length})</p>
+                      <div className="space-y-2">
+                        {pendingDocuments.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
+                            data-testid={`pending-document-${doc.id}`}
+                          >
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium truncate">{doc.file.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {documentTypeLabels[doc.documentType]}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => handleRemoveDocument(doc.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 flex-shrink-0 ml-2"
+                              data-testid={`button-remove-document-${doc.id}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
-                  <div>
-                    <Label htmlFor="modal-file-upload" className="text-sm">Select File</Label>
-                    <Input
-                      id="modal-file-upload"
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      data-testid="input-modal-file-upload"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Accepted formats: PDF, JPG, PNG, DOC (Max 20MB)
-                    </p>
-                  </div>
-                </div>
+              {/* Payment Method Selection Step */}
+              {currentStep === 'payment' && (
+                <div className="space-y-4">
+                  <Alert>
+                    <CreditCard className="h-4 w-4" />
+                    <AlertTitle>Payment Required</AlertTitle>
+                    <AlertDescription>
+                      Please select your preferred payment method to complete the upgrade to {selectedTierInfo?.name}.
+                    </AlertDescription>
+                  </Alert>
 
-                <Button
-                  onClick={handleAddDocument}
-                  disabled={!selectedFile}
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  data-testid="button-add-document"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Add Document
-                </Button>
-              </div>
-
-              {/* Uploaded Documents List */}
-              {pendingDocuments.length > 0 && (
-                <div className="space-y-3 border-t pt-4">
-                  <p className="text-sm font-medium">Documents to Upload ({pendingDocuments.length})</p>
-                  <div className="space-y-2">
-                    {pendingDocuments.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
-                        data-testid={`pending-document-${doc.id}`}
-                      >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">{doc.file.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {documentTypeLabels[doc.documentType]}
-                            </p>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Available Payment Methods</Label>
+                    <div className="grid gap-3">
+                      {paymentMethods?.map((method) => (
+                        <div
+                          key={method.id}
+                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                            selectedPaymentMethod === method.method
+                              ? 'border-primary bg-primary/5'
+                              : 'border-muted hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedPaymentMethod(method.method)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {method.method === 'bank_transfer' && <Banknote className="h-5 w-5 text-blue-600" />}
+                            {method.method === 'airtel_money' && <Smartphone className="h-5 w-5 text-green-600" />}
+                            {method.method === 'wechat_alipay' && <CreditCard className="h-5 w-5 text-purple-600" />}
+                            <div className="flex-1">
+                              <p className="font-medium">{method.name}</p>
+                              <p className="text-sm text-muted-foreground">{method.description}</p>
+                            </div>
+                            {selectedPaymentMethod === method.method && (
+                              <Check className="h-5 w-5 text-primary" />
+                            )}
                           </div>
                         </div>
-                        <Button
-                          onClick={() => handleRemoveDocument(doc.id)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 flex-shrink-0 ml-2"
-                          data-testid={`button-remove-document-${doc.id}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedPaymentMethod && (
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm font-medium mb-2">Payment Instructions</p>
+                      <p className="text-xs text-muted-foreground whitespace-pre-line">
+                        {paymentMethods?.find(m => m.method === selectedPaymentMethod)?.instructions}
+                      </p>
+                      <p className="text-sm font-medium mt-3 text-primary">
+                        Amount: ${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Proof of Payment Upload Step */}
+              {currentStep === 'proof' && (
+                <div className="space-y-4">
+                  <Alert>
+                    <Upload className="h-4 w-4" />
+                    <AlertTitle>Upload Proof of Payment</AlertTitle>
+                    <AlertDescription>
+                      Please upload a screenshot or receipt of your payment to complete your upgrade request.
+                    </AlertDescription>
+                  </Alert>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="proof-upload" className="text-sm">Select Proof File</Label>
+                      <Input
+                        id="proof-upload"
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => setProofOfPaymentFile(e.target.files?.[0] || null)}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Accepted formats: JPG, PNG, PDF (Max 10MB)
+                      </p>
+                    </div>
+
+                    {proofOfPaymentFile && (
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <p className="text-sm font-medium">Selected file: {proofOfPaymentFile.name}</p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
             <DialogFooter className="gap-3 pt-4 border-t">
-              <Button
-                onClick={() => {
-                  setModalOpen(false);
-                  setPendingDocuments([]);
-                  setSelectedFile(null);
-                }}
-                variant="outline"
-                data-testid="button-cancel-upgrade"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmitUpgrade}
-                disabled={submitting || pendingDocuments.length === 0}
-                data-testid="button-submit-upgrade-modal"
-              >
-                {submitting ? 'Submitting...' : 'Submit Upgrade Request'}
-              </Button>
+              {currentStep === 'documents' && (
+                <>
+                  <Button
+                    onClick={() => {
+                      setModalOpen(false);
+                      setPendingDocuments([]);
+                      setSelectedFile(null);
+                      setCurrentStep('documents');
+                    }}
+                    variant="outline"
+                    data-testid="button-cancel-upgrade"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmitUpgrade}
+                    disabled={submitting || pendingDocuments.length === 0}
+                    data-testid="button-submit-upgrade-modal"
+                  >
+                    {submitting ? 'Submitting...' : 'Continue to Payment'}
+                  </Button>
+                </>
+              )}
+
+              {currentStep === 'payment' && (
+                <>
+                  <Button
+                    onClick={() => setCurrentStep('documents')}
+                    variant="outline"
+                  >
+                    Back to Documents
+                  </Button>
+                  <Button
+                    onClick={handleSelectPaymentMethod}
+                    disabled={!selectedPaymentMethod || createPaymentMutation.isPending}
+                  >
+                    {createPaymentMutation.isPending ? 'Creating Payment...' : 'Continue to Proof'}
+                  </Button>
+                </>
+              )}
+
+              {currentStep === 'proof' && (
+                <>
+                  <Button
+                    onClick={() => setCurrentStep('payment')}
+                    variant="outline"
+                  >
+                    Back to Payment
+                  </Button>
+                  <Button
+                    onClick={handleUploadProof}
+                    disabled={!proofOfPaymentFile || uploadProofMutation.isPending}
+                  >
+                    {uploadProofMutation.isPending ? 'Uploading...' : 'Complete Upgrade'}
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

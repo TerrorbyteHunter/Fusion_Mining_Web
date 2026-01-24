@@ -1,6 +1,6 @@
 // Seed script for development testing
 import { db } from "./db";
-import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits, messageThreads, messages } from "@shared/schema";
+import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits, messageThreads, messages, paymentMethodDetails } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function seed() {
@@ -298,7 +298,7 @@ async function seed() {
       {
         sellerId: "test-seller-456",
         type: "partnership",
-        mainCategory: "mining_equipment",
+        mainCategory: "mining_tools",
         toolSubcategory: "heavy_equipment",
         title: "CAT 793F Haul Truck - Excellent Condition",
         description: "Well-maintained CAT 793F haul truck, low hours, full service history, ideal for large open-pit operations. Delivery and inspection available.",
@@ -310,7 +310,7 @@ async function seed() {
       {
         sellerId: "test-seller-456",
         type: "partnership",
-        mainCategory: "mining_equipment",
+        mainCategory: "mining_tools",
         toolSubcategory: "drilling_equipment",
         title: "Exploration Drill Rig - Atlas Copco",
         description: "Portable exploration diamond drill rig suitable for core sampling and infill drilling. Comes with spare parts and operator training package.",
@@ -322,7 +322,7 @@ async function seed() {
       {
         sellerId: "test-seller-456",
         type: "partnership",
-        mainCategory: "mining_equipment",
+        mainCategory: "mining_tools",
         toolSubcategory: "ore_processing",
         title: "Mobile Jaw Crusher & Cone Plant",
         description: "Complete mobile crushing and screening plant for primary and secondary crushing — ideal for onsite processing and tailings remediation.",
@@ -847,6 +847,47 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
     ] as any).onConflictDoNothing();
 
     console.log("✓ Sample messages created");
+
+    // Seed payment methods
+    console.log("Creating payment methods...");
+
+    await db.insert(paymentMethodDetails).values([
+      {
+        method: "bank_transfer",
+        name: "Bank Transfer",
+        description: "Direct bank transfer to our corporate account",
+        instructions: `Please transfer the exact amount to:\n\nBank: Zambia National Commercial Bank (ZNCB)\nAccount Name: Fusion Mining Limited\nAccount Number: 1234567890\nBranch: Lusaka Main\nSwift Code: ZNCOZMZX\n\nReference: Your upgrade request ID`,
+        accountDetails: {
+          bank: "Zambia National Commercial Bank (ZNCB)",
+          accountName: "Fusion Mining Limited",
+          accountNumber: "1234567890",
+          branch: "Lusaka Main",
+          swiftCode: "ZNCOZMZX"
+        },
+      },
+      {
+        method: "airtel_money",
+        name: "Airtel Money",
+        description: "Mobile money transfer via Airtel Money",
+        instructions: `Send money to:\n\nPhone Number: +260 97 123 4567\nName: Fusion Mining Limited\n\nReference: Your upgrade request ID\n\nPlease ensure you send from a registered Airtel Money account.`,
+        accountDetails: {
+          phoneNumber: "+260 97 123 4567",
+          name: "Fusion Mining Limited"
+        },
+      },
+      {
+        method: "wechat_alipay",
+        name: "WeChat Pay / Alipay",
+        description: "Payment via WeChat Pay or Alipay for international users",
+        instructions: `Scan the QR code or use the following details:\n\nWeChat Pay ID: fusionmining_zambia\nAlipay ID: fusionmining@alipay.com\n\nReference: Your upgrade request ID\n\nContact us if you need assistance with the payment.`,
+        accountDetails: {
+          wechatId: "fusionmining_zambia",
+          alipayId: "fusionmining@alipay.com"
+        },
+      },
+    ]).onConflictDoNothing();
+
+    console.log("✓ Payment methods created");
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log("\nTest Account Credentials:");

@@ -139,7 +139,7 @@ export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership',
 export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed']);
 
 // Main categories matching B2B Mineral structure
-export const mainCategoryEnum = pgEnum('main_category', ['minerals', 'mining_tools', 'mining_services', 'mining_ppe']);
+export const mainCategoryEnum = pgEnum('main_category', ['minerals', 'mining_tools', 'mining_services', 'mining_ppe', 'mining_equipment']);
 
 // Subcategories for each main category
 export const mineralSubcategoryEnum = pgEnum('mineral_subcategory', ['metallic', 'non_metallic', 'marble_natural_stone', 'gravel_sand_aggregate', 'coal_peat', 'other_minerals']);
@@ -1130,3 +1130,70 @@ export const insertSellerVerificationDocumentSchema = createInsertSchema(sellerV
 });
 export type InsertSellerVerificationDocument = z.infer<typeof insertSellerVerificationDocumentSchema>;
 export type SellerVerificationDocument = typeof sellerVerificationDocuments.$inferSelect;
+
+// ============================================================================
+// Payment Methods and Tier Upgrade Payments
+// ============================================================================
+export const paymentMethodEnum = pgEnum('payment_method', ['bank_transfer', 'airtel_money', 'wechat_alipay']);
+
+export const tierUpgradePayments = pgTable("tier_upgrade_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  upgradeRequestId: varchar("upgrade_request_id").notNull(),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestedTier: membershipTierEnum("requested_tier").notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency").notNull().default('ZMW'),
+  status: varchar("status").notNull().default('pending'), // pending, paid, verified, rejected
+  paymentDetails: jsonb("payment_details"), // Store payment method specific details
+  proofOfPaymentUrl: varchar("proof_of_payment_url"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const paymentMethodDetails = pgTable("payment_method_details", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  method: paymentMethodEnum("method").notNull().unique(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  instructions: text("instructions"),
+  accountDetails: jsonb("account_details"), // Store account numbers, names, etc.
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tier Upgrade Payment schemas
+export const insertTierUpgradePaymentSchema = createInsertSchema(tierUpgradePayments).omit({
+  id: true,
+  submittedAt: true,
+  verifiedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateTierUpgradePaymentSchema = createInsertSchema(tierUpgradePayments).omit({
+  submittedAt: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertTierUpgradePayment = z.infer<typeof insertTierUpgradePaymentSchema>;
+export type UpdateTierUpgradePayment = z.infer<typeof updateTierUpgradePaymentSchema>;
+export type TierUpgradePayment = typeof tierUpgradePayments.$inferSelect;
+
+// Payment Method Details schemas
+export const insertPaymentMethodDetailsSchema = createInsertSchema(paymentMethodDetails).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updatePaymentMethodDetailsSchema = createInsertSchema(paymentMethodDetails).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertPaymentMethodDetails = z.infer<typeof insertPaymentMethodDetailsSchema>;
+export type UpdatePaymentMethodDetails = z.infer<typeof updatePaymentMethodDetailsSchema>;
+export type PaymentMethodDetails = typeof paymentMethodDetails.$inferSelect;

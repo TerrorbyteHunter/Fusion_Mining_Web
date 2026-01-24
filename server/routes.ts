@@ -304,6 +304,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize user tiers from approved requests on startup
   initializeUserTiersFromApprovedRequests();
 
+  // Middleware to convert Clerk auth to req.user for compatibility
+  app.use(async (req: any, res, next) => {
+    try {
+      if (req.auth?.userId) {
+        // Sync user with database and set req.user
+        const user = await syncClerkUser(req.auth.userId);
+        req.user = {
+          id: user.id,
+          clerkId: user.clerkId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
+          claims: {
+            sub: req.auth.userId
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error in user sync middleware:', error);
+      // Don't fail the request, just continue without user
+    }
+    next();
+  });
+
   // ========================================================================
   // Health Check Endpoint (for monitoring services like Render, Vercel, etc.)
   // ========================================================================
@@ -5186,6 +5211,257 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error reverting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to revert tier upgrade request" });
+    }
+  });
+
+  // ========================================================================
+  // Payment Method Routes
+  // ========================================================================
+
+  // Get all active payment methods
+  app.get('/api/payment-methods', async (req, res) => {
+    try {
+      const paymentMethods = await storage.getAllPaymentMethodDetails();
+      res.json(paymentMethods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  // Get payment method details by method
+  app.get('/api/payment-methods/:method', async (req, res) => {
+    try {
+      const { method } = req.params;
+      const paymentMethod = await storage.getPaymentMethodDetailsByMethod(method);
+      if (!paymentMethod) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      res.json(paymentMethod);
+    } catch (error) {
+      console.error("Error fetching payment method:", error);
+      res.status(500).json({ message: "Failed to fetch payment method" });
+    }
+  });
+
+  // Admin: Create payment method
+  app.post('/api/admin/payment-methods', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPaymentMethodDetailsSchema.parse(req.body);
+      const paymentMethod = await storage.createPaymentMethodDetails(validatedData);
+      res.json(paymentMethod);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating payment method:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating payment method:", error);
+      res.status(500).json({ message: "Failed to create payment method" });
+    }
+  });
+
+  // Admin: Update payment method
+  app.patch('/api/admin/payment-methods/:id', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = updatePaymentMethodDetailsSchema.parse({ ...req.body, id: req.params.id });
+      const paymentMethod = await storage.updatePaymentMethodDetails(req.params.id, validatedData);
+      res.json(paymentMethod);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating payment method:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating payment method:", error);
+      res.status(500).json({ message: "Failed to update payment method" });
+    }
+  });
+
+  // ========================================================================
+  // Tier Upgrade Payment Routes
+  // ========================================================================
+
+  // Create tier upgrade payment (after document submission)
+  app.post('/api/buyer/tier-upgrade/payment', requireAuth, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can create tier upgrade payments" });
+      }
+
+      const { upgradeRequestId, paymentMethod, amount } = req.body;
+
+      if (!upgradeRequestId || !paymentMethod || !amount) {
+        return res.status(400).json({ message: "upgradeRequestId, paymentMethod, and amount are required" });
+      }
+
+      // Verify the upgrade request exists and belongs to the user
+      const upgradeRequest = buyerUpgradeRequests.get(upgradeRequestId);
+      if (!upgradeRequest) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      if (upgradeRequest.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
+      }
+
+      // Get payment method details
+      const paymentMethodDetails = await storage.getPaymentMethodDetailsByMethod(paymentMethod);
+      if (!paymentMethodDetails) {
+        return res.status(400).json({ message: "Invalid payment method" });
+      }
+
+      // Create payment record
+      const payment = await storage.createTierUpgradePayment({
+        upgradeRequestId,
+        userId: req.user.id,
+        requestedTier: upgradeRequest.requestedTier,
+        paymentMethod: paymentMethod as any,
+        amount: parseFloat(amount),
+        currency: 'ZMW',
+        status: 'pending',
+        paymentDetails: paymentMethodDetails.accountDetails,
+      });
+
+      res.json(payment);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating payment:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating tier upgrade payment:", error);
+      res.status(500).json({ message: "Failed to create payment" });
+    }
+  });
+
+  // Upload proof of payment
+  app.post('/api/buyer/tier-upgrade/payment/:paymentId/proof', requireAuth, upload.single('proofOfPayment'), async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can upload proof of payment" });
+      }
+
+      const { paymentId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Verify the payment exists and belongs to the user
+      const payment = await storage.getTierUpgradePaymentById(paymentId);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+
+      if (payment.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized - payment does not belong to user" });
+      }
+
+      // Update payment with proof of payment URL
+      const proofOfPaymentUrl = `/attached_assets/files/uploads/payments/${req.file.filename}`;
+      const updatedPayment = await storage.updateTierUpgradePayment(paymentId, {
+        proofOfPaymentUrl,
+        status: 'paid',
+      });
+
+      res.json(updatedPayment);
+    } catch (error: any) {
+      console.error("Error uploading proof of payment:", error);
+      res.status(500).json({ message: error.message || "Failed to upload proof of payment" });
+    }
+  });
+
+  // Get user's tier upgrade payments
+  app.get('/api/buyer/tier-upgrade/payments', requireAuth, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can view tier upgrade payments" });
+      }
+
+      const payments = await storage.getTierUpgradePaymentsByUserId(req.user.id);
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching tier upgrade payments:", error);
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
+  // Get payment by upgrade request ID
+  app.get('/api/buyer/tier-upgrade/payment/:upgradeRequestId', requireAuth, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can view tier upgrade payments" });
+      }
+
+      const { upgradeRequestId } = req.params;
+      const payments = await storage.getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId);
+
+      // Filter to only show payments belonging to the current user
+      const userPayments = payments.filter(p => p.userId === req.user.id);
+
+      res.json(userPayments[0] || null);
+    } catch (error) {
+      console.error("Error fetching tier upgrade payment:", error);
+      res.status(500).json({ message: "Failed to fetch payment" });
+    }
+  });
+
+  // Admin: Get all pending tier upgrade payments
+  app.get('/api/admin/tier-upgrade-payments/pending', requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const payments = await storage.getAllPendingTierUpgradePayments();
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching pending payments:", error);
+      res.status(500).json({ message: "Failed to fetch pending payments" });
+    }
+  });
+
+  // Admin: Verify tier upgrade payment
+  app.post('/api/admin/tier-upgrade-payments/verify/:paymentId', requireAuth, requireAdmin, async (req: any, res) => {
+    try {
+      const { paymentId } = req.params;
+      const { action, rejectionReason } = req.body; // action: 'approve' or 'reject'
+
+      const payment = await storage.getTierUpgradePaymentById(paymentId);
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+
+      if (action === 'approve') {
+        // Update payment status to verified
+        await storage.updateTierUpgradePayment(paymentId, {
+          status: 'verified',
+          verifiedAt: new Date(),
+          verifiedBy: req.user.id,
+        });
+
+        // Update user's membership tier
+        await storage.updateUserMembershipTier(payment.userId, payment.requestedTier);
+
+        // Update the upgrade request status to approved
+        const upgradeRequest = buyerUpgradeRequests.get(payment.upgradeRequestId);
+        if (upgradeRequest) {
+          upgradeRequest.status = 'approved';
+          upgradeRequest.reviewedAt = new Date().toISOString();
+          buyerUpgradeRequests.set(payment.upgradeRequestId, upgradeRequest);
+        }
+
+        res.json({ message: "Payment verified and tier upgraded successfully" });
+      } else if (action === 'reject') {
+        // Update payment status to rejected
+        await storage.updateTierUpgradePayment(paymentId, {
+          status: 'rejected',
+          rejectionReason,
+          verifiedAt: new Date(),
+          verifiedBy: req.user.id,
+        });
+
+        res.json({ message: "Payment rejected" });
+      } else {
+        return res.status(400).json({ message: "Invalid action" });
+      }
+    } catch (error) {
+      console.error("Error verifying tier upgrade payment:", error);
+      res.status(500).json({ message: "Failed to verify payment" });
     }
   });
 

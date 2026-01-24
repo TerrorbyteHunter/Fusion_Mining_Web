@@ -20,6 +20,20 @@ export async function apiRequest(
   if (data) baseHeaders["Content-Type"] = "application/json";
   const headers = { ...baseHeaders, ...(extraHeaders || {}) };
 
+  // Get Clerk token if available
+  try {
+    // @ts-ignore
+    if (window.Clerk && window.Clerk.session) {
+      // @ts-ignore
+      const token = await window.Clerk.session.getToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to get Clerk token:", error);
+  }
+
   const res = await fetch(fullUrl, {
     method,
     headers,
@@ -62,8 +76,25 @@ export const getQueryFn: <T>(options: {
     const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
     const path = queryKey.join("/") as string;
     const fullUrl = /^https?:\/\//i.test(path) ? path : `${normalizedBase}${path}`;
+    
+    // Get Clerk token if available
+    const headers: Record<string, string> = {};
+    try {
+      // @ts-ignore
+      if (window.Clerk && window.Clerk.session) {
+        // @ts-ignore
+        const token = await window.Clerk.session.getToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to get Clerk token for query:", error);
+    }
+
     const res = await fetch(fullUrl, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

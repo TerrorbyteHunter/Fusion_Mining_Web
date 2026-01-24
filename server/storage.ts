@@ -32,6 +32,8 @@ import {
   sessions,
   sellerVerificationRequests,
   sellerVerificationDocuments,
+  tierUpgradePayments,
+  paymentMethodDetails,
   type AdminPermissions,
   type InsertAdminPermissions,
   type UpdateAdminPermissions,
@@ -100,6 +102,12 @@ import {
   type InsertSellerVerificationRequest,
   type SellerVerificationDocument,
   type InsertSellerVerificationDocument,
+  type TierUpgradePayment,
+  type InsertTierUpgradePayment,
+  type UpdateTierUpgradePayment,
+  type PaymentMethodDetails,
+  type InsertPaymentMethodDetails,
+  type UpdatePaymentMethodDetails,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
@@ -2724,6 +2732,92 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updated;
+  }
+
+  // ============================================================================
+  // Payment Methods
+  // ============================================================================
+
+  async createTierUpgradePayment(data: InsertTierUpgradePayment): Promise<TierUpgradePayment> {
+    const [payment] = await db
+      .insert(tierUpgradePayments)
+      .values(data)
+      .returning();
+    return payment;
+  }
+
+  async getTierUpgradePaymentById(id: string): Promise<TierUpgradePayment | undefined> {
+    const [payment] = await db
+      .select()
+      .from(tierUpgradePayments)
+      .where(eq(tierUpgradePayments.id, id));
+    return payment;
+  }
+
+  async getTierUpgradePaymentsByUserId(userId: string): Promise<TierUpgradePayment[]> {
+    return await db
+      .select()
+      .from(tierUpgradePayments)
+      .where(eq(tierUpgradePayments.userId, userId))
+      .orderBy(desc(tierUpgradePayments.createdAt));
+  }
+
+  async getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId: string): Promise<TierUpgradePayment[]> {
+    return await db
+      .select()
+      .from(tierUpgradePayments)
+      .where(eq(tierUpgradePayments.upgradeRequestId, upgradeRequestId))
+      .orderBy(desc(tierUpgradePayments.createdAt));
+  }
+
+  async updateTierUpgradePayment(id: string, data: UpdateTierUpgradePayment): Promise<TierUpgradePayment> {
+    const [payment] = await db
+      .update(tierUpgradePayments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tierUpgradePayments.id, id))
+      .returning();
+    return payment;
+  }
+
+  async getAllPendingTierUpgradePayments(): Promise<TierUpgradePayment[]> {
+    return await db
+      .select()
+      .from(tierUpgradePayments)
+      .where(eq(tierUpgradePayments.status, 'paid'))
+      .orderBy(desc(tierUpgradePayments.submittedAt));
+  }
+
+  async createPaymentMethodDetails(data: InsertPaymentMethodDetails): Promise<PaymentMethodDetails> {
+    const [method] = await db
+      .insert(paymentMethodDetails)
+      .values(data)
+      .returning();
+    return method;
+  }
+
+  async getAllPaymentMethodDetails(): Promise<PaymentMethodDetails[]> {
+    return await db
+      .select()
+      .from(paymentMethodDetails)
+      .where(eq(paymentMethodDetails.isActive, true))
+      .orderBy(paymentMethodDetails.name);
+  }
+
+  async getPaymentMethodDetailsByMethod(method: string): Promise<PaymentMethodDetails | undefined> {
+    const [paymentMethod] = await db
+      .select()
+      .from(paymentMethodDetails)
+      .where(and(eq(paymentMethodDetails.method, method as any), eq(paymentMethodDetails.isActive, true)));
+    return paymentMethod;
+  }
+
+  async updatePaymentMethodDetails(id: string, data: UpdatePaymentMethodDetails): Promise<PaymentMethodDetails> {
+    const [method] = await db
+      .update(paymentMethodDetails)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(paymentMethodDetails.id, id))
+      .returning();
+    return method;
   }
 }
 
