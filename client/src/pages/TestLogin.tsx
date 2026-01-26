@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { Mountain, Lock, User, Plus, Trash2, Eye, EyeOff } from "lucide-react";
 
 interface TestUser {
@@ -21,6 +22,7 @@ export default function TestLogin() {
   const [customUsers, setCustomUsers] = useState<TestUser[]>([]);
   const [newUsername, setNewUsername] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"admin" | "buyer" | "seller">("buyer");
 
   const presetUsers: TestUser[] = [
     { username: 'admin', password: 'admin123' },
@@ -30,7 +32,7 @@ export default function TestLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!username.trim() || !password.trim()) {
       toast({
         title: "Error",
@@ -56,6 +58,8 @@ export default function TestLogin() {
           title: "Login successful",
           description: `Welcome back, ${result.user.firstName}!`,
         });
+        // Invalidate auth query to refresh user state
+        queryClient.invalidateQueries({ queryKey: ['auth-user'] });
         if (result.user.role === "admin") {
           setLocation("/admin");
         } else {
@@ -104,7 +108,7 @@ export default function TestLogin() {
           password: newPassword,
           firstName: "Test",
           lastName: "User",
-          role: "buyer"
+          role: newRole
         }),
       });
 
@@ -121,7 +125,7 @@ export default function TestLogin() {
       setCustomUsers([...customUsers, { username: newUsername, password: newPassword }]);
       setNewUsername("");
       setNewPassword("");
-      
+
       toast({
         title: "Success",
         description: `Custom user "${newUsername}" added and ready to login`,
@@ -196,7 +200,7 @@ export default function TestLogin() {
               </div>
 
               {/* Login Button - LARGE & PROMINENT */}
-              <Button 
+              <Button
                 type="submit"
                 disabled={isLoading}
                 className="w-full h-14 text-base font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
@@ -259,7 +263,20 @@ export default function TestLogin() {
                       data-testid="input-new-password"
                     />
                   </div>
-                  <Button 
+                  <div>
+                    <label className="block text-xs font-medium mb-1 text-gray-700 dark:text-gray-300">Role</label>
+                    <select
+                      value={newRole}
+                      onChange={(e) => setNewRole(e.target.value as any)}
+                      className="w-full h-10 px-3 text-sm border-2 border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-slate-800"
+                      data-testid="select-new-role"
+                    >
+                      <option value="buyer">Buyer</option>
+                      <option value="seller">Seller</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                  <Button
                     type="button"
                     onClick={addCustomUser}
                     variant="outline"

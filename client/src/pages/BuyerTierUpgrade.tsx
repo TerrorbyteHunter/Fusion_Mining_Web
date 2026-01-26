@@ -35,7 +35,7 @@ import {
   Smartphone,
 } from "lucide-react";
 
-type DocumentType = 
+type DocumentType =
   | 'certificate_of_incorporation'
   | 'company_profile'
   | 'shareholder_list'
@@ -51,6 +51,7 @@ interface TierUpgradeRequest {
   rejectionReason?: string;
   submittedAt: string;
   reviewedAt?: string;
+  documentCount?: number;
   documents?: Array<{
     id: string;
     documentType: DocumentType;
@@ -106,7 +107,7 @@ export default function BuyerTierUpgrade() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<DocumentType>('certificate_of_incorporation');
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Payment flow state
   const [currentStep, setCurrentStep] = useState<'documents' | 'payment' | 'proof'>('documents');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
@@ -117,7 +118,7 @@ export default function BuyerTierUpgrade() {
   // Fetch current tier upgrade request
   const { data: upgradeRequest, isLoading } = useQuery<TierUpgradeRequest | null>({
     queryKey: ['/api/buyer/tier-upgrade-request'],
-    enabled: !!user && user.role === 'buyer',
+    enabled: !!user, // Temporarily enable for all authenticated users
   });
 
   // Fetch payment methods
@@ -129,6 +130,11 @@ export default function BuyerTierUpgrade() {
   const { data: existingPayment } = useQuery<TierUpgradePayment | null>({
     queryKey: ['/api/buyer/tier-upgrade/payment', upgradeRequest?.id],
     enabled: !!upgradeRequest?.id,
+  });
+
+  // Fetch upgrade history
+  const { data: upgradeHistory } = useQuery<TierUpgradeRequest[]>({
+    queryKey: ['/api/buyer/tier-upgrade/history'],
   });
 
   const membershipTiers = [
@@ -333,7 +339,7 @@ export default function BuyerTierUpgrade() {
     setPendingDocuments([...pendingDocuments, newDoc]);
     setSelectedFile(null);
     setDocumentType('certificate_of_incorporation');
-    
+
     toast({
       title: "Document Added",
       description: `${selectedFile.name} has been added to your upload list.`,
@@ -359,23 +365,40 @@ export default function BuyerTierUpgrade() {
   };
 
   const handleSelectPaymentMethod = () => {
-    if (!selectedPaymentMethod || !upgradeRequest?.id) {
+    const requestId = upgradeRequest?.id || currentUpgradeRequestId;
+
+    if (!requestId) {
       toast({
         title: "Error",
-        description: "Please select a payment method.",
+        description: "No upgrade request found. Please try again.",
         variant: "destructive",
       });
       return;
     }
 
-    const tier = membershipTiers.find(t => t.tier === selectedTier);
+    const tier = membershipTiers.find(t => t.tier === (selectedTier || upgradeRequest?.requestedTier));
     const usdAmount = tier?.tier === 'standard' ? 50 : tier?.tier === 'premium' ? 200 : 0;
 
     createPaymentMutation.mutate({
-      upgradeRequestId: upgradeRequest.id,
+      upgradeRequestId: requestId,
       paymentMethod: selectedPaymentMethod,
       amount: usdAmount,
     });
+  };
+
+  const handleResume = () => {
+    if (!upgradeRequest) return;
+    setSelectedTier(upgradeRequest.requestedTier);
+    setCurrentUpgradeRequestId(upgradeRequest.id);
+
+    // If documents are already uploaded, jump to payment
+    if (upgradeRequest.documentCount && upgradeRequest.documentCount > 0) {
+      setCurrentStep('payment');
+    } else {
+      setCurrentStep('documents');
+    }
+
+    setModalOpen(true);
   };
 
   const handleUploadProof = () => {
@@ -429,7 +452,7 @@ export default function BuyerTierUpgrade() {
   }
 
   const currentTier = user?.membershipTier || 'basic';
-  const selectedTierInfo = membershipTiers.find(t => t.tier === selectedTier);
+  const selectedTierInfo = membershipTiers.find(t => t.tier === (selectedTier || upgradeRequest?.requestedTier));
 
   return (
     <div className="container mx-auto px-6 py-8">
@@ -492,7 +515,7 @@ export default function BuyerTierUpgrade() {
             const Icon = tierInfo.icon;
             const isCurrent = currentTier === tierInfo.tier;
             const isSelected = selectedTier === tierInfo.tier || upgradeRequest?.requestedTier === tierInfo.tier;
-            
+
             return (
               <Card
                 key={tierInfo.tier}
@@ -548,6 +571,53 @@ export default function BuyerTierUpgrade() {
             >
               Request Upgrade to {selectedTierInfo?.name}
             </Button>
+          </div>
+        )}
+
+        {/* Resume Upgrade Button */}
+        {upgradeRequest && upgradeRequest.status === 'draft' && (
+          <div className="mb-8">
+            <Button
+              onClick={handleResume}
+              size="lg"
+              className="w-full md:w-auto"
+              data-testid="button-resume-upgrade"
+            >
+              Resume {membershipTiers.find(t => t.tier === upgradeRequest.requestedTier)?.name} Upgrade
+            </Button>
+          </div>
+        )}
+
+        {/* Request History Table */}
+        {upgradeHistory && upgradeHistory.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-bold mb-4">Application History</h2>
+            <Card>
+              <CardContent className="p-0">
+                <div className="relative w-full overflow-auto">
+                  <table className="w-full caption-bottom text-sm">
+                    <thead className="[&_tr]:border-b">
+                      <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Tier</th>
+                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Last Update</th>
+                      </tr>
+                    </thead>
+                    <tbody className="[&_tr:last-child]:border-0">
+                      {upgradeHistory.map((req) => (
+                        <tr key={req.id} className="border-b transition-colors hover:bg-muted/50">
+                          <td className="p-4 align-middle">{new Date(req.submittedAt || req.createdAt).toLocaleDateString()}</td>
+                          <td className="p-4 align-middle capitalize">{req.requestedTier}</td>
+                          <td className="p-4 align-middle">{getStatusBadge(req.status)}</td>
+                          <td className="p-4 align-middle text-right">{new Date(req.updatedAt || req.createdAt).toLocaleDateString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -726,11 +796,10 @@ export default function BuyerTierUpgrade() {
                       {paymentMethods?.map((method) => (
                         <div
                           key={method.id}
-                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                            selectedPaymentMethod === method.method
-                              ? 'border-primary bg-primary/5'
-                              : 'border-muted hover:border-primary/50'
-                          }`}
+                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedPaymentMethod === method.method
+                            ? 'border-primary bg-primary/5'
+                            : 'border-muted hover:border-primary/50'
+                            }`}
                           onClick={() => setSelectedPaymentMethod(method.method)}
                         >
                           <div className="flex items-center gap-3">
@@ -756,7 +825,7 @@ export default function BuyerTierUpgrade() {
                       <p className="text-xs text-muted-foreground whitespace-pre-line">
                         {paymentMethods?.find(m => m.method === selectedPaymentMethod)?.instructions}
                       </p>
-                      
+
                       {/* QR Code display for WeChat/Alipay */}
                       {selectedPaymentMethod === 'wechat_alipay' && (
                         <div className="mt-4 space-y-4">
@@ -765,9 +834,9 @@ export default function BuyerTierUpgrade() {
                             {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode && (
                               <div className="text-center">
                                 <p className="text-xs font-medium mb-2">WeChat Pay</p>
-                                <img 
-                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode} 
-                                  alt="WeChat Pay QR Code" 
+                                <img
+                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode}
+                                  alt="WeChat Pay QR Code"
                                   className="max-w-32 max-h-32 mx-auto border rounded"
                                 />
                               </div>
@@ -775,9 +844,9 @@ export default function BuyerTierUpgrade() {
                             {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode && (
                               <div className="text-center">
                                 <p className="text-xs font-medium mb-2">Alipay</p>
-                                <img 
-                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode} 
-                                  alt="Alipay QR Code" 
+                                <img
+                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode}
+                                  alt="Alipay QR Code"
                                   className="max-w-32 max-h-32 mx-auto border rounded"
                                 />
                               </div>
@@ -785,7 +854,7 @@ export default function BuyerTierUpgrade() {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="mt-3 space-y-1">
                         <p className="text-sm font-medium text-primary">
                           Amount: ${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'} USD

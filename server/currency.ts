@@ -49,6 +49,16 @@ export async function fetchExchangeRates(baseCurrency: CurrencyCode = 'USD'): Pr
     return exchangeRateCache.rates;
   }
 
+  // Fallback rates (updated January 2026 - aligned with current market rates)
+  const fallbackRates: Record<string, number> = {
+    USD: 1,
+    ZMW: 26.0,  // 1 USD = ~26 ZMW (current market rate)
+    CNY: 7.30,  // 1 USD = ~7.30 CNY (current market rate)
+    ZAR: 18.8,  // 1 USD = ~18.8 ZAR (current market rate)
+    EUR: 0.91,  // 1 USD = ~0.91 EUR (current market rate)
+    GBP: 0.78,  // 1 USD = ~0.78 GBP (current market rate)
+  };
+
   try {
     // Try exchangerate-api.com first (if API key is available)
     if (process.env.EXCHANGE_RATE_API_KEY) {
@@ -123,18 +133,10 @@ export async function fetchExchangeRates(baseCurrency: CurrencyCode = 'USD'): Pr
     } catch (backupError) {
       console.error('Currconv API error:', backupError);
     }
+
+    return fallbackRates;
   } catch (error) {
     console.error('Failed to fetch exchange rates:', error);
-
-    // Fallback rates (updated January 2026 - aligned with current market rates)
-    const fallbackRates: Record<string, number> = {
-      USD: 1,
-      ZMW: 26.0,  // 1 USD = ~26 ZMW (current market rate)
-      CNY: 7.30,  // 1 USD = ~7.30 CNY (current market rate)
-      ZAR: 18.8,  // 1 USD = ~18.8 ZAR (current market rate)
-      EUR: 0.91,  // 1 USD = ~0.91 EUR (current market rate)
-      GBP: 0.78,  // 1 USD = ~0.78 GBP (current market rate)
-    };
 
     console.warn('Using fallback exchange rates due to API failure');
     return fallbackRates;

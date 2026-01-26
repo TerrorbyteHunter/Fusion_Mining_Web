@@ -84,9 +84,16 @@ export const getQueryFn: <T>(options: {
       if (window.Clerk && window.Clerk.session) {
         // @ts-ignore
         const token = await window.Clerk.session.getToken();
+        console.log('QueryFn - Clerk token retrieved:', token ? 'YES' : 'NO');
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
+          console.log('QueryFn - Authorization header set');
         }
+      } else {
+        console.log('QueryFn - Clerk not available:', {
+          clerk: !!window.Clerk,
+          session: !!(window as any).Clerk?.session
+        });
       }
     } catch (error) {
       console.warn("Failed to get Clerk token for query:", error);

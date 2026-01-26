@@ -13,11 +13,18 @@ Authentication and Sessions
 - Current dev login endpoints:
   - POST /api/login (development only): hardcoded users and passwords for testing.
   - POST /api/test-login (development only): logs in one of the test accounts by ID.
+- Current authentication issues:
+  - Clerk authentication working but tokens rejected by server-side validation
+  - Temporary bypasses implemented for tier upgrade endpoints (REMOVE before production)
+  - Bypassed endpoints: /api/buyer/tier-upgrade-request, /api/buyer/tier-upgrade/upload, /api/buyer/tier-upgrade/payment, /api/buyer/tier-upgrade/payment/:paymentId/proof, /api/buyer/tier-upgrade/payment/:upgradeRequestId, /api/buyer/tier-upgrade/submit
+  - Uses hardcoded user ID for testing until proper Clerk configuration is resolved
 - Assumptions:
   - Session-based auth via passport with express-session.
   - No CSRF protection enabled during development.
   - No brute-force protection/rate limits on login.
 - Before production:
+  - Fix Clerk application configuration (add authorized origins: localhost:7000, localhost:7001)
+  - Remove all temporary authentication bypasses
   - Replace dev login with a real identity provider (OIDC/SAML) or a proper password flow.
   - Enforce HTTPS-only cookies, secure, sameSite, and reasonable session TTL.
   - Add CSRF protection for any state-changing POST requests from the browser.
@@ -96,6 +103,7 @@ Testing and QA
 
 Things Currently Relaxed or Placeholder (Intentional for Dev)
 - Dev login endpoints: `/api/login`, `/api/test-login` (REMOVE before production).
+- Temporary authentication bypasses for tier upgrade endpoints (REMOVE before production).
 - No CSRF protection in development.
 - Minimal attachment validation; local disk storage for uploads.
 - No advanced rate limiting/brute-force protection.

@@ -1,4 +1,12 @@
 import 'dotenv/config';
+import path from 'path';
+
+// Load .env from parent directory if not found in current directory
+if (!process.env.CLERK_SECRET_KEY) {
+  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+}
+
+console.log('Environment check - CLERK_SECRET_KEY:', process.env.CLERK_SECRET_KEY ? 'LOADED' : 'NOT LOADED');
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
@@ -69,6 +77,28 @@ app.use((req, res, next) => {
     console.log('Registering routes...');
     const server = await registerRoutes(app);
     console.log('Routes registered');
+
+    // In development, mount API handlers from api/ directory
+    if (app.get("env") === "development") {
+      console.log('Mounting API handlers for development...');
+      const loginHandler = (await import('../api/login')).default;
+      const logoutHandler = (await import('../api/logout')).default;
+      const authUserHandler = (await import('../api/auth_user')).default;
+      const testLoginHandler = (await import('../api/test-login')).default;
+      const testLogoutHandler = (await import('../api/test-logout')).default;
+      const testAccountsHandler = (await import('../api/test-accounts')).default;
+      const adminLoginHandler = (await import('../api/admin_login')).default;
+
+      app.post('/api/login', loginHandler);
+      app.post('/api/logout', logoutHandler);
+      app.get('/api/auth/user', authUserHandler);
+      app.post('/api/test-login', testLoginHandler);
+      app.post('/api/test-logout', testLogoutHandler);
+      app.get('/api/test-accounts', testAccountsHandler);
+      app.post('/api/admin/login', adminLoginHandler);
+
+      console.log('API handlers mounted');
+    }
 
     // Central error handler: respond and log, but don't rethrow here to avoid crashing the process
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

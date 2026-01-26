@@ -51,7 +51,7 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, [isAuthenticated, refetchNotifications]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = (notifications || []).filter(n => !n.read).length;
 
   const markAsRead = async (notificationId: string) => {
     await apiRequest("POST", `/api/notifications/${notificationId}/read`, {});
@@ -165,9 +165,9 @@ export function NotificationBell() {
           </div>
         </div>
         <div className="max-h-96 overflow-auto">
-          {notifications.length > 0 ? (
+          {(notifications || []).length > 0 ? (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {(notifications || []).map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(

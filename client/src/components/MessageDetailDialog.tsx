@@ -130,21 +130,6 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
               </div>
             </div>
           )}
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (sendingRef.current || replyMutation.isPending) return;
-    sendingRef.current = true;
-    try {
-      await replyMutation.mutateAsync(replyContent);
-    } catch (err) {
-      // mutation already shows toast on error
-    } finally {
-      sendingRef.current = false;
-    }
-  };
 
   if (isLoading) {
     return (
@@ -191,6 +176,18 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
       }
       return <span key={idx}>{part}</span>;
     });
+  };
+
+  const handleReply = async () => {
+    if (sendingRef.current || replyMutation.isPending) return;
+    sendingRef.current = true;
+    try {
+      await replyMutation.mutateAsync(replyContent);
+    } catch (err) {
+      // mutation already shows toast on error
+    } finally {
+      sendingRef.current = false;
+    }
   };
 
   return (
@@ -302,37 +299,19 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
               );
             })}
           </div>
+        </div>
 
-          <Separator />
+        <Separator />
 
-          {/* Sender Information - only visible to admins */}
-          {user?.role === 'admin' && (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Sender Information
-                  const renderLinkified = (text: string) => {
-                    if (!text) return null;
-                    const urlRegex = /(https?:\/\/[^\s]+|\/admin[^\s]*)/g;
-                    const parts = text.split(urlRegex).filter(Boolean);
-                    return parts.map((part, idx) => {
-                      if (urlRegex.test(part)) {
-                        // Reset lastIndex for global regex usage
-                        urlRegex.lastIndex = 0;
-                        const href = part.startsWith('/') ? part : part;
-                        return (
-                          <a key={idx} href={href} className="text-primary underline" target="_blank" rel="noreferrer">
-                            {part}
-                          </a>
-                        );
-                      }
-                      return <span key={idx}>{part}</span>;
-                    });
-                  };
+        {/* Sender Information - only visible to admins */}
+        {user?.role === 'admin' && 
+          <div className="space-y-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Sender Information
+            </h3>
 
-                  return (
-
-              <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+            <div className="bg-muted/30 p-4 rounded-lg space-y-3">
                 <div className="flex items-start gap-3">
                   <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
@@ -395,10 +374,10 @@ export function MessageDetailDialog({ messageId, open, onOpenChange }: MessageDe
                 </div>
               </div>
             </div>
-          )}
           </div>
+        }
 
-          {/* Reply Input Section */}
+        {/* Reply Input Section */}
         <div className="border-t p-4 mt-auto">
           <div className="flex gap-2">
             <Textarea

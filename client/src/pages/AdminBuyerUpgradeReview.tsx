@@ -470,7 +470,12 @@ export default function AdminBuyerUpgradeReview() {
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" data-testid={`button-view-file-${doc.id}`}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(doc.filePath, '_blank')}
+                    data-testid={`button-view-file-${doc.id}`}
+                  >
                     View
                   </Button>
                 </div>

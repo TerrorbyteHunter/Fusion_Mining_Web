@@ -40,6 +40,25 @@ export default function Dashboard() {
     enabled: isAuthenticated,
   });
 
+  const [openAdminDialog, setOpenAdminDialog] = useState(false);
+  const [adminSubject, setAdminSubject] = useState("");
+  const [adminMessage, setAdminMessage] = useState("");
+
+  const contactAdminMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      return await apiRequest("POST", "/api/contact", payload);
+    },
+    onSuccess: () => {
+      setOpenAdminDialog(false);
+      setAdminSubject("");
+      setAdminMessage("");
+      toast({ title: "Message sent", description: "We'll get back to you soon." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
+    },
+  });
+
   const getTierBadge = () => {
     const tier = user?.membershipTier || 'basic';
     const tierConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
@@ -83,25 +102,6 @@ export default function Dashboard() {
   }
 
   const tierBadge = getTierBadge();
-
-  const [openAdminDialog, setOpenAdminDialog] = useState(false);
-  const [adminSubject, setAdminSubject] = useState("");
-  const [adminMessage, setAdminMessage] = useState("");
-
-  const contactAdminMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return await apiRequest("POST", "/api/contact", payload);
-    },
-    onSuccess: () => {
-      setOpenAdminDialog(false);
-      setAdminSubject("");
-      setAdminMessage("");
-      toast({ title: "Message sent", description: "We'll get back to you soon." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
-    },
-  });
 
   const sendContactToAdmin = () => {
     const payload = {

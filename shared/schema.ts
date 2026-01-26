@@ -155,7 +155,7 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   type: listingTypeEnum("type").notNull(),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
-  
+
   // Hierarchical categorization (B2B Mineral style)
   mainCategory: mainCategoryEnum("main_category"),
   mineralSubcategory: mineralSubcategoryEnum("mineral_subcategory"),
@@ -163,7 +163,7 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   serviceSubcategory: serviceSubcategoryEnum("service_subcategory"),
   ppeSubcategory: ppeSubcategoryEnum("ppe_subcategory"),
   specificType: varchar("specific_type"), // e.g., "Copper Ore", "Excavator", "Freight Forwarding"
-  
+
   // Legacy field for backward compatibility
   mineralType: varchar("mineral_type"), // e.g., "Copper", "Emerald"
   grade: varchar("grade"), // e.g., "High Grade", "25% purity"
@@ -183,7 +183,7 @@ export const buyerRequests = pgTable("buyer_requests", {
   buyerId: varchar("buyer_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description").notNull(),
-  
+
   // Hierarchical categorization (same as listings)
   mainCategory: mainCategoryEnum("main_category"),
   mineralSubcategory: mineralSubcategoryEnum("mineral_subcategory"),
@@ -191,18 +191,18 @@ export const buyerRequests = pgTable("buyer_requests", {
   serviceSubcategory: serviceSubcategoryEnum("service_subcategory"),
   ppeSubcategory: ppeSubcategoryEnum("ppe_subcategory"),
   specificType: varchar("specific_type"),
-  
+
   // Legacy field for backward compatibility
   mineralType: varchar("mineral_type"),
   quantity: varchar("quantity"),
   budget: varchar("budget"),
   location: varchar("location"),
   country: varchar("country", { length: 100 }), // Country code or name for flag display
-  
+
   // RFQ-specific fields
   verified: boolean("verified").notNull().default(false), // Admin verification badge
   expiryDate: timestamp("expiry_date"), // When the RFQ expires
-  
+
   status: varchar("status").notNull().default('active'), // active, closed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -260,7 +260,7 @@ export const messages = pgTable("messages", {
   context: messageContextEnum("context").default('general'),
   read: boolean("read").notNull().default(false),
   closed: boolean("closed").notNull().default(false),
-   unread: boolean("unread").notNull().default(true),
+  unread: boolean("unread").notNull().default(true),
   relatedProjectId: varchar("related_project_id").references(() => projects.id, { onDelete: 'set null' }),
   relatedListingId: varchar("related_listing_id").references(() => marketplaceListings.id, { onDelete: 'set null' }),
   isAutoRelay: boolean("is_auto_relay").notNull().default(false),
@@ -391,7 +391,7 @@ export const videos = pgTable("videos", {
   description: text("description"),
   videoUrl: text("video_url").notNull(),
   thumbnailUrl: text("thumbnail_url"),
-  duration: varchar("duration"), 
+  duration: varchar("duration"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -790,6 +790,8 @@ export const upsertUserSchema = createInsertSchema(users).pick({
   firstName: true,
   lastName: true,
   profileImageUrl: true,
+  clerkId: true,
+  role: true,
 });
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
