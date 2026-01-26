@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +72,8 @@ interface PaymentMethod {
   description: string;
   instructions: string;
   accountDetails: any;
+  currencyCode: string;
+  currencyName: string;
 }
 
 interface TierUpgradePayment {
@@ -85,6 +87,14 @@ interface TierUpgradePayment {
   status: string;
   proofOfPaymentUrl?: string;
   submittedAt: string;
+  amountUSD?: number;
+  exchangeRate?: number;
+  formattedAmount?: string;
+  paymentMethodDetails?: {
+    name: string;
+    currencyCode: string;
+    currencyName: string;
+  };
 }
 
 export default function BuyerTierUpgrade() {
@@ -102,6 +112,7 @@ export default function BuyerTierUpgrade() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("");
   const [proofOfPaymentFile, setProofOfPaymentFile] = useState<File | null>(null);
   const [createdPayment, setCreatedPayment] = useState<TierUpgradePayment | null>(null);
+  const [currentUpgradeRequestId, setCurrentUpgradeRequestId] = useState<string | null>(null);
 
   // Fetch current tier upgrade request
   const { data: upgradeRequest, isLoading } = useQuery<TierUpgradeRequest | null>({
@@ -179,8 +190,11 @@ export default function BuyerTierUpgrade() {
           description: "Failed to create upgrade request.",
           variant: "destructive",
         });
+        setSubmitting(false);
         return;
       }
+
+      setCurrentUpgradeRequestId(upgradeId);
 
       // Upload all pending documents
       if (pendingDocuments.length > 0) {
@@ -206,31 +220,18 @@ export default function BuyerTierUpgrade() {
           }
         }
 
-        // Submit the request after uploads
-        try {
-          await apiRequest('POST', '/api/buyer/tier-upgrade/submit');
+        if (uploadCount > 0) {
           toast({
-            title: "Success!",
-            description: `Tier upgrade request submitted with ${uploadCount} documents. We'll review your request within 1-2 business days.`,
-          });
-          setModalOpen(false);
-          setPendingDocuments([]);
-          setSelectedTier("");
-          queryClient.invalidateQueries({ queryKey: ['/api/buyer/tier-upgrade-request'] });
-        } catch (error) {
-          toast({
-            title: "Partial Success",
-            description: `Documents uploaded but request submission failed. Please try again.`,
-            variant: "destructive",
+            title: "Documents Uploaded",
+            description: `Successfully uploaded ${uploadCount} documents.`,
           });
         }
-      } else {
-        toast({
-          title: "No Documents",
-          description: "Please upload at least one document before submitting.",
-          variant: "destructive",
-        });
       }
+
+      // Move to payment step
+      setCurrentStep('payment');
+      setSubmitting(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/buyer/tier-upgrade-request'] });
     },
     onError: () => {
       toast({
@@ -238,6 +239,7 @@ export default function BuyerTierUpgrade() {
         description: "Failed to create upgrade request. Please try again.",
         variant: "destructive",
       });
+      setSubmitting(false);
     },
   });
 
@@ -266,7 +268,8 @@ export default function BuyerTierUpgrade() {
   // Upload proof of payment mutation
   const uploadProofMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const response = await fetch('/api/buyer/tier-upgrade/payment/proof', {
+      const paymentId = formData.get('paymentId') as string;
+      const response = await fetch(`/api/buyer/tier-upgrade/payment/${paymentId}/proof`, {
         method: 'POST',
         body: formData,
         credentials: 'include',
@@ -276,11 +279,22 @@ export default function BuyerTierUpgrade() {
       }
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Success!",
-        description: "Proof of payment uploaded successfully. Your tier upgrade request is now complete and pending admin review.",
-      });
+    onSuccess: async () => {
+      // Submit the upgrade request after uploading proof
+      try {
+        await apiRequest('POST', '/api/buyer/tier-upgrade/submit', { requestId: currentUpgradeRequestId });
+        toast({
+          title: "Success!",
+          description: "Proof of payment uploaded and tier upgrade request submitted successfully. We'll review your request within 1-2 business days.",
+        });
+      } catch (error) {
+        toast({
+          title: "Partial Success",
+          description: "Proof uploaded but request submission failed. Please contact support.",
+          variant: "destructive",
+        });
+      }
+
       setModalOpen(false);
       setCurrentStep('documents');
       setSelectedPaymentMethod("");
@@ -288,6 +302,7 @@ export default function BuyerTierUpgrade() {
       setCreatedPayment(null);
       setPendingDocuments([]);
       setSelectedTier("");
+      setCurrentUpgradeRequestId(null);
       queryClient.invalidateQueries({ queryKey: ['/api/buyer/tier-upgrade-request'] });
     },
     onError: () => {
@@ -341,7 +356,6 @@ export default function BuyerTierUpgrade() {
 
     setSubmitting(true);
     createUpgradeRequestMutation.mutate(selectedTier);
-    setSubmitting(false);
   };
 
   const handleSelectPaymentMethod = () => {
@@ -355,12 +369,12 @@ export default function BuyerTierUpgrade() {
     }
 
     const tier = membershipTiers.find(t => t.tier === selectedTier);
-    const amount = tier?.tier === 'standard' ? 50 : tier?.tier === 'premium' ? 200 : 0;
+    const usdAmount = tier?.tier === 'standard' ? 50 : tier?.tier === 'premium' ? 200 : 0;
 
     createPaymentMutation.mutate({
       upgradeRequestId: upgradeRequest.id,
       paymentMethod: selectedPaymentMethod,
-      amount,
+      amount: usdAmount,
     });
   };
 
@@ -375,7 +389,7 @@ export default function BuyerTierUpgrade() {
     }
 
     const formData = new FormData();
-    formData.append('file', proofOfPaymentFile);
+    formData.append('proofOfPayment', proofOfPaymentFile);
     formData.append('paymentId', createdPayment.id);
 
     uploadProofMutation.mutate(formData);
@@ -742,9 +756,59 @@ export default function BuyerTierUpgrade() {
                       <p className="text-xs text-muted-foreground whitespace-pre-line">
                         {paymentMethods?.find(m => m.method === selectedPaymentMethod)?.instructions}
                       </p>
-                      <p className="text-sm font-medium mt-3 text-primary">
-                        Amount: ${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'}
-                      </p>
+                      
+                      {/* QR Code display for WeChat/Alipay */}
+                      {selectedPaymentMethod === 'wechat_alipay' && (
+                        <div className="mt-4 space-y-4">
+                          <p className="text-sm font-medium">Scan QR Codes:</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode && (
+                              <div className="text-center">
+                                <p className="text-xs font-medium mb-2">WeChat Pay</p>
+                                <img 
+                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode} 
+                                  alt="WeChat Pay QR Code" 
+                                  className="max-w-32 max-h-32 mx-auto border rounded"
+                                />
+                              </div>
+                            )}
+                            {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode && (
+                              <div className="text-center">
+                                <p className="text-xs font-medium mb-2">Alipay</p>
+                                <img 
+                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode} 
+                                  alt="Alipay QR Code" 
+                                  className="max-w-32 max-h-32 mx-auto border rounded"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="mt-3 space-y-1">
+                        <p className="text-sm font-medium text-primary">
+                          Amount: ${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'} USD
+                        </p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div className="text-xs text-blue-800">
+                              <p className="font-medium mb-1">Currency Conversion Required</p>
+                              <p>Please check today's exchange rate on Google and pay the equivalent amount in your local currency. The payment amount should match the current USD value at today's market rate.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-800">
+                            <p className="font-medium mb-1">Important:</p>
+                            <p>After completing your payment, please take a screenshot of the payment confirmation/receipt. You will need to upload this screenshot in the next step to complete your tier upgrade request.</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -760,6 +824,36 @@ export default function BuyerTierUpgrade() {
                       Please upload a screenshot or receipt of your payment to complete your upgrade request.
                     </AlertDescription>
                   </Alert>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div className="flex items-start gap-2">
+                      <Check className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-xs text-blue-800">
+                        <p className="font-medium mb-1">Upload the screenshot you took:</p>
+                        <p>Upload the payment confirmation screenshot you took after completing your payment. This helps us verify your transaction quickly.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Summary */}
+                  {createdPayment && (
+                    <div className="bg-muted/50 p-4 rounded-lg">
+                      <p className="text-sm font-medium mb-2">Payment Summary</p>
+                      <div className="space-y-1 text-sm">
+                        <p><span className="font-medium">Method:</span> {createdPayment.paymentMethodDetails?.name}</p>
+                        <p><span className="font-medium">Amount:</span> ${createdPayment.amountUSD} USD</p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-3">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div className="text-xs text-blue-800">
+                              <p className="font-medium mb-1">Currency Conversion Required</p>
+                              <p>You should have paid the equivalent amount in your local currency based on today's Google exchange rate for ${createdPayment.amountUSD} USD.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     <div>

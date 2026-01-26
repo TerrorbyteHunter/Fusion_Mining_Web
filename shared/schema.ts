@@ -1136,14 +1136,29 @@ export type SellerVerificationDocument = typeof sellerVerificationDocuments.$inf
 // ============================================================================
 export const paymentMethodEnum = pgEnum('payment_method', ['bank_transfer', 'airtel_money', 'wechat_alipay']);
 
+export const tierUpgradeRequests = pgTable("tier_upgrade_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestedTier: membershipTierEnum("requested_tier").notNull(),
+  status: varchar("status").notNull().default('draft'), // draft, pending, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  documentCount: integer("document_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const tierUpgradePayments = pgTable("tier_upgrade_payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  upgradeRequestId: varchar("upgrade_request_id").notNull(),
+  upgradeRequestId: varchar("upgrade_request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: 'cascade' }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   requestedTier: membershipTierEnum("requested_tier").notNull(),
   paymentMethod: paymentMethodEnum("payment_method").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency").notNull().default('ZMW'),
+  amountUSD: decimal("amount_usd", { precision: 10, scale: 2 }).notNull(), // Original USD amount
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Converted amount in local currency
+  currency: varchar("currency").notNull().default('ZMW'), // Local currency code
   status: varchar("status").notNull().default('pending'), // pending, paid, verified, rejected
   paymentDetails: jsonb("payment_details"), // Store payment method specific details
   proofOfPaymentUrl: varchar("proof_of_payment_url"),
@@ -1162,6 +1177,8 @@ export const paymentMethodDetails = pgTable("payment_method_details", {
   description: text("description"),
   instructions: text("instructions"),
   accountDetails: jsonb("account_details"), // Store account numbers, names, etc.
+  currencyCode: varchar("currency_code").notNull().default('USD'), // ISO 4217 currency code
+  currencyName: varchar("currency_name").notNull().default('US Dollar'), // Full currency name
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -1197,3 +1214,19 @@ export const updatePaymentMethodDetailsSchema = createInsertSchema(paymentMethod
 export type InsertPaymentMethodDetails = z.infer<typeof insertPaymentMethodDetailsSchema>;
 export type UpdatePaymentMethodDetails = z.infer<typeof updatePaymentMethodDetailsSchema>;
 export type PaymentMethodDetails = typeof paymentMethodDetails.$inferSelect;
+
+// Tier Upgrade Request schemas
+export const insertTierUpgradeRequestSchema = createInsertSchema(tierUpgradeRequests).omit({
+  id: true,
+  submittedAt: true,
+  reviewedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const updateTierUpgradeRequestSchema = createInsertSchema(tierUpgradeRequests).omit({
+  createdAt: true,
+  updatedAt: true,
+}).partial().required({ id: true });
+export type InsertTierUpgradeRequest = z.infer<typeof insertTierUpgradeRequestSchema>;
+export type UpdateTierUpgradeRequest = z.infer<typeof updateTierUpgradeRequestSchema>;
+export type TierUpgradeRequest = typeof tierUpgradeRequests.$inferSelect;

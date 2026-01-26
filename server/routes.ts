@@ -8,7 +8,7 @@ import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, syncClerkUser } from "./localAuth";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users, userProfiles, adminAuditLogs } from "@shared/schema";
+import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -35,6 +35,11 @@ import {
   updateVerificationRuleSchema,
   insertDocumentTemplateSchema,
   updateDocumentTemplateSchema,
+  insertTierUpgradeRequestSchema,
+  updateTierUpgradeRequestSchema,
+  insertTierUpgradePaymentSchema,
+  updateTierUpgradePaymentSchema,
+  insertPaymentMethodDetailsSchema,
 } from "@shared/schema";
 import { askSupportBot, type ChatHistoryItem } from "./ai/gemini";
 import { askHuggingFace, formatChatPrompt } from "./ai/hf";
@@ -203,67 +208,95 @@ const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
 ]);
 
 // Helper function to get all requests
-function getAllBuyerUpgrades(): BuyerUpgradeRequest[] {
-  return Array.from(buyerUpgradeRequests.values());
+async function getAllBuyerUpgrades(): Promise<TierUpgradeRequest[]> {
+  return await db.select().from(tierUpgradeRequests);
 }
 
 // Helper function to get pending requests
-function getPendingBuyerUpgrades(): BuyerUpgradeRequest[] {
-  return Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'pending');
+async function getPendingBuyerUpgrades(): Promise<TierUpgradeRequest[]> {
+  return await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.status, 'pending'));
 }
 
 // Helper function to sync user tiers from approved requests (runs on startup)
-function initializeUserTiersFromApprovedRequests(): void {
-  const approvedRequests = Array.from(buyerUpgradeRequests.values()).filter(r => r.status === 'approved');
-  for (const request of approvedRequests) {
-    const user = testUsersStore.get(request.userId);
-    if (user) {
-      user.membershipTier = request.requestedTier;
-      testUsersStore.set(request.userId, user);
+async function initializeUserTiersFromApprovedRequests(): Promise<void> {
+  try {
+    const approvedRequests = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.status, 'approved'));
+    for (const request of approvedRequests) {
+      await db.update(users)
+        .set({ membershipTier: request.requestedTier })
+        .where(eq(users.id, request.userId));
     }
+  } catch (error) {
+    console.error("Error initializing user tiers from approved requests:", error);
   }
 }
 
 // Helper function to approve a request and update user tier
-function approveBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
-  const request = buyerUpgradeRequests.get(id);
-  if (request) {
-    request.status = 'approved';
-    request.reviewedAt = new Date().toISOString();
-    buyerUpgradeRequests.set(id, request);
-    
-    // Update user's membershipTier
-    const user = testUsersStore.get(request.userId);
-    if (user) {
-      user.membershipTier = request.requestedTier;
-      testUsersStore.set(request.userId, user);
+async function approveBuyerUpgrade(id: string): Promise<TierUpgradeRequest | null> {
+  try {
+    const [request] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, id)).limit(1);
+    if (request) {
+      await db.update(tierUpgradeRequests)
+        .set({
+          status: 'approved',
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(tierUpgradeRequests.id, id));
+      
+      // Update user's membershipTier
+      await db.update(users)
+        .set({ membershipTier: request.requestedTier })
+        .where(eq(users.id, request.userId));
+      
+      // Return updated request
+      const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, id)).limit(1);
+      return updatedRequest;
     }
+  } catch (error) {
+    console.error("Error approving buyer upgrade:", error);
   }
-  return request || null;
+  return null;
 }
 
 // Helper function to reject a request
-function rejectBuyerUpgrade(id: string, reason: string): BuyerUpgradeRequest | null {
-  const request = buyerUpgradeRequests.get(id);
-  if (request) {
-    request.status = 'rejected';
-    request.rejectionReason = reason;
-    request.reviewedAt = new Date().toISOString();
-    buyerUpgradeRequests.set(id, request);
+async function rejectBuyerUpgrade(id: string, reason: string): Promise<TierUpgradeRequest | null> {
+  try {
+    await db.update(tierUpgradeRequests)
+      .set({
+        status: 'rejected',
+        rejectionReason: reason,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, id));
+    
+    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, id)).limit(1);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error rejecting buyer upgrade:", error);
   }
-  return request || null;
+  return null;
 }
 
 // Helper function to revert a request to draft
-function revertBuyerUpgrade(id: string): BuyerUpgradeRequest | null {
-  const request = buyerUpgradeRequests.get(id);
-  if (request) {
-    request.status = 'draft';
-    request.rejectionReason = undefined;
-    request.reviewedAt = undefined;
-    buyerUpgradeRequests.set(id, request);
+async function revertBuyerUpgrade(id: string): Promise<TierUpgradeRequest | null> {
+  try {
+    await db.update(tierUpgradeRequests)
+      .set({
+        status: 'draft',
+        rejectionReason: null,
+        reviewedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, id));
+    
+    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, id)).limit(1);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error reverting buyer upgrade:", error);
   }
-  return request || null;
+  return null;
 }
 
 // ============================================================================
@@ -302,7 +335,7 @@ async function requireAnalyticsAccess(req: any, res: any, next: any) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize user tiers from approved requests on startup
-  initializeUserTiersFromApprovedRequests();
+  await initializeUserTiersFromApprovedRequests();
 
   // Middleware to convert Clerk auth to req.user for compatibility
   app.use(async (req: any, res, next) => {
@@ -316,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role,
+          role: user.role || 'buyer', // Ensure role defaults to 'buyer' if not set
           claims: {
             sub: req.auth.userId
           }
@@ -2448,7 +2481,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/threads', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      const userId = user.id;
       const threads = await storage.getThreadsByUserId(userId);
       res.json(threads);
     } catch (error) {
@@ -2917,7 +2952,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/messages', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      const userId = user.id;
       const messages = await storage.getMessagesByUserId(userId);
       res.json(messages);
     } catch (error) {
@@ -4020,7 +4057,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/notifications', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      const userId = user.id;
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -4066,7 +4105,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   app.get('/api/dashboard/stats', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      const userId = user.id;
       const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
         storage.getUserListingsCount(userId),
         storage.getUserUnreadMessagesCount(userId),
@@ -4886,7 +4927,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create tier upgrade request (Buyer only)
   app.post('/api/buyer/tier-upgrade-request', requireAuth, async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can request tier upgrades" });
       }
 
@@ -4895,19 +4938,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
       }
 
-      // Create and store in in-memory map
-      const newRequest: BuyerUpgradeRequest = {
-        id: `tier-upgrade-${Date.now()}`,
-        userId: req.user.id,
-        buyerEmail: req.user.email || '',
-        buyerFirstName: req.user.firstName || '',
-        buyerLastName: req.user.lastName || '',
-        requestedTier,
+      // Check if user already has a pending/draft request
+      const existingRequest = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.userId, user.id)).limit(1);
+      if (existingRequest.length > 0 && ['draft', 'pending'].includes(existingRequest[0].status)) {
+        return res.status(400).json({ message: "You already have a pending tier upgrade request" });
+      }
+
+      // Create new tier upgrade request in database
+      const [newRequest] = await db.insert(tierUpgradeRequests).values({
+        userId: user.id,
+        requestedTier: requestedTier as 'standard' | 'premium',
         status: 'draft',
-        submittedAt: new Date().toISOString(),
         documentCount: 0,
-      };
-      buyerUpgradeRequests.set(newRequest.id, newRequest);
+      }).returning();
+
       res.json(newRequest);
     } catch (error) {
       console.error("Error creating tier upgrade request:", error);
@@ -4918,20 +4962,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user's tier upgrade request (Buyer)
   app.get('/api/buyer/tier-upgrade-request', requireAuth, async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can access this endpoint" });
       }
 
-      // Find the user's tier upgrade request from in-memory store
-      let userRequest: BuyerUpgradeRequest | null = null;
-      for (const request of buyerUpgradeRequests.values()) {
-        if (request.userId === req.user.id) {
-          userRequest = request;
-          break;
-        }
-      }
+      // Find the user's tier upgrade request from database
+      const [userRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.userId, user.id)).limit(1);
       
-      res.json(userRequest);
+      res.json(userRequest || null);
     } catch (error) {
       console.error("Error fetching tier upgrade request:", error);
       res.status(500).json({ message: "Failed to fetch tier upgrade request" });
@@ -4941,7 +4981,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload tier upgrade documents (Buyer only)
   app.post('/api/buyer/tier-upgrade/upload', requireAuth, verificationUpload.single('file'), async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
       }
 
@@ -4983,7 +5025,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit tier upgrade request (Buyer only)
   app.post('/api/buyer/tier-upgrade/submit', requireAuth, async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
       }
 
@@ -4992,20 +5036,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Request ID is required" });
       }
 
-      // Find and update the request in in-memory store
-      const request = buyerUpgradeRequests.get(requestId);
+      // Find and update the request in database
+      const [request] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, requestId)).limit(1);
       if (!request) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
 
-      if (request.userId !== req.user.id) {
+      if (request.userId !== user.id) {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
 
       // Update status to 'pending'
-      request.status = 'pending';
-      request.submittedAt = new Date().toISOString();
-      buyerUpgradeRequests.set(requestId, request);
+      await db.update(tierUpgradeRequests)
+        .set({
+          status: 'pending',
+          submittedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(tierUpgradeRequests.id, requestId));
 
       res.json({
         success: true,
@@ -5032,8 +5080,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Return pending requests from in-memory store
-      const pendingRequests = getPendingBuyerUpgrades();
+      // Return pending requests from database
+      const pendingRequests = await getPendingBuyerUpgrades();
       res.json(pendingRequests);
     } catch (error) {
       console.error("Error fetching pending buyer tier upgrades:", error);
@@ -5050,8 +5098,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Return all requests from in-memory store
-      const allRequests = getAllBuyerUpgrades();
+      // Return all requests from database
+      const allRequests = await getAllBuyerUpgrades();
       res.json(allRequests);
     } catch (error) {
       console.error("Error fetching buyer tier upgrades:", error);
@@ -5117,8 +5165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // Update in-memory store
-      const updated = approveBuyerUpgrade(id);
+      // Update in database
+      const updated = await approveBuyerUpgrade(id);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
@@ -5159,8 +5207,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
 
-      // Update in-memory store
-      const updated = rejectBuyerUpgrade(id, reason);
+      // Update in database
+      const updated = await rejectBuyerUpgrade(id, reason);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
@@ -5197,8 +5245,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // Update in-memory store
-      const updated = revertBuyerUpgrade(id);
+      // Update in database
+      const updated = await revertBuyerUpgrade(id);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
@@ -5283,7 +5331,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create tier upgrade payment (after document submission)
   app.post('/api/buyer/tier-upgrade/payment', requireAuth, async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can create tier upgrade payments" });
       }
 
@@ -5294,12 +5344,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify the upgrade request exists and belongs to the user
-      const upgradeRequest = buyerUpgradeRequests.get(upgradeRequestId);
+      const [upgradeRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, upgradeRequestId)).limit(1);
       if (!upgradeRequest) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
 
-      if (upgradeRequest.userId !== req.user.id) {
+      if (upgradeRequest.userId !== user.id) {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
 
@@ -5309,19 +5359,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid payment method" });
       }
 
-      // Create payment record
+      const usdAmount = parseFloat(amount);
+
+      // Create payment record (no currency conversion - users pay based on current Google rates)
       const payment = await storage.createTierUpgradePayment({
         upgradeRequestId,
-        userId: req.user.id,
+        userId: user.id,
         requestedTier: upgradeRequest.requestedTier,
         paymentMethod: paymentMethod as any,
-        amount: parseFloat(amount),
-        currency: 'ZMW',
+        amountUSD: usdAmount,
+        amount: usdAmount, // Store USD amount (users convert manually)
+        currency: 'USD', // Always store as USD
         status: 'pending',
         paymentDetails: paymentMethodDetails.accountDetails,
       });
 
-      res.json(payment);
+      res.json({
+        ...payment,
+        paymentMethodDetails: {
+          name: paymentMethodDetails.name,
+          currencyCode: paymentMethodDetails.currencyCode,
+          currencyName: paymentMethodDetails.currencyName,
+        },
+        usdAmount,
+      });
     } catch (error: any) {
       if (error instanceof ZodError) {
         console.error("Validation error creating payment:", formatZodError(error));
@@ -5333,9 +5394,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload proof of payment
-  app.post('/api/buyer/tier-upgrade/payment/:paymentId/proof', requireAuth, upload.single('proofOfPayment'), async (req: any, res) => {
+  app.post('/api/buyer/tier-upgrade/payment/:paymentId/proof', requireAuth, verificationUpload.single('proofOfPayment'), async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is authenticated
+      if (!req.auth?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can upload proof of payment" });
       }
 
@@ -5351,12 +5423,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Payment not found" });
       }
 
-      if (payment.userId !== req.user.id) {
+      if (payment.userId !== user.id) {
         return res.status(403).json({ message: "Unauthorized - payment does not belong to user" });
       }
 
       // Update payment with proof of payment URL
-      const proofOfPaymentUrl = `/attached_assets/files/uploads/payments/${req.file.filename}`;
+      const proofOfPaymentUrl = `/attached_assets/files/uploads/verification/${req.file.filename}`;
       const updatedPayment = await storage.updateTierUpgradePayment(paymentId, {
         proofOfPaymentUrl,
         status: 'paid',
@@ -5387,7 +5459,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get payment by upgrade request ID
   app.get('/api/buyer/tier-upgrade/payment/:upgradeRequestId', requireAuth, async (req: any, res) => {
     try {
-      if (req.user.role !== 'buyer') {
+      // Ensure user is synced
+      const user = await syncClerkUser(req.auth.userId);
+      if (user.role !== 'buyer') {
         return res.status(403).json({ message: "Only buyers can view tier upgrade payments" });
       }
 
@@ -5395,7 +5469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const payments = await storage.getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId);
 
       // Filter to only show payments belonging to the current user
-      const userPayments = payments.filter(p => p.userId === req.user.id);
+      const userPayments = payments.filter(p => p.userId === user.id);
 
       res.json(userPayments[0] || null);
     } catch (error) {
@@ -5438,12 +5512,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.updateUserMembershipTier(payment.userId, payment.requestedTier);
 
         // Update the upgrade request status to approved
-        const upgradeRequest = buyerUpgradeRequests.get(payment.upgradeRequestId);
-        if (upgradeRequest) {
-          upgradeRequest.status = 'approved';
-          upgradeRequest.reviewedAt = new Date().toISOString();
-          buyerUpgradeRequests.set(payment.upgradeRequestId, upgradeRequest);
-        }
+        await db.update(tierUpgradeRequests)
+          .set({
+            status: 'approved',
+            reviewedAt: new Date(),
+            reviewedBy: req.user.id,
+            updatedAt: new Date(),
+          })
+          .where(eq(tierUpgradeRequests.id, payment.upgradeRequestId));
 
         res.json({ message: "Payment verified and tier upgraded successfully" });
       } else if (action === 'reject') {

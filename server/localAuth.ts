@@ -43,6 +43,16 @@ export const syncClerkUser = async (clerkUserId: string) => {
         profileType: 'individual',
         verified: false,
       });
+    } else {
+      // User exists, check if role needs to be updated from Clerk
+      const clerkUser = await getClerkUser(clerkUserId);
+      if (clerkUser) {
+        const currentRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || 'buyer';
+        if (dbUser.role !== currentRole) {
+          // Update the role in database
+          dbUser = await storage.updateUserRole(dbUser.id, currentRole);
+        }
+      }
     }
 
     return dbUser;

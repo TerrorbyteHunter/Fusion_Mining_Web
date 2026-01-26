@@ -1,12 +1,32 @@
 // Seed script for development testing
+import 'dotenv/config';
 import { db } from "./db";
-import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits, messageThreads, messages, paymentMethodDetails } from "@shared/schema";
+import { users, projects, marketplaceListings, buyerRequests, userProfiles, blogPosts, contactSettings, membershipBenefits, messageThreads, messages, paymentMethodDetails, tierUpgradeRequests, tierUpgradePayments } from "@shared/schema";
 import { sql } from "drizzle-orm";
 
 async function seed() {
   console.log("Starting database seeding...");
 
   try {
+    // Create tier upgrade requests table if it doesn't exist
+    console.log("Ensuring tier upgrade requests table exists...");
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS tier_upgrade_requests (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(255) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        requested_tier membership_tier NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'draft',
+        rejection_reason TEXT,
+        submitted_at TIMESTAMP WITH TIME ZONE,
+        reviewed_at TIMESTAMP WITH TIME ZONE,
+        reviewed_by VARCHAR(255) REFERENCES users(id),
+        document_count INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `);
+    console.log("✓ Tier upgrade requests table ready");
+
     // Seed membership tier benefits first
     console.log("Creating membership tier benefits...");
     
@@ -851,19 +871,24 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
     // Seed payment methods
     console.log("Creating payment methods...");
 
+    // Delete existing payment methods to ensure clean data
+    await db.delete(paymentMethodDetails);
+
     await db.insert(paymentMethodDetails).values([
       {
         method: "bank_transfer",
         name: "Bank Transfer",
         description: "Direct bank transfer to our corporate account",
-        instructions: `Please transfer the exact amount to:\n\nBank: Zambia National Commercial Bank (ZNCB)\nAccount Name: Fusion Mining Limited\nAccount Number: 1234567890\nBranch: Lusaka Main\nSwift Code: ZNCOZMZX\n\nReference: Your upgrade request ID`,
+        instructions: `Please transfer the exact amount to:\n\nBank: First National Bank (FNB)\nAccount Name: Fusion Mining Limited\nAccount Number: 1234567890\nBranch: Lusaka Main\nSwift Code: FIRNZMLX\n\nReference: Your upgrade request ID`,
         accountDetails: {
-          bank: "Zambia National Commercial Bank (ZNCB)",
+          bank: "First National Bank (FNB)",
           accountName: "Fusion Mining Limited",
           accountNumber: "1234567890",
           branch: "Lusaka Main",
-          swiftCode: "ZNCOZMZX"
+          swiftCode: "FIRNZMLX"
         },
+        currencyCode: "ZMW",
+        currencyName: "Zambian Kwacha",
       },
       {
         method: "airtel_money",
@@ -872,8 +897,11 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
         instructions: `Send money to:\n\nPhone Number: +260 97 123 4567\nName: Fusion Mining Limited\n\nReference: Your upgrade request ID\n\nPlease ensure you send from a registered Airtel Money account.`,
         accountDetails: {
           phoneNumber: "+260 97 123 4567",
-          name: "Fusion Mining Limited"
+          name: "Fusion Mining Limited",
+          qrCode: "/attached_assets/files/payments/wechat_qr.jpg"
         },
+        currencyCode: "ZMW",
+        currencyName: "Zambian Kwacha",
       },
       {
         method: "wechat_alipay",
@@ -882,12 +910,16 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
         instructions: `Scan the QR code or use the following details:\n\nWeChat Pay ID: fusionmining_zambia\nAlipay ID: fusionmining@alipay.com\n\nReference: Your upgrade request ID\n\nContact us if you need assistance with the payment.`,
         accountDetails: {
           wechatId: "fusionmining_zambia",
-          alipayId: "fusionmining@alipay.com"
+          alipayId: "fusionmining@alipay.com",
+          wechatQrCode: "/attached_assets/files/payments/wechat_qr.jpg",
+          alipayQrCode: "/attached_assets/files/payments/alipay_qr.jpg"
         },
+        currencyCode: "CNY",
+        currencyName: "Chinese Yuan",
       },
-    ]).onConflictDoNothing();
+    ]);
 
-    console.log("✓ Payment methods created");
+    console.log("✓ Payment methods created/updated");
 
     console.log("\n✅ Database seeding completed successfully!");
     console.log("\nTest Account Credentials:");
