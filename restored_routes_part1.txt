@@ -1,0 +1,260 @@
+﻿    try {
+      // Seed comprehensive sample data for testing
+      const results = {
+        users: 0,
+        projects: 0,
+        listings: 0,
+        buyerRequests: 0,
+        blogPosts: 0,
+      };
+
+      // Create sample users with different tiers
+      const sampleUsers = [
+        {
+          email: "basic.user@fusionmining.com",
+          password: await bcrypt.hash("basic123", 10),
+          firstName: "Basic",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "basic" as const,
+        },
+        {
+          email: "standard.user@fusionmining.com",
+          password: await bcrypt.hash("standard123", 10),
+          firstName: "Standard",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "standard" as const,
+        },
+        {
+          email: "premium.user@fusionmining.com",
+          password: await bcrypt.hash("premium123", 10),
+          firstName: "Premium",
+          lastName: "User",
+          role: "buyer" as const,
+          membershipTier: "premium" as const,
+        },
+        {
+          email: "seller.verified@fusionmining.com",
+          password: await bcrypt.hash("seller123", 10),
+          firstName: "Verified",
+          lastName: "Seller",
+          role: "seller" as const,
+          membershipTier: "premium" as const,
+        },
+      ];
+
+      for (const userData of sampleUsers) {
+        try {
+          await storage.upsertUser(userData);
+          results.users++;
+        } catch (e) {
+          console.log("User already exists:", userData.email);
+        }
+      }
+
+      res.json({ 
+        message: "Sample data seeded successfully",
+        results 
+      });
+    } catch (error) {
+      console.error("Error seeding sample data:", error);
+      res.status(500).json({ message: "Failed to seed sample data" });
+    }
+  });
+
+  // ========================================================================
+  // Auth Routes
+  // ========================================================================
+  app.post('/api/register', async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, role, membershipTier } = req.body;
+      
+      if (!email || !password || !firstName || !lastName || !role) {
+        return res.status(400).json({ message: 'Missing required fields' });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: 'User with this email already exists' });
+      }
+
+      // Hash the password with bcrypt (salt rounds = 10)
+      const hashedPassword = await bcrypt.hash(password, 10);
+      
+      // Create user with hashed password
+      const user = await storage.upsertUser({
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+      });
+
+      // Update role and membership tier
+      await storage.updateUserRole(user.id, role);
+      
+      // Update membership tier if provided
+      if (membershipTier && ['basic', 'standard', 'premium'].includes(membershipTier)) {
+        await db.update(users).set({ membershipTier: membershipTier as any }).where(eq(users.id, user.id));
+      }
+
+      // Create default profile
+      await storage.createUserProfile({
+        userId: user.id,
+        profileType: 'individual',
+        verified: false,
+      });
+
+      // Get updated user with tier
+      const updatedUser = await storage.getUser(user.id);
+
+      res.json({ 
+        success: true, 
+        message: 'Registration successful',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error("Error during registration:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // ========================================================================
+  // Auth Routes
+  // ========================================================================
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      let adminPerms = undefined as any;
+      
+      // Retrieve admin permissions for admin users
+      if (user && user.role === 'admin') {
+        try {
+          adminPerms = await storage.getAdminPermissions(user.id);
+          console.log('[AUTH/USER] Retrieved admin permissions:', adminPerms?.adminRole);
+        } catch (e) {
+          console.error('Error getting admin permissions:', e);
+        }
+        
+        // Fallback: if no permissions found, try to generate from session adminRole
+        if (!adminPerms && req.user.adminRole) {
+          console.log('[AUTH/USER] Permissions not found, using fallback for role:', req.user.adminRole);
+          adminPerms = {
+            adminRole: req.user.adminRole,
+            ...getPermissionsForRole(req.user.adminRole),
+          };
+        }
+      }
+      
+      res.json({ ...user, adminPermissions: adminPerms || null });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ========================================================================
+  // Admin Permissions Routes
+  // ========================================================================
+  
+  // Helper function to get permissions based on admin role
+  function getPermissionsForRole(role: string) {
+    const basePerms = {
+      canManageUsers: false,
+      canManageListings: false,
+      canManageProjects: false,
+      canManageBlog: false,
+      canManageCMS: false,
+      canViewAnalytics: false,
+      canManageMessages: false,
+      canManageVerification: false,
+      canManageSettings: false,
+      canManageAdmins: false,
+      canAccessAuditLogs: false,
+      canManageDocuments: false,
+      canResetPasswords: false,
+      canForceLogout: false,
+    };
+    
+    switch(role) {
+      case 'super_admin':
+        return { ...basePerms, ...Object.keys(basePerms).reduce((acc, key) => ({...acc, [key]: true}), {}) };
+      case 'verification_admin':
+        return { ...basePerms, canManageVerification: true, canManageListings: true, canAccessAuditLogs: true, canManageUsers: true };
+      case 'content_admin':
+        return { ...basePerms, canManageBlog: true, canManageCMS: true, canManageSettings: true };
+      case 'support_admin':
+        return { ...basePerms, canManageMessages: true, canManageUsers: true, canAccessAuditLogs: true };
+      case 'analytics_admin':
+        return { ...basePerms, canViewAnalytics: true, canAccessAuditLogs: true };
+      default:
+        return basePerms;
+    }
+  }
+  
+  app.get('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req, res) => {
+    try {
+      const perms = await storage.getAdminPermissions(req.params.id);
+      res.json(perms || null);
+    } catch (error) {
+      console.error('Error fetching admin permissions:', error);
+      res.status(500).json({ message: 'Failed to fetch admin permissions' });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req: any, res) => {
+    try {
+      const adminUserId = req.params.id;
+      const adminRole = req.body?.adminRole || 'content_admin';
+      const rolePerms = getPermissionsForRole(adminRole);
+      
+      const payload = {
+        adminUserId,
+        adminRole,
+        ...rolePerms,
+      };
+      const updated = await storage.upsertAdminPermissions(payload as any);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating admin permissions:', error);
+      res.status(500).json({ message: 'Failed to update admin permissions' });
+    }
+  });
+
+  // Start a general conversation with any user (admin)
+  app.post('/api/admin/messages/start', isAuthenticated, isAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { receiverId, subject, content } = req.body || {};
+      if (!receiverId || !content) {
+        return res.status(400).json({ message: 'receiverId and content are required' });
+      }
+      // Create a general thread (no project/listing)
+      const thread = await storage.createMessageThread({
+        title: subject || 'Admin message',
+        type: 'general',
+        buyerId: null,
+        sellerId: null,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+      } as any);
+
+      const message = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId,
+        subject: subject || null,
+        content,
+        context: 'general',
+        isAutoRelay: false,
+      } as any);
+
+      await storage.updateThreadLastMessage(thread.id);
+      res.json({ thread, message });
+    } catch (error) {
+      console.error('Error starting admin conversation:', error);

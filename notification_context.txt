@@ -1,0 +1,221 @@
+﻿
+>   // Notification Routes
+    // =============================================
+===========================
+    app.get('/api/notifications', isAuthenticated, 
+async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        const notifications = await 
+storage.getUserNotifications(userId);
+        res.json(notifications);
+      } catch (error) {
+        console.error("Error fetching 
+notifications:", error);
+        res.status(500).json({ message: "Failed to 
+fetch notifications" });
+      }
+    });
+  
+    app.get('/api/notifications/unread-count', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        const count = await 
+storage.getUnreadNotificationCount(userId);
+        res.json({ count });
+      } catch (error) {
+        console.error("Error fetching unread 
+count:", error);
+        res.status(500).json({ message: "Failed to 
+fetch unread count" });
+      }
+    });
+  
+    app.post('/api/notifications/:id/read', 
+isAuthenticated, async (req, res) => {
+      try {
+        await 
+storage.markNotificationAsRead(req.params.id);
+        res.json({ message: "Notification marked as 
+read" });
+      } catch (error) {
+        console.error("Error marking notification 
+as read:", error);
+        res.status(500).json({ message: "Failed to 
+mark notification as read" });
+      }
+    });
+  
+    app.post('/api/notifications/mark-all-read', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        await 
+storage.markAllNotificationsAsRead(userId);
+        res.json({ message: "All notifications 
+marked as read" });
+      } catch (error) {
+        console.error("Error marking all 
+notifications as read:", error);
+        res.status(500).json({ message: "Failed to 
+mark all notifications as read" });
+      }
+    });
+  
+    // =============================================
+===========================
+    // Dashboard Stats Routes
+    // =============================================
+===========================
+    app.get('/api/dashboard/stats', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        const [listingsCount, unreadMessagesCount, 
+interestsCount] = await Promise.all([
+          storage.getUserListingsCount(userId),
+          
+storage.getUserUnreadMessagesCount(userId),
+          storage.getUserInterestsCount(userId),
+        ]);
+        res.json({
+          listingsCount,
+          unreadMessagesCount,
+          interestsCount,
+        });
+      } catch (error) {
+        console.error("Error fetching dashboard 
+stats:", error);
+        res.status(500).json({ message: "Failed to 
+fetch dashboard stats" });
+      }
+    });
+  
+    // =============================================
+===========================
+    // Video Routes
+    // =============================================
+===========================
+    app.get('/api/videos/active', async (req, res) 
+=> {
+      try {
+        const videos = await 
+storage.getActiveVideos();
+        res.json(videos);
+      } catch (error) {
+        console.error("Error fetching active 
+videos:", error);
+        res.status(500).json({ message: "Failed to 
+fetch active videos" });
+      }
+    });
+  
+    app.get('/api/videos', isAuthenticated, 
+isAdmin, async (req, res) => {
+      try {
+        const videos = await storage.getAllVideos();
+        res.json(videos);
+      } catch (error) {
+        console.error("Error fetching videos:", 
+error);
+        res.status(500).json({ message: "Failed to 
+fetch videos" });
+      }
+    });
+  
+    app.post('/api/videos', isAuthenticated, 
+isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+insertVideoSchema.parse(req.body);
+        const video = await 
+storage.createVideo(validatedData);
+        res.json(video);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          console.error("Validation error creating 
+video:", formatZodError(error));
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating video:", 
+error);
+        res.status(500).json({ message: "Failed to 
+create video" });
+      }
+    });
+  
+    app.patch('/api/videos/:id', isAuthenticated, 
+isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+updateVideoSchema.parse({ ...req.body, id: 
+req.params.id });
+        const video = await 
+storage.updateVideo(validatedData);
+        res.json(video);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          console.error("Validation error updating 
+video:", formatZodError(error));
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating video:", 
+error);
+        res.status(500).json({ message: "Failed to 
+update video" });
+      }
+    });
+  
+    app.post('/api/videos/:id/toggle-active', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const video = await 
+storage.toggleVideoActive(req.params.id);
+        res.json(video);
+      } catch (error: any) {
+        console.error("Error toggling video active 
+status:", error);
+        res.status(400).json({ message: 
+error.message || "Failed to toggle video status" });
+      }
+    });
+  
+    app.delete('/api/videos/:id', isAuthenticated, 
+isAdmin, async (req, res) => {
+      try {
+        await storage.deleteVideo(req.params.id);
+        res.json({ message: "Video deleted 
+successfully" });
+      } catch (error) {
+        console.error("Error deleting video:", 
+error);
+        res.status(500).json({ message: "Failed to 
+delete video" });
+      }
+    });
+  
+    // =============================================
+===============================
+    // Admin Settings API Routes
+    // =============================================
+===============================
+  
+    // Platform Settings
+    app.get('/api/admin/settings/platform', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const settings = await 
+storage.getAllPlatformSettings();
+        res.json(settings);
+      } catch (error) {
+        console.error("Error fetching platform 
+settings:", error);
+
+

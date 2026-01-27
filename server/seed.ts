@@ -389,6 +389,13 @@ async function seed() {
 
     console.log("✓ Marketplace listings created");
 
+    // Ensure main_category is populated for existing seeded rows
+    console.log("Ensuring main_category for seeded listings...");
+    await db.execute(sql`UPDATE marketplace_listings SET main_category = 'minerals' WHERE (main_category IS NULL OR main_category::text = '') AND (type = 'mineral' OR mineral_type IS NOT NULL);`);
+    await db.execute(sql`UPDATE marketplace_listings SET main_category = 'mining_services' WHERE (main_category IS NULL OR main_category::text = '') AND type = 'partnership';`);
+    await db.execute(sql`UPDATE marketplace_listings SET main_category = 'mining_equipment' WHERE (main_category IS NULL OR main_category::text = '') AND (tool_subcategory IS NOT NULL OR service_subcategory IS NOT NULL OR ppe_subcategory IS NOT NULL);`);
+    console.log('✓ main_category fixes applied');
+
     // Create buyer requests
     console.log("Creating buyer requests...");
     

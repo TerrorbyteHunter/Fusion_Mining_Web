@@ -1,10 +1,10 @@
-// Clerk Auth integration hook
-import { useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth, useUser } from '@clerk/clerk-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 
 export function useAuth() {
   const clerkAuth = useClerkAuth();
+  const { user: clerkUser } = useUser();
 
   // Fetch user data (works in both development and production)
   const { data: userData, isLoading: userLoading } = useQuery({
@@ -21,12 +21,15 @@ export function useAuth() {
   });
 
   // Use user data from API, or fall back to Clerk
-  const user = userData || (clerkAuth.user ? {
+  const user = userData || (clerkUser ? {
     id: clerkAuth.userId,
-    role: clerkAuth.user.publicMetadata?.role as string,
-    email: clerkAuth.user.primaryEmailAddress?.emailAddress,
-    firstName: clerkAuth.user.firstName,
-    lastName: clerkAuth.user.lastName,
+    role: (clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role) as string,
+    email: clerkUser.primaryEmailAddress?.emailAddress,
+    firstName: clerkUser.firstName,
+    lastName: clerkUser.lastName,
+    profileImageUrl: clerkUser.imageUrl,
+    verificationStatus: clerkUser.publicMetadata?.verificationStatus || 'unverified',
+    membershipTier: clerkUser.publicMetadata?.membershipTier || 'basic',
   } : null);
 
   const isLoading = userLoading || clerkAuth.isLoaded === false;

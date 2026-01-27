@@ -1,0 +1,2000 @@
+﻿  app.get('/api/projects', async (req: any, res) => {
+    try {
+      const projects = await storage.getProjects();
+      const isAdmin = req.user && req.user.role === 'admin';
+      
+      const filteredProjects = isAdmin 
+        ? projects 
+        : projects.filter(p => p.status === 'active');
+      
+      res.json(filteredProjects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.get('/api/projects/:id', async (req, res) => {
+    try {
+      const project = await storage.getProjectById(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // Defensive check: ensure we have a valid user ID
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      const validatedData = insertProjectSchema.parse(req.body);
+      // Always set ownerId from authenticated user to prevent spoofing
+      const projectData = {
+        ...validatedData,
+        ownerId: userId,
+      };
+      const project = await storage.createProject(projectData);
+      res.json(project);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.patch('/api/projects/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertProjectSchema.partial().parse(req.body);
+      // Prevent changing ownerId via update - only admins should update projects anyway
+      const { ownerId, ...updateData } = validatedData;
+      const project = await storage.updateProject(req.params.id, updateData);
+      res.json(project);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete('/api/projects/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  app.patch('/api/projects/:id/close', isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.closeProject(req.params.id);
+      res.json(project);
+    } catch (error) {
+      console.error("Error closing project:", error);
+      res.status(500).json({ message: "Failed to close project" });
+    }
+  });
+
+  app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.body;
+
+      if (projectId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+        if (hasInterest) {
+          return res.status(400).json({ message: "You have already expressed interest in this project" });
+        }
+      }
+
+      const validatedData = insertExpressInterestSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const interest = await storage.expressProjectInterest(validatedData);
+
+      const buyer = await storage.getUserById(userId);
+      
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        
+        if (project && buyer && project.ownerId) {
+          const projectOwner = await storage.getUserById(project.ownerId);
+          
+          if (projectOwner) {
+            // Create direct thread between buyer and project owner
+            const thread = await storage.createMessageThread({
+              title: `Inquiry about: ${project.name}`,
+              type: 'project_interest',
+              projectId,
+              buyerId: userId,
+              sellerId: project.ownerId,
+              adminId: null,
+              createdBy: userId,
+              context: 'project_interest',
+              status: 'open',
+            });
+
+            // Notify project owner of interest
+            await storage.createNotification({
+              userId: project.ownerId,
+              type: 'interest_received',
+              title: 'New Interest in Your Project',
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+              link: `/dashboard/messages`,
+            });
+
+            // Send welcome message from owner to buyer
+            const ownerName = `${projectOwner.firstName || ''} ${projectOwner.lastName || ''}`.trim() || 'Project Owner';
+            const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+            
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: project.ownerId,
+              receiverId: userId,
+              subject: `Re: Inquiry about ${project.name}`,
+              content: `Hello ${buyerName},\n\nThank you for your interest in ${project.name}. I'm ${ownerName}, the project owner. I'd be happy to discuss this opportunity with you.\n\nPlease feel free to ask any questions you may have.\n\nBest regards,\n${ownerName}`,
+              context: 'project_interest',
+              relatedProjectId: projectId,
+              isAutoRelay: true,
+            });
+          }
+        }
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
+        
+        if (listing && buyer && seller) {
+          // Create direct thread between buyer and seller
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${listing.title}`,
+            type: 'marketplace_inquiry',
+            listingId,
+            buyerId: userId,
+            sellerId: listing.sellerId,
+            adminId: null,
+            createdBy: userId,
+            context: 'marketplace',
+            status: 'open',
+          });
+
+          // Notify seller of interest
+          await storage.createNotification({
+            userId: seller.id,
+            type: 'interest_received',
+            title: 'New Interest in Your Listing',
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+            link: `/dashboard/messages`,
+          });
+
+          // Send welcome message from seller to buyer
+          const sellerName = `${seller.firstName || ''} ${seller.lastName || ''}`.trim() || 'Seller';
+          const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+          
+          await storage.createMessage({
+            threadId: thread.id,
+            senderId: listing.sellerId,
+            receiverId: userId,
+            subject: `Re: Inquiry about ${listing.title}`,
+            content: `Hello ${buyerName},\n\nThank you for your interest in ${listing.title}. I'm ${sellerName}, the seller. I'd be happy to provide more information and answer any questions you might have.\n\nFeel free to reach out with your questions.\n\nBest regards,\n${sellerName}`,
+            context: 'marketplace',
+            relatedListingId: listingId,
+            isAutoRelay: true,
+          });
+        }
+      }
+
+      // Create activity log
+      await storage.createActivityLog({
+        userId,
+        activityType: 'interest_expressed',
+        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      // Notify all admin users (use 'interest_received' notification type)
+      const adminUsers = await storage.getUsersByRole('admin');
+      // Resolve a short title for the target (project or listing)
+      let titleText = '';
+      if (projectId) {
+        const proj = await storage.getProjectById(projectId);
+        titleText = proj?.name || projectId;
+      } else if (listingId) {
+        const list = await storage.getMarketplaceListingById(listingId);
+        titleText = list?.title || listingId;
+      }
+
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: 'interest_received',
+          title: 'New Interest Expression',
+          message: `${buyer?.firstName || ''} ${buyer?.lastName || ''} expressed interest in ${projectId ? 'project' : 'listing'}: ${titleText}`,
+          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`,
+        });
+      }
+
+      res.json(interest);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error expressing interest:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error expressing interest:", error);
+      res.status(500).json({ message: "Failed to express interest" });
+    }
+  });
+
+  app.get('/api/projects/:id/has-interest', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const projectId = req.params.id;
+      const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+      res.json({ hasInterest });
+    } catch (error) {
+      console.error("Error checking interest:", error);
+      res.status(500).json({ message: "Failed to check interest" });
+    }
+  });
+
+  app.get('/api/admin/projects-interest', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const interests = await storage.getAllExpressedInterests();
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching expressed interests:", error);
+      res.status(500).json({ message: "Failed to fetch expressed interests" });
+    }
+  });
+
+  // ========================================================================
+  // Marketplace Routes
+  // ========================================================================
+  app.get('/api/marketplace/listings', async (req: any, res) => {
+    try {
+      const { type, status } = req.query;
+      const isAdmin = req.user && req.user.role === 'admin';
+      const listings = await storage.getMarketplaceListings({
+        type: type as string,
+        status: status as string,
+      });
+      
+      const filteredListings = isAdmin 
+        ? listings 
+        : listings.filter(l => l.status === 'approved');
+      
+      res.json(filteredListings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  // Dashboard: get current user's listings (sellers)
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // If user is seller, return their listings; otherwise return empty array
+      const listings = await storage.getListingsBySellerId(userId);
+      res.json(listings || []);
+    } catch (error) {
+      console.error('Error fetching dashboard listings:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard listings' });
+    }
+  });
+
+  // Return a single listing including basic seller info (used by client when messages
+  // don't include the listing payload).
+  app.get('/api/marketplace/listings/:id', async (req, res) => {
+    try {
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) return res.status(404).json({ message: 'Listing not found' });
+      const seller = listing.sellerId ? await storage.getUserById(listing.sellerId) : null;
+      res.json({
+        ...listing,
+        sellerName: seller ? `${seller.firstName || ''} ${seller.lastName || ''}`.trim() : undefined,
+      });
+    } catch (error) {
+      console.error('Error fetching listing:', error);
+      res.status(500).json({ message: 'Failed to fetch listing' });
+    }
+  });
+
+  app.post('/api/marketplace/listings', isAuthenticated, isSeller, async (req: any, res) => {
+    try {
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const validatedData = insertMarketplaceListingSchema.parse({
+        ...req.body,
+        sellerId,
+      });
+      const listing = await storage.createMarketplaceListing(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: sellerId,
+          activityType: 'listing_created',
+          description: `Created marketplace listing: "${listing.title || listing.id}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { listingId: listing.id, listingType: listing.listingType },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log listing creation:', logError);
+      }
+      
+      res.json(listing);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+
+  app.get('/api/marketplace/buyer-requests', async (req, res) => {
+    try {
+      const requests = await storage.getBuyerRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching buyer requests:", error);
+      res.status(500).json({ message: "Failed to fetch buyer requests" });
+    }
+  });
+
+  app.get('/api/buyer-requests/latest', async (req, res) => {
+    try {
+      const requests = await storage.getBuyerRequests();
+      // Get latest 6 active requests, sorted by creation date
+      const latestRequests = requests
+        .filter(r => r.status === 'active')
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 6);
+      res.json(latestRequests);
+    } catch (error) {
+      console.error("Error fetching latest buyer requests:", error);
+      res.status(500).json({ message: "Failed to fetch latest requests" });
+    }
+  });
+
+  app.post('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
+    try {
+      const buyerId = req.user.claims?.sub || req.user.id;
+      
+      // Check tier limits before allowing RFQ creation
+      const tierCheck = await storage.checkUserCanCreateRFQ(buyerId);
+      if (!tierCheck.allowed) {
+        return res.status(403).json({ 
+          message: tierCheck.reason || 'You have reached your tier limit for active RFQs',
+          tierLimitReached: true
+        });
+      }
+      
+      const validatedData = insertBuyerRequestSchema.parse({
+        ...req.body,
+        buyerId,
+      });
+      const request = await storage.createBuyerRequest(validatedData);
+      
+      // Track usage for this month
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      await storage.incrementUserRFQCount(buyerId, currentMonth);
+      
+      res.json(request);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating buyer request:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating buyer request:", error);
+      res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+
+  // Allow buyers to close their own RFQs (buyer requests)
+  app.patch('/api/marketplace/buyer-requests/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const buyerId = req.user.claims?.sub || req.user.id;
+      const id = req.params.id;
+
+      const existing = await storage.getBuyerRequestById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      if (existing.buyerId !== buyerId) {
+        return res.status(403).json({ message: "You are not allowed to modify this request" });
+      }
+
+      const updated = await storage.updateBuyerRequestStatus(id, "closed");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error closing buyer request:", error);
+      res.status(500).json({ message: "Failed to close request" });
+    }
+  });
+
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
+    try {
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const listings = await storage.getListingsBySellerId(sellerId);
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching user listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+    try {
+      const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
+      const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
+      res.json(listing);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating listing:", error);
+      res.status(500).json({ message: "Failed to update listing" });
+    }
+  });
+
+  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+    try {
+      await storage.deleteMarketplaceListing(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      res.status(500).json({ message: "Failed to delete listing" });
+    }
+  });
+
+  app.patch('/api/marketplace/listings/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUserById(userId);
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      
+      if (user?.role !== 'admin' && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller or admin can close this listing" });
+      }
+      
+      const closedListing = await storage.closeMarketplaceListing(req.params.id);
+      res.json(closedListing);
+    } catch (error) {
+      console.error("Error closing listing:", error);
+      res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+
+  // ========================================================================
+  // Message Thread Routes
+  // ========================================================================
+  app.post('/api/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, title } = req.body;
+
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+
+      const currentUser = await storage.getUserById(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let buyerId: string | null = userId;
+      let sellerId: string | null = null;
+      let adminId: string | null = null;
+      let threadTitle = title as string | undefined;
+
+      const adminUser = await storage.getAdminUser();
+      adminId = adminUser?.id || null;
+
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Project interests should go to the project owner
+        sellerId = project.ownerId;
+        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+
+        // Listing inquiries should go to the listing's seller
+        sellerId = listing.sellerId;
+        threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+      }
+
+      const thread = await storage.createMessageThread({
+        title: threadTitle!,
+        type: projectId ? 'project_interest' : 'marketplace_inquiry',
+        projectId,
+        listingId,
+        buyerId,
+        sellerId,
+        adminId,
+        createdBy: userId,
+        status: 'open',
+      });
+
+      res.json(thread);
+    } catch (error: any) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+
+  app.get('/api/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const threads = await storage.getThreadsByUserId(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+
+  // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
+  app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
+      // They can NEVER see buyer-seller marketplace conversations
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching admin support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  // Admin endpoint to get categorized support tickets
+  app.get('/api/admin/threads/categorized', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // PRIVACY CONTROL: Only support tickets
+      const allTickets = await storage.getAdminSupportTickets();
+      
+      const open = allTickets.filter(t => t.ticketStatus === 'open');
+      const inProgress = allTickets.filter(t => t.ticketStatus === 'in_progress');
+      const waitingUser = allTickets.filter(t => t.ticketStatus === 'waiting_user');
+      const resolved = allTickets.filter(t => t.ticketStatus === 'resolved');
+      
+      res.json({
+        open,
+        inProgress,
+        waitingUser,
+        resolved,
+      });
+    } catch (error) {
+      console.error("Error fetching categorized support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.getThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+
+  // Return thread and participant (buyer/seller) details for UI header
+  app.get('/api/threads/:id/details', isAuthenticated, async (req: any, res) => {
+    try {
+      const threadId = req.params.id;
+      const details = await storage.getThreadWithParticipants(threadId);
+      if (!details) return res.status(404).json({ message: 'Thread not found' });
+      res.json(details);
+    } catch (error) {
+      console.error('Error fetching thread details:', error);
+      res.status(500).json({ message: 'Failed to fetch thread details' });
+    }
+  });
+
+  app.get('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const messages = await storage.getMessagesByThreadId(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const threadId = req.params.id;
+
+      const thread = await storage.getThreadById(threadId);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+
+      const sender = await storage.getUserById(senderId);
+      if (!sender) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const receiverId = senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+
+      const validatedData = insertMessageSchema.parse({
+        threadId,
+        senderId,
+        receiverId,
+        subject: req.body.subject || thread.title,
+        content: req.body.content,
+        relatedProjectId: thread.projectId,
+        relatedListingId: thread.listingId,
+      });
+
+      const message = await storage.createMessage(validatedData);
+      await storage.updateThreadLastMessage(threadId);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: senderId,
+          activityType: 'message_sent',
+          description: `Sent message in thread: "${thread.title || threadId}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { threadId, messageId: message.id, receiverId },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log message:', logError);
+      }
+
+      res.json(message);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.patch('/api/threads/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.closeThread(req.params.id);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error closing thread:", error);
+      res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+
+  // ========================================================================
+  // Support Ticket Routes (Privacy-Compliant Admin Support Only)
+  // ========================================================================
+
+  // User creates a support ticket
+  app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { title, description, priority } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ message: "Title and description are required" });
+      }
+
+      const ticket = await storage.createSupportTicket(userId, title, description, priority);
+      
+      // Create first message in the ticket thread
+      await storage.createMessage({
+        threadId: ticket.id,
+        senderId: userId,
+        receiverId: 'admin', // Will be matched to actual admin later
+        subject: title,
+        content: description,
+        context: 'general',
+      });
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating support ticket:", error);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Admin claims a support ticket
+  app.post('/api/admin/support/tickets/:id/claim', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const ticketId = req.params.id;
+
+      const ticket = await storage.claimSupportTicket(ticketId, adminId);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error claiming support ticket:", error);
+      res.status(500).json({ message: "Failed to claim support ticket" });
+    }
+  });
+
+  // Admin resolves a support ticket
+  app.patch('/api/admin/support/tickets/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { notes } = req.body;
+
+      const ticket = await storage.resolveSupportTicket(ticketId, notes);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error resolving support ticket:", error);
+      res.status(500).json({ message: "Failed to resolve support ticket" });
+    }
+  });
+
+  // Admin gets all support tickets (with filtering)
+  app.get('/api/admin/support/tickets', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  // Update a support ticket's status
+  app.patch('/api/threads/:id/ticket-status', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const validStatuses = ['open', 'in_progress', 'waiting_user', 'resolved'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      const ticket = await storage.updateTicketStatus(ticketId, status);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Update a support ticket's priority
+  app.patch('/api/threads/:id/ticket-priority', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { priority } = req.body;
+
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+
+      const validPriorities = ['low', 'normal', 'high', 'urgent'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
+
+      const ticket = await storage.updateTicketPriority(ticketId, priority);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+
+  // Update a support ticket's assignee
+  app.patch('/api/threads/:id/ticket-assign', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { assignedAdminId } = req.body;
+
+      const ticket = await storage.updateTicketAssignee(ticketId, assignedAdminId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket assignee:", error);
+      res.status(500).json({ message: "Failed to update ticket assignee" });
+    }
+  });
+
+  // Admin analytics summary
+  app.get('/api/admin/analytics', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary();
+      return res.json(summary);
+    } catch (err) {
+      console.error('Analytics error', err);
+      return res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  // ========================================================================
+  // AI Assistant Chat (Gemini 1.5 Flash)
+  // ========================================================================
+  app.post("/api/assistant/chat", async (req: any, res) => {
+    try {
+      const userId = req.user ? (req.user.claims?.sub || req.user.id) : null;
+      const { message, history } = req.body as {
+        message?: string;
+        history?: ChatHistoryItem[];
+      };
+
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "message is required" });
+      }
+
+      const safeHistory: ChatHistoryItem[] = Array.isArray(history)
+        ? history
+            .filter((h: any) => h && typeof h.content === "string")
+            .map((h: any) => ({
+              role: h.role === "assistant" ? "assistant" : "user",
+              content: h.content,
+            }))
+        : [];
+
+      let reply = "";
+
+      // Priority: HF Inference API (if configured)
+      const hfApiKey = process.env.HF_API_KEY;
+      const hfModel = process.env.HF_MODEL || "deepseek-ai/DeepSeek-V3.2:novita";
+
+      // If the configured HF model looks like a modern/chat model (e.g. contains
+      // "llama" or a provider slash), prefer the router endpoint which is
+      // required by many newer models. Set HF_USE_ROUTER at runtime so
+      // `askHuggingFace` will use the router path.
+      try {
+        const m = String(hfModel || "").toLowerCase();
+        if (!process.env.HF_USE_ROUTER && (m.includes("llama") || hfModel.includes("/"))) {
+          process.env.HF_USE_ROUTER = "1";
+          console.debug("HF_USE_ROUTER enabled for model:", hfModel);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      if (hfApiKey) {
+        try {
+          const prompt = formatChatPrompt(message, safeHistory);
+          reply = await askHuggingFace(hfModel, prompt, hfApiKey);
+        } catch (hfErr) {
+          console.error("HF Inference failed, falling back to Gemini/local:", hfErr);
+          reply = await askSupportBot(message, safeHistory);
+        }
+      } else {
+        // Fallback: Gemini or local
+        reply = await askSupportBot(message, safeHistory);
+      }
+
+      // NOTE: For now we just return the reply.
+      // Later, we can also persist this into message_threads/messages
+      // so admins can review conversations.
+
+      res.json({ reply, userId });
+    } catch (error: any) {
+      console.error("Assistant chat error:", error);
+
+      // If the provider returned a quota / rate-limit error, surface a
+      // clear 429 to the client and include a Retry-After header when
+      // possible so clients/frontend can back off gracefully.
+      try {
+        if (error && (error.status === 429 || (error?.errorDetails && Array.isArray(error.errorDetails)))) {
+          // Try to extract retry info from the provider error details
+          let retryDelay: string | null = null;
+          const details = error.errorDetails || [];
+          for (const d of details) {
+            if (d && typeof d === 'object' && d['@type'] && d['@type'].includes('RetryInfo')) {
+              retryDelay = d.retryDelay || null;
+              break;
+            }
+          }
+
+          // If we have a retryDelay like "1s" or "30s" attempt to convert
+          // it to seconds and set the standard Retry-After header.
+          if (retryDelay && typeof retryDelay === 'string') {
+            const m = /^\s*(\d+(?:\.\d+)?)(s|m|h)?\s*$/i.exec(retryDelay);
+            if (m) {
+              const val = Number(m[1]);
+              const unit = (m[2] || 's').toLowerCase();
+              let seconds = val;
+              if (unit === 'm') seconds = val * 60;
+              if (unit === 'h') seconds = val * 3600;
+              res.setHeader('Retry-After', String(Math.ceil(seconds)));
+            }
+          }
+
+          return res.status(429).json({ message: "Assistant quota exceeded; please try again later", retryDelay });
+        }
+      } catch (innerErr) {
+        console.error("Error while handling assistant error details:", innerErr);
+      }
+
+      res.status(500).json({ message: "Assistant is temporarily unavailable" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Message Attachments
+  // ========================================================================
+  const uploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "messages");
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+
+  const storageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const upload = multer({
+    storage: storageEngine,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "application/pdf",
+        "text/plain",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type"));
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Update a support ticket's priority
+  app.patch('/api/threads/:id/ticket-priority', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { priority } = req.body;
+
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+
+      const validPriorities = ['low', 'normal', 'high', 'urgent'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
+
+      const ticket = await storage.updateTicketPriority(ticketId, priority);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+
+  // Update a support ticket's assignee
+  app.patch('/api/threads/:id/ticket-assign', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { assignedAdminId } = req.body;
+
+      const ticket = await storage.updateTicketAssignee(ticketId, assignedAdminId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket assignee:", error);
+      res.status(500).json({ message: "Failed to update ticket assignee" });
+    }
+  });
+
+  // Admin analytics summary
+  app.get('/api/admin/analytics', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary();
+      return res.json(summary);
+    } catch (err) {
+      console.error('Analytics error', err);
+      return res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  // ========================================================================
+  // AI Assistant Chat (Gemini 1.5 Flash)
+  // ========================================================================
+  app.post("/api/assistant/chat", async (req: any, res) => {
+    try {
+      const userId = req.user ? (req.user.claims?.sub || req.user.id) : null;
+      const { message, history } = req.body as {
+        message?: string;
+        history?: ChatHistoryItem[];
+      };
+
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "message is required" });
+      }
+
+      const safeHistory: ChatHistoryItem[] = Array.isArray(history)
+        ? history
+            .filter((h: any) => h && typeof h.content === "string")
+            .map((h: any) => ({
+              role: h.role === "assistant" ? "assistant" : "user",
+              content: h.content,
+            }))
+        : [];
+
+      let reply = "";
+
+      // Priority: HF Inference API (if configured)
+      const hfApiKey = process.env.HF_API_KEY;
+      const hfModel = process.env.HF_MODEL || "deepseek-ai/DeepSeek-V3.2:novita";
+
+      // If the configured HF model looks like a modern/chat model (e.g. contains
+      // "llama" or a provider slash), prefer the router endpoint which is
+      // required by many newer models. Set HF_USE_ROUTER at runtime so
+      // `askHuggingFace` will use the router path.
+      try {
+        const m = String(hfModel || "").toLowerCase();
+        if (!process.env.HF_USE_ROUTER && (m.includes("llama") || hfModel.includes("/"))) {
+          process.env.HF_USE_ROUTER = "1";
+          console.debug("HF_USE_ROUTER enabled for model:", hfModel);
+        }
+      } catch (e) {
+        /* ignore */
+      }
+
+      if (hfApiKey) {
+        try {
+          const prompt = formatChatPrompt(message, safeHistory);
+          reply = await askHuggingFace(hfModel, prompt, hfApiKey);
+        } catch (hfErr) {
+          console.error("HF Inference failed, falling back to Gemini/local:", hfErr);
+          reply = await askSupportBot(message, safeHistory);
+        }
+      } else {
+        // Fallback: Gemini or local
+        reply = await askSupportBot(message, safeHistory);
+      }
+
+      // NOTE: For now we just return the reply.
+      // Later, we can also persist this into message_threads/messages
+      // so admins can review conversations.
+
+      res.json({ reply, userId });
+    } catch (error: any) {
+      console.error("Assistant chat error:", error);
+
+      // If the provider returned a quota / rate-limit error, surface a
+      // clear 429 to the client and include a Retry-After header when
+      // possible so clients/frontend can back off gracefully.
+      try {
+        if (error && (error.status === 429 || (error?.errorDetails && Array.isArray(error.errorDetails)))) {
+          // Try to extract retry info from the provider error details
+          let retryDelay: string | null = null;
+          const details = error.errorDetails || [];
+          for (const d of details) {
+            if (d && typeof d === 'object' && d['@type'] && d['@type'].includes('RetryInfo')) {
+              retryDelay = d.retryDelay || null;
+              break;
+            }
+          }
+
+          // If we have a retryDelay like "1s" or "30s" attempt to convert
+          // it to seconds and set the standard Retry-After header.
+          if (retryDelay && typeof retryDelay === 'string') {
+            const m = /^\s*(\d+(?:\.\d+)?)(s|m|h)?\s*$/i.exec(retryDelay);
+            if (m) {
+              const val = Number(m[1]);
+              const unit = (m[2] || 's').toLowerCase();
+              let seconds = val;
+              if (unit === 'm') seconds = val * 60;
+              if (unit === 'h') seconds = val * 3600;
+              res.setHeader('Retry-After', String(Math.ceil(seconds)));
+            }
+          }
+
+          return res.status(429).json({ message: "Assistant quota exceeded; please try again later", retryDelay });
+        }
+      } catch (innerErr) {
+        console.error("Error while handling assistant error details:", innerErr);
+      }
+
+      res.status(500).json({ message: "Assistant is temporarily unavailable" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Message Attachments
+  // ========================================================================
+  const uploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "messages");
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+
+  const storageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const upload = multer({
+    storage: storageEngine,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "application/pdf",
+        "text/plain",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type"));
+    },
+  });
+
+  app.post('/api/uploads/messages', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const relativePath = `/attached_assets/files/uploads/messages/${req.file.filename}`;
+      res.json({
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+
+  // ========================================================================
+  // Message Routes
+  // ========================================================================
+  app.get('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const messages = await storage.getMessagesByUserId(userId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const receiverId = req.body.receiverId;
+      
+      const sender = await storage.getUserById(senderId);
+      const receiver = await storage.getUserById(receiverId);
+      
+      if (!sender || !receiver) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const adminUser = await storage.getAdminUser();
+      const adminId = adminUser?.id;
+
+      // Allow cases:
+      // - admin can send to anyone
+      // - messages to admin are allowed
+      // - buyers/sellers can message admin
+      // Additionally allow buyer -> listing.seller when the message references a listing
+      let isAllowed =
+        sender.role === 'admin' ||
+        receiver.role === 'admin' ||
+        (sender.role === 'buyer' && receiverId === adminId) ||
+        (sender.role === 'seller' && receiverId === adminId);
+
+      // If this message is intended to contact a listing seller, allow buyer -> seller
+      const relatedListingId = req.body?.relatedListingId;
+      if (!isAllowed && relatedListingId) {
+        try {
+          const listing = await storage.getMarketplaceListingById(relatedListingId);
+          if (listing && listing.sellerId === receiverId) {
+            // Allow buyer to message the listing's seller
+            isAllowed = true;
+          }
+        } catch (err) {
+          // don't block on listing lookup errors here; validation will catch missing fields
+          console.warn('Failed to lookup listing for message authorization', err);
+        }
+      }
+
+      if (!isAllowed) {
+        return res.status(403).json({ 
+          message: "You are not authorized to send this message. For inquiries about listings or projects, contact the listing seller or admin." 
+        });
+      }
+      
+      const validatedData = insertMessageSchema.parse({
+        ...req.body,
+        senderId,
+      });
+      const idempotencyKey = req.header('Idempotency-Key') || req.header('idempotency-key') || null;
+      const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
+      
+      // Create notification for receiver (persisted to storage)
+      await storage.createNotification({
+        userId: receiverId,
+        type: 'message',
+        title: 'New Message',
+        message: `${sender.firstName} ${sender.lastName} sent you a message`,
+        link: '/messages',
+      });
+      
+      res.json(message);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  // Admin endpoint to contact seller about a project or listing
+  app.post('/api/messages/contact-seller', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, sellerId } = req.body;
+
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+
+      if (!sellerId) {
+        return res.status(400).json({ message: "sellerId is required" });
+      }
+
+      // Get admin user to verify
+      const admin = await storage.getUserById(adminId);
+      if (!admin || admin.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can use this endpoint" });
+      }
+
+      // Check if thread already exists
+      const existingThreads = await storage.getAllMessageThreads();
+      let existingThread = existingThreads.find(t => 
+        t.type === 'admin_to_seller' &&
+        t.adminId === adminId &&
+        t.sellerId === sellerId &&
+        (projectId ? t.projectId === projectId : t.listingId === listingId)
+      );
+
+      if (existingThread) {
+        // Thread exists, return it
+        return res.json({ thread: existingThread, existed: true });
+      }
+
+      // Create new thread
+      let threadTitle = '';
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        threadTitle = `Admin inquiry about project: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        threadTitle = `Admin inquiry about listing: ${listing.title}`;
+      }
+
+      const newThread = await storage.createMessageThread({
+        title: threadTitle,
+        type: 'admin_to_seller',
+        projectId: projectId || null,
+        listingId: listingId || null,
+        buyerId: null,
+        sellerId,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+      });
+
+      res.json({ thread: newThread, existed: false });
+    } catch (error: any) {
+      console.error("Error creating admin-seller thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+
+  app.get('/api/conversations/:userId', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user.claims?.sub || req.user.id;
+      const otherUserId = req.params.userId;
+      const messages = await storage.getConversation(currentUserId, otherUserId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+
+  app.get('/api/messages/:id/details', isAuthenticated, async (req, res) => {
+    try {
+  const messageId = req.params.id;
+  const currentUserId = (req as any).user?.claims?.sub || (req as any).user?.id;
+  console.log(`Fetching message details for id=${messageId} (user=${currentUserId})`);
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) {
+        console.warn(`Message not found: id=${messageId}`);
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      // Mark message as read for the current user if it's addressed to them
+      try {
+        if (messageDetails.message && messageDetails.message.receiverId === currentUserId) {
+          await storage.markMessageAsRead(messageId);
+        }
+      } catch (err) {
+        console.error(`Failed to mark message read for id=${messageId}:`, err);
+      }
+
+      // Log minimal details for debugging and return the payload the client expects
+      console.log(`Returning message details for id=${messageId}: sender=${messageDetails.sender?.id}`);
+      res.json(messageDetails);
+    } catch (error) {
+      console.error("Error fetching message details:", error);
+      res.status(500).json({ message: "Failed to fetch message details" });
+    }
+  });
+
+  // Close a conversation (mark all messages between the two participants as closed)
+  app.patch('/api/messages/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user.claims?.sub || req.user.id;
+
+      // Load message details to ensure user is participant or admin
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) return res.status(404).json({ message: 'Message not found' });
+
+      const main = messageDetails.message;
+      const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
+      const user = await storage.getUser(currentUserId);
+      const isAdminUser = user?.role === 'admin';
+
+      if (!isParticipant && !isAdminUser) {
+        return res.status(403).json({ message: 'Not authorized to close this conversation' });
+      }
+
+      await storage.closeConversationByMessageId(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error closing conversation:', error);
+      res.status(500).json({ message: 'Failed to close conversation' });
+    }
+  });
+
+  app.get('/api/messages/check-contact', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.query;
+
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+      }
+
+      if (projectId) {
+        const hasContacted = await storage.checkUserHasContactedAboutProject(userId, projectId as string);
+        return res.json({ hasContacted });
+      }
+
+      if (listingId) {
+        const hasContacted = await storage.checkUserHasContactedAboutListing(userId, listingId as string);
+        return res.json({ hasContacted });
+      }
+      
+      return res.status(400).json({ error: 'Either projectId or listingId is required' });
+    } catch (error) {
+      console.error("Error checking contact status:", error);
+      return res.status(500).json({ error: 'Internal server error while checking contact status' });
+      res.status(500).json({ message: "Failed to check contact status" });
+    }
+  });
+
+  // Return a user's public details (admins can view any user; users can view themselves)
+  app.get('/api/users/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      const targetId = req.params.id;
+
+      // Allow if requesting own profile or admin
+      const requestingUser = await storage.getUser(currentUserId);
+      const isAdminUser = requestingUser?.role === 'admin';
+      if (!isAdminUser && currentUserId !== targetId) {
+        return res.status(403).json({ message: 'Not authorized to view this user' });
+      }
+
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const profile = await storage.getUserProfile(targetId);
+
+      // Include listings and recent messages when admin or requesting own profile
+      let listings = null;
+      let recentMessages = null;
+      try {
+        listings = await storage.getListingsBySellerId(targetId);
+      } catch (err) {
+        listings = null;
+      }
+
+      // Only include message previews for admin users or the owner
+      if (isAdminUser || currentUserId === targetId) {
+        try {
+          const msgs = await storage.getMessagesByUserId(targetId);
+          // provide a small preview: last 5 messages
+          recentMessages = (msgs || []).slice(0, 5).map(m => ({ id: m.id, content: m.content, createdAt: m.createdAt, senderId: m.senderId, receiverId: m.receiverId }));
+        } catch (err) {
+          recentMessages = null;
+        }
+      }
+
+      res.json({ user, profile, listings, recentMessages });
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // Public profile endpoint (no authentication) with limited fields and public listings
+  app.get('/api/public/users/:id', async (req: any, res) => {
+    try {
+      const targetId = req.params.id;
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const profile = await storage.getUserProfile(targetId);
+
+  // Public listings: only return listings with status 'active' or published
+  let publicListings: any[] = [];
+      try {
+        const allListings = await storage.getListingsBySellerId(targetId);
+        publicListings = (allListings || []).filter(l => (l.status || '').toLowerCase() === 'active');
+      } catch (err) {
+        publicListings = [];
+      }
+
+      // Build public payload (exclude email/phone)
+      const publicUser = { id: user.id, firstName: user.firstName, lastName: user.lastName, role: user.role };
+      const publicProfile = { companyName: profile?.companyName, location: profile?.location, bio: profile?.bio };
+
+      res.json({ user: publicUser, profile: publicProfile, listings: publicListings });
+    } catch (error) {
+      console.error('Error fetching public user profile:', error);
+      res.status(500).json({ message: 'Failed to fetch public profile' });
+    }
+  });
+
+  // ========================================================================
+  // Blog Routes
+  // ========================================================================
+  app.get('/api/blog', async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(true);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+
+  app.get('/api/blog/:slug', async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ message: "Failed to fetch blog post" });
+    }
+  });
+
+  app.post('/api/blog', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const authorId = req.user.claims?.sub || req.user.id;
+      const validatedData = insertBlogPostSchema.parse({
+        ...req.body,
+        authorId,
+      });
+      const post = await storage.createBlogPost(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: authorId,
+          activityType: 'blog_post_created',
+          description: `Created blog post: "${post.title || post.id}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { postId: post.id, slug: post.slug },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log blog post creation:', logError);
+      }
+      
+      res.json(post);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating blog post:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating blog post:", error);
+      res.status(500).json({ message: "Failed to create blog post" });
+    }
+  });
+
+  app.patch('/api/blog/:id/publish', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const post = await storage.publishBlogPost(req.params.id);
+      res.json(post);
+    } catch (error) {
+      console.error("Error publishing blog post:", error);
+      res.status(500).json({ message: "Failed to publish blog post" });
+    }
+  });
+
+  app.patch('/api/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertBlogPostSchema.partial().parse(req.body);
+      const post = await storage.updateBlogPost(req.params.id, validatedData);
+      res.json(post);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating blog post:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating blog post:", error);
+      res.status(500).json({ message: "Failed to update blog post" });
+    }
+  });
+
+  app.delete('/api/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteBlogPost(req.params.id);
+      res.json({ message: "Blog post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog post:", error);
+      res.status(500).json({ message: "Failed to delete blog post" });
+    }
+  });
+
+  app.get('/api/blog/admin/all', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(false);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching all blog posts:", error);
+      res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+
+  // ========================================================================
+  // Sustainability Routes
+  // ========================================================================
+  app.get('/api/sustainability', async (req, res) => {
+    try {
+      const items = await storage.getSustainabilityContent();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching sustainability content:", error);
+      res.status(500).json({ message: "Failed to fetch sustainability content" });
+    }
+  });
+
+  app.post('/api/sustainability', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.parse(req.body);
+      const item = await storage.createSustainabilityContent(validatedData);
+      res.json(item);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating sustainability content:", error);
+      res.status(500).json({ message: "Failed to create sustainability content" });
+    }
+  });
+
+  app.patch('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.partial().parse(req.body);
+      const item = await storage.updateSustainabilityContent(req.params.id, validatedData);
+      res.json(item);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating sustainability content:", error);
+      res.status(500).json({ message: "Failed to update sustainability content" });
+    }
+  });
+
+  app.delete('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSustainabilityContent(req.params.id);
+      res.json({ message: "Sustainability content deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting sustainability content:", error);
+      res.status(500).json({ message: "Failed to delete sustainability content" });
+    }
+  });
+
+  // ========================================================================
+  // Contact Routes
+  // ========================================================================
+  app.post('/api/contact', async (req, res) => {
+    try {
+      const validatedData = insertContactSubmissionSchema.parse(req.body);
+      const submission = await storage.createContactSubmission(validatedData);
+      
+      // Also create an internal support thread so admins see the submission in Messages
+      try {
+        const adminUser = await storage.getAdminUser();
+        let thread: any = null;
+        if (adminUser) {
+          // If the requester is authenticated, create a thread owned by them so
+          // the conversation appears in their Messages view. Otherwise create
+          // an internal admin-side thread for unauthenticated submissions.
+          const requesterId = (req as any).user ? ((req as any).user.claims?.sub || (req as any).user.id) : null;
+
+          if (requesterId) {
+            thread = await storage.createMessageThread({
+              title: submission.subject || 'Contact Admin',
+              type: 'support',
+              projectId: null,
+              listingId: null,
+              buyerId: requesterId,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: requesterId,
+              context: 'support',
+              status: 'open',
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: 'open',
+            } as any);
+
+            const content = `Contact submission from ${submission.name || ''} <${submission.email || ''}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: requesterId,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: 'support',
+              isAutoRelay: false,
+            } as any);
+
+            await storage.updateThreadLastMessage(thread.id);
+          } else {
+            // Unauthenticated submission: create an internal admin thread and a relay message
+            thread = await storage.createMessageThread({
+              title: submission.subject || 'Contact Form Submission',
+              type: 'support',
+              projectId: null,
+              listingId: null,
+              buyerId: null,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: adminUser.id,
+              context: 'support',
+              status: 'open',
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: 'open',
+            } as any);
+
+            const content = `Contact submission from ${submission.name} <${submission.email}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: adminUser.id,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: 'support',
+              isAutoRelay: true,
+            } as any);
+
+            await storage.updateThreadLastMessage(thread.id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create support thread for contact submission:', err);
+      }
+
+      // Notify all admin users about the new contact submission
+      try {
+        const adminUsers = await storage.getUsersByRole('admin');
+        for (const admin of adminUsers) {
+          await storage.createNotification({
+            userId: admin.id,
+            type: 'message',
+            title: 'New Contact Submission',
+            message: `${submission.name || 'Visitor'} submitted a contact: ${submission.subject || 'No subject'}`,
+            link: thread ? `/dashboard/messages?threadId=${thread.id}` : `/dashboard/messages`,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create admin notifications for contact submission:', err);
+      }
+      
+      res.json(submission);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error submitting contact form:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error submitting contact form:", error);
+      res.status(500).json({ message: "Failed to submit contact form" });
+    }
+  });
+
+  app.get('/api/contact/submissions', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getContactSubmissions();
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching contact submissions:", error);
+      res.status(500).json({ message: "Failed to fetch submissions" });
+    }
+  });
+
+  app.patch('/api/contact/submissions/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status || !['new', 'contacted', 'resolved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      const submission = await storage.updateContactSubmissionStatus(req.params.id, status);
+      res.json(submission);
+    } catch (error) {
+      console.error("Error updating contact submission:", error);
+      res.status(500).json({ message: "Failed to update submission" });
+    }
+  });
+
+  app.get('/api/contact/settings', async (req, res) => {
+    try {
+      const settings = await storage.getContactSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching contact settings:", error);
+      res.status(500).json({ message: "Failed to fetch contact settings" });
+    }
+  });
+
+  app.patch('/api/contact/settings', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateContactSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating contact settings:", error);
+      res.status(500).json({ message: "Failed to update contact settings" });
+    }
+  });
+
+  // ========================================================================
+  // Admin Routes
+  // ========================================================================
+  app.get('/api/admin/verification-queue', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const listings = await storage.getPendingListings();
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching verification queue:", error);
+      res.status(500).json({ message: "Failed to fetch verification queue" });
+    }
+  });
+
+  // Consolidated admin statistics used by the Admin overview dashboard
+  app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Fetch users via storage so legacy/linked users are included
+      const allUsers = await storage.getAllUsers();
+      const totalUsers = allUsers.length;
+      const admins = allUsers.filter(u => u.role === 'admin').length;
+      const sellers = allUsers.filter(u => u.role === 'seller').length;
+      const buyers = allUsers.filter(u => u.role === 'buyer').length;
+
+      // Listings
+      const pendingListings = await storage.getPendingListings();
+      const allListings = await db.select().from(marketplaceListings);
+      const totalListings = allListings.length;
+      const approvedListings = allListings.filter((l: any) => l.status === 'approved').length;
+
+      // Projects
+      const allProjects = await db.select().from(projects);
+      const totalProjects = allProjects.length;
+      const activeProjects = allProjects.filter((p: any) => p.status === 'active').length;
+
+      // Messages
+      const allMessages = await db.select().from(messages);
+      const totalMessages = allMessages.length;
+      const unreadMessages = allMessages.filter((m: any) => !m.read).length;
+
+      // Buyer requests / RFQs
+      const allBuyerRequests = await db.select().from(buyerRequests);
+      const totalRFQs = allBuyerRequests.length;
+
+      return res.json({
+        totalUsers,
+        admins,
+        sellers,
+        buyers,
+        pendingVerifications: pendingListings.length,
+        totalListings,
+        approvedListings,
+        totalProjects,
+        activeProjects,
+        totalMessages,
+        unreadMessages,
+        totalRFQs,
+      });
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      res.status(500).json({ message: 'Failed to fetch admin stats' });
+    }
+  });
+
+  app.post('/api/admin/verify/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const reviewerId = req.user.claims?.sub || req.user.id;
+      const listingId = req.params.id;
+      const listing = await storage.getListing(listingId);
+      await storage.approveListing(listingId, reviewerId);
+      
+      // Log activity
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: 'listing_approved',
+            description: `Listing "${listing.title || listingId}" was approved by admin`,
+            ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+            userAgent: req.get('user-agent') || null,
+            metadata: { listingId, reviewerId },
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG] Failed to log listing approval:', logError);
+        }
+      }
+      
+      res.json({ message: "Listing approved successfully" });
+    } catch (error) {
+      console.error("Error approving listing:", error);
+      res.status(500).json({ message: "Failed to approve listing" });
+    }
+  });
+
+  app.post('/api/admin/reject/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const reviewerId = req.user.claims?.sub || req.user.id;
+      const listingId = req.params.id;
+      const listing = await storage.getListing(listingId);
+      await storage.rejectListing(listingId, reviewerId);
+      
+      // Log activity
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: 'listing_rejected',
+            description: `Listing "${listing.title || listingId}" was rejected by admin`,
+            ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+            userAgent: req.get('user-agent') || null,
+            metadata: { listingId, reviewerId },
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG] Failed to log listing rejection:', logError);
+        }
+      }
+      
+      res.json({ message: "Listing rejected successfully" });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ message: "Failed to reject listing" });
+    }
+  });
+
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      
+      // Fetch user profiles for phone numbers and company names
+      const profiles = await db.select().from(userProfiles);
+      const profileMap = new Map(profiles.map(p => [p.userId, p]));
+      
+      // Fetch admin permissions for admin users
+      const adminUsers = users.filter(u => u.role === 'admin');
+      const adminPermissionsMap = new Map();
+      
+      for (const adminUser of adminUsers) {
+        try {
+          const permissions = await storage.getAdminPermissions(adminUser.id);
+          if (permissions) {
+            adminPermissionsMap.set(adminUser.id, permissions);
+          }
+        } catch (error) {

@@ -61,18 +61,18 @@ const ADMIN_ROLE_LABELS: Record<string, { label: string; variant: "default" | "d
   analytics_admin: { label: "Analytics Admin", variant: "secondary" },
 };
 
-export function AdminSidebar({ 
-  activeTab, 
-  onTabChange, 
-  permissions, 
+export function AdminSidebar({
+  activeTab,
+  onTabChange,
+  permissions,
   adminRole,
   mobileOpen: externalMobileOpen,
-  onMobileOpenChange 
+  onMobileOpenChange
 }: AdminSidebarProps) {
   const [location] = useLocation();
   const { user, permissions: authPermissions } = useAuth();
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-  
+
   // Use external state if provided, otherwise use internal state
   const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
@@ -84,7 +84,7 @@ export function AdminSidebar({
     (permissions as AdminPermissions | null) ?? (authPermissions as AdminPermissions | null) ?? null;
 
   const effectiveAdminRole =
-    adminRole ?? (authPermissions as any)?.adminPermissions?.adminRole ?? (permissions as any)?.adminRole;
+    adminRole ?? (authPermissions as any)?.adminRole ?? (permissions as any)?.adminRole;
 
   const getUserInitials = () => {
     if (!user) return "A";
@@ -227,11 +227,11 @@ export function AdminSidebar({
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            
+
             // For tab-based items
             if (item.tab) {
               const isActive = activeTab === item.tab;
-              
+
               // If we're on a href-based page (no onTabChange), navigate to the
               // Admin dashboard with the appropriate ?tab= query so the tab
               // selection is preserved and deep-linkable.
@@ -253,7 +253,7 @@ export function AdminSidebar({
                   </Link>
                 );
               }
-              
+
               // If we're on the Admin page with tab support
               return (
                 <Button
@@ -271,7 +271,7 @@ export function AdminSidebar({
                 </Button>
               );
             }
-            
+
             // For href-based items - use Link for client-side navigation
             if (item.href) {
               const isActive = location === item.href;
@@ -292,7 +292,7 @@ export function AdminSidebar({
                 </Link>
               );
             }
-            
+
             return null;
           })}
         </div>
@@ -330,9 +330,9 @@ export function AdminSidebar({
 // Export a component for the mobile menu trigger to be used in Admin page header
 export function AdminMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
   return (
-    <Button 
-      variant="outline" 
-      size="icon" 
+    <Button
+      variant="outline"
+      size="icon"
       onClick={onOpen}
       className="md:hidden"
       data-testid="button-admin-mobile-menu"

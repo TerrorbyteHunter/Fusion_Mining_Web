@@ -1,7 +1,8 @@
 // Main navigation header component
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth as useClerkAuth } from '@clerk/clerk-react';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Mountain,
   Menu,
@@ -25,8 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -34,12 +34,43 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export function Header() {
   const [location] = useLocation();
-  const { userId, user, signOut } = useAuth();
+  const { signOut: clerkSignOut } = useClerkAuth();
+  const { user, isAdmin, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { t } = useLanguage();
 
-  const isAuthenticated = !!userId;
-  const isAdmin = user?.publicMetadata?.role === 'admin';
+  const handleSignOut = async () => {
+    await clerkSignOut();
+    queryClient.invalidateQueries();
+    window.location.href = "/";
+  };
+
+  const getUserInitials = () => {
+    if (!user) return "U";
+    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0].toUpperCase() || "U";
+  };
+
+  const getTierBadge = () => {
+    const tier = user?.membershipTier || 'basic';
+    const tierConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
+      premium: {
+        icon: <Crown className="h-3 w-3" />,
+        label: 'Premium',
+        className: 'bg-amber-600 hover:bg-amber-700'
+      },
+      standard: {
+        icon: <Zap className="h-3 w-3" />,
+        label: 'Standard',
+        className: 'bg-blue-600 hover:bg-blue-700'
+      },
+      basic: {
+        icon: <Star className="h-3 w-3" />,
+        label: 'Basic',
+        className: 'bg-gray-500 hover:bg-gray-600'
+      },
+    };
+    return tierConfig[tier];
+  };
 
   const navItems = [
     { label: t('nav.home'), path: "/", key: "home" },
@@ -50,39 +81,6 @@ export function Header() {
     { label: t('nav.news'), path: "/news", key: "news" },
     { label: t('nav.contact'), path: "/contact", key: "contact" },
   ];
-
-  const handleSignOut = async () => {
-    await signOut();
-    queryClient.invalidateQueries();
-    window.location.href = "/";
-  };
-
-  const getUserInitials = () => {
-    if (!user) return "U";
-    return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.primaryEmailAddress?.emailAddress?.[0].toUpperCase() || "U";
-  };
-
-  const getTierBadge = () => {
-    const tier = user?.membershipTier || 'basic';
-    const tierConfig: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
-      premium: { 
-        icon: <Crown className="h-3 w-3" />, 
-        label: 'Premium', 
-        className: 'bg-amber-600 hover:bg-amber-700' 
-      },
-      standard: { 
-        icon: <Zap className="h-3 w-3" />, 
-        label: 'Standard', 
-        className: 'bg-blue-600 hover:bg-blue-700' 
-      },
-      basic: { 
-        icon: <Star className="h-3 w-3" />, 
-        label: 'Basic', 
-        className: 'bg-gray-500 hover:bg-gray-600' 
-      },
-    };
-    return tierConfig[tier];
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -136,7 +134,7 @@ export function Header() {
             <ThemeToggle />
             {isAuthenticated && <NotificationBell />}
             {isAuthenticated && user?.role === 'buyer' && getTierBadge() && (
-              <Badge 
+              <Badge
                 className={`${getTierBadge()?.className} text-white flex items-center gap-1 px-2.5 py-1`}
                 data-testid="badge-nav-tier"
               >
@@ -147,8 +145,8 @@ export function Header() {
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     className="gap-2"
                     data-testid="button-user-menu"
                   >
@@ -191,8 +189,8 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button 
-                asChild 
+              <Button
+                asChild
                 variant="default"
                 data-testid="button-login"
               >

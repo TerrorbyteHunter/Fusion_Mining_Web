@@ -1,0 +1,1100 @@
+﻿      console.log('[DEV] /api/auth/user - sessionID=', req.sessionID, 'isAuthenticated=', req.isAuthenticated && req.isAuthenticated(), 'req.user=', (req.user as any)?.id);
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      try {
+        // For hardcoded test users, prefer live database values for tier/status,
+        // but keep convenience fields from the in-memory store.
+        if (req.user && req.user.id && req.user.id.startsWith('test-')) {
+          const testUser = testUsersStore.get(req.user.id);
+          if (testUser) {
+            let adminPerms = undefined as any;
+
+            // Fetch the real user record from the database
+            const dbUser = await storage.getUser(testUser.id);
+
+            // Fetch admin permissions for admin users from database
+            if ((dbUser?.role || testUser.role) === 'admin') {
+              try {
+                const permsUserId = dbUser?.id || testUser.id;
+                adminPerms = await storage.getAdminPermissions(permsUserId);
+                console.log('[DEV AUTH/USER] Retrieved admin permissions for', permsUserId, ':', adminPerms?.adminRole);
+
+                // If no permissions exist in DB, try to create them based on credentials
+                if (!adminPerms) {
+                  const cred = Array.from(customTestCredentials.values()).find(c => c.userId === permsUserId);
+                  if (cred && cred.adminRole) {
+                    const { ROLE_PERMISSIONS } = await import('./rbac');
+                    const rolePermissions = ROLE_PERMISSIONS[cred.adminRole];
+                    console.log('[DEV AUTH/USER] Creating missing admin permissions for', permsUserId, 'role:', cred.adminRole);
+                    adminPerms = await storage.upsertAdminPermissions({
+                      adminUserId: permsUserId,
+                      adminRole: cred.adminRole,
+                      ...rolePermissions,
+                    } as any);
+                  }
+                }
+              } catch (e) {
+                console.error('[DEV AUTH/USER] Error getting admin permissions:', e);
+              }
+            }
+
+            // If we have a DB user, trust its membershipTier / verificationStatus
+            if (dbUser) {
+              return res.json({
+                ...dbUser,
+                // Preserve any extra convenience fields from test user store
+                firstName: dbUser.firstName || testUser.firstName,
+                lastName: dbUser.lastName || testUser.lastName,
+                email: dbUser.email || testUser.email,
+                adminPermissions: adminPerms || null,
+              });
+            }
+
+            // Fallback: no DB user, use test user as before
+            return res.json({
+              id: testUser.id,
+              email: testUser.email,
+              role: testUser.role,
+              firstName: testUser.firstName,
+              lastName: testUser.lastName,
+              membershipTier: testUser.membershipTier,
+              verificationStatus: testUser.verificationStatus,
+              adminPermissions: adminPerms || null,
+            });
+          }
+        }
+
+        // For database users, fetch from storage
+        const user = await storage.getUser(req.user.id);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        
+        // Fetch admin permissions for admin users
+        let adminPerms = undefined as any;
+        if (user.role === 'admin') {
+          try {
+            adminPerms = await storage.getAdminPermissions(user.id);
+            console.log('[DEV AUTH/USER] Retrieved admin permissions for DB user:', adminPerms?.adminRole);
+          } catch (e) {
+            console.error('[DEV AUTH/USER] Error getting admin permissions:', e);
+          }
+        }
+        
+        res.json({ ...user, adminPermissions: adminPerms || null });
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        res.status(500).json({ message: "Failed to fetch user" });
+      }
+    });
+
+    // Contact settings endpoint
+    app.get('/api/contact-settings', async (req, res) => {
+      try {
+        const settings = await storage.getContactSettings();
+        if (!settings) {
+          return res.status(404).json({ message: 'Contact settings not found' });
+        }
+        res.json(settings);
+      } catch (error) {
+        console.error('Error fetching contact settings:', error);
+        res.status(500).json({ message: 'Failed to fetch contact settings' });
+      }
+    });
+
+    // Public endpoint to fetch a lightweight admin contact (id, name, email)
+    // This allows the client to address in-app messages to the admin without
+    // exposing the admin-only user listing endpoints.
+    app.get('/api/admin/contact-user', async (req, res) => {
+      try {
+        const adminUser = await storage.getAdminUser();
+        if (!adminUser) {
+          return res.status(404).json({ message: 'Admin user not found' });
+        }
+        res.json({
+          id: adminUser.id,
+          email: adminUser.email,
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          name: `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim(),
+        });
+      } catch (error) {
+        console.error('Error fetching admin contact user:', error);
+        res.status(500).json({ message: 'Failed to fetch admin contact' });
+      }
+    });
+
+    // Development-only: update contact settings quickly
+    if (process.env.NODE_ENV === 'development') {
+      app.post('/api/contact-settings', async (req, res) => {
+        try {
+          const payload = req.body || {};
+          // Allow partial updates
+          const updated = await storage.updateContactSettings(payload);
+          res.json(updated);
+        } catch (error) {
+          console.error('Error updating contact settings:', error);
+          res.status(500).json({ message: 'Failed to update contact settings' });
+        }
+      });
+    }
+
+    app.post('/api/seed-data', async (req, res) => {
+      try {
+        // Create test users with different membership tiers
+        const testUsers = [
+          {
+            id: 'test-admin-123',
+            email: 'admin@fusionmining.com',
+            firstName: 'Admin',
+            lastName: 'User',
+            role: 'admin',
+            membershipTier: 'premium'
+          },
+          {
+            id: 'test-seller-456',
+            email: 'ray@fusionmining.com',
+            firstName: 'Ray',
+            lastName: 'Pass',
+            role: 'seller',
+            membershipTier: 'premium'
+          },
+          {
+            id: 'test-buyer-789',
+            email: 'henry@fusionmining.com',
+            firstName: 'Henry',
+            lastName: 'Pass',
+            role: 'buyer',
+            membershipTier: 'standard'
+          },
+          {
+            id: 'test-buyer-basic-001',
+            email: 'alice@example.com',
+            firstName: 'Alice',
+            lastName: 'Johnson',
+            role: 'buyer',
+            membershipTier: 'basic'
+          },
+          {
+            id: 'test-buyer-premium-002',
+            email: 'bob@example.com',
+            firstName: 'Bob',
+            lastName: 'Williams',
+            role: 'buyer',
+            membershipTier: 'premium'
+          },
+          {
+            id: 'test-seller-standard-003',
+            email: 'carol@example.com',
+            firstName: 'Carol',
+            lastName: 'Davis',
+            role: 'seller',
+            membershipTier: 'standard'
+          },
+        ];
+
+        for (const userData of testUsers) {
+          try {
+            let user = await storage.getUser(userData.id);
+            if (!user) {
+              user = await storage.upsertUser({
+                id: userData.id,
+                email: userData.email,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+              });
+              await storage.updateUserRole(userData.id, userData.role);
+              // Set membership tier
+              await db.update(users).set({ membershipTier: userData.membershipTier as any }).where(eq(users.id, userData.id));
+            }
+          } catch (error) {
+            console.error(`Error creating user ${userData.id}:`, error);
+          }
+        }
+
+        // Seed projects using storage interface
+        const projectsData = [
+          {
+            name: "Konkola Copper Mine",
+            description: "Large-scale copper mining operation in the Copperbelt Province. Excellent infrastructure and proven reserves of high-grade copper ore.",
+            licenseType: "mining",
+            minerals: ["Copper", "Cobalt"],
+            location: "Copperbelt",
+            latitude: "-12.4178",
+            longitude: "27.4178",
+            status: "active",
+            area: "1,200 hectares",
+            estimatedValue: "$500M - $1B",
+          },
+          {
+            name: "Kagem Emerald Mine",
+            description: "World's largest emerald mine producing premium quality gemstones. Partnership opportunities available for exploration expansion.",
+            licenseType: "mining",
+            minerals: ["Emerald"],
+            location: "Copperbelt",
+            latitude: "-13.0000",
+            longitude: "28.0000",
+            status: "active",
+            area: "41 square kilometers",
+            estimatedValue: "$100M - $300M",
+          },
+          {
+            name: "Mwinilunga Gold Exploration",
+            description: "New gold exploration license in promising geological formation. Seeking investment partners for initial drilling and sampling.",
+            licenseType: "exploration",
+            minerals: ["Gold"],
+            location: "Northern Province",
+            latitude: "-11.7358",
+            longitude: "24.4289",
+            status: "active",
+            area: "500 hectares",
+            estimatedValue: "$50M - $150M",
+          },
+          {
+            name: "Luapula Cobalt Processing",
+            description: "Strategic cobalt processing facility with modern infrastructure. Perfect for battery-grade cobalt production.",
+            licenseType: "processing",
+            minerals: ["Cobalt"],
+            location: "Luapula Province",
+            latitude: "-11.6667",
+            longitude: "28.7167",
+            status: "active",
+            area: "200 hectares",
+            estimatedValue: "$200M - $400M",
+          },
+          {
+            name: "Central Province Gold Fields",
+            description: "Multiple gold-bearing sites across Central Province. Excellent potential for small to medium scale operations.",
+            licenseType: "exploration",
+            minerals: ["Gold", "Silver"],
+            location: "Central Province",
+            latitude: "-14.4333",
+            longitude: "28.2833",
+            status: "pending",
+            area: "800 hectares",
+            estimatedValue: "$75M - $200M",
+          },
+          {
+            name: "Kabwe Lead and Zinc Mine",
+            description: "Historic mining site with significant lead and zinc deposits. Environmental remediation completed, ready for modern extraction methods.",
+            licenseType: "mining",
+            minerals: ["Lead", "Zinc", "Silver"],
+            location: "Central Province",
+            latitude: "-14.4469",
+            longitude: "28.4469",
+            status: "active",
+            area: "950 hectares",
+            estimatedValue: "$120M - $250M",
+          },
+          {
+            name: "Mufulira Copper Expansion",
+            description: "Expansion opportunity for established copper mining operations. Includes access to processing facilities and skilled workforce.",
+            licenseType: "mining",
+            minerals: ["Copper"],
+            location: "Copperbelt",
+            latitude: "-12.5500",
+            longitude: "28.2667",
+            status: "active",
+            area: "1,500 hectares",
+            estimatedValue: "$400M - $800M",
+          },
+          {
+            name: "Solwezi Copper-Gold Project",
+            description: "Combined copper and gold mining project in Northwestern Province. High-grade ore bodies with excellent exploration potential.",
+            licenseType: "exploration",
+            minerals: ["Copper", "Gold"],
+            location: "Northwestern Province",
+            latitude: "-12.1833",
+            longitude: "26.3833",
+            status: "active",
+            area: "2,000 hectares",
+            estimatedValue: "$300M - $600M",
+          },
+          {
+            name: "Copperbelt Manganese Processing",
+            description: "Modern manganese processing facility with export capabilities. Strategic location near major transport routes.",
+            licenseType: "processing",
+            minerals: ["Manganese"],
+            location: "Copperbelt",
+            latitude: "-12.8000",
+            longitude: "28.2000",
+            status: "active",
+            area: "150 hectares",
+            estimatedValue: "$80M - $150M",
+          },
+          {
+            name: "Kafue Amethyst Mine",
+            description: "High-quality amethyst deposits suitable for jewelry and collectors market. Eco-friendly mining practices in place.",
+            licenseType: "mining",
+            minerals: ["Amethyst", "Quartz"],
+            location: "Southern Province",
+            latitude: "-15.7667",
+            longitude: "28.1833",
+            status: "active",
+            area: "300 hectares",
+            estimatedValue: "$25M - $60M",
+          },
+        ];
+
+        for (const project of projectsData) {
+          try {
+            await storage.createProject(project as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        // Seed marketplace listings - 10 total from different sellers
+        const listingsData = [
+          // Premium seller listings
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "High-Grade Copper Ore - 5000 Tonnes",
+            description: "Premium quality copper ore from our Copperbelt operations. Consistent grade, ready for immediate shipment. Full documentation and certificates available.",
+            mineralType: "Copper",
+            grade: "25% Cu content",
+            location: "Kitwe, Copperbelt",
+            quantity: "5,000 tonnes",
+            price: "$4,500/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Premium Zambian Emeralds - Investment Grade",
+            description: "Exceptional quality emeralds suitable for jewelry and investment. Sourced from certified mines with full traceability.",
+            mineralType: "Emerald",
+            grade: "AAA Grade",
+            location: "Ndola, Copperbelt",
+            quantity: "500 carats",
+            price: "$8,000/carat",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Battery-Grade Cobalt Hydroxide",
+            description: "High-purity cobalt hydroxide perfect for battery manufacturing. Meets all international standards and certifications.",
+            mineralType: "Cobalt",
+            grade: "20% Co min",
+            location: "Copperbelt",
+            quantity: "2,000 tonnes",
+            price: "$35,000/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "mineral",
+            title: "Gold Ore Concentrate",
+            description: "Gold concentrate from Northern Province operations. Ready for refining with excellent recovery rates.",
+            mineralType: "Gold",
+            grade: "45 g/t Au",
+            location: "Northern Province",
+            quantity: "100 tonnes",
+            price: "$1,200/tonne",
+            status: "pending",
+          },
+          {
+            sellerId: "test-seller-456",
+            type: "partnership",
+            title: "Joint Venture - Copper Mine Expansion",
+            description: "Seeking strategic partner for expanding existing copper mining operations. Proven reserves, established infrastructure, and experienced team in place.",
+            location: "Copperbelt",
+            status: "approved",
+          },
+          // Standard seller listings
+          {
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Amethyst Gemstones - Small Lots",
+            description: "Beautiful purple amethyst from Southern Province mines. Perfect for jewelry makers and collectors. Available in various sizes.",
+            mineralType: "Amethyst",
+            grade: "AA Grade",
+            location: "Southern Province",
+            quantity: "100 carats",
+            price: "$50/carat",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Manganese Ore",
+            description: "High-grade manganese ore for steel production. Reliable supply from established mine. Competitive pricing available.",
+            mineralType: "Manganese",
+            grade: "42% Mn",
+            location: "Copperbelt",
+            quantity: "500 tonnes",
+            price: "$750/tonne",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "service",
+            title: "Mining Consulting Services",
+            description: "Experienced mining consultants offering geological surveys, feasibility studies, and operational optimization services.",
+            location: "Nationwide",
+            status: "approved",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "partnership",
+            title: "Small-Scale Gold Mining Partnership",
+            description: "Looking for investment partner for small-scale gold mining operation. Low entry cost with good potential returns.",
+            location: "Northern Province",
+            status: "pending",
+          },
+          {
+            sellerId: "test-seller-standard-003",
+            type: "mineral",
+            title: "Quartz Crystals - Wholesale",
+            description: "Clear quartz crystals suitable for industrial and decorative use. Bulk quantities available at wholesale prices.",
+            mineralType: "Quartz",
+            grade: "Industrial Grade",
+            location: "Eastern Province",
+            quantity: "10 tonnes",
+            price: "$100/tonne",
+            status: "approved",
+          },
+        ];
+
+        for (const listing of listingsData) {
+          try {
+            await storage.createMarketplaceListing(listing as any);
+          } catch (error) {
+            // Ignore duplicates
+          }
+        }
+
+        // Seed buyer requests - 8 total to demonstrate tier limits
+        // 1 from basic (test-buyer-basic-001), 3 from standard (test-buyer-789), 4 from premium (test-buyer-premium-002)
+        const requestsData = [
+          // Basic tier buyer (1 RFQ - at limit)
+          {
+            buyerId: "test-buyer-basic-001",
+            title: "Small Gold Purchase for Jewelry",
+            description: "Small jewelry business seeking gold for custom pieces. Looking for reliable local supplier with fair pricing.",
+            mineralType: "Gold",
+            quantity: "5 kg",
+            budget: "$300,000",
+            location: "Lusaka area",
+            status: "active",
+          },
+          // Standard tier buyer (3 RFQs - within 5 limit)
+          {
+            buyerId: "test-buyer-789",
+            title: "Seeking Regular Copper Ore Supply",
+            description: "International buyer seeking long-term copper ore supplier. Looking for 10,000+ tonnes monthly with consistent quality. Will provide advance payment for reliable suppliers.",
+            mineralType: "Copper",
+            quantity: "10,000 tonnes/month",
+            budget: "$40-45M annually",
+            location: "Any major mining region",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-789",
+            title: "High-Quality Emerald Procurement",
+            description: "Luxury jewelry company seeks premium grade emeralds. Looking for certified stones with excellent clarity and color. Long-term partnership preferred.",
+            mineralType: "Emerald",
+            quantity: "1,000+ carats quarterly",
+            budget: "$5-10M per quarter",
+            location: "Copperbelt preferred",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-789",
+            title: "Cobalt for Battery Manufacturing",
+            description: "Battery manufacturer requires sustainable cobalt supply chain. Looking for ethically sourced, battery-grade cobalt with full traceability.",
+            mineralType: "Cobalt",
+            quantity: "5,000 tonnes annually",
+            budget: "$150-200M annually",
+            location: "Any region with export capability",
+            status: "active",
+          },
+          // Premium tier buyer (4 RFQs - unlimited tier)
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Bulk Copper Concentrate Purchase",
+            description: "Large-scale buyer seeking premium copper concentrate for processing. Long-term contracts preferred with competitive pricing.",
+            mineralType: "Copper",
+            quantity: "50,000 tonnes annually",
+            budget: "$200M+",
+            location: "Copperbelt or Northern Province",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Rare Earth Elements Sourcing",
+            description: "Technology company seeking rare earth elements for manufacturing. Looking for sustainable and ethical suppliers.",
+            mineralType: "Rare Earth Elements",
+            quantity: "1,000 tonnes",
+            budget: "$50M",
+            location: "Any region",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Gemstone Investment Portfolio",
+            description: "Investment firm building gemstone portfolio. Interested in emeralds, amethysts, and other precious stones from certified sources.",
+            mineralType: "Mixed Gemstones",
+            quantity: "Various lots",
+            budget: "$10-20M",
+            location: "Nationwide",
+            status: "active",
+          },
+          {
+            buyerId: "test-buyer-premium-002",
+            title: "Manganese Ore for Steel Production",
+            description: "Steel manufacturer requires high-grade manganese ore. Looking for reliable supply chain with export capabilities.",
+            mineralType: "Manganese",
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      let adminPerms = undefined as any;
+      
+      // Retrieve admin permissions for admin users
+      if (user && user.role === 'admin') {
+        try {
+          adminPerms = await storage.getAdminPermissions(user.id);
+          console.log('[AUTH/USER] Retrieved admin permissions:', adminPerms?.adminRole);
+        } catch (e) {
+          console.error('Error getting admin permissions:', e);
+        }
+        
+        // Fallback: if no permissions found, try to generate from session adminRole
+        if (!adminPerms && req.user.adminRole) {
+          console.log('[AUTH/USER] Permissions not found, using fallback for role:', req.user.adminRole);
+          adminPerms = {
+            adminRole: req.user.adminRole,
+            ...getPermissionsForRole(req.user.adminRole),
+          };
+        }
+      }
+      
+      res.json({ ...user, adminPermissions: adminPerms || null });
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ========================================================================
+  // Admin Permissions Routes
+  // ========================================================================
+  
+  // Helper function to get permissions based on admin role
+  function getPermissionsForRole(role: string) {
+    const basePerms = {
+      canManageUsers: false,
+      canManageListings: false,
+      canManageProjects: false,
+      canManageBlog: false,
+      canManageCMS: false,
+      canViewAnalytics: false,
+      canManageMessages: false,
+      canManageVerification: false,
+      canManageSettings: false,
+      canManageAdmins: false,
+      canAccessAuditLogs: false,
+      canManageDocuments: false,
+      canResetPasswords: false,
+      canForceLogout: false,
+    };
+    
+    switch(role) {
+      case 'super_admin':
+        return { ...basePerms, ...Object.keys(basePerms).reduce((acc, key) => ({...acc, [key]: true}), {}) };
+      case 'verification_admin':
+        return { ...basePerms, canManageVerification: true, canManageListings: true, canAccessAuditLogs: true, canManageUsers: true };
+      case 'content_admin':
+        return { ...basePerms, canManageBlog: true, canManageCMS: true, canManageSettings: true };
+      case 'support_admin':
+        return { ...basePerms, canManageMessages: true, canManageUsers: true, canAccessAuditLogs: true };
+      case 'analytics_admin':
+        return { ...basePerms, canViewAnalytics: true, canAccessAuditLogs: true };
+      default:
+        return basePerms;
+    }
+  }
+  
+  app.get('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req, res) => {
+    try {
+      const perms = await storage.getAdminPermissions(req.params.id);
+      res.json(perms || null);
+    } catch (error) {
+      console.error('Error fetching admin permissions:', error);
+      res.status(500).json({ message: 'Failed to fetch admin permissions' });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/permissions', isAuthenticated, isAdmin, requireAdminPermission('canManageUsers'), async (req: any, res) => {
+    try {
+      const adminUserId = req.params.id;
+      const adminRole = req.body?.adminRole || 'content_admin';
+      const rolePerms = getPermissionsForRole(adminRole);
+      
+      const payload = {
+        adminUserId,
+        adminRole,
+        ...rolePerms,
+      };
+      const updated = await storage.upsertAdminPermissions(payload as any);
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating admin permissions:', error);
+      res.status(500).json({ message: 'Failed to update admin permissions' });
+    }
+  });
+
+  // Start a general conversation with any user (admin)
+  app.post('/api/admin/messages/start', isAuthenticated, isAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { receiverId, subject, content } = req.body || {};
+      if (!receiverId || !content) {
+        return res.status(400).json({ message: 'receiverId and content are required' });
+      }
+      // Create a general thread (no project/listing)
+      const thread = await storage.createMessageThread({
+        title: subject || 'Admin message',
+        type: 'general',
+        buyerId: null,
+        sellerId: null,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+      } as any);
+
+      const message = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId,
+        subject: subject || null,
+        content,
+        context: 'general',
+        isAutoRelay: false,
+      } as any);
+
+      await storage.updateThreadLastMessage(thread.id);
+      res.json({ thread, message });
+    } catch (error) {
+      console.error('Error starting admin conversation:', error);
+      res.status(500).json({ message: 'Failed to start conversation' });
+    }
+  });
+
+  // Start a context-specific thread (listing/project) with a target user
+  app.post('/api/admin/threads/start', isAuthenticated, isAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { receiverId, subject, content, listingId, projectId } = req.body || {};
+      if (!receiverId || !content || (!listingId && !projectId)) {
+        return res.status(400).json({ message: 'receiverId, content and listingId/projectId are required' });
+      }
+
+      const thread = await storage.createMessageThread({
+        title: subject || 'Admin message',
+        type: listingId ? 'admin_to_seller' : (projectId ? 'admin_to_buyer' : 'general'),
+        projectId: projectId || null,
+        listingId: listingId || null,
+        buyerId: projectId ? receiverId : null,
+        sellerId: listingId ? receiverId : null,
+        adminId,
+        createdBy: adminId,
+        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
+        status: 'open',
+      } as any);
+
+      const message = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId,
+        subject: subject || null,
+        content,
+        relatedProjectId: projectId || null,
+        relatedListingId: listingId || null,
+        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
+        isAutoRelay: false,
+      } as any);
+
+      await storage.updateThreadLastMessage(thread.id);
+      res.json({ thread, message });
+    } catch (error) {
+      console.error('Error starting context thread:', error);
+      res.status(500).json({ message: 'Failed to start thread' });
+    }
+  });
+
+  // ========================================================================
+  // User Profile Routes
+  // ========================================================================
+  app.get('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const profile = await storage.getUserProfile(userId);
+      res.json(profile);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const validatedData = insertUserProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const profile = await storage.createUserProfile(validatedData);
+      res.json(profile);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating profile:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating profile:", error);
+      res.status(500).json({ message: "Failed to create profile" });
+    }
+  });
+
+  app.patch('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const validatedData = updateUserProfileSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const profile = await storage.updateUserProfile(validatedData);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId,
+          activityType: 'profile_updated',
+          description: `Updated user profile`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { profileId: profile.id },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log profile update:', logError);
+      }
+      
+      res.json(profile);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating profile:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  // ========================================================================
+  // Project Routes
+  // ========================================================================
+  app.get('/api/projects', async (req: any, res) => {
+    try {
+      const projects = await storage.getProjects();
+      const isAdmin = req.user && req.user.role === 'admin';
+      
+      const filteredProjects = isAdmin 
+        ? projects 
+        : projects.filter(p => p.status === 'active');
+      
+      res.json(filteredProjects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+
+  app.get('/api/projects/:id', async (req, res) => {
+    try {
+      const project = await storage.getProjectById(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // Defensive check: ensure we have a valid user ID
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      const validatedData = insertProjectSchema.parse(req.body);
+      // Always set ownerId from authenticated user to prevent spoofing
+      const projectData = {
+        ...validatedData,
+        ownerId: userId,
+      };
+      const project = await storage.createProject(projectData);
+      res.json(project);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+
+  app.patch('/api/projects/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertProjectSchema.partial().parse(req.body);
+      // Prevent changing ownerId via update - only admins should update projects anyway
+      const { ownerId, ...updateData } = validatedData;
+      const project = await storage.updateProject(req.params.id, updateData);
+      res.json(project);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+
+  app.delete('/api/projects/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+
+  app.patch('/api/projects/:id/close', isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.closeProject(req.params.id);
+      res.json(project);
+    } catch (error) {
+      console.error("Error closing project:", error);
+      res.status(500).json({ message: "Failed to close project" });
+    }
+  });
+
+  app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.body;
+
+      if (projectId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+        if (hasInterest) {
+          return res.status(400).json({ message: "You have already expressed interest in this project" });
+        }
+      }
+
+      const validatedData = insertExpressInterestSchema.parse({
+        ...req.body,
+        userId,
+      });
+      const interest = await storage.expressProjectInterest(validatedData);
+
+      const buyer = await storage.getUserById(userId);
+      
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        
+        if (project && buyer && project.ownerId) {
+          const projectOwner = await storage.getUserById(project.ownerId);
+          
+          if (projectOwner) {
+            // Create direct thread between buyer and project owner
+            const thread = await storage.createMessageThread({
+              title: `Inquiry about: ${project.name}`,
+              type: 'project_interest',
+              projectId,
+              buyerId: userId,
+              sellerId: project.ownerId,
+              adminId: null,
+              createdBy: userId,
+              context: 'project_interest',
+              status: 'open',
+            });
+
+            // Notify project owner of interest
+            await storage.createNotification({
+              userId: project.ownerId,
+              type: 'interest_received',
+              title: 'New Interest in Your Project',
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+              link: `/dashboard/messages`,
+            });
+
+            // Send welcome message from owner to buyer
+            const ownerName = `${projectOwner.firstName || ''} ${projectOwner.lastName || ''}`.trim() || 'Project Owner';
+            const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+            
+            await storage.createMessage({
+              threadId: thread.id,
+              senderId: project.ownerId,
+              receiverId: userId,
+              subject: `Re: Inquiry about ${project.name}`,
+              content: `Hello ${buyerName},\n\nThank you for your interest in ${project.name}. I'm ${ownerName}, the project owner. I'd be happy to discuss this opportunity with you.\n\nPlease feel free to ask any questions you may have.\n\nBest regards,\n${ownerName}`,
+              context: 'project_interest',
+              relatedProjectId: projectId,
+              isAutoRelay: true,
+            });
+          }
+        }
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
+        
+        if (listing && buyer && seller) {
+          // Create direct thread between buyer and seller
+          const thread = await storage.createMessageThread({
+            title: `Inquiry about: ${listing.title}`,
+            type: 'marketplace_inquiry',
+            listingId,
+            buyerId: userId,
+            sellerId: listing.sellerId,
+            adminId: null,
+            createdBy: userId,
+            context: 'marketplace',
+            status: 'open',
+          });
+
+          // Notify seller of interest
+          await storage.createNotification({
+            userId: seller.id,
+            type: 'interest_received',
+            title: 'New Interest in Your Listing',
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+            link: `/dashboard/messages`,
+          });
+
+          // Send welcome message from seller to buyer
+          const sellerName = `${seller.firstName || ''} ${seller.lastName || ''}`.trim() || 'Seller';
+          const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
+          
+          await storage.createMessage({
+            threadId: thread.id,
+            senderId: listing.sellerId,
+            receiverId: userId,
+            subject: `Re: Inquiry about ${listing.title}`,
+            content: `Hello ${buyerName},\n\nThank you for your interest in ${listing.title}. I'm ${sellerName}, the seller. I'd be happy to provide more information and answer any questions you might have.\n\nFeel free to reach out with your questions.\n\nBest regards,\n${sellerName}`,
+            context: 'marketplace',
+            relatedListingId: listingId,
+            isAutoRelay: true,
+          });
+        }
+      }
+
+      // Create activity log
+      await storage.createActivityLog({
+        userId,
+        activityType: 'interest_expressed',
+        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
+
+      // Notify all admin users (use 'interest_received' notification type)
+      const adminUsers = await storage.getUsersByRole('admin');
+      // Resolve a short title for the target (project or listing)
+      let titleText = '';
+      if (projectId) {
+        const proj = await storage.getProjectById(projectId);
+        titleText = proj?.name || projectId;
+      } else if (listingId) {
+        const list = await storage.getMarketplaceListingById(listingId);
+        titleText = list?.title || listingId;
+      }
+
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: 'interest_received',
+          title: 'New Interest Expression',
+          message: `${buyer?.firstName || ''} ${buyer?.lastName || ''} expressed interest in ${projectId ? 'project' : 'listing'}: ${titleText}`,
+          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`,
+        });
+      }
+
+      res.json(interest);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error expressing interest:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error expressing interest:", error);
+      res.status(500).json({ message: "Failed to express interest" });
+    }
+  });
+
+  app.get('/api/projects/:id/has-interest', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const projectId = req.params.id;
+      const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+      res.json({ hasInterest });
+    } catch (error) {
+      console.error("Error checking interest:", error);
+      res.status(500).json({ message: "Failed to check interest" });
+    }
+  });
+
+  app.get('/api/admin/projects-interest', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const interests = await storage.getAllExpressedInterests();
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching expressed interests:", error);
+      res.status(500).json({ message: "Failed to fetch expressed interests" });
+    }
+  });
+
+  // ========================================================================
+  // Marketplace Routes
+  // ========================================================================
+  app.get('/api/marketplace/listings', async (req: any, res) => {
+    try {
+      const { type, status } = req.query;
+      const isAdmin = req.user && req.user.role === 'admin';
+      const listings = await storage.getMarketplaceListings({
+        type: type as string,
+        status: status as string,
+      });
+      
+      const filteredListings = isAdmin 
+        ? listings 
+        : listings.filter(l => l.status === 'approved');
+      
+      res.json(filteredListings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+
+  // Dashboard: get current user's listings (sellers)
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      // If user is seller, return their listings; otherwise return empty array
+      const listings = await storage.getListingsBySellerId(userId);
+      res.json(listings || []);
+    } catch (error) {
+      console.error('Error fetching dashboard listings:', error);
+      res.status(500).json({ message: 'Failed to fetch dashboard listings' });
+    }
+  });
+

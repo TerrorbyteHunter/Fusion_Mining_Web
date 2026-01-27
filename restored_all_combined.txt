@@ -1,0 +1,682 @@
+﻿      
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  app.get('/api/account/login-history', isAuthenticated, async (req: any, res) => {
+    try {
+      const history = await storage.getLoginHistory(req.user.id);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching login history:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+
+  // Two-Factor Authentication
+  app.get('/api/account/2fa/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const twoFAStatus = await storage.getTwoFactorAuthStatus(req.user.id);
+      res.json(twoFAStatus);
+    } catch (error) {
+      console.error("Error fetching 2FA status:", error);
+      res.status(500).json({ message: "Failed to fetch 2FA status" });
+    }
+  });
+
+  app.post('/api/account/2fa/enable', isAuthenticated, async (req: any, res) => {
+    try {
+      // In a real implementation, this would generate a TOTP secret and QR code
+      // For now, we'll create a placeholder
+      await storage.enableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA enabled successfully" });
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+
+  app.post('/api/account/2fa/disable', isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.disableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA disabled successfully" });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      res.status(500).json({ message: "Failed to disable 2FA" });
+    }
+  });
+
+  // ========================================================================
+  // Seller Verification Routes
+  // ========================================================================
+  
+  // Create verification request (Seller only)
+  app.post('/api/verification/request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can request verification" });
+      }
+
+      // Ensure seller exists in database (important for demo users)
+      let seller = await storage.getUser(req.user.id);
+      if (!seller) {
+        console.log('[VERIFICATION] Creating missing seller in database:', req.user.id);
+        try {
+          await storage.upsertUser({
+            id: req.user.id,
+            email: req.user.email || 'seller@fusionmining.com',
+            firstName: req.user.firstName || 'Seller',
+            lastName: req.user.lastName || 'User',
+          });
+          console.log('[VERIFICATION] User upserted successfully');
+          
+          await storage.updateUserRole(req.user.id, 'seller');
+          console.log('[VERIFICATION] User role updated to seller');
+          
+          // Verify the user was created
+          seller = await storage.getUser(req.user.id);
+          if (!seller) {
+            throw new Error('User was not created in database after upsert');
+          }
+          console.log('[VERIFICATION] User confirmed in database');
+        } catch (userError) {
+          console.error('[VERIFICATION] Error creating user:', userError);
+          throw userError;
+        }
+      } else {
+        console.log('[VERIFICATION] Seller already exists in database');
+      }
+
+      const request = await storage.createVerificationRequest(req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating verification request:", error);
+      res.status(500).json({ message: "Failed to create verification request" });
+    }
+  });
+
+  // Submit verification request (Seller only) - sends request for review
+  app.post('/api/verification/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can submit verification" });
+      }
+
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      if (!request) {
+        return res.status(404).json({ message: "Verification request not found" });
+      }
+
+      // Check if request has at least one document
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      if (!documents || documents.length === 0) {
+        return res.status(400).json({ message: "Please upload at least one document before submitting" });
+      }
+
+      // Update request status to pending
+      const updatedRequest = await storage.updateVerificationRequestStatus(request.id, 'pending');
+      const updatedDocuments = await storage.getDocumentsByRequestId(request.id);
+      
+      // Create notification for seller
+      const seller = await storage.getUser(req.user.id);
+      if (seller) {
+        await storage.createNotification({
+          userId: req.user.id,
+          type: 'seller_verification',
+          title: 'Verification Request Submitted',
+          message: 'Your seller verification request has been submitted for review. We will review it within 2-3 business days.',
+          link: '/dashboard/seller-verification',
+        });
+      }
+      
+      // Create notification for all admins
+      const adminUser = await storage.getAdminUser();
+      if (adminUser) {
+        await storage.createNotification({
+          userId: adminUser.id,
+          type: 'seller_verification',
+          title: 'New Seller Verification Request',
+          message: `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
+          link: '/admin?tab=seller-verification',
+        });
+      }
+      
+      console.log('[VERIFICATION] Request submitted:', request.id, 'Status changed to pending');
+      res.json({ ...updatedRequest, documents: updatedDocuments });
+    } catch (error) {
+      console.error("Error submitting verification request:", error);
+      res.status(500).json({ message: "Failed to submit verification request" });
+    }
+  });
+
+  // Get current user's verification request (Seller)
+  app.get('/api/verification/my-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can access this endpoint" });
+      }
+
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      
+      if (!request) {
+        return res.json(null);
+      }
+
+      // Also get documents for this request
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      res.json({ ...request, documents });
+    } catch (error) {
+      console.error("Error fetching verification request:", error);
+      res.status(500).json({ message: "Failed to fetch verification request" });
+    }
+  });
+
+  // Get all verification requests (Admin only)
+  app.get('/api/verification/requests', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await storage.getAllVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch verification requests" });
+    }
+  });
+
+  // Get pending verification requests (Admin only)
+  app.get('/api/verification/requests/pending', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const requests = await storage.getAllPendingVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching pending verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending verification requests" });
+    }
+  });
+
+  // Get documents for a verification request (Admin only)
+  app.get('/api/verification/documents/:requestId', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const documents = await storage.getDocumentsByRequestId(req.params.requestId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching verification documents:", error);
+      res.status(500).json({ message: "Failed to fetch verification documents" });
+    }
+  });
+
+  // Approve verification request (Admin only)
+  app.post('/api/verification/approve/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const request = await storage.approveVerificationRequest(req.params.id, req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error approving verification request:", error);
+      res.status(500).json({ message: "Failed to approve verification request" });
+    }
+  });
+
+  // Reject verification request (Admin only)
+  app.post('/api/verification/reject/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      const request = await storage.rejectVerificationRequest(req.params.id, req.user.id, reason);
+      res.json(request);
+    } catch (error) {
+      console.error("Error rejecting verification request:", error);
+      res.status(500).json({ message: "Failed to reject verification request" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Verification Documents
+  // ========================================================================
+  const verificationUploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "verification");
+  fs.mkdirSync(verificationUploadsRoot, { recursive: true });
+
+  const verificationStorageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, verificationUploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const verificationUpload = multer({
+    storage: verificationStorageEngine,
+    limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB for verification documents
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type. Please upload PDF, JPG, PNG, or DOC files."));
+    },
+  });
+
+  // Upload verification file endpoint
+  app.post('/api/verification/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+    try {
+      if (req.user.role !== 'seller') {
+        return res.status(403).json({ message: "Only sellers can upload verification documents" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { requestId, documentType } = req.body;
+      
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+
+      // Verify the request belongs to the current user
+      const request = await storage.getVerificationRequestById(requestId);
+      if (!request || request.sellerId !== req.user.id) {
+        return res.status(403).json({ message: "Invalid verification request" });
+      }
+
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      
+      // Create document record in database
+      const document = await storage.createVerificationDocument({
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+      });
+
+      res.json({
+        document,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading verification document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload verification document" });
+    }
+  });
+
+  // ========================================================================
+  // Buyer Tier Upgrade Routes (Placeholder - storage methods need to be implemented)
+  // ========================================================================
+  
+  // Create tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can request tier upgrades" });
+      }
+
+      const { requestedTier } = req.body;
+      if (!requestedTier || !['standard', 'premium'].includes(requestedTier)) {
+        return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
+      }
+
+      // Create and store in in-memory map
+      const newRequest: BuyerUpgradeRequest = {
+        id: `tier-upgrade-${Date.now()}`,
+        userId: req.user.id,
+        buyerEmail: req.user.email || '',
+        buyerFirstName: req.user.firstName || '',
+        buyerLastName: req.user.lastName || '',
+        requestedTier,
+        status: 'draft',
+        submittedAt: new Date().toISOString(),
+        documentCount: 0,
+      };
+      buyerUpgradeRequests.set(newRequest.id, newRequest);
+      res.json(newRequest);
+    } catch (error) {
+      console.error("Error creating tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to create tier upgrade request" });
+    }
+  });
+
+  // Get current user's tier upgrade request (Buyer)
+  app.get('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
+      }
+
+      // Find the user's tier upgrade request from in-memory store
+      let userRequest: BuyerUpgradeRequest | null = null;
+      for (const request of buyerUpgradeRequests.values()) {
+        if (request.userId === req.user.id) {
+          userRequest = request;
+          break;
+        }
+      }
+      
+      res.json(userRequest);
+    } catch (error) {
+      console.error("Error fetching tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to fetch tier upgrade request" });
+    }
+  });
+
+  // Upload tier upgrade documents (Buyer only)
+  app.post('/api/buyer/tier-upgrade/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { requestId, documentType } = req.body;
+      
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      
+      // For now, return mock data - storage methods to be implemented
+      const mockDocument = {
+        id: `doc-${Date.now()}`,
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      res.json({
+        document: mockDocument,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading tier upgrade document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload document" });
+    }
+  });
+
+  // Submit tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade/submit', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
+      }
+
+      const { requestId } = req.body;
+      if (!requestId) {
+        return res.status(400).json({ message: "Request ID is required" });
+      }
+
+      // Find and update the request in in-memory store
+      const request = buyerUpgradeRequests.get(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      if (request.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
+      }
+
+      // Update status to 'pending'
+      request.status = 'pending';
+      request.submittedAt = new Date().toISOString();
+      buyerUpgradeRequests.set(requestId, request);
+
+      res.json({
+        success: true,
+        message: "Tier upgrade request submitted successfully",
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+      });
+    } catch (error: any) {
+      console.error("Error submitting tier upgrade request:", error);
+      res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
+    }
+  });
+
+  // ========================================================================
+  // Admin Buyer Tier Upgrade Routes
+  // ========================================================================
+
+  // Get pending buyer tier upgrade requests (Admin only)
+  app.get('/api/admin/buyer-upgrades/pending', async (req: any, res) => {
+    try {
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Return pending requests from in-memory store
+      const pendingRequests = getPendingBuyerUpgrades();
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error("Error fetching pending buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch pending buyer tier upgrades" });
+    }
+  });
+
+  // Get all buyer tier upgrade requests (Admin only)
+  app.get('/api/admin/buyer-upgrades', async (req: any, res) => {
+    try {
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Return all requests from in-memory store
+      const allRequests = getAllBuyerUpgrades();
+      res.json(allRequests);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch buyer tier upgrades" });
+    }
+  });
+
+  // Get documents for a buyer tier upgrade request (Admin only)
+  app.get('/api/admin/buyer-upgrades/documents/:requestId', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { requestId } = req.params;
+
+      // For now, return mock data - storage methods to be implemented
+      const mockDocuments = [
+        {
+          id: 'doc-1',
+          documentType: 'certificate_of_incorporation',
+          fileName: 'Company_Certificate.pdf',
+          filePath: '/attached_assets/files/uploads/verification/cert.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-2',
+          documentType: 'company_profile',
+          fileName: 'Company_Profile.docx',
+          filePath: '/attached_assets/files/uploads/verification/profile.docx',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-3',
+          documentType: 'shareholder_list',
+          fileName: 'Shareholders.pdf',
+          filePath: '/attached_assets/files/uploads/verification/shareholders.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: 'doc-4',
+          documentType: 'tax_certificate',
+          fileName: 'Tax_Certificate.pdf',
+          filePath: '/attached_assets/files/uploads/verification/tax.pdf',
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ];
+      res.json(mockDocuments);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrade documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  // Approve buyer tier upgrade request (Admin only)
+  app.post('/api/admin/buyer-upgrades/approve/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+
+      // Update in-memory store
+      const updated = approveBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      // Create notification for buyer
+      await storage.createNotification({
+        userId: updated.userId,
+        type: 'tier_upgrade',
+        title: 'Tier Upgrade Approved',
+        message: `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
+        link: '/dashboard',
+      });
+
+      res.json({
+        success: true,
+        message: "Tier upgrade request approved successfully",
+        status: 'approved',
+        reviewedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error approving buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to approve tier upgrade request" });
+    }
+  });
+
+  // Reject buyer tier upgrade request (Admin only)
+  app.post('/api/admin/buyer-upgrades/reject/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      // Update in-memory store
+      const updated = rejectBuyerUpgrade(id, reason);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      // Create notification for buyer
+      await storage.createNotification({
+        userId: updated.userId,
+        type: 'tier_upgrade',
+        title: 'Tier Upgrade Rejected',
+        message: `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
+        link: '/dashboard',
+      });
+
+      res.json({
+        success: true,
+        message: "Tier upgrade request rejected successfully",
+        status: 'rejected',
+        rejectionReason: reason,
+        reviewedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("Error rejecting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to reject tier upgrade request" });
+    }
+  });
+
+  // Revert buyer tier upgrade request to draft (Admin only)
+  app.post('/api/admin/buyer-upgrades/revert/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+
+      // Update in-memory store
+      const updated = revertBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+
+      res.json({
+        success: true,
+        message: "Tier upgrade request reverted to draft successfully",
+        status: 'draft',
+      });
+    } catch (error) {
+      console.error("Error reverting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to revert tier upgrade request" });
+    }
+  });
+
+  // ========================================================================
+  // Notification Routes
+  // ========================================================================
+
+  // Get all notifications for current user
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

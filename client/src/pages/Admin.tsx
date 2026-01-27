@@ -1,5 +1,5 @@
 // Comprehensive Admin Dashboard with full management capabilities
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +38,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
 import type { MarketplaceListing, User, Message, Project, BuyerRequest } from "@shared/schema";
-import { 
-  ShieldCheck, Users, Package, MessageSquare, Activity, 
+import {
+  ShieldCheck, Users, Package, MessageSquare, Activity,
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
   MapPin, Award, RefreshCw
 } from "lucide-react";
@@ -103,7 +103,7 @@ export default function Admin() {
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
   const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
   const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
-  
+
   // Mobile sidebar state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -148,7 +148,7 @@ export default function Admin() {
 
   // Load current admin's permissions and role on mount
   const [currentAdminRole, setCurrentAdminRole] = useState<'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin' | undefined>(undefined);
-  
+
   useEffect(() => {
     async function loadCurrentAdminPerms() {
       if (isAdmin && user) {
@@ -162,7 +162,7 @@ export default function Admin() {
               setCurrentAdminRole(data.adminPermissions.adminRole);
             }
           }
-        } catch {}
+        } catch { }
       }
     }
     loadCurrentAdminPerms();
@@ -171,7 +171,7 @@ export default function Admin() {
   // Redirect to overview if current tab is not accessible based on permissions
   useEffect(() => {
     if (!adminPermissions) return;
-    
+
     const tabPermissionMap: Record<string, keyof typeof adminPermissions> = {
       'users': 'canManageUsers',
       'listings': 'canManageListings',
@@ -182,7 +182,7 @@ export default function Admin() {
       'admin-activities': 'canAccessAuditLogs',
       'settings': 'canManageSettings',
     };
-    
+
     const requiredPermission = tabPermissionMap[activeTab];
     if (requiredPermission && !adminPermissions[requiredPermission]) {
       // User doesn't have permission for this tab, redirect to overview
@@ -201,7 +201,7 @@ export default function Admin() {
           } else {
             setAdminRole('super_admin');
           }
-        } catch {}
+        } catch { }
       }
     }
     loadPerms();
@@ -344,7 +344,7 @@ export default function Admin() {
   // Fetch activity logs (all user activities)
   const [activityFilter, setActivityFilter] = useState<string>("all");
   const [activitySearchQuery, setActivitySearchQuery] = useState<string>("");
-  
+
   const { data: activityLogs, isLoading: loadingActivity, refetch: refetchActivityLogs } = useQuery<any[]>({
     queryKey: ["/api/admin/activity-logs", activityFilter],
     enabled: !!isAdmin && activeTab === "activity",
@@ -363,7 +363,7 @@ export default function Admin() {
   const [adminActivitiesDateFrom, setAdminActivitiesDateFrom] = useState<string>("");
   const [adminActivitiesDateTo, setAdminActivitiesDateTo] = useState<string>("");
   const [adminActivitiesActionFilter, setAdminActivitiesActionFilter] = useState<string>("all");
-  
+
   // Fetch admin audit logs (admin-specific actions)
   const { data: adminAuditLogs, isLoading: loadingAdminActivities, refetch: refetchAdminActivities } = useQuery<any[]>({
     queryKey: ["/api/admin/audit-logs", adminActivitiesDateFrom, adminActivitiesDateTo, adminActivitiesActionFilter],
@@ -406,6 +406,16 @@ export default function Admin() {
   const { data: buyerRequests } = useQuery<BuyerRequest[]>({
     queryKey: ["/api/marketplace/buyer-requests"],
     enabled: !!isAdmin && activeTab === "overview",
+  });
+
+  // Fetch consolidated admin stats (server-side counts) to avoid relying on multiple conditional queries
+  const { data: adminStats } = useQuery<any>({
+    queryKey: ['/api/admin/stats'],
+    enabled: !!isAdmin && activeTab === 'overview',
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/admin/stats');
+      return await res.json();
+    }
   });
 
   // Approve listing mutation
@@ -541,8 +551,8 @@ export default function Admin() {
 
   const pendingListings = verificationQueue?.filter((l) => l.status === "pending") || [];
   const approvedListings = allListings?.filter((l) => l.status === "approved") || [];
-  
-  const stats = {
+
+  const stats = adminStats || {
     totalUsers: users?.length || 0,
     admins: users?.filter((u) => u.role === "admin").length || 0,
     sellers: users?.filter((u) => u.role === "seller").length || 0,
@@ -568,7 +578,21 @@ export default function Admin() {
     );
   }) || [];
 
-  const filteredListings = allListings?.filter((l) => {
+  // Deduplicate listings to prevent duplicate key warnings
+  const deduplicatedListings = useMemo(() => {
+    if (!allListings) return [];
+    const seen = new Set<string>();
+    return allListings.filter((listing) => {
+      if (seen.has(listing.id)) {
+        console.warn(`Duplicate listing found with ID: ${listing.id}`);
+        return false;
+      }
+      seen.add(listing.id);
+      return true;
+    });
+  }, [allListings]);
+
+  const filteredListings = deduplicatedListings.filter((l) => {
     if (listingStatusFilter !== "all" && l.status !== listingStatusFilter) return false;
     if (!listingSearch) return true;
     const search = listingSearch.toLowerCase();
@@ -577,20 +601,20 @@ export default function Admin() {
       l.description?.toLowerCase().includes(search) ||
       l.location?.toLowerCase().includes(search)
     );
-  }) || [];
+  });
 
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar 
-        activeTab={activeTab} 
-        onTabChange={setActiveTab} 
-        permissions={adminPermissions} 
+      <AdminSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        permissions={adminPermissions}
         adminRole={currentAdminRole}
         mobileOpen={mobileMenuOpen}
         onMobileOpenChange={setMobileMenuOpen}
       />
       <div className="flex-1 flex flex-col min-w-0">
-      {/* Header */}
+        {/* Header */}
         <section className="py-4 md:py-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
           <div className="container mx-auto px-4 md:px-6">
             <div className="flex items-center justify-between gap-2">
@@ -606,8 +630,8 @@ export default function Admin() {
                 </div>
               </div>
             </div>
-        </div>
-      </section>
+          </div>
+        </section>
 
         {/* Content Area */}
         <div className="flex-1 overflow-auto">
@@ -731,7 +755,7 @@ export default function Admin() {
                 </Card>
               </div>
 
-      {/* Quick Actions */}
+              {/* Quick Actions */}
               <Card>
                 <CardHeader>
                   <CardTitle>Quick Actions</CardTitle>
@@ -758,7 +782,7 @@ export default function Admin() {
               {/* Pending Verifications */}
               {pendingListings.length > 0 && (
                 <Card>
-              <CardHeader>
+                  <CardHeader>
                     <CardTitle>Pending Verifications</CardTitle>
                     <CardDescription>{pendingListings.length} listings waiting for approval</CardDescription>
                   </CardHeader>
@@ -834,10 +858,10 @@ export default function Admin() {
                     userRole="buyer"
                     users={filteredUsers.filter(u => u.role === 'buyer')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { 
+                    onEditTier={(u) => {
                       setTierUser(u);
-                      setSelectedTier(u.membershipTier); 
-                      setEditingTier(true); 
+                      setSelectedTier(u.membershipTier);
+                      setEditingTier(true);
                     }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
@@ -858,10 +882,10 @@ export default function Admin() {
                     userRole="seller"
                     users={filteredUsers.filter(u => u.role === 'seller')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { 
+                    onEditTier={(u) => {
                       setTierUser(u);
-                      setSelectedTier(u.membershipTier); 
-                      setEditingTier(true); 
+                      setSelectedTier(u.membershipTier);
+                      setEditingTier(true);
                     }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
@@ -882,10 +906,10 @@ export default function Admin() {
                     userRole="admin"
                     users={filteredUsers.filter(u => u.role === 'admin')}
                     onEdit={(u) => { setEditingUser(u); setSelectedRole(u.role); }}
-                    onEditTier={(u) => { 
+                    onEditTier={(u) => {
                       setTierUser(u);
-                      setSelectedTier(u.membershipTier); 
-                      setEditingTier(true); 
+                      setSelectedTier(u.membershipTier);
+                      setEditingTier(true);
                     }}
                     onEditVerification={(u) => { setSelectedVerificationStatus(u.verificationStatus || 'not_requested'); setEditingVerification(true); }}
                     onDelete={(u) => {
@@ -1234,8 +1258,8 @@ export default function Admin() {
                 </div>
               </div>
               <DialogFooter>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setEditingTier(false);
                     setTierUser(null);
@@ -1315,16 +1339,16 @@ export default function Admin() {
                   <p className="text-sm text-muted-foreground">
                     Current status: {editingUser?.verificationStatus ? (
                       editingUser.verificationStatus === 'approved' ? <Badge className="bg-green-600">Verified</Badge> :
-                      editingUser.verificationStatus === 'pending' ? <Badge className="bg-yellow-600">Pending</Badge> :
-                      editingUser.verificationStatus === 'rejected' ? <Badge variant="destructive">Rejected</Badge> :
-                      <Badge variant="secondary">Not Requested</Badge>
+                        editingUser.verificationStatus === 'pending' ? <Badge className="bg-yellow-600">Pending</Badge> :
+                          editingUser.verificationStatus === 'rejected' ? <Badge variant="destructive">Rejected</Badge> :
+                            <Badge variant="secondary">Not Requested</Badge>
                     ) : <Badge variant="secondary">Not Requested</Badge>}
                   </p>
                 </div>
               </div>
               <DialogFooter>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setEditingVerification(false);
                     setEditingUser(null);
@@ -1601,8 +1625,8 @@ export default function Admin() {
                         <p className="text-xs text-muted-foreground mt-1">Pending verification</p>
                       </div>
                       <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-yellow-600 h-full" 
+                        <div
+                          className="bg-yellow-600 h-full"
                           style={{ width: `${stats.totalListings > 0 ? (stats.pendingVerifications / stats.totalListings * 100) : 0}%` }}
                         />
                       </div>
@@ -1626,8 +1650,8 @@ export default function Admin() {
                         <p className="text-xs text-muted-foreground mt-1">Approval rate</p>
                       </div>
                       <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-green-600 h-full" 
+                        <div
+                          className="bg-green-600 h-full"
                           style={{ width: `${stats.totalListings > 0 ? (stats.approvedListings / stats.totalListings * 100) : 0}%` }}
                         />
                       </div>
@@ -1750,12 +1774,12 @@ export default function Admin() {
                             return true;
                           })
                           .map((log: any) => {
-                            const userName = log.user 
+                            const userName = log.user
                               ? `${log.user.firstName || ''} ${log.user.lastName || ''}`.trim() || log.user.email || log.user.username || 'Unknown User'
                               : 'Guest/System';
                             const userRole = log.user?.role || 'N/A';
                             const activityTypeLabel = log.activityType.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-                            
+
                             return (
                               <TableRow key={log.id} data-testid={`activity-log-${log.id}`}>
                                 <TableCell>
@@ -1767,10 +1791,10 @@ export default function Admin() {
                                 <TableCell>
                                   <Badge variant={
                                     log.activityType === 'login' ? 'default' :
-                                    log.activityType === 'logout' ? 'secondary' :
-                                    log.activityType === 'listing_approved' ? 'default' :
-                                    log.activityType === 'listing_rejected' ? 'destructive' :
-                                    'outline'
+                                      log.activityType === 'logout' ? 'secondary' :
+                                        log.activityType === 'listing_approved' ? 'default' :
+                                          log.activityType === 'listing_rejected' ? 'destructive' :
+                                            'outline'
                                   }>
                                     {activityTypeLabel}
                                   </Badge>
@@ -1789,8 +1813,8 @@ export default function Admin() {
                                 <TableCell>
                                   <div className="flex flex-col gap-1">
                                     <span className="text-xs font-mono text-foreground font-semibold">
-                                      {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1' 
-                                        ? 'localhost (::1)' 
+                                      {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1'
+                                        ? 'localhost (::1)'
                                         : log.ipAddress || 'N/A'}
                                     </span>
                                     {log.userAgent && (
@@ -1894,8 +1918,8 @@ export default function Admin() {
                       </div>
                       <div className="flex gap-2">
                         {(adminActivitiesDateFrom || adminActivitiesDateTo || adminActivitiesActionFilter !== "all") && (
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             onClick={() => {
                               setAdminActivitiesDateFrom("");
                               setAdminActivitiesDateTo("");
@@ -1941,12 +1965,12 @@ export default function Admin() {
                       </TableHeader>
                       <TableBody>
                         {adminAuditLogs.map((log: any) => {
-                          const adminName = log.admin 
+                          const adminName = log.admin
                             ? `${log.admin.firstName || ''} ${log.admin.lastName || ''}`.trim() || log.admin.email || 'Unknown Admin'
                             : log.adminId || 'Unknown Admin';
                           const actionLabel = log.action.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
                           const targetLabel = log.targetType?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || 'N/A';
-                          
+
                           return (
                             <TableRow key={log.id} data-testid={`admin-audit-log-${log.id}`}>
                               <TableCell>
@@ -1960,8 +1984,8 @@ export default function Admin() {
                               <TableCell>
                                 <Badge variant={
                                   log.action.includes('delete') || log.action.includes('reject') ? 'destructive' :
-                                  log.action.includes('approve') || log.action.includes('create') ? 'default' :
-                                  'outline'
+                                    log.action.includes('approve') || log.action.includes('create') ? 'default' :
+                                      'outline'
                                 }>
                                   {actionLabel}
                                 </Badge>
@@ -1985,8 +2009,8 @@ export default function Admin() {
                               <TableCell>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-xs font-mono text-foreground font-semibold">
-                                    {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1' 
-                                      ? 'localhost (::1)' 
+                                    {log.ipAddress === '::1' || log.ipAddress === '127.0.0.1' || log.ipAddress === '::ffff:127.0.0.1'
+                                      ? 'localhost (::1)'
                                       : log.ipAddress || 'N/A'}
                                   </span>
                                   {log.userAgent && (
@@ -2042,7 +2066,7 @@ export default function Admin() {
                   </ul>
                 </CardContent>
               </Card>
-          </div>
+            </div>
           )}
         </div>
 
@@ -2133,148 +2157,147 @@ export default function Admin() {
         </Dialog>
 
         {/* Edit User Dialog - Comprehensive */}
-            <Dialog open={!!editingUser} onOpenChange={() => { setEditingUser(null); setShowPerms(false); }}>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Edit User</DialogTitle>
-                  <DialogDescription>Update user information and role for {editingUser?.email}</DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-6 py-4">
-                  {/* User Information Section */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-sm">User Information</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input
-                          id="firstName"
-                          placeholder="First name"
-                          value={userInfoForm.firstName}
-                          onChange={(e) => setUserInfoForm({ ...userInfoForm, firstName: e.target.value })}
-                          data-testid="input-first-name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input
-                          id="lastName"
-                          placeholder="Last name"
-                          value={userInfoForm.lastName}
-                          onChange={(e) => setUserInfoForm({ ...userInfoForm, lastName: e.target.value })}
-                          data-testid="input-last-name"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="Email address"
-                        value={userInfoForm.email}
-                        onChange={(e) => setUserInfoForm({ ...userInfoForm, email: e.target.value })}
-                        data-testid="input-email"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="username">Username (for test login)</Label>
-                      <Input
-                        id="username"
-                        placeholder="Username for test login"
-                        value={userInfoForm.username}
-                        onChange={(e) => setUserInfoForm({ ...userInfoForm, username: e.target.value })}
-                        data-testid="input-username"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="phoneNumber">Phone Number</Label>
-                        <Input
-                          id="phoneNumber"
-                          placeholder="Phone number"
-                          value={userInfoForm.phoneNumber}
-                          onChange={(e) => setUserInfoForm({ ...userInfoForm, phoneNumber: e.target.value })}
-                          data-testid="input-phone"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <Input
-                          id="companyName"
-                          placeholder="Company name"
-                          value={userInfoForm.companyName}
-                          onChange={(e) => setUserInfoForm({ ...userInfoForm, companyName: e.target.value })}
-                          data-testid="input-company"
-                        />
-                      </div>
-                    </div>
-                  </div>
+        <Dialog open={!!editingUser} onOpenChange={() => { setEditingUser(null); setShowPerms(false); }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit User</DialogTitle>
+              <DialogDescription>Update user information and role for {editingUser?.email}</DialogDescription>
+            </DialogHeader>
 
-                  {/* Role Section */}
-                  <div className="space-y-3 pt-4 border-t">
-                    <h3 className="font-semibold text-sm">Role & Permissions</h3>
-                    <div>
-                      <Label htmlFor="role">Role</Label>
-                      <Select value={selectedRole} onValueChange={setSelectedRole}>
-                        <SelectTrigger id="role" data-testid="select-user-role">
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="seller">Seller</SelectItem>
-                          <SelectItem value="buyer">Buyer</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+            <div className="space-y-6 py-4">
+              {/* User Information Section */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-sm">User Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      placeholder="First name"
+                      value={userInfoForm.firstName}
+                      onChange={(e) => setUserInfoForm({ ...userInfoForm, firstName: e.target.value })}
+                      data-testid="input-first-name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      placeholder="Last name"
+                      value={userInfoForm.lastName}
+                      onChange={(e) => setUserInfoForm({ ...userInfoForm, lastName: e.target.value })}
+                      data-testid="input-last-name"
+                    />
                   </div>
                 </div>
-
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => { setEditingUser(null); setShowPerms(false); }} data-testid="button-cancel-edit-user">Cancel</Button>
-                  {(editingUser?.role === 'admin' || selectedRole === 'admin') && (
-                    <Button variant="secondary" onClick={() => setShowPerms(true)} data-testid="button-manage-perms">Manage Permissions</Button>
-                  )}
-                  <Button onClick={() => { if (editingUser) { updateUserInfoMutation.mutate(); } }} disabled={updateUserInfoMutation.isPending} data-testid="button-save-user-info">
-                    {updateUserInfoMutation.isPending ? "Saving..." : "Save User Info"}
-                  </Button>
-                  <Button onClick={() => { if (editingUser) { updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole }); } }} disabled={updateUserRoleMutation.isPending} data-testid="button-save-user-role">
-                    {updateUserRoleMutation.isPending ? "Saving..." : "Save Role"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
-          {/* Admin Permissions Dialog */}
-          <Dialog open={showPerms && !!editingUser && (editingUser.role === 'admin' || selectedRole === 'admin')} onOpenChange={(open) => { if (!open) setShowPerms(false); }}>
-            <DialogContent className="max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Admin Role & Permissions</DialogTitle>
-                <DialogDescription>Select an admin role to assign permissions</DialogDescription>
-            </DialogHeader>
-              <div className="space-y-4">
-                <Label>Select Admin Role</Label>
-                <div className="grid gap-3">
-                  {adminRoleOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setAdminRole(option.value as any)}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        adminRole === option.value
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                      data-testid={`button-admin-role-${option.value}`}
-                    >
-                      <div className="font-semibold text-sm">{option.label}</div>
-                      <div className="text-xs text-muted-foreground">{option.description}</div>
-                    </button>
-                  ))}
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Email address"
+                    value={userInfoForm.email}
+                    onChange={(e) => setUserInfoForm({ ...userInfoForm, email: e.target.value })}
+                    data-testid="input-email"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="username">Username (for test login)</Label>
+                  <Input
+                    id="username"
+                    placeholder="Username for test login"
+                    value={userInfoForm.username}
+                    onChange={(e) => setUserInfoForm({ ...userInfoForm, username: e.target.value })}
+                    data-testid="input-username"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input
+                      id="phoneNumber"
+                      placeholder="Phone number"
+                      value={userInfoForm.phoneNumber}
+                      onChange={(e) => setUserInfoForm({ ...userInfoForm, phoneNumber: e.target.value })}
+                      data-testid="input-phone"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      placeholder="Company name"
+                      value={userInfoForm.companyName}
+                      onChange={(e) => setUserInfoForm({ ...userInfoForm, companyName: e.target.value })}
+                      data-testid="input-company"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Role Section */}
+              <div className="space-y-3 pt-4 border-t">
+                <h3 className="font-semibold text-sm">Role & Permissions</h3>
+                <div>
+                  <Label htmlFor="role">Role</Label>
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger id="role" data-testid="select-user-role">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="seller">Seller</SelectItem>
+                      <SelectItem value="buyer">Buyer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
             <DialogFooter>
-                <Button variant="outline" onClick={() => setShowPerms(false)}>Close</Button>
-                <Button onClick={() => saveAdminPermsMutation.mutate()} disabled={saveAdminPermsMutation.isPending}>Save Role</Button>
+              <Button variant="outline" onClick={() => { setEditingUser(null); setShowPerms(false); }} data-testid="button-cancel-edit-user">Cancel</Button>
+              {(editingUser?.role === 'admin' || selectedRole === 'admin') && (
+                <Button variant="secondary" onClick={() => setShowPerms(true)} data-testid="button-manage-perms">Manage Permissions</Button>
+              )}
+              <Button onClick={() => { if (editingUser) { updateUserInfoMutation.mutate(); } }} disabled={updateUserInfoMutation.isPending} data-testid="button-save-user-info">
+                {updateUserInfoMutation.isPending ? "Saving..." : "Save User Info"}
+              </Button>
+              <Button onClick={() => { if (editingUser) { updateUserRoleMutation.mutate({ id: editingUser.id, role: selectedRole }); } }} disabled={updateUserRoleMutation.isPending} data-testid="button-save-user-role">
+                {updateUserRoleMutation.isPending ? "Saving..." : "Save Role"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Admin Permissions Dialog */}
+        <Dialog open={showPerms && !!editingUser && (editingUser.role === 'admin' || selectedRole === 'admin')} onOpenChange={(open) => { if (!open) setShowPerms(false); }}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Admin Role & Permissions</DialogTitle>
+              <DialogDescription>Select an admin role to assign permissions</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Label>Select Admin Role</Label>
+              <div className="grid gap-3">
+                {adminRoleOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setAdminRole(option.value as any)}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${adminRole === option.value
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                      }`}
+                    data-testid={`button-admin-role-${option.value}`}
+                  >
+                    <div className="font-semibold text-sm">{option.label}</div>
+                    <div className="text-xs text-muted-foreground">{option.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowPerms(false)}>Close</Button>
+              <Button onClick={() => saveAdminPermsMutation.mutate()} disabled={saveAdminPermsMutation.isPending}>Save Role</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2296,23 +2319,23 @@ export default function Admin() {
         </Dialog>
 
         {/* Legacy status-only edit dialog removed in favor of full edit dialog below */}
-        </div>
+      </div>
     </div>
   );
 }
 
 // User Management Section Component
-function UserManagementSection({ 
+function UserManagementSection({
   userRole,
-  users, 
-  onEdit, 
+  users,
+  onEdit,
   onEditTier,
   onEditVerification,
-  onDelete, 
+  onDelete,
   loading
-}: { 
+}: {
   userRole: 'buyer' | 'seller' | 'admin';
-  users: User[]; 
+  users: User[];
   onEdit: (u: User) => void;
   onEditTier: (u: User) => void;
   onEditVerification: (u: User) => void;
@@ -2321,7 +2344,7 @@ function UserManagementSection({
 }) {
   // Suppress unused variable warning - delete functionality can be enabled per user action requirements
   void onDelete;
-  
+
   if (loading) {
     return (
       <Card>
@@ -2382,12 +2405,12 @@ function UserManagementSection({
         case 2: return (u as any).phoneNumber || '-';
         case 3: return (u as any).companyName || '-';
         case 4: return (
-          <Badge 
+          <Badge
             variant={
-              u.membershipTier === 'premium' ? 'default' : 
-              u.membershipTier === 'standard' ? 'secondary' : 
-              'outline'
-            } 
+              u.membershipTier === 'premium' ? 'default' :
+                u.membershipTier === 'standard' ? 'secondary' :
+                  'outline'
+            }
             className="capitalize"
             data-testid={`text-tier-${u.id}`}
           >
@@ -2433,7 +2456,7 @@ function UserManagementSection({
         <TableHeader>
           <TableRow>
             {headers.map((header) => (
-              <TableHead 
+              <TableHead
                 key={header}
                 className={header === 'Actions' ? 'text-right' : ''}
                 data-testid={`header-${header.toLowerCase().replace(/\s+/g, '-')}`}
@@ -2452,45 +2475,45 @@ function UserManagementSection({
             </TableRow>
           ) : (
             users.map((u) => (
-            <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
-              {headers.map((header, idx) => {
-                if (header === 'Actions') {
+              <TableRow key={u.id} data-testid={`row-user-${u.id}`}>
+                {headers.map((header, idx) => {
+                  if (header === 'Actions') {
+                    return (
+                      <TableCell key="actions" className="text-right">
+                        <div className="flex gap-2 justify-end flex-wrap">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onEdit(u)}
+                            data-testid={`button-edit-user-${u.id}`}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (userRole === 'buyer') onEditTier(u);
+                              else if (userRole === 'seller') onEditVerification(u);
+                              else onEdit(u);
+                            }}
+                            data-testid={`button-status-user-${u.id}`}
+                          >
+                            <ShieldCheck className="h-4 w-4 mr-1" />
+                            Status
+                          </Button>
+                        </div>
+                      </TableCell>
+                    );
+                  }
                   return (
-                    <TableCell key="actions" className="text-right">
-                      <div className="flex gap-2 justify-end flex-wrap">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEdit(u)}
-                          data-testid={`button-edit-user-${u.id}`}
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            if (userRole === 'buyer') onEditTier(u);
-                            else if (userRole === 'seller') onEditVerification(u);
-                            else onEdit(u);
-                          }}
-                          data-testid={`button-status-user-${u.id}`}
-                        >
-                          <ShieldCheck className="h-4 w-4 mr-1" />
-                          Status
-                        </Button>
-                      </div>
+                    <TableCell key={header} className={header === 'Name' ? 'font-medium' : ''}>
+                      {renderTableCell(u, idx)}
                     </TableCell>
                   );
-                }
-                return (
-                  <TableCell key={header} className={header === 'Name' ? 'font-medium' : ''}>
-                    {renderTableCell(u, idx)}
-                  </TableCell>
-                );
-              })}
-            </TableRow>
+                })}
+              </TableRow>
             ))
           )}
         </TableBody>
@@ -2526,7 +2549,7 @@ function ListingManagementSection({
             {[1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-16 w-full" />
             ))}
-                </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -2625,16 +2648,16 @@ function VerificationCard({
             </CardDescription>
           </div>
           <div className="flex gap-2">
-            <Button 
-              onClick={onApprove} 
+            <Button
+              onClick={onApprove}
               disabled={loading}
               data-testid={`button-approve-${listing.id}`}
             >
               <CheckCircle className="mr-2 h-4 w-4" />
               Approve
             </Button>
-            <Button 
-              variant="destructive" 
+            <Button
+              variant="destructive"
               onClick={onReject}
               disabled={loading}
               data-testid={`button-reject-${listing.id}`}
@@ -2651,7 +2674,7 @@ function VerificationCard({
             <p className="text-sm text-muted-foreground mb-1">Description:</p>
             <p className="text-sm">{listing.description}</p>
           </div>
-          
+
           {listing.type === 'mineral' && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
               {listing.mineralType && (
@@ -2680,7 +2703,7 @@ function VerificationCard({
               )}
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
             <div>
               <p className="text-xs text-muted-foreground">Location</p>

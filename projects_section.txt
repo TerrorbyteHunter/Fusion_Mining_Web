@@ -1,0 +1,283 @@
+﻿
+    // Project Routes
+    // =============================================
+===========================
+>   app.get('/api/projects', async (req: any, res) 
+=> {
+      try {
+        const projects = await 
+storage.getProjects();
+        const isAdmin = req.user && req.user.role 
+=== 'admin';
+        
+        const filteredProjects = isAdmin 
+          ? projects 
+          : projects.filter(p => p.status === 
+'active');
+        
+        res.json(filteredProjects);
+      } catch (error) {
+        console.error("Error fetching projects:", 
+error);
+        res.status(500).json({ message: "Failed to 
+fetch projects" });
+      }
+    });
+  
+>   app.get('/api/projects/:id', async (req, res) 
+=> {
+      try {
+        const project = await 
+storage.getProjectById(req.params.id);
+        if (!project) {
+          return res.status(404).json({ message: 
+"Project not found" });
+        }
+        res.json(project);
+      } catch (error) {
+        console.error("Error fetching project:", 
+error);
+        res.status(500).json({ message: "Failed to 
+fetch project" });
+      }
+    });
+  
+>   app.post('/api/projects', isAuthenticated, 
+async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        // Defensive check: ensure we have a valid 
+user ID
+        if (!userId) {
+          return res.status(401).json({ message: 
+"Authentication required" });
+        }
+        const validatedData = 
+insertProjectSchema.parse(req.body);
+        // Always set ownerId from authenticated 
+user to prevent spoofing
+        const projectData = {
+          ...validatedData,
+          ownerId: userId,
+        };
+        const project = await 
+storage.createProject(projectData);
+        res.json(project);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          console.error("Validation error creating 
+project:", formatZodError(error));
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating project:", 
+error);
+        res.status(500).json({ message: "Failed to 
+create project" });
+      }
+    });
+  
+>   app.patch('/api/projects/:id', isAuthenticated, 
+isAdmin, async (req: any, res) => {
+      try {
+        const validatedData = 
+insertProjectSchema.partial().parse(req.body);
+        // Prevent changing ownerId via update - 
+only admins should update projects anyway
+        const { ownerId, ...updateData } = 
+validatedData;
+        const project = await 
+storage.updateProject(req.params.id, updateData);
+        res.json(project);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          console.error("Validation error updating 
+project:", formatZodError(error));
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating project:", 
+error);
+        res.status(500).json({ message: "Failed to 
+update project" });
+      }
+    });
+  
+>   app.delete('/api/projects/:id', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        await storage.deleteProject(req.params.id);
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Error deleting project:", 
+error);
+        res.status(500).json({ message: "Failed to 
+delete project" });
+      }
+    });
+  
+>   app.patch('/api/projects/:id/close', 
+isAuthenticated, async (req, res) => {
+      try {
+        const project = await 
+storage.closeProject(req.params.id);
+        res.json(project);
+      } catch (error) {
+        console.error("Error closing project:", 
+error);
+        res.status(500).json({ message: "Failed to 
+close project" });
+      }
+    });
+  
+>   app.post('/api/projects/interest', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        const { projectId, listingId } = req.body;
+  
+        if (projectId) {
+          const hasInterest = await 
+storage.checkUserHasExpressedInterest(userId, 
+projectId);
+          if (hasInterest) {
+            return res.status(400).json({ message: 
+"You have already expressed interest in this 
+project" });
+          }
+        }
+  
+        const validatedData = 
+insertExpressInterestSchema.parse({
+          ...req.body,
+          userId,
+        });
+        const interest = await 
+storage.expressProjectInterest(validatedData);
+  
+        const buyer = await 
+storage.getUserById(userId);
+        
+        if (projectId) {
+          const project = await 
+storage.getProjectById(projectId);
+          
+          if (project && buyer && project.ownerId) {
+            const projectOwner = await 
+storage.getUserById(project.ownerId);
+            
+            if (projectOwner) {
+              // Create direct thread between buyer 
+and project owner
+              const thread = await 
+storage.createMessageThread({
+                title: `Inquiry about: 
+${project.name}`,
+                type: 'project_interest',
+                projectId,
+                buyerId: userId,
+                sellerId: project.ownerId,
+                adminId: null,
+                createdBy: userId,
+                context: 'project_interest',
+                status: 'open',
+              });
+  
+              // Notify project owner of interest
+              await storage.createNotification({
+                userId: project.ownerId,
+                type: 'interest_received',
+                title: 'New Interest in Your 
+Project',
+                message: `${buyer.firstName} 
+${buyer.lastName} expressed interest in 
+${project.name}`,
+                link: `/dashboard/messages`,
+              });
+  
+              // Send welcome message from owner to 
+buyer
+              const ownerName = 
+`${projectOwner.firstName || ''} 
+${projectOwner.lastName || ''}`.trim() || 'Project 
+Owner';
+    });
+  
+>   app.get('/api/projects/:id/has-interest', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        const projectId = req.params.id;
+        const hasInterest = await 
+storage.checkUserHasExpressedInterest(userId, 
+projectId);
+        res.json({ hasInterest });
+      } catch (error) {
+        console.error("Error checking interest:", 
+error);
+        res.status(500).json({ message: "Failed to 
+check interest" });
+      }
+    });
+  
+    app.get('/api/admin/projects-interest', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const interests = await 
+storage.getAllExpressedInterests();
+        res.json(interests);
+      } catch (error) {
+        console.error("Error fetching expressed 
+interests:", error);
+        res.status(500).json({ message: "Failed to 
+fetch expressed interests" });
+      }
+    });
+  
+    // =============================================
+===========================
+    // Marketplace Routes
+    // =============================================
+===========================
+    app.get('/api/marketplace/listings', async 
+(req: any, res) => {
+      try {
+        const { type, status } = req.query;
+        const isAdmin = req.user && req.user.role 
+=== 'admin';
+        const listings = await 
+storage.getMarketplaceListings({
+          type: type as string,
+          status: status as string,
+        });
+        
+        const filteredListings = isAdmin 
+          ? listings 
+          : listings.filter(l => l.status === 
+'approved');
+        
+        res.json(filteredListings);
+      } catch (error) {
+        console.error("Error fetching listings:", 
+error);
+        res.status(500).json({ message: "Failed to 
+fetch listings" });
+      }
+    });
+  
+    // Dashboard: get current user's listings 
+(sellers)
+    app.get('/api/dashboard/listings', 
+isAuthenticated, async (req: any, res) => {
+      try {
+        const userId = req.user.claims?.sub || 
+req.user.id;
+        // If user is seller, return their 
+listings; otherwise return empty array
+        const listings = await 
+storage.getListingsBySellerId(userId);
+
+

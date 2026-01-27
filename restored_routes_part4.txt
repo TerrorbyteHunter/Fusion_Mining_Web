@@ -1,0 +1,400 @@
+﻿    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, title } = req.body;
+
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+
+      const currentUser = await storage.getUserById(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      let buyerId: string | null = userId;
+      let sellerId: string | null = null;
+      let adminId: string | null = null;
+      let threadTitle = title as string | undefined;
+
+      const adminUser = await storage.getAdminUser();
+      adminId = adminUser?.id || null;
+
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+
+        // Project interests should go to the project owner
+        sellerId = project.ownerId;
+        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+
+        // Listing inquiries should go to the listing's seller
+        sellerId = listing.sellerId;
+        threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+      }
+
+      const thread = await storage.createMessageThread({
+        title: threadTitle!,
+        type: projectId ? 'project_interest' : 'marketplace_inquiry',
+        projectId,
+        listingId,
+        buyerId,
+        sellerId,
+        adminId,
+        createdBy: userId,
+        status: 'open',
+      });
+
+      res.json(thread);
+    } catch (error: any) {
+      console.error("Error creating thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+
+  app.get('/api/threads', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const threads = await storage.getThreadsByUserId(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+
+  // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
+  app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
+      // They can NEVER see buyer-seller marketplace conversations
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching admin support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  // Admin endpoint to get categorized support tickets
+  app.get('/api/admin/threads/categorized', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      // PRIVACY CONTROL: Only support tickets
+      const allTickets = await storage.getAdminSupportTickets();
+      
+      const open = allTickets.filter(t => t.ticketStatus === 'open');
+      const inProgress = allTickets.filter(t => t.ticketStatus === 'in_progress');
+      const waitingUser = allTickets.filter(t => t.ticketStatus === 'waiting_user');
+      const resolved = allTickets.filter(t => t.ticketStatus === 'resolved');
+      
+      res.json({
+        open,
+        inProgress,
+        waitingUser,
+        resolved,
+      });
+    } catch (error) {
+      console.error("Error fetching categorized support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.getThreadById(req.params.id);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      res.json(thread);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+
+  // Return thread and participant (buyer/seller) details for UI header
+  app.get('/api/threads/:id/details', isAuthenticated, async (req: any, res) => {
+    try {
+      const threadId = req.params.id;
+      const details = await storage.getThreadWithParticipants(threadId);
+      if (!details) return res.status(404).json({ message: 'Thread not found' });
+      res.json(details);
+    } catch (error) {
+      console.error('Error fetching thread details:', error);
+      res.status(500).json({ message: 'Failed to fetch thread details' });
+    }
+  });
+
+  app.get('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const messages = await storage.getMessagesByThreadId(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  app.post('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const threadId = req.params.id;
+
+      const thread = await storage.getThreadById(threadId);
+      if (!thread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+
+      const sender = await storage.getUserById(senderId);
+      if (!sender) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const receiverId = senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+
+      const validatedData = insertMessageSchema.parse({
+        threadId,
+        senderId,
+        receiverId,
+        subject: req.body.subject || thread.title,
+        content: req.body.content,
+        relatedProjectId: thread.projectId,
+        relatedListingId: thread.listingId,
+      });
+
+      const message = await storage.createMessage(validatedData);
+      await storage.updateThreadLastMessage(threadId);
+      
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: senderId,
+          activityType: 'message_sent',
+          description: `Sent message in thread: "${thread.title || threadId}"`,
+            ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { threadId, messageId: message.id, receiverId },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log message:', logError);
+      }
+
+      res.json(message);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.patch('/api/threads/:id/close', isAuthenticated, async (req: any, res) => {
+    try {
+      const thread = await storage.closeThread(req.params.id);
+      res.json(thread);
+    } catch (error) {
+      console.error("Error closing thread:", error);
+      res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+
+  // ========================================================================
+  // Support Ticket Routes (Privacy-Compliant Admin Support Only)
+  // ========================================================================
+
+  // User creates a support ticket
+  app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { title, description, priority } = req.body;
+
+      if (!title || !description) {
+        return res.status(400).json({ message: "Title and description are required" });
+      }
+
+      const ticket = await storage.createSupportTicket(userId, title, description, priority);
+      
+      // Create first message in the ticket thread
+      await storage.createMessage({
+        threadId: ticket.id,
+        senderId: userId,
+        receiverId: 'admin', // Will be matched to actual admin later
+        subject: title,
+        content: description,
+        context: 'general',
+      });
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating support ticket:", error);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+
+  // Admin claims a support ticket
+  app.post('/api/admin/support/tickets/:id/claim', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const ticketId = req.params.id;
+
+      const ticket = await storage.claimSupportTicket(ticketId, adminId);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error claiming support ticket:", error);
+      res.status(500).json({ message: "Failed to claim support ticket" });
+    }
+  });
+
+  // Admin resolves a support ticket
+  app.patch('/api/admin/support/tickets/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { notes } = req.body;
+
+      const ticket = await storage.resolveSupportTicket(ticketId, notes);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error resolving support ticket:", error);
+      res.status(500).json({ message: "Failed to resolve support ticket" });
+    }
+  });
+
+  // Admin gets all support tickets (with filtering)
+  app.get('/api/admin/support/tickets', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const assignedAdminId = req.query.assignedAdminId as string | undefined;
+
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+
+  // Update a support ticket's status
+  app.patch('/api/threads/:id/ticket-status', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { status } = req.body;
+
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+
+      const validStatuses = ['open', 'in_progress', 'waiting_user', 'resolved'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      const ticket = await storage.updateTicketStatus(ticketId, status);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+
+  // Update a support ticket's priority
+  app.patch('/api/threads/:id/ticket-priority', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { priority } = req.body;
+
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+
+      const validPriorities = ['low', 'normal', 'high', 'urgent'];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
+
+      const ticket = await storage.updateTicketPriority(ticketId, priority);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+
+  // Update a support ticket's assignee
+  app.patch('/api/threads/:id/ticket-assign', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { assignedAdminId } = req.body;
+
+      const ticket = await storage.updateTicketAssignee(ticketId, assignedAdminId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket assignee:", error);
+      res.status(500).json({ message: "Failed to update ticket assignee" });
+    }
+  });
+
+  // Admin analytics summary
+  app.get('/api/admin/analytics', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary();
+      return res.json(summary);
+    } catch (err) {
+      console.error('Analytics error', err);
+      return res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  // ========================================================================
+  // AI Assistant Chat (Gemini 1.5 Flash)
+  // ========================================================================
+  app.post("/api/assistant/chat", async (req: any, res) => {
+    try {
+      const userId = req.user ? (req.user.claims?.sub || req.user.id) : null;
+      const { message, history } = req.body as {
+        message?: string;
+        history?: ChatHistoryItem[];
+      };
+
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "message is required" });
+      }
+
+      const safeHistory: ChatHistoryItem[] = Array.isArray(history)
+        ? history
+            .filter((h: any) => h && typeof h.content === "string")
+            .map((h: any) => ({
+              role: h.role === "assistant" ? "assistant" : "user",
+              content: h.content,
+            }))
+        : [];
+
+      let reply = "";
+
+      // Priority: HF Inference API (if configured)
+      const hfApiKey = process.env.HF_API_KEY;
+      const hfModel = process.env.HF_MODEL || "deepseek-ai/DeepSeek-V3.2:novita";

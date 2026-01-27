@@ -1,0 +1,13 @@
+﻿
+>   const httpServer = createServer(app);
+>   return httpServer;
+  }
+          limit ? parseInt(limit as string) : 50
+        );
+        res.json(logs);
+      } catch (error) {
+>   const httpServer = createServer(app);
+>   return httpServer;
+  }
+
+

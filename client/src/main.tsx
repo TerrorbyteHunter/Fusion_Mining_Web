@@ -26,8 +26,9 @@ function ClerkGlobalProvider({ children }: { children: React.ReactNode }) {
 createRoot(document.getElementById("root")!).render(
   <ClerkProvider
     publishableKey={PUBLISHABLE_KEY}
-    afterSignInUrl="/dashboard"
-    afterSignUpUrl="/dashboard"
+    fallbackRedirectUrl="/dashboard"
+    signInFallbackRedirectUrl="/dashboard"
+    signUpFallbackRedirectUrl="/dashboard"
   >
     <ClerkLoaded>
       <ClerkGlobalProvider>

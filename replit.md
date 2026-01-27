@@ -64,7 +64,7 @@ Fixed critical issue where admin permissions were not being returned from the `/
 **Issues Fixed:**
 - Development mode `/api/auth/user` endpoint now properly fetches `adminPermissions` from database
 - Auto-creates admin permissions on login based on role type if they don't exist
-- Backward compatibility maintained for legacy 'admin/admin123' credentials
+- JWT fallback disabled for admin routes to prevent authentication conflicts
 
 **Technical Implementation:**
 - `/api/auth/user` calls `storage.getAdminPermissions()` for admin users
@@ -82,18 +82,22 @@ Fixed critical issue where admin permissions were not being returned from the `/
 Implemented a comprehensive role-based permissions system for admin users:
 
 **Admin Role Types:**
-- **Super Admin** (`superadmin` / `super123`) - Full platform control with all permissions (founder-level access)
-- **Verification Admin** (`verifyadmin` / `verify123`) - Handle compliance, KYC/AML, and listing approvals
-- **Content Admin** (`contentadmin` / `content123`) - Manage platform content, branding, and CMS
-- **Support Admin** (`supportadmin` / `support123`) - Handle user communication and issue resolution
-- **Analytics Admin** (`analyticsadmin` / `analytics123`) - Monitor platform performance and fraud detection
+- **Super Admin** - Full platform control with all permissions (founder-level access)
+- **Verification Admin** - Handle compliance, KYC/AML, and listing approvals
+- **Content Admin** - Manage platform content, branding, and CMS
+- **Analytics Admin** - Monitor platform performance and fraud detection
+
+**Admin Setup:**
+- Admin users are created and configured in the Clerk dashboard
+- Set `publicMetadata.role = "admin"` and optional `adminRole` for specific permissions
+- Example metadata: `{ "role": "admin", "adminRole": "super_admin" }`
 
 **Features:**
-- Dedicated admin login page at `/admin/login` with Quick Login (Demo) and Manual Login tabs
+- Direct Clerk authentication at `/admin/login` - supports email/password and social login
 - Role-specific sidebar navigation - admins only see menu items they have permission to access
 - Role badge display in sidebar showing the logged-in admin's role type
 - Permission-enforced tab content - unauthorized tabs redirect to overview
-- Automatic permission creation on login based on admin role type
+- Permissions determined by Clerk metadata on login
 
 **Permission Mapping:**
 - `canManageUsers`: User management, role changes, tier upgrades
@@ -106,8 +110,8 @@ Implemented a comprehensive role-based permissions system for admin users:
 - `canManageSettings`: Platform settings
 
 **Technical Implementation:**
-- Admin permissions stored in `adminPermissions` table linked to users via `adminUserId`
-- `/api/admin/login` endpoint authenticates admins and creates role-specific permissions
+- Admin permissions determined by Clerk user metadata
+- Clerk authentication provides secure admin access
 - RBAC middleware in `server/rbac.ts` provides role permission templates
 - AdminSidebar filters menu items based on logged-in admin's permissions
 
@@ -116,7 +120,7 @@ Implemented a comprehensive role-based permissions system for admin users:
 ### Simple Test Login Page (Development Only) - IMPROVED
 Added a dedicated test login page for easy credential entry during development:
 
-**Test Login Features:**
+**Test Login Features:** (Development Only - Does Not Affect Production Admin Auth)
 - **Manual Entry** - Type username and password directly into clearly visible input fields
 - **Preset Test Accounts** - Three quick-fill buttons for common test credentials:
   - Admin: `admin` / `admin123`
@@ -126,7 +130,7 @@ Added a dedicated test login page for easy credential entry during development:
   - Add new test credentials instantly
   - Delete custom users as needed
   - Your custom users appear in a list below the creation form
-- **No Security** - For development testing only (Firebase will be used for production)
+- **No Security** - For development testing only (Clerk authentication used for production)
 - **Automatic Redirect** - Routes to admin panel for admins, dashboard for regular users
 - **Clear Visual Layout** - All form fields and options are prominently displayed and easy to find
 
@@ -138,11 +142,12 @@ Added a dedicated test login page for easy credential entry during development:
    - **Option C:** Create a custom test user, then use those credentials to log in
 3. You'll be redirected to the admin panel (if admin) or dashboard (if buyer/seller)
 
-**Backend Integration:**
-- Uses existing `/api/login` endpoint
+**Backend Integration:** (Development Testing Only)
+- Uses existing `/api/login` endpoint for development testing
 - Supports both database auth and hardcoded test credentials
 - Creates secure session for authenticated user
 - Works with existing role-based access control
+- Production admin authentication uses Clerk - this test page does not affect production admin access
 
 ### Comprehensive Admin Audit Logging System
 Implemented full audit tracking for all admin actions on the platform:

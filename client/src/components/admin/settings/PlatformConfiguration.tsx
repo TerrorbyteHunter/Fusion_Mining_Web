@@ -56,39 +56,6 @@ export function PlatformConfiguration() {
     },
   });
 
-  const seedPlatformSettingsMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/seed-platform-settings");
-      try {
-        return await res.json();
-      } catch {
-        return null;
-      }
-    },
-    onSuccess: (data) => {
-      if (data?.settings) {
-        // Immediately update cache so UI reflects the seeded defaults
-        queryClient.setQueryData(["/api/admin/settings/platform"], data.settings);
-      }
-      toast({ title: "Success", description: "Platform settings seeded successfully" });
-      refetchSettings();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to seed platform settings", variant: "destructive" });
-    },
-  });
-
-  const seedMembershipBenefitsMutation = useMutation({
-    mutationFn: async () => apiRequest("POST", "/api/seed-membership-benefits"),
-    onSuccess: () => {
-      toast({ title: "Success", description: "Membership tiers seeded successfully" });
-      refetchBenefits();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to seed membership tiers", variant: "destructive" });
-    },
-  });
-
   const updateBenefitMutation = useMutation({
     mutationFn: async ({ tier, data }: { tier: string; data: any }) =>
       apiRequest("PUT", `/api/admin/membership-benefits/${tier}`, data),
@@ -259,17 +226,6 @@ export function PlatformConfiguration() {
               <Sliders className="h-5 w-5" />
               <CardTitle>Platform Settings</CardTitle>
             </div>
-            {(!platformSettings || platformSettings.length === 0) && import.meta.env.DEV && (
-              <Button 
-                onClick={() => seedPlatformSettingsMutation.mutate()}
-                disabled={seedPlatformSettingsMutation.isPending}
-                size="sm"
-                data-testid="button-seed-settings"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {seedPlatformSettingsMutation.isPending ? "Seeding..." : "Seed Settings"}
-              </Button>
-            )}
           </div>
           <CardDescription>Configure platform-wide settings with inline editing</CardDescription>
         </CardHeader>
@@ -387,17 +343,6 @@ export function PlatformConfiguration() {
               <Award className="h-5 w-5" />
               <CardTitle>Membership Tiers</CardTitle>
             </div>
-            {(!benefits || benefits.length === 0) && import.meta.env.DEV && (
-              <Button 
-                onClick={() => seedMembershipBenefitsMutation.mutate()}
-                disabled={seedMembershipBenefitsMutation.isPending}
-                size="sm"
-                data-testid="button-seed-tiers"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {seedMembershipBenefitsMutation.isPending ? "Seeding..." : "Seed Tiers"}
-              </Button>
-            )}
           </div>
           <CardDescription>Configure pricing and features for each membership tier</CardDescription>
         </CardHeader>

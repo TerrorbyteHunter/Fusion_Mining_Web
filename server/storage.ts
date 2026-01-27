@@ -394,7 +394,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
-    // Check if user exists by email first
+    // Check if user exists by clerkId first (for Clerk users)
+    if (userData.clerkId) {
+      const existingUsers = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerkId, userData.clerkId))
+        .limit(1);
+      
+      if (existingUsers.length > 0) {
+        // Update existing Clerk user
+        const updateData: any = {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          role: userData.role,
+          updatedAt: new Date(),
+        };
+        
+        // Only update password if provided
+        if (userData.password) {
+          updateData.password = userData.password;
+        }
+        
+        const [user] = await db
+          .update(users)
+          .set(updateData)
+          .where(eq(users.clerkId, userData.clerkId))
+          .returning();
+        return user;
+      }
+    }
+    
+    // Check if user exists by email (for legacy users)
     if (userData.email) {
       const existingUsers = await db
         .select()
@@ -403,13 +436,23 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       
       if (existingUsers.length > 0) {
-        // Update existing user, preserving the original ID and role
+        // Update existing user, preserving the original ID and merging data
         const updateData: any = {
           firstName: userData.firstName,
           lastName: userData.lastName,
           profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         };
+        
+        // Update clerkId if provided (linking legacy user to Clerk)
+        if (userData.clerkId) {
+          updateData.clerkId = userData.clerkId;
+        }
+        
+        // Update role if provided
+        if (userData.role) {
+          updateData.role = userData.role;
+        }
         
         // Only update password if provided
         if (userData.password) {

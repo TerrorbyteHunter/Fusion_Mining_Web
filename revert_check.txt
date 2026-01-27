@@ -1,0 +1,343 @@
+﻿
+>   
+app.post('/api/admin/buyer-upgrades/revert/:id', 
+async (req: any, res) => {
+      // In development, allow requests without 
+full auth (mock data)
+      const isDev = process.env.NODE_ENV === 
+'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: 
+"Unauthorized" });
+      }
+      try {
+        const { id } = req.params;
+  
+        // Update in-memory store
+        const updated = revertBuyerUpgrade(id);
+        if (!updated) {
+          return res.status(404).json({ message: 
+"Tier upgrade request not found" });
+        }
+  
+        res.json({
+          success: true,
+          message: "Tier upgrade request reverted 
+to draft successfully",
+          status: 'draft',
+        });
+      } catch (error) {
+        console.error("Error reverting buyer tier 
+upgrade:", error);
+        res.status(500).json({ message: "Failed to 
+revert tier upgrade request" });
+      }
+    });
+  
+    // =============================================
+===========================
+    // Notification Routes
+    // =============================================
+===========================
+  
+    // Get all notifications for current user
+  
+    const httpServer = createServer(app);
+    return httpServer;
+  }
+          limit ? parseInt(limit as string) : 50
+        );
+        res.json(logs);
+      } catch (error) {
+        console.error("Error fetching settings 
+audit logs:", error);
+        res.status(500).json({ message: "Failed to 
+fetch audit logs" });
+      }
+    });
+  
+    // Email Templates
+    app.get('/api/admin/settings/email-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const templates = await 
+storage.getAllEmailTemplates();
+        res.json(templates);
+      } catch (error) {
+        console.error("Error fetching email 
+templates:", error);
+        res.status(500).json({ message: "Failed to 
+fetch email templates" });
+      }
+    });
+  
+    app.post('/api/admin/settings/email-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+insertEmailTemplateSchema.parse(req.body);
+        const template = await 
+storage.createEmailTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+create email template" });
+      }
+    });
+  
+    app.patch('/api/admin/settings/email-templates/:
+id', isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+updateEmailTemplateSchema.parse({ ...req.body, id: 
+req.params.id });
+        const template = await 
+storage.updateEmailTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+update email template" });
+      }
+    });
+  
+    app.delete('/api/admin/settings/email-templates/
+:id', isAuthenticated, isAdmin, async (req, res) => 
+{
+      try {
+        await 
+storage.deleteEmailTemplate(req.params.id);
+        res.json({ message: "Email template deleted 
+successfully" });
+      } catch (error) {
+        console.error("Error deleting email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+delete email template" });
+      }
+    });
+  
+    // Login History
+    app.get('/api/admin/settings/login-history', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const userId = req.query.userId as string | 
+undefined;
+        const history = await 
+storage.getLoginHistory(userId);
+        res.json(history);
+      } catch (error) {
+        console.error("Error fetching login 
+history:", error);
+        res.status(500).json({ message: "Failed to 
+fetch login history" });
+      }
+    });
+  
+    // Verification Rules
+    
+app.get('/api/admin/settings/verification-rules', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const rules = await 
+storage.getAllVerificationRules();
+        res.json(rules);
+      } catch (error) {
+        console.error("Error fetching verification 
+rules:", error);
+        res.status(500).json({ message: "Failed to 
+fetch verification rules" });
+      }
+    });
+  
+    
+app.post('/api/admin/settings/verification-rules', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+insertVerificationRuleSchema.parse(req.body);
+        const rule = await 
+storage.createVerificationRule(validatedData);
+        res.json(rule);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating verification 
+rule:", error);
+        res.status(500).json({ message: "Failed to 
+create verification rule" });
+      }
+    });
+  
+    app.patch('/api/admin/settings/verification-rule
+s/:id', isAuthenticated, isAdmin, async (req, res) 
+=> {
+      try {
+        const validatedData = 
+updateVerificationRuleSchema.parse({ ...req.body, 
+id: req.params.id });
+        const rule = await 
+storage.updateVerificationRule(validatedData);
+        res.json(rule);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating verification 
+rule:", error);
+        res.status(500).json({ message: "Failed to 
+update verification rule" });
+      }
+    });
+  
+    app.delete('/api/admin/settings/verification-rul
+es/:id', isAuthenticated, isAdmin, async (req, res) 
+=> {
+      try {
+        await 
+storage.deleteVerificationRule(req.params.id);
+        res.json({ message: "Verification rule 
+deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting verification 
+rule:", error);
+        res.status(500).json({ message: "Failed to 
+delete verification rule" });
+      }
+    });
+  
+    // Document Templates
+    
+app.get('/api/admin/settings/document-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const templates = await 
+storage.getAllDocumentTemplates();
+        res.json(templates);
+      } catch (error) {
+        console.error("Error fetching document 
+templates:", error);
+        res.status(500).json({ message: "Failed to 
+fetch document templates" });
+      }
+    });
+  
+    
+app.post('/api/admin/settings/document-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+insertDocumentTemplateSchema.parse(req.body);
+        const template = await 
+storage.createDocumentTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating document 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+create document template" });
+      }
+    });
+  
+    app.patch('/api/admin/settings/document-template
+s/:id', isAuthenticated, isAdmin, async (req, res) 
+=> {
+      try {
+        const validatedData = 
+updateDocumentTemplateSchema.parse({ ...req.body, 
+id: req.params.id });
+        const template = await 
+storage.updateDocumentTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating document 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+update document template" });
+      }
+    });
+  
+    app.delete('/api/admin/settings/document-templat
+es/:id', isAuthenticated, isAdmin, async (req, res) 
+=> {
+      try {
+        await 
+storage.deleteDocumentTemplate(req.params.id);
+        res.json({ message: "Document template 
+deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting document 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+delete document template" });
+      }
+>   
+app.post('/api/admin/buyer-upgrades/revert/:id', 
+async (req: any, res) => {
+      // In development, allow requests without 
+full auth (mock data)
+      const isDev = process.env.NODE_ENV === 
+'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: 
+"Unauthorized" });
+      }
+      try {
+        const { id } = req.params;
+  
+        // Update in-memory store
+        const updated = revertBuyerUpgrade(id);
+        if (!updated) {
+          return res.status(404).json({ message: 
+"Tier upgrade request not found" });
+        }
+  
+        res.json({
+          success: true,
+          message: "Tier upgrade request reverted 
+to draft successfully",
+          status: 'draft',
+        });
+      } catch (error) {
+        console.error("Error reverting buyer tier 
+upgrade:", error);
+        res.status(500).json({ message: "Failed to 
+revert tier upgrade request" });
+      }
+    });
+  
+    // =============================================
+===========================
+    // Notification Routes
+    // =============================================
+===========================
+  
+    // Get all notifications for current user
+  
+    const httpServer = createServer(app);
+    return httpServer;
+  }
+
+

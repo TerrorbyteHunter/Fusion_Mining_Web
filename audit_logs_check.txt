@@ -1,0 +1,201 @@
+﻿
+>   // Admin audit logs with admin user details 
+(for monitoring admin changes)
+    app.get('/api/admin/audit-logs', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const limit = req.query.limit ? 
+parseInt(req.query.limit as string) : 500;
+        const fromDate = req.query.from as string | 
+undefined;
+        const toDate = req.query.to as string | 
+undefined;
+        const action = req.query.action as string | 
+undefined;
+        
+        let auditLogs = await 
+storage.getAdminAuditLogs();
+        
+        // Filter by action type if provided
+        if (action && action !== "all") {
+          auditLogs = auditLogs.filter(log => 
+log.action === action);
+        }
+        
+        // Filter by date range if provided
+        if (fromDate || toDate) {
+          auditLogs = auditLogs.filter(log => {
+            const logDate = new Date(log.createdAt);
+            if (fromDate && logDate < new 
+Date(fromDate)) return false;
+            if (toDate) {
+              const toDateEnd = new Date(toDate);
+              toDateEnd.setHours(23, 59, 59, 999); 
+// Include entire end date
+              if (logDate > toDateEnd) return false;
+            }
+            return true;
+          });
+        }
+        
+        res.json(auditLogs.slice(0, limit));
+      } catch (error) {
+>       console.error("Error fetching admin audit 
+logs:", error);
+>       res.status(500).json({ message: "Failed to 
+fetch audit logs" });
+      }
+    });
+  
+    // Helper endpoint to log admin actions
+    app.post('/api/admin/audit-log', 
+isAuthenticated, isAdmin, async (req: any, res) => {
+      try {
+        const adminId = req.user.claims?.sub || 
+req.user.id;
+        const { action, targetType, targetId, 
+changes } = req.body;
+  
+        if (!action || !targetType) {
+          return res.status(400).json({ message: 
+"Missing required fields" });
+        }
+  
+        await db.insert(adminAuditLogs).values({
+          adminId,
+          action,
+          targetType,
+          targetId: targetId || null,
+          changes: changes || null,
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+          createdAt: new Date(),
+        });
+  
+        res.json({ message: "Audit log recorded" });
+      } catch (error) {
+        console.error("Error logging admin 
+action:", error);
+        res.status(500).json({ message: "Failed to 
+log action" });
+      }
+    });
+  
+    app.get('/api/admin/activity-logs', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const limit = req.query.limit ? 
+parseInt(req.query.limit as string) : 500;
+        const activityType = req.query.activityType 
+as string | undefined;
+        const userId = req.query.userId as string | 
+undefined;
+        const logs = await 
+storage.getActivityLogs(limit);
+        
+        // Filter out admin activities - only show 
+buyer and seller activities
+        let filteredLogs = logs.filter(log => {
+          // Exclude logs where user is an admin
+          return log.user?.role !== 'admin';
+        });
+        
+        // Filter by activity type if provided
+        if (activityType) {
+          filteredLogs = filteredLogs.filter(log => 
+log.activityType === activityType);
+        }
+        if (userId) {
+          filteredLogs = filteredLogs.filter(log => 
+log.userId === userId);
+>   // Get settings audit logs
+    app.get('/api/admin/settings/audit', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const { settingKey, limit } = req.query;
+        const logs = await 
+storage.getSettingsAuditLogs(
+          settingKey as string | undefined,
+          limit ? parseInt(limit as string) : 50
+        );
+        res.json(logs);
+      } catch (error) {
+>       console.error("Error fetching settings 
+audit logs:", error);
+>       res.status(500).json({ message: "Failed to 
+fetch audit logs" });
+      }
+    });
+  
+    // Email Templates
+    app.get('/api/admin/settings/email-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const templates = await 
+storage.getAllEmailTemplates();
+        res.json(templates);
+      } catch (error) {
+        console.error("Error fetching email 
+templates:", error);
+        res.status(500).json({ message: "Failed to 
+fetch email templates" });
+      }
+    });
+  
+    app.post('/api/admin/settings/email-templates', 
+isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+insertEmailTemplateSchema.parse(req.body);
+        const template = await 
+storage.createEmailTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error creating email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+create email template" });
+      }
+    });
+  
+    app.patch('/api/admin/settings/email-templates/:
+id', isAuthenticated, isAdmin, async (req, res) => {
+      try {
+        const validatedData = 
+updateEmailTemplateSchema.parse({ ...req.body, id: 
+req.params.id });
+        const template = await 
+storage.updateEmailTemplate(validatedData);
+        res.json(template);
+      } catch (error: any) {
+        if (error instanceof ZodError) {
+          return res.status(400).json({ message: 
+formatZodError(error) });
+        }
+        console.error("Error updating email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+update email template" });
+      }
+    });
+  
+    app.delete('/api/admin/settings/email-templates/
+:id', isAuthenticated, isAdmin, async (req, res) => 
+{
+      try {
+        await 
+storage.deleteEmailTemplate(req.params.id);
+        res.json({ message: "Email template deleted 
+successfully" });
+      } catch (error) {
+        console.error("Error deleting email 
+template:", error);
+        res.status(500).json({ message: "Failed to 
+delete email template" });
+      }
+
+

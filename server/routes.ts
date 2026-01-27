@@ -1,4 +1,4 @@
-// API routes for Fusion Mining Limited platform
+﻿// API routes for Fusion Mining Limited platform
 import type { Express } from "express";
 import multer from "multer";
 import path from "path";
@@ -6,11 +6,13 @@ import fs from "fs";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, syncClerkUser } from "./localAuth";
+import { getClerkUser } from "./clerk";
+import { ROLE_PERMISSIONS } from "./rbac";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails } from "@shared/schema";
+import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, marketplaceListings, projects, messages, buyerRequests, expressInterest, messageThreads, notifications, blogPosts, contactSubmissions, contactSettings, activityLogs } from "@shared/schema";
 import { sql } from "drizzle-orm";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import {
   insertUserProfileSchema,
@@ -40,7 +42,10 @@ import {
   insertTierUpgradePaymentSchema,
   updateTierUpgradePaymentSchema,
   insertPaymentMethodDetailsSchema,
+  insertNotificationSchema,
+  insertActivityLogSchema,
 } from "@shared/schema";
+import { type TierUpgradeRequest } from "@shared/schema";
 import { askSupportBot, type ChatHistoryItem } from "./ai/gemini";
 import { askHuggingFace, formatChatPrompt } from "./ai/hf";
 // import { getSession } from "./replitAuth";
@@ -72,6 +77,47 @@ interface BuyerUpgradeRequest {
   reviewedAt?: string;
   documentCount: number;
 }
+
+// In-memory storage for tier upgrade requests
+const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
+  ['upgrade-1', {
+    id: 'upgrade-1',
+    userId: 'test-buyer-789',
+    buyerEmail: 'henry@fusionmining.com',
+    buyerFirstName: 'Henry',
+    buyerLastName: 'Brown',
+    requestedTier: 'premium',
+    status: 'approved',
+    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 4,
+  }],
+  ['upgrade-2', {
+    id: 'upgrade-2',
+    userId: 'buyer-2',
+    buyerEmail: 'buyer2@example.com',
+    buyerFirstName: 'John',
+    buyerLastName: 'Doe',
+    requestedTier: 'standard',
+    status: 'approved',
+    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 3,
+  }],
+  ['upgrade-3', {
+    id: 'upgrade-3',
+    userId: 'buyer-3',
+    buyerEmail: 'buyer3@example.com',
+    buyerFirstName: 'Sarah',
+    buyerLastName: 'Smith',
+    requestedTier: 'premium',
+    status: 'rejected',
+    rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
+    submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    documentCount: 2,
+  }],
+]);
 
 interface TestUser {
   id: string;
@@ -160,8 +206,9 @@ interface TestCredential {
   lastName: string;
   adminRole?: 'super_admin' | 'verification_admin' | 'content_admin' | 'support_admin' | 'analytics_admin';
 }
+
 const customTestCredentials: Map<string, TestCredential> = new Map([
-  ['admin', { username: 'admin', password: 'admin123', userId: 'test-admin-123', role: 'admin', firstName: 'Admin', lastName: 'User', adminRole: 'super_admin' }],
+  ['admin', { username: 'admin', password: 'admin123', userId: 'test-admin-super', role: 'admin', firstName: 'Super', lastName: 'Admin', adminRole: 'super_admin' }],
   ['superadmin', { username: 'superadmin', password: 'super123', userId: 'test-admin-super', role: 'admin', firstName: 'Super', lastName: 'Admin', adminRole: 'super_admin' }],
   ['verifyadmin', { username: 'verifyadmin', password: 'verify123', userId: 'test-admin-verification', role: 'admin', firstName: 'Verification', lastName: 'Admin', adminRole: 'verification_admin' }],
   ['contentadmin', { username: 'contentadmin', password: 'content123', userId: 'test-admin-content', role: 'admin', firstName: 'Content', lastName: 'Admin', adminRole: 'content_admin' }],
@@ -169,47 +216,6 @@ const customTestCredentials: Map<string, TestCredential> = new Map([
   ['analyticsadmin', { username: 'analyticsadmin', password: 'analytics123', userId: 'test-admin-analytics', role: 'admin', firstName: 'Analytics', lastName: 'Admin', adminRole: 'analytics_admin' }],
   ['henry', { username: 'henry', password: 'henry123', userId: 'test-buyer-789', role: 'buyer', firstName: 'Henry', lastName: 'Pass' }],
   ['ray', { username: 'ray', password: 'ray123', userId: 'test-seller-456', role: 'seller', firstName: 'Ray', lastName: 'Pass' }],
-]);
-
-// In-memory storage for tier upgrade requests
-const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
-  ['upgrade-1', {
-    id: 'upgrade-1',
-    userId: 'test-buyer-789',
-    buyerEmail: 'henry@fusionmining.com',
-    buyerFirstName: 'Henry',
-    buyerLastName: 'Brown',
-    requestedTier: 'premium',
-    status: 'approved',
-    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 4,
-  }],
-  ['upgrade-2', {
-    id: 'upgrade-2',
-    userId: 'buyer-2',
-    buyerEmail: 'buyer2@example.com',
-    buyerFirstName: 'John',
-    buyerLastName: 'Doe',
-    requestedTier: 'standard',
-    status: 'approved',
-    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 3,
-  }],
-  ['upgrade-3', {
-    id: 'upgrade-3',
-    userId: 'buyer-3',
-    buyerEmail: 'buyer3@example.com',
-    buyerFirstName: 'Sarah',
-    buyerLastName: 'Smith',
-    requestedTier: 'premium',
-    status: 'rejected',
-    rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
-    submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 2,
-  }],
 ]);
 
 // Helper function to get all requests with user info
@@ -229,8 +235,8 @@ async function getAllBuyerUpgrades(): Promise<TierUpgradeRequest[]> {
     createdAt: tierUpgradeRequests.createdAt,
     updatedAt: tierUpgradeRequests.updatedAt,
   })
-  .from(tierUpgradeRequests)
-  .leftJoin(users, eq(tierUpgradeRequests.userId, users.id));
+    .from(tierUpgradeRequests)
+    .leftJoin(users, eq(tierUpgradeRequests.userId, users.id));
 }
 
 // Helper function to get pending requests with user info
@@ -250,9 +256,9 @@ async function getPendingBuyerUpgrades(): Promise<TierUpgradeRequest[]> {
     createdAt: tierUpgradeRequests.createdAt,
     updatedAt: tierUpgradeRequests.updatedAt,
   })
-  .from(tierUpgradeRequests)
-  .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
-  .where(eq(tierUpgradeRequests.status, 'pending'));
+    .from(tierUpgradeRequests)
+    .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+    .where(eq(tierUpgradeRequests.status, 'pending'));
 }
 
 // Helper function to sync user tiers from approved requests (runs on startup)
@@ -372,1695 +378,16 @@ async function requireAnalyticsAccess(req: any, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize user tiers from approved requests on startup
-  await initializeUserTiersFromApprovedRequests();
-
-  // Middleware to convert Clerk auth to req.user for compatibility
-  app.use(async (req: any, res, next) => {
-    try {
-      if (req.auth?.userId) {
-        // Sync user with database and set req.user
-        const user = await syncClerkUser(req.auth.userId);
-        req.user = {
-          id: user.id,
-          clerkId: user.clerkId,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role || 'buyer', // Ensure role defaults to 'buyer' if not set
-          claims: {
-            sub: req.auth.userId
-          }
-        };
-      }
-    } catch (error) {
-      console.error('Error in user sync middleware:', error);
-      // Don't fail the request, just continue without user
-    }
-    next();
-  });
-
-  // ========================================================================
-  // Health Check Endpoint (for monitoring services like Render, Vercel, etc.)
-  // ========================================================================
-  app.get('/api/health', (req, res) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
-    });
-  });
-
-  // ========================================================================
-  // Seed Demo Users (Important for database consistency)
-  // ========================================================================
-  try {
-    const demoUsers = [
-      {
-        id: 'test-admin-123',
-        email: 'admin@fusionmining.com',
-        firstName: 'Admin',
-        lastName: 'User',
-        role: 'admin',
-      },
-      {
-        id: 'test-seller-456',
-        email: 'ray@fusionmining.com',
-        firstName: 'Ray',
-        lastName: 'Pass',
-        role: 'seller',
-      },
-      {
-        id: 'test-buyer-789',
-        email: 'henry@fusionmining.com',
-        firstName: 'Henry',
-        lastName: 'Pass',
-        role: 'buyer',
-      },
-    ];
-
-    for (const demoUser of demoUsers) {
-      try {
-        const existing = await storage.getUser(demoUser.id);
-        if (!existing) {
-          console.log('[SEED] Creating demo user:', demoUser.id);
-          await storage.upsertUser({
-            id: demoUser.id,
-            email: demoUser.email,
-            firstName: demoUser.firstName,
-            lastName: demoUser.lastName,
-          });
-          await storage.updateUserRole(demoUser.id, demoUser.role);
-          console.log('[SEED] Demo user created:', demoUser.id);
-        }
-      } catch (error) {
-        console.error('[SEED] Error creating demo user:', demoUser.id, error);
-      }
-    }
-  } catch (error) {
-    console.error('[SEED] Error during demo user seeding:', error);
-  }
-
-  // ========================================================================
-  // Quick Login for DEMO/TESTING ONLY
-  // ========================================================================
-  // Create/Login Test User Endpoint
-  app.post('/api/login', async (req, res) => {
-    const { username, password } = req.body;
-
-    // Check custom credentials map
-    const credential = customTestCredentials.get(username);
-    if (credential && credential.password === password) {
-      // Mock successful login
-      // Ideally this would set a session, but without session middleware visible, 
-      // we assume the client might be handling some state or this is just for verification.
-      // However, to make it useful, we should probably try to login if passport is available.
-      // Since we don't see passport setup here, we return the user info.
-      // Set a cookie for the server to recognize this test user in requireAuth
-      res.cookie('test_user_id', credential.userId, {
-        httpOnly: true,
-        path: '/',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
-      });
-
-      return res.json({
-        message: "Login successful",
-        user: {
-          id: credential.userId,
-          username: credential.username,
-          firstName: credential.firstName,
-          lastName: credential.lastName,
-          role: credential.role
-        }
-      });
-    }
-
-    return res.status(401).json({ message: "Invalid credentials" });
-  });
-
-  // Register Test Credential Endpoint (DEVELOPMENT ONLY)
-  // ========================================================================
-  app.post('/api/register-test-credential', async (req, res) => {
-    const { username, password, firstName, lastName, role } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
-    }
-
-    // Check if username already exists
-    if (customTestCredentials.has(username)) {
-      return res.status(400).json({ message: 'Username already exists' });
-    }
-
-    // Generate a unique user ID
-    const userId = `test-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Create the test credential
-    const credential: TestCredential = {
-      username,
-      password,
-      userId,
-      role: (role as 'admin' | 'buyer' | 'seller') || 'buyer',
-      firstName: firstName || 'Test',
-      lastName: lastName || 'User'
-    };
-
-    customTestCredentials.set(username, credential);
-
-    // Persist the user to the database so syncClerkUser can find it
-    // This is critical for role persistence
-    try {
-      await storage.upsertUser({
-        id: userId,
-        email: `${username}@test.local`, // Mock email
-        firstName: credential.firstName,
-        lastName: credential.lastName,
-        role: credential.role,
-        clerkId: userId, // Use userId as clerkId for consistency in lookups
-      });
-      console.log('[REGISTER TEST CREDENTIAL] Persisted user to DB:', userId);
-    } catch (dbError) {
-      console.error('[REGISTER TEST CREDENTIAL] Failed to persist user:', dbError);
-      // We continue anyway, as the in-memory map might save us for login, 
-      // but role checks might fail later if DB record is missing.
-    }
-
-    console.log('[REGISTER TEST CREDENTIAL] Registered:', username, 'with role:', role);
-
-    res.json({
-      success: true,
-      credential: {
-        username,
-        userId,
-        role,
-        firstName,
-        lastName
-      }
-    });
-  });
-
-  app.post('/api/messages/mark-read', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
-
-      const { messageIds } = req.body;
-
-      if (!Array.isArray(messageIds)) {
-        return res.status(400).json({ message: "messageIds must be an array" });
-      }
-
-      // Only mark messages as read if the user is the receiver
-      for (const messageId of messageIds) {
-        const message = await storage.getMessageById(messageId);
-        if (message && message.receiverId === userId) {
-          await storage.markMessageAsRead(messageId);
-        }
-      }
-
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
-      res.status(500).json({ message: "Failed to mark messages as read" });
-    }
-  });
-  // Logout endpoint
-  app.post('/api/logout', async (req: any, res) => {
-    const userId = req.user?.id || req.user?.claims?.sub;
-
-    req.logout(async () => {
-      // Log logout activity
-      if (userId) {
-        try {
-          const ipAddress = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-            (req.headers['x-real-ip'] as string) ||
-            req.ip ||
-            req.socket.remoteAddress ||
-            null;
-          await storage.createActivityLog({
-            userId,
-            activityType: 'logout',
-            description: `User logged out`,
-            ipAddress,
-            userAgent: req.get('user-agent') || null,
-          });
-        } catch (logError) {
-          console.error('[ACTIVITY LOG] Failed to log logout:', logError);
-        }
-      }
-
-      res.json({ message: "Logout successful" });
-    });
-  });
-
-  // Get current user endpoint
-  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
-    try {
-      // For JWT-authenticated users (development), use the user data from requireAuth
-      if (req.user && process.env.NODE_ENV !== 'production') {
-        const user = req.user;
-
-        // Fetch admin permissions for admin users
-        let adminPerms = null;
-        if (user.role === 'admin') {
-          // Set permissions based on adminRole from JWT or default
-          const adminRole = (req.auth?.user?.publicMetadata?.adminRole) || 'super_admin';
-          adminPerms = {
-            canManageUsers: true,
-            canManageListings: true,
-            canManageProjects: true,
-            canManageBlog: true,
-            canManageCMS: true,
-            canViewAnalytics: true,
-            canManageMessages: true,
-            canManageVerification: true,
-            canManageSettings: true,
-            canManageAdmins: true,
-            canAccessAuditLogs: true,
-            canManageDocuments: true,
-            canResetPasswords: true,
-            canForceLogout: true,
-            adminRole: adminRole
-          };
-          console.log('[AUTH/USER] Retrieved admin permissions for JWT user:', adminRole);
-        }
-
-        return res.json({ ...user, adminPermissions: adminPerms });
-      }
-
-      // For production/Clerk users, sync with Clerk
-      const clerkUserId = req.auth.userId;
-      const user = await syncClerkUser(clerkUserId);
-
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Fetch admin permissions for admin users
-      let adminPerms = undefined as any;
-      if (user.role === 'admin') {
-        try {
-          adminPerms = await storage.getAdminPermissions(user.id);
-          console.log('[AUTH/USER] Retrieved admin permissions for user:', adminPerms?.adminRole);
-        } catch (e) {
-          console.error('[AUTH/USER] Error getting admin permissions:', e);
-        }
-      }
-
-      res.json({ ...user, adminPermissions: adminPerms || null });
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
-  app.get('/api/test-accounts', async (req, res) => {
-    try {
-      const testAccounts = [
-        { id: 'test-admin-super', email: 'superadmin@fusionmining.com', role: 'admin', name: 'Super Admin', adminRole: 'super_admin', credentials: 'superadmin / super123' },
-        { id: 'test-admin-verification', email: 'verifyadmin@fusionmining.com', role: 'admin', name: 'Verification Admin', adminRole: 'verification_admin', credentials: 'verifyadmin / verify123' },
-        { id: 'test-admin-content', email: 'contentadmin@fusionmining.com', role: 'admin', name: 'Content Admin', adminRole: 'content_admin', credentials: 'contentadmin / content123' },
-        { id: 'test-admin-support', email: 'supportadmin@fusionmining.com', role: 'admin', name: 'Support Admin', adminRole: 'support_admin', credentials: 'supportadmin / support123' },
-        { id: 'test-admin-analytics', email: 'analyticsadmin@fusionmining.com', role: 'admin', name: 'Analytics Admin', adminRole: 'analytics_admin', credentials: 'analyticsadmin / analytics123' },
-        { id: 'test-seller-456', email: 'ray@fusionmining.com', role: 'seller', name: 'Ray Pass', credentials: 'ray / ray123' },
-        { id: 'test-buyer-789', email: 'henry@fusionmining.com', role: 'buyer', name: 'Henry Pass', credentials: 'henry / henry123' },
-      ];
-      res.json(testAccounts);
-    } catch (error) {
-      console.error("Error fetching test accounts:", error);
-      res.status(500).json({ message: "Failed to fetch test accounts" });
-    }
-  });
-
-  // Contact settings endpoint
-  app.get('/api/contact-settings', async (req, res) => {
-    try {
-      const settings = await storage.getContactSettings();
-      if (!settings) {
-        return res.status(404).json({ message: 'Contact settings not found' });
-      }
-      res.json(settings);
-    } catch (error) {
-      console.error('Error fetching contact settings:', error);
-      res.status(500).json({ message: 'Failed to fetch contact settings' });
-    }
-  });
-
-  // Public endpoint to fetch a lightweight admin contact (id, name, email)
-  // This allows the client to address in-app messages to the admin without
-  // exposing the admin-only user listing endpoints.
-  app.get('/api/admin/contact-user', async (req, res) => {
-    try {
-      const adminUser = await storage.getAdminUser();
-      if (!adminUser) {
-        return res.status(404).json({ message: 'Admin user not found' });
-      }
-      res.json({
-        id: adminUser.id,
-        email: adminUser.email,
-        firstName: adminUser.firstName,
-        lastName: adminUser.lastName,
-        name: `${adminUser.firstName || ''} ${adminUser.lastName || ''}`.trim(),
-      });
-    } catch (error) {
-      console.error('Error fetching admin contact user:', error);
-      res.status(500).json({ message: 'Failed to fetch admin contact' });
-    }
-  });
-
-  // Development-only: update contact settings quickly
-  if (process.env.NODE_ENV === 'development') {
-    app.post('/api/contact-settings', async (req, res) => {
-      try {
-        const payload = req.body || {};
-        // Allow partial updates
-        const updated = await storage.updateContactSettings(payload);
-        res.json(updated);
-      } catch (error) {
-        console.error('Error updating contact settings:', error);
-        res.status(500).json({ message: 'Failed to update contact settings' });
-      }
-    });
-  }
-
-  app.post('/api/seed-data', async (req, res) => {
-    try {
-      // Create test users with different membership tiers
-      const testUsers = [
-        {
-          id: 'test-admin-123',
-          email: 'admin@fusionmining.com',
-          firstName: 'Admin',
-          lastName: 'User',
-          role: 'admin',
-          membershipTier: 'premium'
-        },
-        {
-          id: 'test-seller-456',
-          email: 'ray@fusionmining.com',
-          firstName: 'Ray',
-          lastName: 'Pass',
-          role: 'seller',
-          membershipTier: 'premium'
-        },
-        {
-          id: 'test-buyer-789',
-          email: 'henry@fusionmining.com',
-          firstName: 'Henry',
-          lastName: 'Pass',
-          role: 'buyer',
-          membershipTier: 'standard'
-        },
-        {
-          id: 'test-buyer-basic-001',
-          email: 'alice@example.com',
-          firstName: 'Alice',
-          lastName: 'Johnson',
-          role: 'buyer',
-          membershipTier: 'basic'
-        },
-        {
-          id: 'test-buyer-premium-002',
-          email: 'bob@example.com',
-          firstName: 'Bob',
-          lastName: 'Williams',
-          role: 'buyer',
-          membershipTier: 'premium'
-        },
-        {
-          id: 'test-seller-standard-003',
-          email: 'carol@example.com',
-          firstName: 'Carol',
-          lastName: 'Davis',
-          role: 'seller',
-          membershipTier: 'standard'
-        },
-      ];
-
-      for (const userData of testUsers) {
-        try {
-          let user = await storage.getUser(userData.id);
-          if (!user) {
-            user = await storage.upsertUser({
-              id: userData.id,
-              email: userData.email,
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-            });
-            await storage.updateUserRole(userData.id, userData.role);
-            // Set membership tier
-            await db.update(users).set({ membershipTier: userData.membershipTier as any }).where(eq(users.id, userData.id));
-          }
-        } catch (error) {
-          console.error(`Error creating user ${userData.id}:`, error);
-        }
-      }
-
-      // Seed projects using storage interface
-      const projectsData = [
-        {
-          name: "Konkola Copper Mine",
-          description: "Large-scale copper mining operation in the Copperbelt Province. Excellent infrastructure and proven reserves of high-grade copper ore.",
-          licenseType: "mining",
-          minerals: ["Copper", "Cobalt"],
-          location: "Copperbelt",
-          latitude: "-12.4178",
-          longitude: "27.4178",
-          status: "active",
-          area: "1,200 hectares",
-          estimatedValue: "$500M - $1B",
-        },
-        {
-          name: "Kagem Emerald Mine",
-          description: "World's largest emerald mine producing premium quality gemstones. Partnership opportunities available for exploration expansion.",
-          licenseType: "mining",
-          minerals: ["Emerald"],
-          location: "Copperbelt",
-          latitude: "-13.0000",
-          longitude: "28.0000",
-          status: "active",
-          area: "41 square kilometers",
-          estimatedValue: "$100M - $300M",
-        },
-        {
-          name: "Mwinilunga Gold Exploration",
-          description: "New gold exploration license in promising geological formation. Seeking investment partners for initial drilling and sampling.",
-          licenseType: "exploration",
-          minerals: ["Gold"],
-          location: "Northern Province",
-          latitude: "-11.7358",
-          longitude: "24.4289",
-          status: "active",
-          area: "500 hectares",
-          estimatedValue: "$50M - $150M",
-        },
-        {
-          name: "Luapula Cobalt Processing",
-          description: "Strategic cobalt processing facility with modern infrastructure. Perfect for battery-grade cobalt production.",
-          licenseType: "processing",
-          minerals: ["Cobalt"],
-          location: "Luapula Province",
-          latitude: "-11.6667",
-          longitude: "28.7167",
-          status: "active",
-          area: "200 hectares",
-          estimatedValue: "$200M - $400M",
-        },
-        {
-          name: "Central Province Gold Fields",
-          description: "Multiple gold-bearing sites across Central Province. Excellent potential for small to medium scale operations.",
-          licenseType: "exploration",
-          minerals: ["Gold", "Silver"],
-          location: "Central Province",
-          latitude: "-14.4333",
-          longitude: "28.2833",
-          status: "pending",
-          area: "800 hectares",
-          estimatedValue: "$75M - $200M",
-        },
-        {
-          name: "Kabwe Lead and Zinc Mine",
-          description: "Historic mining site with significant lead and zinc deposits. Environmental remediation completed, ready for modern extraction methods.",
-          licenseType: "mining",
-          minerals: ["Lead", "Zinc", "Silver"],
-          location: "Central Province",
-          latitude: "-14.4469",
-          longitude: "28.4469",
-          status: "active",
-          area: "950 hectares",
-          estimatedValue: "$120M - $250M",
-        },
-        {
-          name: "Mufulira Copper Expansion",
-          description: "Expansion opportunity for established copper mining operations. Includes access to processing facilities and skilled workforce.",
-          licenseType: "mining",
-          minerals: ["Copper"],
-          location: "Copperbelt",
-          latitude: "-12.5500",
-          longitude: "28.2667",
-          status: "active",
-          area: "1,500 hectares",
-          estimatedValue: "$400M - $800M",
-        },
-        {
-          name: "Solwezi Copper-Gold Project",
-          description: "Combined copper and gold mining project in Northwestern Province. High-grade ore bodies with excellent exploration potential.",
-          licenseType: "exploration",
-          minerals: ["Copper", "Gold"],
-          location: "Northwestern Province",
-          latitude: "-12.1833",
-          longitude: "26.3833",
-          status: "active",
-          area: "2,000 hectares",
-          estimatedValue: "$300M - $600M",
-        },
-        {
-          name: "Copperbelt Manganese Processing",
-          description: "Modern manganese processing facility with export capabilities. Strategic location near major transport routes.",
-          licenseType: "processing",
-          minerals: ["Manganese"],
-          location: "Copperbelt",
-          latitude: "-12.8000",
-          longitude: "28.2000",
-          status: "active",
-          area: "150 hectares",
-          estimatedValue: "$80M - $150M",
-        },
-        {
-          name: "Kafue Amethyst Mine",
-          description: "High-quality amethyst deposits suitable for jewelry and collectors market. Eco-friendly mining practices in place.",
-          licenseType: "mining",
-          minerals: ["Amethyst", "Quartz"],
-          location: "Southern Province",
-          latitude: "-15.7667",
-          longitude: "28.1833",
-          status: "active",
-          area: "300 hectares",
-          estimatedValue: "$25M - $60M",
-        },
-      ];
-
-      for (const project of projectsData) {
-        try {
-          await storage.createProject(project as any);
-        } catch (error) {
-          // Ignore duplicates
-        }
-      }
-
-      // Seed marketplace listings - 10 total from different sellers
-      const listingsData = [
-        // Premium seller listings
-        {
-          sellerId: "test-seller-456",
-          type: "mineral",
-          title: "High-Grade Copper Ore - 5000 Tonnes",
-          description: "Premium quality copper ore from our Copperbelt operations. Consistent grade, ready for immediate shipment. Full documentation and certificates available.",
-          mineralType: "Copper",
-          grade: "25% Cu content",
-          location: "Kitwe, Copperbelt",
-          quantity: "5,000 tonnes",
-          price: "$4,500/tonne",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-456",
-          type: "mineral",
-          title: "Premium Zambian Emeralds - Investment Grade",
-          description: "Exceptional quality emeralds suitable for jewelry and investment. Sourced from certified mines with full traceability.",
-          mineralType: "Emerald",
-          grade: "AAA Grade",
-          location: "Ndola, Copperbelt",
-          quantity: "500 carats",
-          price: "$8,000/carat",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-456",
-          type: "mineral",
-          title: "Battery-Grade Cobalt Hydroxide",
-          description: "High-purity cobalt hydroxide perfect for battery manufacturing. Meets all international standards and certifications.",
-          mineralType: "Cobalt",
-          grade: "20% Co min",
-          location: "Copperbelt",
-          quantity: "2,000 tonnes",
-          price: "$35,000/tonne",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-456",
-          type: "mineral",
-          title: "Gold Ore Concentrate",
-          description: "Gold concentrate from Northern Province operations. Ready for refining with excellent recovery rates.",
-          mineralType: "Gold",
-          grade: "45 g/t Au",
-          location: "Northern Province",
-          quantity: "100 tonnes",
-          price: "$1,200/tonne",
-          status: "pending",
-        },
-        {
-          sellerId: "test-seller-456",
-          type: "partnership",
-          title: "Joint Venture - Copper Mine Expansion",
-          description: "Seeking strategic partner for expanding existing copper mining operations. Proven reserves, established infrastructure, and experienced team in place.",
-          location: "Copperbelt",
-          status: "approved",
-        },
-        // Standard seller listings
-        {
-          sellerId: "test-seller-standard-003",
-          type: "mineral",
-          title: "Amethyst Gemstones - Small Lots",
-          description: "Beautiful purple amethyst from Southern Province mines. Perfect for jewelry makers and collectors. Available in various sizes.",
-          mineralType: "Amethyst",
-          grade: "AA Grade",
-          location: "Southern Province",
-          quantity: "100 carats",
-          price: "$50/carat",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-standard-003",
-          type: "mineral",
-          title: "Manganese Ore",
-          description: "High-grade manganese ore for steel production. Reliable supply from established mine. Competitive pricing available.",
-          mineralType: "Manganese",
-          grade: "42% Mn",
-          location: "Copperbelt",
-          quantity: "500 tonnes",
-          price: "$750/tonne",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-standard-003",
-          type: "service",
-          title: "Mining Consulting Services",
-          description: "Experienced mining consultants offering geological surveys, feasibility studies, and operational optimization services.",
-          location: "Nationwide",
-          status: "approved",
-        },
-        {
-          sellerId: "test-seller-standard-003",
-          type: "partnership",
-          title: "Small-Scale Gold Mining Partnership",
-          description: "Looking for investment partner for small-scale gold mining operation. Low entry cost with good potential returns.",
-          location: "Northern Province",
-          status: "pending",
-        },
-        {
-          sellerId: "test-seller-standard-003",
-          type: "mineral",
-          title: "Quartz Crystals - Wholesale",
-          description: "Clear quartz crystals suitable for industrial and decorative use. Bulk quantities available at wholesale prices.",
-          mineralType: "Quartz",
-          grade: "Industrial Grade",
-          location: "Eastern Province",
-          quantity: "10 tonnes",
-          price: "$100/tonne",
-          status: "approved",
-        },
-      ];
-
-      for (const listing of listingsData) {
-        try {
-          await storage.createMarketplaceListing(listing as any);
-        } catch (error) {
-          // Ignore duplicates
-        }
-      }
-
-      // Seed buyer requests - 8 total to demonstrate tier limits
-      // 1 from basic (test-buyer-basic-001), 3 from standard (test-buyer-789), 4 from premium (test-buyer-premium-002)
-      const requestsData = [
-        // Basic tier buyer (1 RFQ - at limit)
-        {
-          buyerId: "test-buyer-basic-001",
-          title: "Small Gold Purchase for Jewelry",
-          description: "Small jewelry business seeking gold for custom pieces. Looking for reliable local supplier with fair pricing.",
-          mineralType: "Gold",
-          quantity: "5 kg",
-          budget: "$300,000",
-          location: "Lusaka area",
-          status: "active",
-        },
-        // Standard tier buyer (3 RFQs - within 5 limit)
-        {
-          buyerId: "test-buyer-789",
-          title: "Seeking Regular Copper Ore Supply",
-          description: "International buyer seeking long-term copper ore supplier. Looking for 10,000+ tonnes monthly with consistent quality. Will provide advance payment for reliable suppliers.",
-          mineralType: "Copper",
-          quantity: "10,000 tonnes/month",
-          budget: "$40-45M annually",
-          location: "Any major mining region",
-          status: "active",
-        },
-        {
-          buyerId: "test-buyer-789",
-          title: "High-Quality Emerald Procurement",
-          description: "Luxury jewelry company seeks premium grade emeralds. Looking for certified stones with excellent clarity and color. Long-term partnership preferred.",
-          mineralType: "Emerald",
-          quantity: "1,000+ carats quarterly",
-          budget: "$5-10M per quarter",
-          location: "Copperbelt preferred",
-          status: "active",
-        },
-        {
-          buyerId: "test-buyer-789",
-          title: "Cobalt for Battery Manufacturing",
-          description: "Battery manufacturer requires sustainable cobalt supply chain. Looking for ethically sourced, battery-grade cobalt with full traceability.",
-          mineralType: "Cobalt",
-          quantity: "5,000 tonnes annually",
-          budget: "$150-200M annually",
-          location: "Any region with export capability",
-          status: "active",
-        },
-        // Premium tier buyer (4 RFQs - unlimited tier)
-        {
-          buyerId: "test-buyer-premium-002",
-          title: "Bulk Copper Concentrate Purchase",
-          description: "Large-scale buyer seeking premium copper concentrate for processing. Long-term contracts preferred with competitive pricing.",
-          mineralType: "Copper",
-          quantity: "50,000 tonnes annually",
-          budget: "$200M+",
-          location: "Copperbelt or Northern Province",
-          status: "active",
-        },
-        {
-          buyerId: "test-buyer-premium-002",
-          title: "Rare Earth Elements Sourcing",
-          description: "Technology company seeking rare earth elements for manufacturing. Looking for sustainable and ethical suppliers.",
-          mineralType: "Rare Earth Elements",
-          quantity: "1,000 tonnes",
-          budget: "$50M",
-          location: "Any region",
-          status: "active",
-        },
-        {
-          buyerId: "test-buyer-premium-002",
-          title: "Gemstone Investment Portfolio",
-          description: "Investment firm building gemstone portfolio. Interested in emeralds, amethysts, and other precious stones from certified sources.",
-          mineralType: "Mixed Gemstones",
-          quantity: "Various lots",
-          budget: "$10-20M",
-          location: "Nationwide",
-          status: "active",
-        },
-        {
-          buyerId: "test-buyer-premium-002",
-          title: "Manganese Ore for Steel Production",
-          description: "Steel manufacturer requires high-grade manganese ore. Looking for reliable supply chain with export capabilities.",
-          mineralType: "Manganese",
-          quantity: "20,000 tonnes annually",
-          budget: "$15M annually",
-          location: "Any major mining region",
-          status: "active",
-        },
-      ];
-
-      for (const request of requestsData) {
-        try {
-          await storage.createBuyerRequest(request as any);
-        } catch (error) {
-          // Ignore duplicates
-        }
-      }
-
-      // Tier usage is tracked automatically when RFQs are created
-
-      // Seed blog posts
-      const blogPostsData = [
-        {
-          authorId: "test-admin-123",
-          title: "Zambia's Mining Sector: A Bright Future Ahead",
-          slug: "zambia-mining-sector-bright-future",
-          excerpt: "Exploring the opportunities and growth potential in Zambia's thriving mining industry.",
-          content: `<p>Zambia's mining sector continues to show remarkable growth, driven by increasing global demand for copper, cobalt, and precious stones. The country's strategic location and stable political environment make it an attractive destination for mining investments.</p>
-            
-            <h2>Key Growth Drivers</h2>
-            <p>Several factors are contributing to the sector's expansion:</p>
-            <ul>
-              <li>Growing demand for battery minerals, particularly cobalt</li>
-              <li>Infrastructure improvements in mining regions</li>
-              <li>Government support for sustainable mining practices</li>
-              <li>Increased international investment partnerships</li>
-            </ul>
-            
-            <h2>Investment Opportunities</h2>
-            <p>For investors looking to enter the Zambian mining market, there are numerous opportunities across exploration, mining, and processing operations. The Fusion Mining Limited platform connects investors with verified projects and partnerships.</p>`,
-          imageUrl: "",
-          category: "Industry News",
-          published: true,
-        },
-        {
-          authorId: "test-admin-123",
-          title: "Sustainable Mining Practices in Zambia",
-          slug: "sustainable-mining-practices-zambia",
-          excerpt: "How Zambian mining companies are embracing environmental responsibility and community development.",
-          content: `<p>Environmental sustainability has become a cornerstone of modern mining operations in Zambia. Companies are increasingly adopting practices that minimize environmental impact while maximizing community benefits.</p>
-            
-            <h2>Environmental Initiatives</h2>
-            <p>Leading mining operations in Zambia are implementing:</p>
-            <ul>
-              <li>Water recycling and conservation programs</li>
-              <li>Renewable energy integration in mining operations</li>
-              <li>Land rehabilitation and reforestation projects</li>
-              <li>Wildlife corridor preservation</li>
-            </ul>
-            
-            <h2>Community Development</h2>
-            <p>Mining companies are partnering with local communities to provide education, healthcare, and economic opportunities, creating shared value for all stakeholders.</p>`,
-          imageUrl: "",
-          category: "Sustainability",
-          published: true,
-        },
-        {
-          authorId: "test-admin-123",
-          title: "Copper Market Outlook 2025",
-          slug: "copper-market-outlook-2025",
-          excerpt: "Analysis of global copper demand trends and implications for Zambian producers.",
-          content: `<p>The global copper market is experiencing a significant transformation, driven by the green energy transition and electric vehicle revolution. Zambia, as Africa's second-largest copper producer, is well-positioned to benefit from these trends.</p>
-            
-            <h2>Market Dynamics</h2>
-            <p>Key trends shaping the copper market include:</p>
-            <ul>
-              <li>Surging demand from EV manufacturing sector</li>
-              <li>Renewable energy infrastructure expansion</li>
-              <li>Supply constraints in major producing regions</li>
-              <li>Rising copper prices benefiting producers</li>
-            </ul>
-            
-            <h2>Zambia's Advantage</h2>
-            <p>With established infrastructure, skilled workforce, and abundant reserves, Zambian copper producers are capitalizing on favorable market conditions.</p>`,
-          imageUrl: "",
-          category: "Market Analysis",
-          published: true,
-        },
-        {
-          authorId: "test-admin-123",
-          title: "Emerald Mining: Zambia's Hidden Gem",
-          slug: "emerald-mining-zambia-hidden-gem",
-          excerpt: "Discover why Zambian emeralds are among the finest in the world and the opportunities in this sector.",
-          content: `<p>Zambia produces some of the world's finest emeralds, with the Kagem Mine being the largest single emerald mine globally. These precious stones are prized for their exceptional clarity and rich green color.</p>
-            
-            <h2>Quality and Value</h2>
-            <p>Zambian emeralds are distinguished by:</p>
-            <ul>
-              <li>Superior clarity and color saturation</li>
-              <li>Excellent size and quality consistency</li>
-              <li>Ethical sourcing and full traceability</li>
-              <li>Growing market recognition and premium pricing</li>
-            </ul>
-            
-            <h2>Investment Potential</h2>
-            <p>The emerald sector offers unique opportunities for investors, from mining operations to processing and jewelry manufacturing partnerships.</p>`,
-          imageUrl: "",
-          category: "Industry News",
-          published: true,
-        },
-        {
-          authorId: "test-admin-123",
-          title: "Technology Revolution in African Mining",
-          slug: "technology-revolution-african-mining",
-          excerpt: "How digital transformation and innovation are reshaping mining operations across the continent.",
-          content: `<p>African mining operations are embracing cutting-edge technologies to improve efficiency, safety, and sustainability. From autonomous vehicles to AI-powered exploration, the industry is undergoing a digital transformation.</p>
-            
-            <h2>Key Technologies</h2>
-            <p>Innovations being adopted include:</p>
-            <ul>
-              <li>Drone surveying and mapping technologies</li>
-              <li>IoT sensors for real-time monitoring</li>
-              <li>AI and machine learning for resource optimization</li>
-              <li>Blockchain for supply chain transparency</li>
-            </ul>
-            
-            <h2>Benefits for Zambia</h2>
-            <p>These technological advances are helping Zambian miners increase productivity while reducing environmental footprint and improving worker safety.</p>`,
-          imageUrl: "",
-          category: "Mining Tips",
-          published: true,
-        },
-        {
-          authorId: "test-admin-123",
-          title: "Understanding Mining Licenses in Zambia",
-          slug: "understanding-mining-licenses-zambia",
-          excerpt: "A comprehensive guide to navigating the mining licensing process in Zambia.",
-          content: `<p>Understanding the licensing framework is crucial for anyone looking to invest in Zambian mining. This guide covers the different types of licenses and the application process.</p>
-            
-            <h2>License Types</h2>
-            <p>Zambia offers several mining license categories:</p>
-            <ul>
-              <li><strong>Exploration License:</strong> For initial prospecting and exploration activities</li>
-              <li><strong>Mining License:</strong> For commercial mining operations</li>
-              <li><strong>Processing License:</strong> For mineral processing facilities</li>
-            </ul>
-            
-            <h2>Application Process</h2>
-            <p>The licensing process involves geological surveys, environmental impact assessments, and community consultations. Working with experienced local partners can streamline the application process.</p>`,
-          imageUrl: "",
-          category: "Mining Tips",
-          published: true,
-        },
-      ];
-
-      for (const post of blogPostsData) {
-        try {
-          await storage.createBlogPost(post as any);
-        } catch (error) {
-          // Ignore duplicates
-        }
-      }
-
-      res.json({
-        message: "Sample data seeded successfully with membership tiers",
-        results: {
-          users: testUsers.length,
-          projects: projectsData.length,
-          marketplaceListings: listingsData.length,
-          buyerRequests: requestsData.length,
-          blogPosts: blogPostsData.length,
-        }
-      });
-    } catch (error) {
-      console.error("Error seeding data:", error);
-      res.status(500).json({ message: "Failed to seed data" });
-    }
-  });
-
-  app.post('/api/seed-message-templates', async (req, res) => {
-    try {
-      const templates = [
-        {
-          name: 'Buyer Interest Confirmation',
-          type: 'buyer_interest_to_buyer',
-          subject: 'Thank you for your interest in {project_name}',
-          content: 'Hello {buyer_name},\n\nThank you for expressing interest in {project_name}. Our admin team has been notified and will review your request shortly. We will get back to you with more information soon.\n\nBest regards,\nFusion Mining Limited',
-          active: true,
-        },
-        {
-          name: 'Admin Interest Notification',
-          type: 'buyer_interest_to_admin',
-          subject: 'New buyer interest in {project_name}',
-          content: 'A new buyer ({buyer_name}) has expressed interest in {project_name}. Please review and respond accordingly.\n\nYou can view the details in your admin panel.',
-          active: true,
-        },
-        {
-          name: 'Seller Interest Notification',
-          type: 'buyer_interest_to_seller',
-          subject: 'New buyer interest in {listing_title}',
-          content: 'Good news! A buyer ({buyer_name}) has expressed interest in your listing: {listing_title}.\n\nThe admin team will coordinate with them and keep you informed about the next steps.\n\nBest regards,\nFusion Mining Limited',
-          active: true,
-        },
-      ];
-
-      for (const template of templates) {
-        await storage.createMessageTemplate(template as any);
-      }
-
-      res.json({
-        message: "Message templates seeded successfully",
-        count: templates.length
-      });
-    } catch (error) {
-      console.error("Error seeding templates:", error);
-      res.status(500).json({ message: "Failed to seed message templates" });
-    }
-  });
-
-  app.post('/api/seed-membership-benefits', async (req, res) => {
-    try {
-      const benefits = [
-        {
-          tier: 'basic',
-          maxActiveRFQs: 1,
-          canAccessAnalytics: false,
-          canDirectMessage: false,
-          prioritySupport: false,
-          visibilityRanking: 3,
-          monthlyPrice: '0',
-        },
-        {
-          tier: 'standard',
-          maxActiveRFQs: 5,
-          canAccessAnalytics: true,
-          canDirectMessage: true,
-          prioritySupport: false,
-          visibilityRanking: 2,
-          monthlyPrice: '50',
-        },
-        {
-          tier: 'premium',
-          maxActiveRFQs: -1, // unlimited
-          canAccessAnalytics: true,
-          canDirectMessage: true,
-          prioritySupport: true,
-          visibilityRanking: 1,
-          monthlyPrice: '200',
-        },
-      ];
-
-      for (const benefit of benefits) {
-        try {
-          await storage.createMembershipBenefit(benefit as any);
-        } catch (error) {
-          // Ignore duplicates
-        }
-      }
-
-      res.json({
-        message: "Membership benefits seeded successfully",
-        count: benefits.length
-      });
-    } catch (error) {
-      console.error("Error seeding membership benefits:", error);
-      res.status(500).json({ message: "Failed to seed membership benefits" });
-    }
-  });
-
-  async function ensurePlatformSettingsTables() {
-    try {
-      await db.execute(sql`select 1 from "platform_settings" limit 1`);
-    } catch (err: any) {
-      if (err?.code !== '42P01') throw err;
-
-      // Create enum if missing
-      await db.execute(sql`
-          DO $$
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'setting_data_type') THEN
-              CREATE TYPE setting_data_type AS ENUM ('boolean', 'number', 'string', 'json');
-            END IF;
-          END $$;
-        `);
-
-      // Create platform_settings table if missing
-      await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS "platform_settings" (
-            "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
-            "key" varchar(100) NOT NULL UNIQUE,
-            "value" text NOT NULL,
-            "data_type" setting_data_type NOT NULL DEFAULT 'string',
-            "description" text,
-            "category" varchar(50) NOT NULL,
-            "is_public" boolean NOT NULL DEFAULT false,
-            "updated_by" varchar REFERENCES "users"("id"),
-            "updated_at" timestamptz NOT NULL DEFAULT now()
-          );
-        `);
-
-      // Create settings_audit table if missing
-      await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS "settings_audit" (
-            "id" varchar PRIMARY KEY DEFAULT gen_random_uuid(),
-            "setting_key" varchar(100) NOT NULL,
-            "old_value" text,
-            "new_value" text NOT NULL,
-            "changed_by" varchar NOT NULL REFERENCES "users"("id"),
-            "changed_at" timestamptz NOT NULL DEFAULT now()
-          );
-        `);
-
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_key" ON "settings_audit" ("setting_key");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_changed_by" ON "settings_audit" ("changed_by");`);
-      await db.execute(sql`CREATE INDEX IF NOT EXISTS "IDX_settings_audit_changed_at" ON "settings_audit" ("changed_at");`);
-    }
-  }
-
-  app.post('/api/seed-platform-settings', async (req, res) => {
-    try {
-      await ensurePlatformSettingsTables();
-
-      const settings = [
-        {
-          key: 'platform_name',
-          value: 'Fusion Mining Limited',
-          description: 'Name of the platform',
-          category: 'general',
-          dataType: 'string' as const,
-          isPublic: true,
-        },
-        {
-          key: 'platform_tagline',
-          value: 'B2B Mining Marketplace & Investment Platform',
-          description: 'Platform tagline and description',
-          category: 'general',
-          dataType: 'string' as const,
-          isPublic: true,
-        },
-        {
-          key: 'commission_rate',
-          value: '5',
-          description: 'Platform commission rate on transactions (percentage)',
-          category: 'payment',
-          dataType: 'number' as const,
-          isPublic: false,
-        },
-        {
-          key: 'support_email',
-          value: 'support@fusionmining.com',
-          description: 'Contact email for platform support',
-          category: 'email',
-          dataType: 'string' as const,
-          isPublic: true,
-        },
-        {
-          key: 'smtp_enabled',
-          value: 'false',
-          description: 'Enable SMTP email sending',
-          category: 'email',
-          dataType: 'boolean' as const,
-          isPublic: false,
-        },
-        {
-          key: 'maintenance_mode',
-          value: 'false',
-          description: 'Enable/disable maintenance mode',
-          category: 'general',
-          dataType: 'boolean' as const,
-          isPublic: false,
-        },
-        {
-          key: 'max_upload_size_mb',
-          value: '10',
-          description: 'Maximum file upload size in megabytes',
-          category: 'general',
-          dataType: 'number' as const,
-          isPublic: false,
-        },
-        {
-          key: 'auto_approve_listings',
-          value: 'false',
-          description: 'Automatically approve marketplace listings without admin review',
-          category: 'general',
-          dataType: 'boolean' as const,
-          isPublic: false,
-        },
-        {
-          key: 'session_timeout_hours',
-          value: '24',
-          description: 'User session timeout in hours',
-          category: 'security',
-          dataType: 'number' as const,
-          isPublic: false,
-        },
-        {
-          key: 'require_email_verification',
-          value: 'true',
-          description: 'Require users to verify their email address',
-          category: 'security',
-          dataType: 'boolean' as const,
-          isPublic: false,
-        },
-        {
-          key: 'stripe_enabled',
-          value: 'false',
-          description: 'Enable Stripe payment processing',
-          category: 'payment',
-          dataType: 'boolean' as const,
-          isPublic: false,
-        },
-      ];
-
-      for (const setting of settings) {
-        try {
-          await storage.createPlatformSetting(setting as any);
-        } catch (error: any) {
-          // Ignore duplicates and keep going
-          if (error?.code !== '23505') {
-            console.warn('Seed setting skipped:', setting.key, error?.message);
-          }
-        }
-      }
-
-      // Return the latest snapshot so the client can refresh immediately
-      const allSettings = await storage.getAllPlatformSettings();
-
-      res.json({
-        message: "Platform settings seeded successfully",
-        count: allSettings.length,
-        settings: allSettings,
-      });
-    } catch (error) {
-      console.error("Error seeding platform settings:", error);
-      res.status(500).json({ message: "Failed to seed platform settings" });
-    }
-  });
-
-  // ========================================================================
-  // Platform Settings Routes (Admin Only)
-  // ========================================================================
-  app.get('/api/platform-settings', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const settings = await storage.getAllPlatformSettings();
-      res.json(settings);
-    } catch (error) {
-      console.error("Error fetching platform settings:", error);
-      res.status(500).json({ message: "Failed to fetch platform settings" });
-    }
-  });
-
-  // ========================================================================
-  // Membership Benefits Routes
-  // ========================================================================
-  app.get('/api/membership-benefits', async (req, res) => {
-    try {
-      const benefits = await storage.getAllMembershipBenefits();
-      res.json(benefits);
-    } catch (error) {
-      console.error("Error fetching membership benefits:", error);
-      res.status(500).json({ message: "Failed to fetch membership benefits" });
-    }
-  });
-
-  app.put('/api/admin/membership-benefits/:tier', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { tier } = req.params;
-      const updated = await storage.updateMembershipBenefit(tier, req.body);
-      res.json(updated);
-    } catch (error) {
-      console.error("Error updating membership benefit:", error);
-      res.status(500).json({ message: "Failed to update membership benefit" });
-    }
-  });
-
-  app.post('/api/admin/users/:userId/tier', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { tier } = req.body;
-
-      if (!tier || !['basic', 'standard', 'premium'].includes(tier)) {
-        return res.status(400).json({ message: "Invalid tier" });
-      }
-
-      const updated = await storage.updateUserMembershipTier(userId, tier);
-      res.json(updated);
-    } catch (error) {
-      console.error("Error updating user tier:", error);
-      res.status(500).json({ message: "Failed to update user tier" });
-    }
-  });
-
-  app.post('/api/admin/users/:userId/verification-status', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { status } = req.body;
-
-      if (!status || !['not_requested', 'pending', 'approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ message: "Invalid verification status" });
-      }
-
-      // Verify the user exists and is a seller
-      const targetUser = await storage.getUserById(userId);
-      if (!targetUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      if (targetUser.role !== 'seller') {
-        return res.status(400).json({ message: "Verification status can only be updated for sellers" });
-      }
-
-      const updated = await storage.updateUserVerificationStatus(userId, status);
-      res.json(updated);
-    } catch (error) {
-      console.error("Error updating user verification status:", error);
-      res.status(500).json({ message: "Failed to update user verification status" });
-    }
-  });
-
-  app.post('/api/admin/seed-sample-data', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      // Seed comprehensive sample data for testing
-      const results = {
-        users: 0,
-        projects: 0,
-        listings: 0,
-        buyerRequests: 0,
-        blogPosts: 0,
-      };
-
-      // Create sample users with different tiers
-      const sampleUsers = [
-        {
-          email: "basic.user@fusionmining.com",
-          password: await bcrypt.hash("basic123", 10),
-          firstName: "Basic",
-          lastName: "User",
-          role: "buyer" as const,
-          membershipTier: "basic" as const,
-        },
-        {
-          email: "standard.user@fusionmining.com",
-          password: await bcrypt.hash("standard123", 10),
-          firstName: "Standard",
-          lastName: "User",
-          role: "buyer" as const,
-          membershipTier: "standard" as const,
-        },
-        {
-          email: "premium.user@fusionmining.com",
-          password: await bcrypt.hash("premium123", 10),
-          firstName: "Premium",
-          lastName: "User",
-          role: "buyer" as const,
-          membershipTier: "premium" as const,
-        },
-        {
-          email: "seller.verified@fusionmining.com",
-          password: await bcrypt.hash("seller123", 10),
-          firstName: "Verified",
-          lastName: "Seller",
-          role: "seller" as const,
-          membershipTier: "premium" as const,
-        },
-      ];
-
-      for (const userData of sampleUsers) {
-        try {
-          await storage.upsertUser(userData);
-          results.users++;
-        } catch (e) {
-          console.log("User already exists:", userData.email);
-        }
-      }
-
-      res.json({
-        message: "Sample data seeded successfully",
-        results
-      });
-    } catch (error) {
-      console.error("Error seeding sample data:", error);
-      res.status(500).json({ message: "Failed to seed sample data" });
-    }
-  });
-
-  // ========================================================================
-  // Auth Routes
-  // ========================================================================
-  app.post('/api/register', async (req, res) => {
-    try {
-      const { email, password, firstName, lastName, role, membershipTier } = req.body;
-
-      if (!email || !password || !firstName || !lastName || !role) {
-        return res.status(400).json({ message: 'Missing required fields' });
-      }
-
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
-      if (existingUser) {
-        return res.status(400).json({ message: 'User with this email already exists' });
-      }
-
-      // Hash the password with bcrypt (salt rounds = 10)
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create user with hashed password
-      const user = await storage.upsertUser({
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-      });
-
-      // Update role and membership tier
-      await storage.updateUserRole(user.id, role);
-
-      // Update membership tier if provided
-      if (membershipTier && ['basic', 'standard', 'premium'].includes(membershipTier)) {
-        await db.update(users).set({ membershipTier: membershipTier as any }).where(eq(users.id, user.id));
-      }
-
-      // Create default profile
-      await storage.createUserProfile({
-        userId: user.id,
-        profileType: 'individual',
-        verified: false,
-      });
-
-      // Get updated user with tier
-      const updatedUser = await storage.getUser(user.id);
-
-      res.json({
-        success: true,
-        message: 'Registration successful',
-        user: updatedUser
-      });
-    } catch (error) {
-      console.error("Error during registration:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
-
-  // ========================================================================
-  // Auth Routes
-  // ========================================================================
-  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
-    try {
-      const clerkUserId = req.auth.userId;
-      if (!clerkUserId) {
-        return res.status(401).json({ message: 'Unauthorized' });
-      }
-
-      // Sync user with database
-      const { syncClerkUser } = await import('./localAuth');
-      const user = await syncClerkUser(clerkUserId);
-
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      let adminPerms = undefined;
-
-      // Retrieve admin permissions for admin users
-      if (user.role === 'admin') {
-        try {
-          adminPerms = await storage.getAdminPermissions(user.id);
-          console.log('[AUTH/USER] Retrieved admin permissions:', adminPerms?.adminRole);
-        } catch (e) {
-          console.error('Error getting admin permissions:', e);
-        }
-      }
-
-      res.json({
-        user: {
-          ...user,
-          adminPermissions: adminPerms,
-        },
-      });
-    } catch (error) {
-      console.error('Error in /api/auth/user:', error);
-      res.status(500).json({ message: 'Internal server error' });
-    }
-  });
-
-  // ========================================================================
-  // Admin Permissions Routes
-  // ========================================================================
-
-  // Helper function to get permissions based on admin role
-  function getPermissionsForRole(role: string) {
-    const basePerms = {
-      canManageUsers: false,
-      canManageListings: false,
-      canManageProjects: false,
-      canManageBlog: false,
-      canManageCMS: false,
-      canViewAnalytics: false,
-      canManageMessages: false,
-      canManageVerification: false,
-      canManageSettings: false,
-      canManageAdmins: false,
-      canAccessAuditLogs: false,
-      canManageDocuments: false,
-      canResetPasswords: false,
-      canForceLogout: false,
-    };
-
-    switch (role) {
-      case 'super_admin':
-        return { ...basePerms, ...Object.keys(basePerms).reduce((acc, key) => ({ ...acc, [key]: true }), {}) };
-      case 'verification_admin':
-        return { ...basePerms, canManageVerification: true, canManageListings: true, canAccessAuditLogs: true, canManageUsers: true };
-      case 'content_admin':
-        return { ...basePerms, canManageBlog: true, canManageCMS: true, canManageSettings: true };
-      case 'support_admin':
-        return { ...basePerms, canManageMessages: true, canManageUsers: true, canAccessAuditLogs: true };
-      case 'analytics_admin':
-        return { ...basePerms, canViewAnalytics: true, canAccessAuditLogs: true };
-      default:
-        return basePerms;
-    }
-  }
-
-  app.get('/api/admin/users/:id/permissions', requireAuth, requireAdmin, requireAdminPermission('canManageUsers'), async (req, res) => {
-    try {
-      const perms = await storage.getAdminPermissions(req.params.id);
-      res.json(perms || null);
-    } catch (error) {
-      console.error('Error fetching admin permissions:', error);
-      res.status(500).json({ message: 'Failed to fetch admin permissions' });
-    }
-  });
-
-  app.patch('/api/admin/users/:id/permissions', requireAuth, requireAdmin, requireAdminPermission('canManageUsers'), async (req: any, res) => {
-    try {
-      const adminUserId = req.params.id;
-      const adminRole = req.body?.adminRole || 'content_admin';
-      const rolePerms = getPermissionsForRole(adminRole);
-
-      const payload = {
-        adminUserId,
-        adminRole,
-        ...rolePerms,
-      };
-      const updated = await storage.upsertAdminPermissions(payload as any);
-      res.json(updated);
-    } catch (error) {
-      console.error('Error updating admin permissions:', error);
-      res.status(500).json({ message: 'Failed to update admin permissions' });
-    }
-  });
-
-  // Start a general conversation with any user (admin)
-  app.post('/api/admin/messages/start', requireAuth, requireAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
-    try {
-      const adminId = req.user.claims?.sub || req.user.id;
-      const { receiverId, subject, content } = req.body || {};
-      if (!receiverId || !content) {
-        return res.status(400).json({ message: 'receiverId and content are required' });
-      }
-      // Create a general thread (no project/listing)
-      const thread = await storage.createMessageThread({
-        title: subject || 'Admin message',
-        type: 'general',
-        buyerId: null,
-        sellerId: null,
-        adminId,
-        createdBy: adminId,
-        context: 'general',
-        status: 'open',
-      } as any);
-
-      const message = await storage.createMessage({
-        threadId: thread.id,
-        senderId: adminId,
-        receiverId,
-        subject: subject || null,
-        content,
-        context: 'general',
-        isAutoRelay: false,
-      } as any);
-
-      await storage.updateThreadLastMessage(thread.id);
-      res.json({ thread, message });
-    } catch (error) {
-      console.error('Error starting admin conversation:', error);
-      res.status(500).json({ message: 'Failed to start conversation' });
-    }
-  });
-
-  // Start a context-specific thread (listing/project) with a target user
-  app.post('/api/admin/threads/start', requireAuth, requireAdmin, requireAdminPermission('canManageMessages'), async (req: any, res) => {
-    try {
-      const adminId = req.user.claims?.sub || req.user.id;
-      const { receiverId, subject, content, listingId, projectId } = req.body || {};
-      if (!receiverId || !content || (!listingId && !projectId)) {
-        return res.status(400).json({ message: 'receiverId, content and listingId/projectId are required' });
-      }
-
-      const thread = await storage.createMessageThread({
-        title: subject || 'Admin message',
-        type: listingId ? 'admin_to_seller' : (projectId ? 'admin_to_buyer' : 'general'),
-        projectId: projectId || null,
-        listingId: listingId || null,
-        buyerId: projectId ? receiverId : null,
-        sellerId: listingId ? receiverId : null,
-        adminId,
-        createdBy: adminId,
-        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
-        status: 'open',
-      } as any);
-
-      const message = await storage.createMessage({
-        threadId: thread.id,
-        senderId: adminId,
-        receiverId,
-        subject: subject || null,
-        content,
-        relatedProjectId: projectId || null,
-        relatedListingId: listingId || null,
-        context: listingId ? 'marketplace' : (projectId ? 'project_interest' : 'general'),
-        isAutoRelay: false,
-      } as any);
-
-      await storage.updateThreadLastMessage(thread.id);
-      res.json({ thread, message });
-    } catch (error) {
-      console.error('Error starting context thread:', error);
-      res.status(500).json({ message: 'Failed to start thread' });
-    }
-  });
-
-  // ========================================================================
-  // User Profile Routes
-  // ========================================================================
-  app.get('/api/profile', requireAuth, async (req: any, res) => {
-    try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
-      const profile = await storage.getUserProfile(userId);
-      res.json(profile);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-      res.status(500).json({ message: "Failed to fetch profile" });
-    }
-  });
-
-  app.post('/api/profile', requireAuth, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const validatedData = insertUserProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
-      const profile = await storage.createUserProfile(validatedData);
-      res.json(profile);
-    } catch (error: any) {
-      if (error instanceof ZodError) {
-        console.error("Validation error creating profile:", formatZodError(error));
-        return res.status(400).json({ message: formatZodError(error) });
-      }
-      console.error("Error creating profile:", error);
-      res.status(500).json({ message: "Failed to create profile" });
-    }
-  });
-
-  app.patch('/api/profile', requireAuth, async (req: any, res) => {
-    try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const validatedData = updateUserProfileSchema.parse({
-        ...req.body,
-        userId,
-      });
-      const profile = await storage.updateUserProfile(validatedData);
-
-      // Log activity
-      try {
-        await storage.createActivityLog({
-          userId,
-          activityType: 'profile_updated',
-          description: `Updated user profile`,
-          ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
-          userAgent: req.get('user-agent') || null,
-          metadata: { profileId: profile.id },
-        });
-      } catch (logError) {
-        console.error('[ACTIVITY LOG] Failed to log profile update:', logError);
-      }
-
-      res.json(profile);
-    } catch (error: any) {
-      if (error instanceof ZodError) {
-        console.error("Validation error updating profile:", formatZodError(error));
-        return res.status(400).json({ message: formatZodError(error) });
-      }
-      console.error("Error updating profile:", error);
-      res.status(500).json({ message: "Failed to update profile" });
-    }
-  });
-
-  // ========================================================================
-  // Project Routes
-  // ========================================================================
+  // Middleware aliases for compatibility with legacy routes
+  const isAuthenticated = requireAuth;
+  const isSeller = requireSeller;
+  const isAdmin = requireAdmin;
   app.get('/api/projects', async (req: any, res) => {
     try {
       const projects = await storage.getProjects();
-      const requireAdmin = req.user && req.user.role === 'admin';
+      const isAdmin = req.user && req.user.role === 'admin';
 
-      const filteredProjects = requireAdmin
+      const filteredProjects = isAdmin
         ? projects
         : projects.filter(p => p.status === 'active');
 
@@ -2084,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', requireAuth, async (req: any, res) => {
+  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       // Defensive check: ensure we have a valid user ID
@@ -2109,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/projects/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/projects/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const validatedData = insertProjectSchema.partial().parse(req.body);
       // Prevent changing ownerId via update - only admins should update projects anyway
@@ -2126,7 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/projects/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/projects/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteProject(req.params.id);
       res.json({ success: true });
@@ -2136,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/projects/:id/close', requireAuth, async (req, res) => {
+  app.patch('/api/projects/:id/close', isAuthenticated, async (req, res) => {
     try {
       const project = await storage.closeProject(req.params.id);
       res.json(project);
@@ -2146,7 +473,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects/interest', requireAuth, async (req: any, res) => {
+  app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId } = req.body;
@@ -2297,7 +624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:id/has-interest', requireAuth, async (req: any, res) => {
+  app.get('/api/projects/:id/has-interest', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const projectId = req.params.id;
@@ -2309,7 +636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/projects-interest', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/projects-interest', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const interests = await storage.getAllExpressedInterests();
       res.json(interests);
@@ -2325,13 +652,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/marketplace/listings', async (req: any, res) => {
     try {
       const { type, status } = req.query;
-      const requireAdmin = req.user && req.user.role === 'admin';
+      const isAdmin = req.user && req.user.role === 'admin';
       const listings = await storage.getMarketplaceListings({
         type: type as string,
         status: status as string,
       });
 
-      const filteredListings = requireAdmin
+      const filteredListings = isAdmin
         ? listings
         : listings.filter(l => l.status === 'approved');
 
@@ -2343,14 +670,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard: get current user's listings (sellers)
-  app.get('/api/dashboard/listings', requireAuth, async (req: any, res) => {
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
-      if (!userId) {
-        console.error('No user ID found in request - req.auth:', !!req.auth, 'req.user:', !!req.user);
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
-
+      const userId = req.user.claims?.sub || req.user.id;
       // If user is seller, return their listings; otherwise return empty array
       const listings = await storage.getListingsBySellerId(userId);
       res.json(listings || []);
@@ -2378,7 +700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/marketplace/listings', requireAuth, requireSeller, async (req: any, res) => {
+  app.post('/api/marketplace/listings', isAuthenticated, isSeller, async (req: any, res) => {
     try {
       const sellerId = req.user.claims?.sub || req.user.id;
       const validatedData = insertMarketplaceListingSchema.parse({
@@ -2437,7 +759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/marketplace/buyer-requests', requireAuth, async (req: any, res) => {
+  app.post('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
     try {
       const buyerId = req.user.claims?.sub || req.user.id;
 
@@ -2472,7 +794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Allow buyers to close their own RFQs (buyer requests)
-  app.patch('/api/marketplace/buyer-requests/:id/close', requireAuth, async (req: any, res) => {
+  app.patch('/api/marketplace/buyer-requests/:id/close', isAuthenticated, async (req: any, res) => {
     try {
       const buyerId = req.user.claims?.sub || req.user.id;
       const id = req.params.id;
@@ -2493,7 +815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/dashboard/listings', requireAuth, async (req: any, res) => {
+  app.get('/api/dashboard/listings', isAuthenticated, async (req: any, res) => {
     try {
       const sellerId = req.user.claims?.sub || req.user.id;
       const listings = await storage.getListingsBySellerId(sellerId);
@@ -2504,7 +826,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/marketplace/listings/:id', requireAuth, requireAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
     try {
       const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
       const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
@@ -2519,7 +841,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/marketplace/listings/:id', requireAuth, requireAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
     try {
       await storage.deleteMarketplaceListing(req.params.id);
       res.json({ success: true });
@@ -2529,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/marketplace/listings/:id/close', requireAuth, async (req: any, res) => {
+  app.patch('/api/marketplace/listings/:id/close', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const user = await storage.getUserById(userId);
@@ -2554,7 +876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Message Thread Routes
   // ========================================================================
-  app.post('/api/threads', requireAuth, async (req: any, res) => {
+  app.post('/api/threads', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId, title } = req.body;
@@ -2615,11 +937,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/threads', requireAuth, async (req: any, res) => {
+  app.get('/api/threads', isAuthenticated, async (req: any, res) => {
     try {
-      // Ensure user is synced
-      const user = await syncClerkUser(req.auth.userId);
-      const userId = user.id;
+      const userId = req.user.claims?.sub || req.user.id;
       const threads = await storage.getThreadsByUserId(userId);
       res.json(threads);
     } catch (error) {
@@ -2629,9 +949,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
-  app.get('/api/threads/all', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      // PRIVACY CONTROL: Admins ONLY see support tickets (requireAdminSupport=true)
+      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
       // They can NEVER see buyer-seller marketplace conversations
       const status = req.query.status as string | undefined;
       const priority = req.query.priority as string | undefined;
@@ -2646,7 +966,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to get categorized support tickets
-  app.get('/api/admin/threads/categorized', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/threads/categorized', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       // PRIVACY CONTROL: Only support tickets
       const allTickets = await storage.getAdminSupportTickets();
@@ -2668,7 +988,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/threads/:id', requireAuth, async (req: any, res) => {
+  app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
     try {
       const thread = await storage.getThreadById(req.params.id);
       if (!thread) {
@@ -2682,7 +1002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Return thread and participant (buyer/seller) details for UI header
-  app.get('/api/threads/:id/details', requireAuth, async (req: any, res) => {
+  app.get('/api/threads/:id/details', isAuthenticated, async (req: any, res) => {
     try {
       const threadId = req.params.id;
       const details = await storage.getThreadWithParticipants(threadId);
@@ -2694,7 +1014,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/threads/:id/messages', requireAuth, async (req: any, res) => {
+  app.get('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
       const messages = await storage.getMessagesByThreadId(req.params.id);
       res.json(messages);
@@ -2704,7 +1024,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/threads/:id/messages', requireAuth, async (req: any, res) => {
+  app.post('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
       const senderId = req.user.claims?.sub || req.user.id;
       const threadId = req.params.id;
@@ -2759,7 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/threads/:id/close', requireAuth, async (req: any, res) => {
+  app.patch('/api/threads/:id/close', isAuthenticated, async (req: any, res) => {
     try {
       const thread = await storage.closeThread(req.params.id);
       res.json(thread);
@@ -2774,7 +1094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // User creates a support ticket
-  app.post('/api/support/tickets', requireAuth, async (req: any, res) => {
+  app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { title, description, priority } = req.body;
@@ -2803,7 +1123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin claims a support ticket
-  app.post('/api/admin/support/tickets/:id/claim', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/support/tickets/:id/claim', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims?.sub || req.user.id;
       const ticketId = req.params.id;
@@ -2817,7 +1137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin resolves a support ticket
-  app.patch('/api/admin/support/tickets/:id/resolve', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/admin/support/tickets/:id/resolve', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const ticketId = req.params.id;
       const { notes } = req.body;
@@ -2831,7 +1151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin gets all support tickets (with filtering)
-  app.get('/api/admin/support/tickets', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/support/tickets', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const status = req.query.status as string | undefined;
       const priority = req.query.priority as string | undefined;
@@ -2846,7 +1166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a support ticket's status
-  app.patch('/api/threads/:id/ticket-status', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/threads/:id/ticket-status', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const ticketId = req.params.id;
       const { status } = req.body;
@@ -2873,7 +1193,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a support ticket's priority
-  app.patch('/api/threads/:id/ticket-priority', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/threads/:id/ticket-priority', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const ticketId = req.params.id;
       const { priority } = req.body;
@@ -2900,7 +1220,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a support ticket's assignee
-  app.patch('/api/threads/:id/ticket-assign', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/threads/:id/ticket-assign', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const ticketId = req.params.id;
       const { assignedAdminId } = req.body;
@@ -2918,7 +1238,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin analytics summary
-  app.get('/api/admin/analytics', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/analytics', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const summary = await storage.getAnalyticsSummary();
       return res.json(summary);
@@ -3065,7 +1385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   });
 
-  app.post('/api/uploads/messages', requireAuth, upload.single('file'), async (req: any, res) => {
+  app.post('/api/uploads/messages', isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -3086,11 +1406,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Message Routes
   // ========================================================================
-  app.get('/api/messages', requireAuth, async (req: any, res) => {
+  app.get('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
-      // Ensure user is synced
-      const user = await syncClerkUser(req.auth.userId);
-      const userId = user.id;
+      const userId = req.user.claims?.sub || req.user.id;
       const messages = await storage.getMessagesByUserId(userId);
       res.json(messages);
     } catch (error) {
@@ -3099,7 +1417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/messages', requireAuth, async (req: any, res) => {
+  app.post('/api/messages', isAuthenticated, async (req: any, res) => {
     try {
       const senderId = req.user.claims?.sub || req.user.id;
       const receiverId = req.body.receiverId;
@@ -3174,7 +1492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin endpoint to contact seller about a project or listing
-  app.post('/api/messages/contact-seller', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/messages/contact-seller', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId, sellerId } = req.body;
@@ -3243,7 +1561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/conversations/:userId', requireAuth, async (req: any, res) => {
+  app.get('/api/conversations/:userId', isAuthenticated, async (req: any, res) => {
     try {
       const currentUserId = req.user.claims?.sub || req.user.id;
       const otherUserId = req.params.userId;
@@ -3255,7 +1573,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/messages/:id/details', requireAuth, async (req, res) => {
+  app.get('/api/messages/:id/details', isAuthenticated, async (req, res) => {
     try {
       const messageId = req.params.id;
       const currentUserId = (req as any).user?.claims?.sub || (req as any).user?.id;
@@ -3285,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Close a conversation (mark all messages between the two participants as closed)
-  app.patch('/api/messages/:id/close', requireAuth, async (req: any, res) => {
+  app.patch('/api/messages/:id/close', isAuthenticated, async (req: any, res) => {
     try {
       const messageId = req.params.id;
       const currentUserId = req.user.claims?.sub || req.user.id;
@@ -3297,9 +1615,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const main = messageDetails.message;
       const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
       const user = await storage.getUser(currentUserId);
-      const requireAdminUser = user?.role === 'admin';
+      const isAdminUser = user?.role === 'admin';
 
-      if (!isParticipant && !requireAdminUser) {
+      if (!isParticipant && !isAdminUser) {
         return res.status(403).json({ message: 'Not authorized to close this conversation' });
       }
 
@@ -3311,7 +1629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/messages/check-contact', requireAuth, async (req: any, res) => {
+  app.get('/api/messages/check-contact', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { projectId, listingId } = req.query;
@@ -3339,15 +1657,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Return a user's public details (admins can view any user; users can view themselves)
-  app.get('/api/users/:id', requireAuth, async (req: any, res) => {
+  app.get('/api/users/:id', isAuthenticated, async (req: any, res) => {
     try {
       const currentUserId = req.user?.claims?.sub || req.user?.id;
       const targetId = req.params.id;
 
       // Allow if requesting own profile or admin
       const requestingUser = await storage.getUser(currentUserId);
-      const requireAdminUser = requestingUser?.role === 'admin';
-      if (!requireAdminUser && currentUserId !== targetId) {
+      const isAdminUser = requestingUser?.role === 'admin';
+      if (!isAdminUser && currentUserId !== targetId) {
         return res.status(403).json({ message: 'Not authorized to view this user' });
       }
 
@@ -3365,7 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Only include message previews for admin users or the owner
-      if (requireAdminUser || currentUserId === targetId) {
+      if (isAdminUser || currentUserId === targetId) {
         try {
           const msgs = await storage.getMessagesByUserId(targetId);
           // provide a small preview: last 5 messages
@@ -3436,7 +1754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/blog', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/blog', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const authorId = req.user.claims?.sub || req.user.id;
       const validatedData = insertBlogPostSchema.parse({
@@ -3470,7 +1788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/blog/:id/publish', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/blog/:id/publish', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const post = await storage.publishBlogPost(req.params.id);
       res.json(post);
@@ -3480,7 +1798,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/blog/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertBlogPostSchema.partial().parse(req.body);
       const post = await storage.updateBlogPost(req.params.id, validatedData);
@@ -3495,7 +1813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/blog/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/blog/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteBlogPost(req.params.id);
       res.json({ message: "Blog post deleted successfully" });
@@ -3505,7 +1823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/blog/admin/all', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/blog/admin/all', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const posts = await storage.getBlogPosts(false);
       res.json(posts);
@@ -3528,7 +1846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/sustainability', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/sustainability', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertSustainabilityContentSchema.parse(req.body);
       const item = await storage.createSustainabilityContent(validatedData);
@@ -3543,7 +1861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/sustainability/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertSustainabilityContentSchema.partial().parse(req.body);
       const item = await storage.updateSustainabilityContent(req.params.id, validatedData);
@@ -3558,7 +1876,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/sustainability/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/sustainability/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteSustainabilityContent(req.params.id);
       res.json({ message: "Sustainability content deleted successfully" });
@@ -3598,7 +1916,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdBy: requesterId,
               context: 'support',
               status: 'open',
-              requireAdminSupport: true,
+              isAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
             } as any);
@@ -3628,7 +1946,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               createdBy: adminUser.id,
               context: 'support',
               status: 'open',
-              requireAdminSupport: true,
+              isAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
             } as any);
@@ -3678,7 +1996,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/contact/submissions', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/contact/submissions', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const submissions = await storage.getContactSubmissions();
       res.json(submissions);
@@ -3688,7 +2006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/contact/submissions/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/contact/submissions/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { status } = req.body;
       if (!status || !['new', 'contacted', 'resolved'].includes(status)) {
@@ -3712,7 +2030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/contact/settings', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/contact/settings', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const settings = await storage.updateContactSettings(req.body);
       res.json(settings);
@@ -3725,7 +2043,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Admin Routes
   // ========================================================================
-  app.get('/api/admin/verification-queue', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/verification-queue', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const listings = await storage.getPendingListings();
       res.json(listings);
@@ -3735,14 +2053,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/verify/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  // Consolidated admin statistics used by the Admin overview dashboard
+  app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const reviewerId = req.user.claims?.sub || req.user.id;
+      // Fetch users via storage so legacy/linked users are included
+      const allUsers = await storage.getAllUsers();
+      const totalUsers = allUsers.length;
+      const admins = allUsers.filter(u => u.role === 'admin').length;
+      const sellers = allUsers.filter(u => u.role === 'seller').length;
+      const buyers = allUsers.filter(u => u.role === 'buyer').length;
+
+      // Listings
+      const pendingListings = await storage.getPendingListings();
+      const allListings = await db.select().from(marketplaceListings);
+      const totalListings = allListings.length;
+      const approvedListings = allListings.filter((l: any) => l.status === 'approved').length;
+
+      // Projects
+      const allProjects = await db.select().from(projects);
+      const totalProjects = allProjects.length;
+      const activeProjects = allProjects.filter((p: any) => p.status === 'active').length;
+
+      // Messages
+      const allMessages = await db.select().from(messages);
+      const totalMessages = allMessages.length;
+      const unreadMessages = allMessages.filter((m: any) => !m.read).length;
+
+      // Buyer requests / RFQs
+      const allBuyerRequests = await db.select().from(buyerRequests);
+      const totalRFQs = allBuyerRequests.length;
+
+      return res.json({
+        totalUsers,
+        admins,
+        sellers,
+        buyers,
+        pendingVerifications: pendingListings.length,
+        totalListings,
+        approvedListings,
+        totalProjects,
+        activeProjects,
+        totalMessages,
+        unreadMessages,
+        totalRFQs,
+      });
+    } catch (error) {
+      console.error('Error fetching admin stats:', error);
+      res.status(500).json({ message: 'Failed to fetch admin stats' });
+    }
+  });
+
+  app.post('/api/admin/verify/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const reviewerId = req.user.id;
       const listingId = req.params.id;
-      const listing = await storage.getListing(listingId);
+      const listing = await storage.getMarketplaceListingById(listingId);
       await storage.approveListing(listingId, reviewerId);
 
-      // Log activity
+      // Log activity for seller
       if (listing?.sellerId) {
         try {
           await storage.createActivityLog({
@@ -3758,6 +2126,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Log admin audit trail
+      try {
+        await storage.logAdminAudit({
+          adminId: reviewerId,
+          action: 'listing_approved',
+          targetType: 'listing',
+          targetId: listingId,
+          changes: {
+            title: listing?.title,
+            type: listing?.type,
+            status: 'approved'
+          },
+          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+          userAgent: req.get('user-agent') || null,
+        });
+      } catch (auditError) {
+        console.error('[ADMIN AUDIT] Failed to log listing approval:', auditError);
+      }
+
       res.json({ message: "Listing approved successfully" });
     } catch (error) {
       console.error("Error approving listing:", error);
@@ -3765,14 +2152,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/reject/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/reject/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const reviewerId = req.user.claims?.sub || req.user.id;
+      const reviewerId = req.user.id;
       const listingId = req.params.id;
-      const listing = await storage.getListing(listingId);
+      const listing = await storage.getMarketplaceListingById(listingId);
       await storage.rejectListing(listingId, reviewerId);
 
-      // Log activity
+      // Log activity for seller
       if (listing?.sellerId) {
         try {
           await storage.createActivityLog({
@@ -3788,6 +2175,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Log admin audit trail
+      try {
+        await storage.logAdminAudit({
+          adminId: reviewerId,
+          action: 'listing_rejected',
+          targetType: 'listing',
+          targetId: listingId,
+          changes: {
+            title: listing?.title,
+            type: listing?.type,
+            status: 'rejected'
+          },
+          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+          userAgent: req.get('user-agent') || null,
+        });
+      } catch (auditError) {
+        console.error('[ADMIN AUDIT] Failed to log listing rejection:', auditError);
+      }
+
       res.json({ message: "Listing rejected successfully" });
     } catch (error) {
       console.error("Error rejecting listing:", error);
@@ -3795,7 +2201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const users = await storage.getAllUsers();
 
@@ -3843,7 +2249,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { email, password, username, firstName, lastName, role } = req.body || {};
       if (!email || !role) {
@@ -3882,7 +2288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:id/role', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/role', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { role } = req.body;
       if (!role || !['admin', 'buyer', 'seller'].includes(role)) {
@@ -3897,7 +2303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update user information (name, email, phone, company, password, username)
-  app.patch('/api/admin/users/:id/info', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/info', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { firstName, lastName, email, phoneNumber, companyName, password, username } = req.body;
       const userId = req.params.id;
@@ -3949,7 +2355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/users/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/users/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteUser(req.params.id);
       res.json({ message: "User deleted successfully" });
@@ -3960,7 +2366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Return marketplace listings for a specific user (admin only)
-  app.get('/api/admin/users/:id/listings', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/users/:id/listings', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const sellerId = req.params.id;
       const listings = await storage.getListingsBySellerId(sellerId);
@@ -3976,7 +2382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Get all available admin roles and their default permissions
-  app.get('/api/admin/roles', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/roles', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { ROLE_PERMISSIONS, getAdminRoleDisplayName } = await import('./rbac');
       const roles = Object.keys(ROLE_PERMISSIONS).map(role => ({
@@ -3992,7 +2398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get users filtered by role (for tabbed user management interface)
-  app.get('/api/admin/users/by-role/:role', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/users/by-role/:role', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { role } = req.params;
       if (!['admin', 'buyer', 'seller'].includes(role)) {
@@ -4024,7 +2430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Assign or update admin role for a user
-  app.patch('/api/admin/users/:id/admin-role', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/admin/users/:id/admin-role', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const { adminRole } = req.body;
       const userId = req.params.id;
@@ -4058,7 +2464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update custom permissions for an admin user (Super Admin only)
-  app.put('/api/admin/users/:id/custom-permissions', requireAuth, requireAdmin, async (req: any, res) => {
+  app.put('/api/admin/users/:id/custom-permissions', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const userId = req.params.id;
       const permissions = req.body;
@@ -4085,7 +2491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Activity Log Routes
   // ========================================================================
   // Admin audit logs with admin user details (for monitoring admin changes)
-  app.get('/api/admin/audit-logs', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 500;
       const fromDate = req.query.from as string | undefined;
@@ -4121,7 +2527,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Helper endpoint to log admin actions
-  app.post('/api/admin/audit-log', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/audit-log', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const adminId = req.user.claims?.sub || req.user.id;
       const { action, targetType, targetId, changes } = req.body;
@@ -4148,7 +2554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/admin/activity-logs', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/activity-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 500;
       const activityType = req.query.activityType as string | undefined;
@@ -4176,7 +2582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/activity-logs/me', requireAuth, async (req: any, res) => {
+  app.get('/api/activity-logs/me', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -4189,15 +2595,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
-  // Notification Routes - TEMPORARILY BYPASSED
+  // Notification Routes
   // ========================================================================
-  app.get('/api/notifications', async (req: any, res) => {
+  app.get('/api/notifications', isAuthenticated, async (req: any, res) => {
     try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // const userId = user.id;
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
+      const userId = req.user.claims?.sub || req.user.id;
       const notifications = await storage.getUserNotifications(userId);
       res.json(notifications);
     } catch (error) {
@@ -4206,13 +2608,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/notifications/unread-count', requireAuth, async (req: any, res) => {
+  app.get('/api/notifications/unread-count', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
-      if (!userId) {
-        return res.status(401).json({ message: 'User not authenticated' });
-      }
-
+      const userId = req.user.claims?.sub || req.user.id;
       const count = await storage.getUnreadNotificationCount(userId);
       res.json({ count });
     } catch (error) {
@@ -4221,7 +2619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/notifications/:id/read', requireAuth, async (req, res) => {
+  app.post('/api/notifications/:id/read', isAuthenticated, async (req, res) => {
     try {
       await storage.markNotificationAsRead(req.params.id);
       res.json({ message: "Notification marked as read" });
@@ -4231,7 +2629,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/notifications/mark-all-read', requireAuth, async (req: any, res) => {
+  app.post('/api/notifications/mark-all-read', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       await storage.markAllNotificationsAsRead(userId);
@@ -4243,15 +2641,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
-  // Dashboard Stats Routes - TEMPORARILY BYPASSED
+  // Dashboard Stats Routes
   // ========================================================================
-  app.get('/api/dashboard/stats', async (req: any, res) => {
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // const userId = user.id;
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
+      const userId = req.user.claims?.sub || req.user.id;
       const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
         storage.getUserListingsCount(userId),
         storage.getUserUnreadMessagesCount(userId),
@@ -4281,7 +2675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/videos', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/videos', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const videos = await storage.getAllVideos();
       res.json(videos);
@@ -4291,7 +2685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/videos', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/videos', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertVideoSchema.parse(req.body);
       const video = await storage.createVideo(validatedData);
@@ -4306,7 +2700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/videos/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/videos/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = updateVideoSchema.parse({ ...req.body, id: req.params.id });
       const video = await storage.updateVideo(validatedData);
@@ -4321,7 +2715,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/videos/:id/toggle-active', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/videos/:id/toggle-active', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const video = await storage.toggleVideoActive(req.params.id);
       res.json(video);
@@ -4331,7 +2725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/videos/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/videos/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteVideo(req.params.id);
       res.json({ message: "Video deleted successfully" });
@@ -4346,7 +2740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================================
 
   // Platform Settings
-  app.get('/api/admin/settings/platform', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const settings = await storage.getAllPlatformSettings();
       res.json(settings);
@@ -4356,7 +2750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/platform', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const validatedData = insertPlatformSettingSchema.parse({ ...req.body, updatedBy: req.user.id });
       const setting = await storage.createPlatformSetting(validatedData);
@@ -4370,7 +2764,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/platform/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.patch('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       // Get the current setting to log the old value
       const currentSetting = await storage.getAllPlatformSettings();
@@ -4399,7 +2793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/platform/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deletePlatformSetting(req.params.id);
       res.json({ message: "Platform setting deleted successfully" });
@@ -4410,7 +2804,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings by category
-  app.get('/api/admin/settings/platform/category/:category', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/platform/category/:category', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const settings = await storage.getPlatformSettingsByCategory(req.params.category);
       res.json(settings);
@@ -4421,7 +2815,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings audit logs
-  app.get('/api/admin/settings/audit', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/audit', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { settingKey, limit } = req.query;
       const logs = await storage.getSettingsAuditLogs(
@@ -4436,7 +2830,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email Templates
-  app.get('/api/admin/settings/email-templates', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const templates = await storage.getAllEmailTemplates();
       res.json(templates);
@@ -4446,7 +2840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/email-templates', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/admin/settings/email-templates', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertEmailTemplateSchema.parse(req.body);
       const template = await storage.createEmailTemplate(validatedData);
@@ -4460,7 +2854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/email-templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = updateEmailTemplateSchema.parse({ ...req.body, id: req.params.id });
       const template = await storage.updateEmailTemplate(validatedData);
@@ -4474,7 +2868,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/email-templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/email-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteEmailTemplate(req.params.id);
       res.json({ message: "Email template deleted successfully" });
@@ -4485,7 +2879,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Login History
-  app.get('/api/admin/settings/login-history', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/login-history', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const userId = req.query.userId as string | undefined;
       const history = await storage.getLoginHistory(userId);
@@ -4497,7 +2891,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Verification Rules
-  app.get('/api/admin/settings/verification-rules', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const rules = await storage.getAllVerificationRules();
       res.json(rules);
@@ -4507,7 +2901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/verification-rules', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/admin/settings/verification-rules', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertVerificationRuleSchema.parse(req.body);
       const rule = await storage.createVerificationRule(validatedData);
@@ -4521,7 +2915,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/verification-rules/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = updateVerificationRuleSchema.parse({ ...req.body, id: req.params.id });
       const rule = await storage.updateVerificationRule(validatedData);
@@ -4535,7 +2929,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/verification-rules/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/verification-rules/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteVerificationRule(req.params.id);
       res.json({ message: "Verification rule deleted successfully" });
@@ -4546,7 +2940,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document Templates
-  app.get('/api/admin/settings/document-templates', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const templates = await storage.getAllDocumentTemplates();
       res.json(templates);
@@ -4556,7 +2950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/settings/document-templates', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/admin/settings/document-templates', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertDocumentTemplateSchema.parse(req.body);
       const template = await storage.createDocumentTemplate(validatedData);
@@ -4570,7 +2964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/settings/document-templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = updateDocumentTemplateSchema.parse({ ...req.body, id: req.params.id });
       const template = await storage.updateDocumentTemplate(validatedData);
@@ -4584,7 +2978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/admin/settings/document-templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  app.delete('/api/admin/settings/document-templates/:id', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.deleteDocumentTemplate(req.params.id);
       res.json({ message: "Document template deleted successfully" });
@@ -4595,7 +2989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Audit Logs
-  app.get('/api/admin/settings/audit-logs', requireAuth, requireAdmin, async (req, res) => {
+  app.get('/api/admin/settings/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const adminId = req.query.adminId as string | undefined;
       const logs = await storage.getAdminAuditLogs(adminId);
@@ -4607,7 +3001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User Management (Admin Controls)
-  app.patch('/api/admin/users/:id/password-reset', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/password-reset', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { newPassword } = req.body;
       if (!newPassword || newPassword.length < 6) {
@@ -4634,7 +3028,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/users/:id/force-logout', requireAuth, requireAdmin, async (req, res) => {
+  app.post('/api/admin/users/:id/force-logout', isAuthenticated, isAdmin, async (req, res) => {
     try {
       await storage.forceUserLogout(req.params.id);
 
@@ -4656,7 +3050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/admin/users/:id/role', requireAuth, requireAdmin, async (req, res) => {
+  app.patch('/api/admin/users/:id/role', isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { role } = req.body;
       if (!['admin', 'buyer', 'seller'].includes(role)) {
@@ -4684,7 +3078,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Account Settings (for current admin user)
-  app.patch('/api/account/profile', requireAuth, async (req: any, res) => {
+  app.patch('/api/account/profile', isAuthenticated, async (req: any, res) => {
     try {
       const { firstName, lastName, email, profileImageUrl } = req.body;
       const updatedUser = await storage.updateUserInfo(req.user.id, {
@@ -4700,7 +3094,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/password-change', requireAuth, async (req: any, res) => {
+  app.post('/api/account/password-change', isAuthenticated, async (req: any, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
 
@@ -4734,7 +3128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/account/login-history', requireAuth, async (req: any, res) => {
+  app.get('/api/account/login-history', isAuthenticated, async (req: any, res) => {
     try {
       const history = await storage.getLoginHistory(req.user.id);
       res.json(history);
@@ -4745,7 +3139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Two-Factor Authentication
-  app.get('/api/account/2fa/status', requireAuth, async (req: any, res) => {
+  app.get('/api/account/2fa/status', isAuthenticated, async (req: any, res) => {
     try {
       const twoFAStatus = await storage.getTwoFactorAuthStatus(req.user.id);
       res.json(twoFAStatus);
@@ -4755,7 +3149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/2fa/enable', requireAuth, async (req: any, res) => {
+  app.post('/api/account/2fa/enable', isAuthenticated, async (req: any, res) => {
     try {
       // In a real implementation, this would generate a TOTP secret and QR code
       // For now, we'll create a placeholder
@@ -4767,7 +3161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/account/2fa/disable', requireAuth, async (req: any, res) => {
+  app.post('/api/account/2fa/disable', isAuthenticated, async (req: any, res) => {
     try {
       await storage.disableTwoFactorAuth(req.user.id);
       res.json({ message: "2FA disabled successfully" });
@@ -4782,7 +3176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Create verification request (Seller only)
-  app.post('/api/verification/request', requireAuth, async (req: any, res) => {
+  app.post('/api/verification/request', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can request verification" });
@@ -4827,7 +3221,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Submit verification request (Seller only) - sends request for review
-  app.post('/api/verification/submit', requireAuth, async (req: any, res) => {
+  app.post('/api/verification/submit', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can submit verification" });
@@ -4853,7 +3247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (seller) {
         await storage.createNotification({
           userId: req.user.id,
-          type: 'system',
+          type: 'seller_verification',
           title: 'Verification Request Submitted',
           message: 'Your seller verification request has been submitted for review. We will review it within 2-3 business days.',
           link: '/dashboard/seller-verification',
@@ -4865,7 +3259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (adminUser) {
         await storage.createNotification({
           userId: adminUser.id,
-          type: 'system',
+          type: 'seller_verification',
           title: 'New Seller Verification Request',
           message: `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
           link: '/admin?tab=seller-verification',
@@ -4881,7 +3275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get current user's verification request (Seller)
-  app.get('/api/verification/my-request', requireAuth, async (req: any, res) => {
+  app.get('/api/verification/my-request', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can access this endpoint" });
@@ -4903,7 +3297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all verification requests (Admin only)
-  app.get('/api/verification/requests', requireAuth, async (req: any, res) => {
+  app.get('/api/verification/requests', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4918,7 +3312,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get pending verification requests (Admin only)
-  app.get('/api/verification/requests/pending', requireAuth, async (req: any, res) => {
+  app.get('/api/verification/requests/pending', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4933,7 +3327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents for a verification request (Admin only)
-  app.get('/api/verification/documents/:requestId', requireAuth, async (req: any, res) => {
+  app.get('/api/verification/documents/:requestId', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4948,7 +3342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve verification request (Admin only)
-  app.post('/api/verification/approve/:id', requireAuth, async (req: any, res) => {
+  app.post('/api/verification/approve/:id', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -4963,7 +3357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject verification request (Admin only)
-  app.post('/api/verification/reject/:id', requireAuth, async (req: any, res) => {
+  app.post('/api/verification/reject/:id', isAuthenticated, async (req: any, res) => {
     try {
       if (req.user.role !== 'admin') {
         return res.status(403).json({ message: "Admin access required" });
@@ -5017,7 +3411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload verification file endpoint
-  app.post('/api/verification/upload', requireAuth, verificationUpload.single('file'), async (req: any, res) => {
+  app.post('/api/verification/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
     try {
       if (req.user.role !== 'seller') {
         return res.status(403).json({ message: "Only sellers can upload verification documents" });
@@ -5065,44 +3459,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
-  // Buyer Tier Upgrade Routes (Temporary bypass for testing)
+  // Buyer Tier Upgrade Routes (Placeholder - storage methods need to be implemented)
   // ========================================================================
 
-  // Create tier upgrade request (Buyer only) - TEMPORARILY BYPASSED
-  app.post('/api/buyer/tier-upgrade-request', async (req: any, res) => {
+  // Create tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
     try {
-      // TEMPORARY: Skip auth for testing
-      // if (req.user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can request tier upgrades" });
-      // }
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can request tier upgrades" });
+      }
 
       const { requestedTier } = req.body;
       if (!requestedTier || !['standard', 'premium'].includes(requestedTier)) {
         return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
       }
 
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
-      // Check if user already has a pending/draft request
-      const existingRequest = await db.select().from(tierUpgradeRequests)
-        .where(eq(tierUpgradeRequests.userId, userId))
-        .orderBy(desc(tierUpgradeRequests.createdAt))
-        .limit(1);
-
-      if (existingRequest.length > 0 && ['draft', 'pending'].includes(existingRequest[0].status)) {
-        // Return the existing request instead of throwing an error to allow the frontend to continue
-        return res.json(existingRequest[0]);
-      }
-
-      // Create new tier upgrade request in database
-      const [newRequest] = await db.insert(tierUpgradeRequests).values({
-        userId,
-        requestedTier: requestedTier as 'standard' | 'premium',
+      // Create and store in in-memory map
+      const newRequest: BuyerUpgradeRequest = {
+        id: `tier-upgrade-${Date.now()}`,
+        userId: req.user.id,
+        buyerEmail: req.user.email || '',
+        buyerFirstName: req.user.firstName || '',
+        buyerLastName: req.user.lastName || '',
+        requestedTier,
         status: 'draft',
+        submittedAt: new Date().toISOString(),
         documentCount: 0,
-      }).returning();
-
+      };
+      buyerUpgradeRequests.set(newRequest.id, newRequest);
       res.json(newRequest);
     } catch (error) {
       console.error("Error creating tier upgrade request:", error);
@@ -5110,59 +3494,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current user's tier upgrade request (Buyer) - TEMPORARILY BYPASSED
-  app.get('/api/buyer/tier-upgrade-request', async (req: any, res) => {
+  // Get current user's tier upgrade request (Buyer)
+  app.get('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
     try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can access this endpoint" });
-      // }
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
+      }
 
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
+      // Find the user's tier upgrade request from in-memory store
+      let userRequest: BuyerUpgradeRequest | null = null;
+      for (const request of Array.from(buyerUpgradeRequests.values())) {
+        if (request.userId === req.user.id) {
+          userRequest = request;
+          break;
+        }
+      }
 
-      // Find the user's tier upgrade request from database
-      const [userRequest] = await db.select().from(tierUpgradeRequests)
-        .where(eq(tierUpgradeRequests.userId, userId))
-        .orderBy(desc(tierUpgradeRequests.createdAt))
-        .limit(1);
-
-      res.json(userRequest || null);
+      res.json(userRequest);
     } catch (error) {
       console.error("Error fetching tier upgrade request:", error);
       res.status(500).json({ message: "Failed to fetch tier upgrade request" });
     }
   });
 
-  // Get user's tier upgrade history (Buyer) - TEMPORARILY BYPASSED
-  app.get('/api/buyer/tier-upgrade/history', async (req: any, res) => {
+  // Upload tier upgrade documents (Buyer only)
+  app.post('/api/buyer/tier-upgrade/upload', isAuthenticated, verificationUpload.single('file'), async (req: any, res) => {
     try {
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p';
-
-      const requests = await db.select().from(tierUpgradeRequests)
-        .where(eq(tierUpgradeRequests.userId, userId))
-        .orderBy(desc(tierUpgradeRequests.createdAt));
-
-      res.json(requests);
-    } catch (error) {
-      console.error("Error fetching tier upgrade history:", error);
-      res.status(500).json({ message: "Failed to fetch tier upgrade history" });
-    }
-  });
-
-  // Upload tier upgrade documents (Buyer only) - TEMPORARILY BYPASSED
-  app.post('/api/buyer/tier-upgrade/upload', verificationUpload.single('file'), async (req: any, res) => {
-    try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
-      // }
-
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
+      }
 
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -5199,41 +3559,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Submit tier upgrade request (Buyer only) - TEMPORARILY BYPASSED
-  app.post('/api/buyer/tier-upgrade/submit', async (req: any, res) => {
+  // Submit tier upgrade request (Buyer only)
+  app.post('/api/buyer/tier-upgrade/submit', isAuthenticated, async (req: any, res) => {
     try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
-      // }
-
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
+      }
 
       const { requestId } = req.body;
       if (!requestId) {
         return res.status(400).json({ message: "Request ID is required" });
       }
 
-      // Find and update the request in database
-      const [request] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, requestId)).limit(1);
+      // Find and update the request in in-memory store
+      const request = buyerUpgradeRequests.get(requestId);
       if (!request) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
 
-      if (request.userId !== userId) {
+      if (request.userId !== req.user.id) {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
 
       // Update status to 'pending'
-      await db.update(tierUpgradeRequests)
-        .set({
-          status: 'pending',
-          submittedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(tierUpgradeRequests.id, requestId));
+      request.status = 'pending';
+      request.submittedAt = new Date().toISOString();
+      buyerUpgradeRequests.set(requestId, request);
 
       res.json({
         success: true,
@@ -5252,10 +3603,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Get pending buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades/pending', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades/pending', async (req: any, res) => {
     try {
-      // Return pending requests from database
-      const pendingRequests = await getPendingBuyerUpgrades();
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Return pending requests from in-memory store
+      const pendingRequests = getPendingBuyerUpgrades();
       res.json(pendingRequests);
     } catch (error) {
       console.error("Error fetching pending buyer tier upgrades:", error);
@@ -5264,10 +3621,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades', async (req: any, res) => {
     try {
-      // Return all requests from database
-      const allRequests = await getAllBuyerUpgrades();
+      // In development, allow requests without full auth (mock data)
+      const isDev = process.env.NODE_ENV === 'development';
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Return all requests from in-memory store
+      const allRequests = getAllBuyerUpgrades();
       res.json(allRequests);
     } catch (error) {
       console.error("Error fetching buyer tier upgrades:", error);
@@ -5276,7 +3639,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents for a buyer tier upgrade request (Admin only)
-  app.get('/api/admin/buyer-upgrades/documents/:requestId', requireAuth, requireAdmin, async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades/documents/:requestId', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
       const { requestId } = req.params;
 
@@ -5319,11 +3687,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve buyer tier upgrade request (Admin only)
-  app.post('/api/admin/buyer-upgrades/approve/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/buyer-upgrades/approve/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
       const { id } = req.params;
 
-      // Update in database
+      // Update in-memory store
       const updated = await approveBuyerUpgrade(id);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
@@ -5332,7 +3705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for buyer
       await storage.createNotification({
         userId: updated.userId,
-        type: 'system',
+        type: 'tier_upgrade',
         title: 'Tier Upgrade Approved',
         message: `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
         link: '/dashboard',
@@ -5351,7 +3724,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject buyer tier upgrade request (Admin only)
-  app.post('/api/admin/buyer-upgrades/reject/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/buyer-upgrades/reject/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
       const { id } = req.params;
       const { reason } = req.body;
@@ -5360,7 +3738,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
 
-      // Update in database
+      // Update in-memory store
       const updated = await rejectBuyerUpgrade(id, reason);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
@@ -5369,7 +3747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create notification for buyer
       await storage.createNotification({
         userId: updated.userId,
-        type: 'system',
+        type: 'tier_upgrade',
         title: 'Tier Upgrade Rejected',
         message: `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
         link: '/dashboard',
@@ -5389,11 +3767,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Revert buyer tier upgrade request to draft (Admin only)
-  app.post('/api/admin/buyer-upgrades/revert/:id', requireAuth, requireAdmin, async (req: any, res) => {
+  app.post('/api/admin/buyer-upgrades/revert/:id', async (req: any, res) => {
+    // In development, allow requests without full auth (mock data)
+    const isDev = process.env.NODE_ENV === 'development';
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     try {
       const { id } = req.params;
 
-      // Update in database
+      // Update in-memory store
       const updated = await revertBuyerUpgrade(id);
       if (!updated) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
@@ -5411,299 +3794,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
-  // Payment Method Routes
-  // ========================================================================
-
-  // Get all active payment methods
-  app.get('/api/payment-methods', async (req, res) => {
-    try {
-      const paymentMethods = await storage.getAllPaymentMethodDetails();
-      res.json(paymentMethods);
-    } catch (error) {
-      console.error("Error fetching payment methods:", error);
-      res.status(500).json({ message: "Failed to fetch payment methods" });
-    }
-  });
-
-  // Get payment method details by method
-  app.get('/api/payment-methods/:method', async (req, res) => {
-    try {
-      const { method } = req.params;
-      const paymentMethod = await storage.getPaymentMethodDetailsByMethod(method);
-      if (!paymentMethod) {
-        return res.status(404).json({ message: "Payment method not found" });
-      }
-      res.json(paymentMethod);
-    } catch (error) {
-      console.error("Error fetching payment method:", error);
-      res.status(500).json({ message: "Failed to fetch payment method" });
-    }
-  });
-
-  // Admin: Create payment method
-  app.post('/api/admin/payment-methods', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const validatedData = insertPaymentMethodDetailsSchema.parse(req.body);
-      const paymentMethod = await storage.createPaymentMethodDetails(validatedData);
-      res.json(paymentMethod);
-    } catch (error: any) {
-      if (error instanceof ZodError) {
-        console.error("Validation error creating payment method:", formatZodError(error));
-        return res.status(400).json({ message: formatZodError(error) });
-      }
-      console.error("Error creating payment method:", error);
-      res.status(500).json({ message: "Failed to create payment method" });
-    }
-  });
-
-  // Admin: Update payment method
-  app.patch('/api/admin/payment-methods/:id', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const validatedData = updatePaymentMethodDetailsSchema.parse({ ...req.body, id: req.params.id });
-      const paymentMethod = await storage.updatePaymentMethodDetails(req.params.id, validatedData);
-      res.json(paymentMethod);
-    } catch (error: any) {
-      if (error instanceof ZodError) {
-        console.error("Validation error updating payment method:", formatZodError(error));
-        return res.status(400).json({ message: formatZodError(error) });
-      }
-      console.error("Error updating payment method:", error);
-      res.status(500).json({ message: "Failed to update payment method" });
-    }
-  });
-
-  // ========================================================================
-  // Tier Upgrade Payment Routes
-  // ========================================================================
-
-  // Create tier upgrade payment (after document submission) - TEMPORARILY BYPASSED
-  app.post('/api/buyer/tier-upgrade/payment', async (req: any, res) => {
-    try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can create tier upgrade payments" });
-      // }
-
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
-      const { upgradeRequestId, paymentMethod, amount } = req.body;
-
-      if (!upgradeRequestId || !paymentMethod || !amount) {
-        return res.status(400).json({ message: "upgradeRequestId, paymentMethod, and amount are required" });
-      }
-
-      // Verify the upgrade request exists and belongs to the user
-      const [upgradeRequest] = await db.select().from(tierUpgradeRequests).where(eq(tierUpgradeRequests.id, upgradeRequestId)).limit(1);
-      if (!upgradeRequest) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
-
-      if (upgradeRequest.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
-      }
-
-      // Get payment method details
-      const paymentMethodDetails = await storage.getPaymentMethodDetailsByMethod(paymentMethod);
-      if (!paymentMethodDetails) {
-        return res.status(400).json({ message: "Invalid payment method" });
-      }
-
-      const usdAmount = parseFloat(amount);
-
-      // Create payment record (no currency conversion - users pay based on current Google rates)
-      const payment = await storage.createTierUpgradePayment({
-        upgradeRequestId,
-        userId,
-        requestedTier: upgradeRequest.requestedTier,
-        paymentMethod: paymentMethod as any,
-        amountUSD: usdAmount,
-        amount: usdAmount, // Store USD amount (users convert manually)
-        currency: 'USD', // Always store as USD
-        status: 'pending',
-        paymentDetails: paymentMethodDetails.accountDetails,
-      });
-
-      res.json({
-        ...payment,
-        paymentMethodDetails: {
-          name: paymentMethodDetails.name,
-          currencyCode: paymentMethodDetails.currencyCode,
-          currencyName: paymentMethodDetails.currencyName,
-        },
-        usdAmount,
-      });
-    } catch (error: any) {
-      if (error instanceof ZodError) {
-        console.error("Validation error creating payment:", formatZodError(error));
-        return res.status(400).json({ message: formatZodError(error) });
-      }
-      console.error("Error creating tier upgrade payment:", error);
-      res.status(500).json({ message: "Failed to create payment" });
-    }
-  });
-
-  // Upload proof of payment - TEMPORARILY BYPASSED
-  app.post('/api/buyer/tier-upgrade/payment/:paymentId/proof', verificationUpload.single('proofOfPayment'), async (req: any, res) => {
-    try {
-      // TEMPORARY: Skip auth for testing
-      // if (!req.auth?.userId) {
-      //   return res.status(401).json({ message: "Unauthorized" });
-      // }
-
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
-      // TEMPORARY: Skip user sync
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (!user) {
-      //   return res.status(401).json({ message: "User not found" });
-      // }
-
-      // TEMPORARY: Skip role check for testing
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can upload proof of payment" });
-      // }
-
-      const { paymentId } = req.params;
-
-      if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      // Verify the payment exists and belongs to the user
-      const payment = await storage.getTierUpgradePaymentById(paymentId);
-      if (!payment) {
-        return res.status(404).json({ message: "Payment not found" });
-      }
-
-      if (payment.userId !== userId) {
-        return res.status(403).json({ message: "Unauthorized - payment does not belong to user" });
-      }
-
-      // Update payment with proof of payment URL
-      const proofOfPaymentUrl = `/attached_assets/files/uploads/verification/${req.file.filename}`;
-      const updatedPayment = await storage.updateTierUpgradePayment(paymentId, {
-        proofOfPaymentUrl,
-        status: 'paid',
-      });
-
-      res.json(updatedPayment);
-    } catch (error: any) {
-      console.error("Error uploading proof of payment:", error);
-      res.status(500).json({ message: error.message || "Failed to upload proof of payment" });
-    }
-  });
-
-  // Get user's tier upgrade payments
-  app.get('/api/buyer/tier-upgrade/payments', requireAuth, async (req: any, res) => {
-    try {
-      if (req.user.role !== 'buyer') {
-        return res.status(403).json({ message: "Only buyers can view tier upgrade payments" });
-      }
-
-      const payments = await storage.getTierUpgradePaymentsByUserId(req.user.id);
-      res.json(payments);
-    } catch (error) {
-      console.error("Error fetching tier upgrade payments:", error);
-      res.status(500).json({ message: "Failed to fetch payments" });
-    }
-  });
-
-  // Get payment by upgrade request ID - TEMPORARILY BYPASSED
-  app.get('/api/buyer/tier-upgrade/payment/:upgradeRequestId', async (req: any, res) => {
-    try {
-      // TEMPORARY: Skip auth for testing
-      // const user = await syncClerkUser(req.auth.userId);
-      // if (user.role !== 'buyer') {
-      //   return res.status(403).json({ message: "Only buyers can view tier upgrade payments" });
-      // }
-
-      // TEMPORARY: Use a test user ID
-      const userId = 'user_372qZRqve6OwjXFHApeUGnXF17p'; // From your debug logs
-
-      const { upgradeRequestId } = req.params;
-      const payments = await storage.getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId);
-
-      // Filter to only show payments belonging to the current user
-      const userPayments = payments.filter(p => p.userId === userId);
-
-      res.json(userPayments[0] || null);
-    } catch (error) {
-      console.error("Error fetching tier upgrade payment:", error);
-      res.status(500).json({ message: "Failed to fetch payment" });
-    }
-  });
-
-  // Admin: Get all pending tier upgrade payments
-  app.get('/api/admin/tier-upgrade-payments/pending', requireAuth, requireAdmin, async (req, res) => {
-    try {
-      const payments = await storage.getAllPendingTierUpgradePayments();
-      res.json(payments);
-    } catch (error) {
-      console.error("Error fetching pending payments:", error);
-      res.status(500).json({ message: "Failed to fetch pending payments" });
-    }
-  });
-
-  // Admin: Verify tier upgrade payment
-  app.post('/api/admin/tier-upgrade-payments/verify/:paymentId', requireAuth, requireAdmin, async (req: any, res) => {
-    try {
-      const { paymentId } = req.params;
-      const { action, rejectionReason } = req.body; // action: 'approve' or 'reject'
-
-      const payment = await storage.getTierUpgradePaymentById(paymentId);
-      if (!payment) {
-        return res.status(404).json({ message: "Payment not found" });
-      }
-
-      if (action === 'approve') {
-        // Update payment status to verified
-        await storage.updateTierUpgradePayment(paymentId, {
-          status: 'verified',
-          verifiedAt: new Date(),
-          verifiedBy: req.user.id,
-        });
-
-        // Update user's membership tier
-        await storage.updateUserMembershipTier(payment.userId, payment.requestedTier);
-
-        // Update the upgrade request status to approved
-        await db.update(tierUpgradeRequests)
-          .set({
-            status: 'approved',
-            reviewedAt: new Date(),
-            reviewedBy: req.user.id,
-            updatedAt: new Date(),
-          })
-          .where(eq(tierUpgradeRequests.id, payment.upgradeRequestId));
-
-        res.json({ message: "Payment verified and tier upgraded successfully" });
-      } else if (action === 'reject') {
-        // Update payment status to rejected
-        await storage.updateTierUpgradePayment(paymentId, {
-          status: 'rejected',
-          rejectionReason,
-          verifiedAt: new Date(),
-          verifiedBy: req.user.id,
-        });
-
-        res.json({ message: "Payment rejected" });
-      } else {
-        return res.status(400).json({ message: "Invalid action" });
-      }
-    } catch (error) {
-      console.error("Error verifying tier upgrade payment:", error);
-      res.status(500).json({ message: "Failed to verify payment" });
-    }
-  });
-
-  // ========================================================================
   // Notification Routes
   // ========================================================================
 
   // Get all notifications for current user
+
 
   const httpServer = createServer(app);
   return httpServer;

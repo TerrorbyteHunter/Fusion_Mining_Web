@@ -24,14 +24,14 @@ interface DashboardSidebarProps {
   onMobileOpenChange?: (open: boolean) => void;
 }
 
-export function DashboardSidebar({ 
+export function DashboardSidebar({
   mobileOpen: externalMobileOpen,
-  onMobileOpenChange 
+  onMobileOpenChange
 }: DashboardSidebarProps = {}) {
   const [location] = useLocation();
   const { user, isSeller, isAdmin } = useAuth();
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-  
+
   // Use external state if provided, otherwise use internal state
   const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
@@ -42,7 +42,7 @@ export function DashboardSidebar({
   };
 
   const isSellerUnverified = isSeller && user?.verificationStatus !== 'approved';
-  
+
   const handleLinkClick = () => {
     setMobileOpen(false);
   };
@@ -62,60 +62,71 @@ export function DashboardSidebar({
     },
     ...(isSeller
       ? [
-          {
-            label: "My Listings",
-            icon: Package,
-            href: "/dashboard/listings",
-            testId: "sidebar-listings"
-          }
-        ]
+        {
+          label: "My Listings",
+          icon: Package,
+          href: "/dashboard/listings",
+          testId: "sidebar-listings"
+        }
+      ]
       : [
-          {
-            label: "My Requests",
-            icon: ListOrdered,
-            href: "/dashboard/requests",
-            testId: "sidebar-requests"
-          }
-        ]),
+        {
+          label: "My Requests",
+          icon: ListOrdered,
+          href: "/dashboard/requests",
+          testId: "sidebar-requests"
+        }
+      ]),
     ...(isSeller
       ? [
-          {
-            label: "Create Listing",
-            icon: Plus,
-            href: "/dashboard/create-listing",
-            testId: "sidebar-create-listing",
-            highlight: true
-          }
-        ]
+        {
+          label: "Create Listing",
+          icon: Plus,
+          href: "/dashboard/create-listing",
+          testId: "sidebar-create-listing",
+          highlight: true
+        }
+      ]
       : []),
     ...(!isSeller && !isAdmin
       ? [
-          {
-            label: "Upgrade Tier",
-            icon: TrendingUp,
-            href: "/dashboard/upgrade-tier",
-            testId: "sidebar-upgrade-tier",
-            highlight: true
-          }
-        ]
+        {
+          label: "Upgrade Tier",
+          icon: TrendingUp,
+          href: "/dashboard/upgrade-tier",
+          testId: "sidebar-upgrade-tier",
+          highlight: true
+        }
+      ]
       : []),
     ...(isSellerUnverified
       ? [
-          {
-            label: "Get Verified",
-            icon: ShieldCheck,
-            href: "/dashboard/verification",
-            testId: "sidebar-get-verified",
-            highlight: true
-          }
-        ]
+        {
+          label: "Get Verified",
+          icon: ShieldCheck,
+          href: "/dashboard/verification",
+          testId: "sidebar-get-verified",
+          highlight: true
+        }
+      ]
       : []),
     {
       label: "Manage Account",
       icon: Settings,
       href: "/dashboard/profile",
       testId: "sidebar-manage-account"
-    }
+    },
+    ...(isAdmin
+      ? [
+        {
+          label: "Admin Panel",
+          icon: ShieldCheck,
+          href: "/admin",
+          testId: "sidebar-admin-panel",
+          highlight: true
+        }
+      ]
+      : [])
   ];
 
   // Shared sidebar content component
@@ -152,11 +163,11 @@ export function DashboardSidebar({
       {/* Navigation Menu */}
       <nav className="flex-1 p-3 md:p-4 overflow-y-auto">
         <div className="space-y-1">
-            {menuItems.map((item) => {
+          {menuItems.map((item) => {
             const Icon = item.icon;
             // mark as active when the current location equals the href or is a subpath
             const isActive = location === item.href || (item.href !== '/' && location.startsWith(item.href));
-            
+
             return (
               <Link key={item.href} href={item.href}>
                 <Button
@@ -209,9 +220,9 @@ export function DashboardSidebar({
 // Export a component for the mobile menu trigger to be used in Dashboard pages
 export function DashboardMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
   return (
-    <Button 
-      variant="outline" 
-      size="icon" 
+    <Button
+      variant="outline"
+      size="icon"
       onClick={onOpen}
       className="md:hidden"
       data-testid="button-dashboard-mobile-menu"

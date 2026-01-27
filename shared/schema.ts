@@ -353,7 +353,7 @@ export const verificationQueue = pgTable("verification_queue", {
 // ============================================================================
 // Activity Logs
 // ============================================================================
-export const activityTypeEnum = pgEnum('activity_type', ['login', 'logout', 'listing_created', 'listing_approved', 'listing_rejected', 'message_sent', 'interest_expressed', 'profile_updated', 'blog_post_created']);
+export const activityTypeEnum = pgEnum('activity_type', ['login', 'logout', 'listing_created', 'listing_approved', 'listing_rejected', 'message_sent', 'interest_expressed', 'profile_updated', 'blog_post_created', 'tier_upgrade']);
 
 export const activityLogs = pgTable("activity_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -369,7 +369,7 @@ export const activityLogs = pgTable("activity_logs", {
 // ============================================================================
 // Notifications
 // ============================================================================
-export const notificationTypeEnum = pgEnum('notification_type', ['message', 'listing_approved', 'listing_rejected', 'interest_received', 'system']);
+export const notificationTypeEnum = pgEnum('notification_type', ['message', 'listing_approved', 'listing_rejected', 'interest_received', 'system', 'tier_upgrade', 'seller_verification']);
 
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -621,7 +621,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   activityLogs: many(activityLogs),
   notifications: many(notifications),
   tierUsage: many(tierUsageTracking),
-  verificationRequests: many(sellerVerificationRequests),
+  // sellerVerificationRequests references users in two different ways (sellerId and reviewedBy).
+  // Disambiguate the relations by giving explicit relation names so Drizzle can map fields correctly.
+  verificationRequestsAsSeller: many(sellerVerificationRequests, { relationName: 'seller' }),
+  verificationRequestsAsReviewer: many(sellerVerificationRequests, { relationName: 'reviewer' }),
 }));
 
 export const adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
@@ -763,10 +766,12 @@ export const sellerVerificationRequestsRelations = relations(sellerVerificationR
   seller: one(users, {
     fields: [sellerVerificationRequests.sellerId],
     references: [users.id],
+    relationName: 'seller',
   }),
   reviewer: one(users, {
     fields: [sellerVerificationRequests.reviewedBy],
     references: [users.id],
+    relationName: 'reviewer',
   }),
   documents: many(sellerVerificationDocuments),
 }));
@@ -786,12 +791,11 @@ export const sellerVerificationDocumentsRelations = relations(sellerVerification
 export const upsertUserSchema = createInsertSchema(users).pick({
   id: true,
   email: true,
+  username: true,
   password: true,
   firstName: true,
   lastName: true,
   profileImageUrl: true,
-  clerkId: true,
-  role: true,
 });
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
