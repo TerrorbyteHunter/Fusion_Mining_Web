@@ -142,7 +142,7 @@ app.use((req, res, next) => {
       // Production: serve static files
       console.log('Production mode: serving static files');
         try {
-          const checkPath = path.resolve(__dirname, '..', 'build', 'public');
+          const checkPath = path.resolve(process.cwd(), 'build', 'public');
           console.log('Resolved build public path for production:', checkPath);
           console.log('Exists:', fs.existsSync(checkPath));
           try {

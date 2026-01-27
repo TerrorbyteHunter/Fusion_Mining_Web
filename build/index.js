@@ -6586,8 +6586,20 @@ function serveStatic(app2) {
     app2.use("/attached_assets", express.static(attachedAssetsPath));
   }
   app2.use(express.static(distPath));
-  app2.use("*", (_req, res) => {
-    res.sendFile(path2.resolve(distPath, "index.html"));
+  app2.use("*", (req, res) => {
+    try {
+      const indexFile = path2.resolve(distPath, "index.html");
+      const exists = fs2.existsSync(indexFile);
+      console.log(`Static fallback: ${req.method} ${req.originalUrl} -> index.html exists=${exists} path=${indexFile}`);
+      if (!exists) {
+        res.status(404).send("Not Found");
+        return;
+      }
+      res.sendFile(indexFile);
+    } catch (e) {
+      console.error("Error serving index.html fallback:", e instanceof Error ? e.stack || e.message : String(e));
+      res.status(500).send("Internal Server Error");
+    }
   });
 }
 
@@ -6686,7 +6698,7 @@ app.use((req, res, next) => {
     } else {
       console.log("Production mode: serving static files");
       try {
-        const checkPath = path3.resolve(__dirname, "..", "build", "public");
+        const checkPath = path3.resolve(process.cwd(), "build", "public");
         console.log("Resolved build public path for production:", checkPath);
         console.log("Exists:", fs3.existsSync(checkPath));
         try {
