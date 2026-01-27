@@ -3340,6 +3340,7 @@ var init_auth_user = __esm({
 // server/index.ts
 import "dotenv/config";
 import path3 from "path";
+import fs3 from "fs";
 import express2 from "express";
 import cors from "cors";
 
@@ -6684,6 +6685,18 @@ app.use((req, res, next) => {
       });
     } else {
       console.log("Production mode: serving static files");
+      try {
+        const checkPath = path3.resolve(__dirname, "..", "build", "public");
+        console.log("Resolved build public path for production:", checkPath);
+        console.log("Exists:", fs3.existsSync(checkPath));
+        try {
+          console.log("Files at build/public:", fs3.readdirSync(checkPath).slice(0, 20));
+        } catch (e) {
+          console.log("Could not list files at build/public:", e instanceof Error ? e.message : String(e));
+        }
+      } catch (e) {
+        console.log("Error while checking build/public path:", e instanceof Error ? e.message : String(e));
+      }
       serveStatic(app);
       const port = parseInt(process.env.PORT || "5000", 10);
       server.listen(port, () => {

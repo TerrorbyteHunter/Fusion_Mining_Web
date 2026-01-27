@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import path from 'path';
+import fs from 'fs';
 
 // Load .env from parent directory if not found in current directory
 if (!process.env.CLERK_SECRET_KEY) {
@@ -140,7 +141,19 @@ app.use((req, res, next) => {
     } else {
       // Production: serve static files
       console.log('Production mode: serving static files');
-      serveStatic(app);
+        try {
+          const checkPath = path.resolve(__dirname, '..', 'build', 'public');
+          console.log('Resolved build public path for production:', checkPath);
+          console.log('Exists:', fs.existsSync(checkPath));
+          try {
+            console.log('Files at build/public:', fs.readdirSync(checkPath).slice(0, 20));
+          } catch (e) {
+            console.log('Could not list files at build/public:', e instanceof Error ? e.message : String(e));
+          }
+        } catch (e) {
+          console.log('Error while checking build/public path:', e instanceof Error ? e.message : String(e));
+        }
+        serveStatic(app);
 
       // Only listen on port if NOT on Vercel or Replit
       // Vercel and Replit don't need us to call server.listen()
