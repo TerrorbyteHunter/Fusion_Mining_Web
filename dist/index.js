@@ -1,5 +1,7 @@
 var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
@@ -13,6 +15,15 @@ var __export = (target, all) => {
   for (var name in all)
     __defProp(target, name, { get: all[name], enumerable: true });
 };
+var __copyProps = (to, from, except, desc3) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc3 = __getOwnPropDesc(from, key)) || desc3.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // shared/schema.ts
 var schema_exports = {};
@@ -57,7 +68,7 @@ __export(schema_exports, {
   insertSellerVerificationDocumentSchema: () => insertSellerVerificationDocumentSchema,
   insertSellerVerificationRequestSchema: () => insertSellerVerificationRequestSchema,
   insertSettingsAuditSchema: () => insertSettingsAuditSchema,
-  insertSustainabilityContentSchema: () => insertSustainabilityContentSchema,
+  insertSustainabilityContentSchema: () => insertSustainabilityContentSchema2,
   insertTierUpgradePaymentSchema: () => insertTierUpgradePaymentSchema,
   insertTierUpgradeRequestSchema: () => insertTierUpgradeRequestSchema,
   insertTierUsageTrackingSchema: () => insertTierUsageTrackingSchema,
@@ -160,7 +171,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema;
+var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -447,7 +458,7 @@ var init_schema = __esm({
       reviewedBy: varchar("reviewed_by").references(() => users.id),
       notes: text("notes")
     });
-    activityTypeEnum = pgEnum("activity_type", ["login", "logout", "listing_created", "listing_approved", "listing_rejected", "message_sent", "interest_expressed", "profile_updated", "blog_post_created"]);
+    activityTypeEnum = pgEnum("activity_type", ["login", "logout", "listing_created", "listing_approved", "listing_rejected", "message_sent", "interest_expressed", "profile_updated", "blog_post_created", "tier_upgrade"]);
     activityLogs = pgTable("activity_logs", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
@@ -458,7 +469,7 @@ var init_schema = __esm({
       metadata: jsonb("metadata"),
       createdAt: timestamp("created_at").defaultNow().notNull()
     }, (table) => [index("IDX_activity_user_id").on(table.userId), index("IDX_activity_created_at").on(table.createdAt)]);
-    notificationTypeEnum = pgEnum("notification_type", ["message", "listing_approved", "listing_rejected", "interest_received", "system"]);
+    notificationTypeEnum = pgEnum("notification_type", ["message", "listing_approved", "listing_rejected", "interest_received", "system", "tier_upgrade", "seller_verification"]);
     notifications = pgTable("notifications", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -677,7 +688,10 @@ var init_schema = __esm({
       activityLogs: many(activityLogs),
       notifications: many(notifications),
       tierUsage: many(tierUsageTracking),
-      verificationRequests: many(sellerVerificationRequests)
+      // sellerVerificationRequests references users in two different ways (sellerId and reviewedBy).
+      // Disambiguate the relations by giving explicit relation names so Drizzle can map fields correctly.
+      verificationRequestsAsSeller: many(sellerVerificationRequests, { relationName: "seller" }),
+      verificationRequestsAsReviewer: many(sellerVerificationRequests, { relationName: "reviewer" })
     }));
     adminPermissionsRelations = relations(adminPermissions, ({ one }) => ({
       adminUser: one(users, {
@@ -804,11 +818,13 @@ var init_schema = __esm({
     sellerVerificationRequestsRelations = relations(sellerVerificationRequests, ({ one, many }) => ({
       seller: one(users, {
         fields: [sellerVerificationRequests.sellerId],
-        references: [users.id]
+        references: [users.id],
+        relationName: "seller"
       }),
       reviewer: one(users, {
         fields: [sellerVerificationRequests.reviewedBy],
-        references: [users.id]
+        references: [users.id],
+        relationName: "reviewer"
       }),
       documents: many(sellerVerificationDocuments)
     }));
@@ -821,12 +837,11 @@ var init_schema = __esm({
     upsertUserSchema = createInsertSchema(users).pick({
       id: true,
       email: true,
+      username: true,
       password: true,
       firstName: true,
       lastName: true,
-      profileImageUrl: true,
-      clerkId: true,
-      role: true
+      profileImageUrl: true
     });
     insertAdminPermissionsSchema = createInsertSchema(adminPermissions).omit({
       id: true,
@@ -907,7 +922,7 @@ var init_schema = __esm({
       createdAt: true,
       updatedAt: true
     }).partial().required({ id: true });
-    insertSustainabilityContentSchema = createInsertSchema(sustainabilityContent).omit({
+    insertSustainabilityContentSchema2 = createInsertSchema(sustainabilityContent).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -1180,6 +1195,24 @@ var init_storage = __esm({
         return await db.select().from(users).where(eq(users.role, role));
       }
       async upsertUser(userData) {
+        if (userData.clerkId) {
+          const existingUsers = await db.select().from(users).where(eq(users.clerkId, userData.clerkId)).limit(1);
+          if (existingUsers.length > 0) {
+            const updateData = {
+              email: userData.email,
+              firstName: userData.firstName,
+              lastName: userData.lastName,
+              profileImageUrl: userData.profileImageUrl,
+              role: userData.role,
+              updatedAt: /* @__PURE__ */ new Date()
+            };
+            if (userData.password) {
+              updateData.password = userData.password;
+            }
+            const [user2] = await db.update(users).set(updateData).where(eq(users.clerkId, userData.clerkId)).returning();
+            return user2;
+          }
+        }
         if (userData.email) {
           const existingUsers = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
           if (existingUsers.length > 0) {
@@ -1189,6 +1222,12 @@ var init_storage = __esm({
               profileImageUrl: userData.profileImageUrl,
               updatedAt: /* @__PURE__ */ new Date()
             };
+            if (userData.clerkId) {
+              updateData.clerkId = userData.clerkId;
+            }
+            if (userData.role) {
+              updateData.role = userData.role;
+            }
             if (userData.password) {
               updateData.password = userData.password;
             }
@@ -1462,24 +1501,24 @@ var init_storage = __esm({
       // Message Thread operations
       // ========================================================================
       async createMessageThread(threadData) {
-        const [thread] = await db.insert(messageThreads).values(threadData).returning();
-        return thread;
+        const [thread2] = await db.insert(messageThreads).values(threadData).returning();
+        return thread2;
       }
       async getThreadById(id) {
-        const [thread] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
-        return thread;
+        const [thread2] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
+        return thread2;
       }
       async getThreadWithParticipants(id) {
-        const thread = await this.getThreadById(id);
-        if (!thread) return null;
-        const [listing] = thread.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread.listingId)).limit(1) : [null];
-        const [project] = thread.projectId ? await db.select().from(projects).where(eq(projects.id, thread.projectId)).limit(1) : [null];
-        const buyer = thread.buyerId ? await this.getUserById(thread.buyerId) : null;
-        const buyerProfile = thread.buyerId ? await this.getUserProfile(thread.buyerId) : null;
-        const seller = thread.sellerId ? await this.getUserById(thread.sellerId) : null;
-        const sellerProfile = thread.sellerId ? await this.getUserProfile(thread.sellerId) : null;
+        const thread2 = await this.getThreadById(id);
+        if (!thread2) return null;
+        const [listing] = thread2.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread2.listingId)).limit(1) : [null];
+        const [project] = thread2.projectId ? await db.select().from(projects).where(eq(projects.id, thread2.projectId)).limit(1) : [null];
+        const buyer = thread2.buyerId ? await this.getUserById(thread2.buyerId) : null;
+        const buyerProfile = thread2.buyerId ? await this.getUserProfile(thread2.buyerId) : null;
+        const seller = thread2.sellerId ? await this.getUserById(thread2.sellerId) : null;
+        const sellerProfile = thread2.sellerId ? await this.getUserProfile(thread2.sellerId) : null;
         return {
-          thread,
+          thread: thread2,
           listing: listing || null,
           project: project || null,
           buyer: buyer || null,
@@ -1516,19 +1555,19 @@ var init_storage = __esm({
           eq(messageThreads.sellerId, sql2`seller.id`)
         ).orderBy(desc(messageThreads.lastMessageAt));
         return results.map((r) => {
-          const { thread, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
+          const { thread: thread2, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
           const thread_without_context = {
-            ...thread,
+            ...thread2,
             // Explicitly omit the context field
-            id: thread.id,
-            title: thread.title,
-            projectId: thread.projectId,
-            listingId: thread.listingId,
-            buyerId: thread.buyerId,
-            sellerId: thread.sellerId,
-            status: thread.status,
-            lastMessageAt: thread.lastMessageAt,
-            createdAt: thread.createdAt
+            id: thread2.id,
+            title: thread2.title,
+            projectId: thread2.projectId,
+            listingId: thread2.listingId,
+            buyerId: thread2.buyerId,
+            sellerId: thread2.sellerId,
+            status: thread2.status,
+            lastMessageAt: thread2.lastMessageAt,
+            createdAt: thread2.createdAt
           };
           return {
             ...thread_without_context,
@@ -1546,8 +1585,8 @@ var init_storage = __esm({
         await db.update(messageThreads).set({ lastMessageAt: /* @__PURE__ */ new Date() }).where(eq(messageThreads.id, threadId));
       }
       async closeThread(threadId) {
-        const [thread] = await db.update(messageThreads).set({ status: "closed" }).where(eq(messageThreads.id, threadId)).returning();
-        return thread;
+        const [thread2] = await db.update(messageThreads).set({ status: "closed" }).where(eq(messageThreads.id, threadId)).returning();
+        return thread2;
       }
       // ========================================================================
       // Support Ticket Operations (Privacy-Controlled)
@@ -1574,35 +1613,35 @@ var init_storage = __esm({
        * Changes ticketStatus to 'in_progress'
        */
       async claimSupportTicket(ticketId, adminId) {
-        const [thread] = await db.update(messageThreads).set({
+        const [thread2] = await db.update(messageThreads).set({
           assignedAdminId: adminId,
           ticketStatus: "in_progress"
         }).where(and(
           eq(messageThreads.id, ticketId),
           eq(messageThreads.isAdminSupport, true)
         )).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Resolve a support ticket with optional notes.
        * Changes ticketStatus to 'resolved'
        */
       async resolveSupportTicket(ticketId, notes) {
-        const [thread] = await db.update(messageThreads).set({
+        const [thread2] = await db.update(messageThreads).set({
           ticketStatus: "resolved",
           resolvedAt: /* @__PURE__ */ new Date()
         }).where(and(
           eq(messageThreads.id, ticketId),
           eq(messageThreads.isAdminSupport, true)
         )).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Create a new support ticket (user-initiated).
        * User can contact admin about account/verification/payment issues
        */
       async createSupportTicket(userId, title, description, priority = "normal") {
-        const [thread] = await db.insert(messageThreads).values({
+        const [thread2] = await db.insert(messageThreads).values({
           title,
           type: "general",
           createdBy: userId,
@@ -1613,43 +1652,43 @@ var init_storage = __esm({
           ticketStatus: "open",
           ticketPriority: priority
         }).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Update a support ticket's status.
        */
       async updateTicketStatus(ticketId, status) {
-        const [thread] = await db.update(messageThreads).set({
+        const [thread2] = await db.update(messageThreads).set({
           ticketStatus: status
         }).where(and(
           eq(messageThreads.id, ticketId),
           eq(messageThreads.isAdminSupport, true)
         )).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Update a support ticket's priority.
        */
       async updateTicketPriority(ticketId, priority) {
-        const [thread] = await db.update(messageThreads).set({
+        const [thread2] = await db.update(messageThreads).set({
           ticketPriority: priority
         }).where(and(
           eq(messageThreads.id, ticketId),
           eq(messageThreads.isAdminSupport, true)
         )).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Update a support ticket's assigned admin.
        */
       async updateTicketAssignee(ticketId, adminId) {
-        const [thread] = await db.update(messageThreads).set({
+        const [thread2] = await db.update(messageThreads).set({
           assignedAdminId: adminId
         }).where(and(
           eq(messageThreads.id, ticketId),
           eq(messageThreads.isAdminSupport, true)
         )).returning();
-        return thread;
+        return thread2;
       }
       /**
        * Return analytics summary: user role counts, listing status counts,
@@ -2692,6 +2731,356 @@ var init_storage = __esm({
   }
 });
 
+// server/clerk.ts
+import { Clerk } from "@clerk/clerk-sdk-node";
+async function checkAdminRole(req, res, next) {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const dbUser = await storage.getUserByClerkId(req.auth.userId);
+    if (!dbUser || dbUser.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    req.user = dbUser;
+    next();
+  } catch (error) {
+    console.error("Error checking admin role:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+var clerk, requireAuth, requireAdmin, requireSeller, requireAdminPermission, getClerkUser;
+var init_clerk = __esm({
+  "server/clerk.ts"() {
+    "use strict";
+    init_storage();
+    console.log("Initializing Clerk with secret key:", process.env.CLERK_SECRET_KEY ? "PRESENT" : "MISSING");
+    clerk = Clerk({
+      secretKey: process.env.CLERK_SECRET_KEY
+    });
+    requireAuth = async (req, res, next) => {
+      const authHeader = req.headers.authorization;
+      console.log("Auth header received:", authHeader ? authHeader.substring(0, 20) + "..." : "NONE");
+      return clerk.expressRequireAuth({
+        onError: (error) => {
+          console.error("Clerk auth error:", error);
+          res.status(401).json({ message: "Unauthorized" });
+        }
+      })(req, res, async () => {
+        console.log("Clerk auth successful, req.auth:", req.auth);
+        if (req.auth?.userId) {
+          req.user = await storage.getUserByClerkId(req.auth.userId);
+        }
+        next();
+      });
+    };
+    requireAdmin = async (req, res, next) => {
+      console.log("requireAdmin: Using Clerk auth");
+      return clerk.expressRequireAuth({
+        onError: (error) => {
+          console.error("requireAdmin: Clerk auth failed:", error);
+          res.status(401).json({ message: "Authentication required" });
+        }
+      })(req, res, async () => {
+        await checkAdminRole(req, res, next);
+      });
+    };
+    requireSeller = async (req, res, next) => {
+      try {
+        if (!req.auth?.userId) {
+          return res.status(401).json({ message: "Unauthorized" });
+        }
+        const dbUser = await storage.getUserByClerkId(req.auth.userId);
+        if (!dbUser || dbUser.role !== "seller") {
+          return res.status(403).json({ message: "Seller access required" });
+        }
+        req.user = dbUser;
+        next();
+      } catch (error) {
+        console.error("Error in requireSeller:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    };
+    requireAdminPermission = (permission) => {
+      return async (req, res, next) => {
+        try {
+          if (!req.auth?.userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+          }
+          const adminPerms = await storage.getAdminPermissions(req.auth.userId);
+          if (!adminPerms) {
+            return res.status(403).json({ message: "Admin access required" });
+          }
+          if (!adminPerms[permission]) {
+            return res.status(403).json({ message: `Permission '${permission}' required` });
+          }
+          next();
+        } catch (error) {
+          console.error("Error in requireAdminPermission:", error);
+          res.status(500).json({ message: "Internal server error" });
+        }
+      };
+    };
+    getClerkUser = async (userId) => {
+      console.log("getClerkUser: Fetching user from Clerk:", userId);
+      try {
+        const user = await clerk.users.getUser(userId);
+        console.log("getClerkUser: Clerk user fetch successful:", !!user);
+        return user;
+      } catch (error) {
+        console.error("getClerkUser: Error fetching Clerk user:", error);
+        return null;
+      }
+    };
+  }
+});
+
+// server/rbac.ts
+var rbac_exports = {};
+__export(rbac_exports, {
+  ROLE_PERMISSIONS: () => ROLE_PERMISSIONS,
+  getAdminRoleDisplayName: () => getAdminRoleDisplayName,
+  getPermissionDisplayName: () => getPermissionDisplayName,
+  loadAdminPermissions: () => loadAdminPermissions,
+  logAdminAction: () => logAdminAction,
+  requirePermission: () => requirePermission,
+  requireRole: () => requireRole,
+  requireSuperAdmin: () => requireSuperAdmin
+});
+import { eq as eq2 } from "drizzle-orm";
+async function loadAdminPermissions(req, res, next) {
+  try {
+    if (!req.user || req.user.role !== "admin") {
+      return next();
+    }
+    const permissions = await db.query.adminPermissions.findFirst({
+      where: eq2(adminPermissions.adminUserId, req.user.id)
+    });
+    if (permissions) {
+      req.adminPermissions = permissions;
+    }
+    next();
+  } catch (error) {
+    console.error("Error loading admin permissions:", error);
+    next();
+  }
+}
+function requirePermission(permission) {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    if (!req.adminPermissions) {
+      return res.status(403).json({ message: "Admin permissions not loaded" });
+    }
+    if (!req.adminPermissions[permission]) {
+      return res.status(403).json({
+        message: `Permission denied: ${permission} is required`
+      });
+    }
+    next();
+  };
+}
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.user || req.user.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    if (!req.adminPermissions) {
+      return res.status(403).json({ message: "Admin permissions not loaded" });
+    }
+    if (!roles.includes(req.adminPermissions.adminRole)) {
+      return res.status(403).json({
+        message: `Role denied: One of ${roles.join(", ")} is required`
+      });
+    }
+    next();
+  };
+}
+function requireSuperAdmin(req, res, next) {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  if (!req.adminPermissions || req.adminPermissions.adminRole !== "super_admin") {
+    return res.status(403).json({ message: "Super Admin access required" });
+  }
+  next();
+}
+async function logAdminAction(adminId, action, targetType, targetId, changes, req) {
+  try {
+    const ipAddress = req.headers["x-forwarded-for"]?.split(",")[0].trim() || req.socket.remoteAddress || null;
+    const userAgent = req.headers["user-agent"] || null;
+    await db.insert((init_schema(), __toCommonJS(schema_exports)).adminAuditLogs).values({
+      adminId,
+      action,
+      targetType,
+      targetId,
+      changes,
+      ipAddress,
+      userAgent
+    });
+  } catch (error) {
+    console.error("Error logging admin action:", error);
+  }
+}
+function getAdminRoleDisplayName(role) {
+  const roleNames = {
+    super_admin: "Super Admin",
+    verification_admin: "Verification & Support Admin",
+    content_admin: "Content Admin",
+    analytics_admin: "Analytics Admin"
+  };
+  return roleNames[role] || role;
+}
+function getPermissionDisplayName(permission) {
+  const permissionNames = {
+    canManageUsers: "Manage Users",
+    canManageListings: "Manage Listings",
+    canManageProjects: "Manage Projects",
+    canManageBlog: "Manage Blog",
+    canManageCMS: "Manage CMS",
+    canViewAnalytics: "View Analytics",
+    canManageMessages: "Manage Messages",
+    canManageVerification: "Manage Verification",
+    canManageSettings: "Manage Settings",
+    canManageAdmins: "Manage Admins",
+    canAccessAuditLogs: "Access Audit Logs",
+    canManageDocuments: "Manage Documents",
+    canResetPasswords: "Reset Passwords",
+    canForceLogout: "Force Logout"
+  };
+  return permissionNames[permission] || permission;
+}
+var ROLE_PERMISSIONS;
+var init_rbac = __esm({
+  "server/rbac.ts"() {
+    "use strict";
+    init_db();
+    init_schema();
+    ROLE_PERMISSIONS = {
+      super_admin: {
+        canManageUsers: true,
+        canManageListings: true,
+        canManageProjects: true,
+        canManageBlog: true,
+        canManageCMS: true,
+        canViewAnalytics: true,
+        canManageMessages: true,
+        canManageVerification: true,
+        canManageSettings: true,
+        canManageAdmins: true,
+        canAccessAuditLogs: true,
+        canManageDocuments: true,
+        canResetPasswords: true,
+        canForceLogout: true
+      },
+      // Combined Verification & Support Admin:
+      // Handles compliance/KYC, listing approvals, and user support operations
+      verification_admin: {
+        canManageVerification: true,
+        canManageListings: true,
+        canViewAnalytics: true,
+        canAccessAuditLogs: true,
+        canManageMessages: true,
+        canResetPasswords: true,
+        canForceLogout: true
+      },
+      content_admin: {
+        canManageBlog: true,
+        canManageCMS: true,
+        canManageDocuments: true
+      },
+      analytics_admin: {
+        canViewAnalytics: true,
+        canAccessAuditLogs: true
+      }
+    };
+  }
+});
+
+// server/localAuth.ts
+var syncClerkUser;
+var init_localAuth = __esm({
+  "server/localAuth.ts"() {
+    "use strict";
+    init_clerk();
+    init_storage();
+    init_rbac();
+    syncClerkUser = async (clerkUserId) => {
+      console.log("syncClerkUser: Starting sync for userId:", clerkUserId);
+      try {
+        let dbUser = await storage.getUserByClerkId(clerkUserId);
+        console.log("syncClerkUser: Existing user check result:", dbUser ? "FOUND" : "NOT FOUND");
+        if (!dbUser) {
+          console.log("syncClerkUser: User not found, fetching from Clerk...");
+          const clerkUser = await getClerkUser(clerkUserId);
+          console.log("syncClerkUser: Clerk user fetch result:", clerkUser ? "SUCCESS" : "FAILED");
+          if (!clerkUser) {
+            throw new Error("User not found in Clerk");
+          }
+          const email = clerkUser.emailAddresses[0]?.emailAddress;
+          const firstName = clerkUser.firstName || "";
+          const lastName = clerkUser.lastName || "";
+          console.log("syncClerkUser: Extracted user data:", { email, firstName, lastName });
+          if (!email) {
+            throw new Error("User email not found");
+          }
+          const role = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || "buyer";
+          const adminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
+          console.log("syncClerkUser: User role and adminRole:", { role, adminRole });
+          console.log("syncClerkUser: Creating user in database...");
+          dbUser = await storage.upsertUser({
+            clerkId: clerkUserId,
+            email,
+            firstName,
+            lastName,
+            role
+          });
+          console.log("syncClerkUser: User creation result:", dbUser ? "SUCCESS" : "FAILED", "user:", dbUser);
+          console.log("syncClerkUser: Creating user profile...");
+          await storage.createUserProfile({
+            userId: dbUser.id,
+            profileType: "individual",
+            verified: false
+          });
+          console.log("syncClerkUser: Profile creation completed");
+          if (role === "admin" && adminRole) {
+            console.log("syncClerkUser: Creating admin permissions...");
+            const permissions = ROLE_PERMISSIONS[adminRole] || ROLE_PERMISSIONS.super_admin;
+            await storage.upsertAdminPermissions({
+              adminUserId: dbUser.id,
+              adminRole,
+              ...permissions
+            });
+          }
+        } else {
+          const clerkUser = await getClerkUser(clerkUserId);
+          if (clerkUser) {
+            const currentRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || "buyer";
+            const currentAdminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
+            if (dbUser.role !== currentRole) {
+              dbUser = await storage.updateUserRole(dbUser.id, currentRole);
+              if (currentRole === "admin" && currentAdminRole) {
+                const permissions = ROLE_PERMISSIONS[currentAdminRole] || ROLE_PERMISSIONS.super_admin;
+                await storage.upsertAdminPermissions({
+                  adminUserId: dbUser.id,
+                  adminRole: currentAdminRole,
+                  ...permissions
+                });
+              }
+            }
+          }
+        }
+        console.log("syncClerkUser: Final dbUser:", dbUser);
+        return dbUser;
+      } catch (error) {
+        console.error("Error syncing Clerk user:", error);
+        throw error;
+      }
+    };
+  }
+});
+
 // api/login.ts
 var login_exports = {};
 __export(login_exports, {
@@ -2767,135 +3156,175 @@ __export(auth_user_exports, {
 import jwt2 from "jsonwebtoken";
 import { parse } from "cookie";
 async function handler3(req, res) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", "GET");
-    return res.status(405).end("Method Not Allowed");
-  }
-  const cookieHeader = req.headers?.cookie || "";
-  const cookies = parse(cookieHeader || "");
-  const token = cookies["fm_auth"];
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
   try {
-    const payload = jwt2.verify(token, JWT_SECRET2);
-    const userId = payload.sub;
-    const role = payload.role;
-    let dbUser = null;
-    try {
-      dbUser = await storage.getUser(userId) || await storage.getUserByClerkId(userId);
-    } catch (e) {
-      console.error("Error fetching user from DB:", e);
+    console.log("Auth handler called, method:", req.method, "auth:", !!req.auth);
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).end("Method Not Allowed");
     }
-    let adminPermissions2 = null;
-    if (role === "admin") {
-      const adminRole = payload.adminRole || "super_admin";
-      switch (adminRole) {
-        case "super_admin":
-          adminPermissions2 = {
-            canManageUsers: true,
-            canManageListings: true,
-            canManageProjects: true,
-            canManageBlog: true,
-            canManageCMS: true,
-            canViewAnalytics: true,
-            canManageMessages: true,
-            canManageVerification: true,
-            canManageSettings: true,
-            canManageAdmins: true,
-            canAccessAuditLogs: true,
-            canManageDocuments: true,
-            canResetPasswords: true,
-            canForceLogout: true,
-            adminRole: "super_admin"
-          };
-          break;
-        case "verification_admin":
-          adminPermissions2 = {
-            canManageUsers: true,
-            canManageListings: false,
-            canManageProjects: false,
-            canManageBlog: false,
-            canManageCMS: false,
-            canViewAnalytics: false,
-            canManageMessages: true,
-            canManageVerification: true,
-            canManageSettings: false,
-            canManageAdmins: false,
-            canAccessAuditLogs: true,
-            canManageDocuments: true,
-            canResetPasswords: false,
-            canForceLogout: false,
-            adminRole: "verification_admin"
-          };
-          break;
-        case "content_admin":
-          adminPermissions2 = {
-            canManageUsers: false,
-            canManageListings: false,
-            canManageProjects: false,
-            canManageBlog: true,
-            canManageCMS: true,
-            canViewAnalytics: false,
-            canManageMessages: false,
-            canManageVerification: false,
-            canManageSettings: true,
-            canManageAdmins: false,
-            canAccessAuditLogs: false,
-            canManageDocuments: false,
-            canResetPasswords: false,
-            canForceLogout: false,
-            adminRole: "content_admin"
-          };
-          break;
-        case "analytics_admin":
-          adminPermissions2 = {
-            canManageUsers: false,
-            canManageListings: false,
-            canManageProjects: false,
-            canManageBlog: false,
-            canManageCMS: false,
-            canViewAnalytics: true,
-            canManageMessages: false,
-            canManageVerification: false,
-            canManageSettings: false,
-            canManageAdmins: false,
-            canAccessAuditLogs: true,
-            canManageDocuments: false,
-            canResetPasswords: false,
-            canForceLogout: false,
-            adminRole: "analytics_admin"
-          };
-          break;
-        default:
-          adminPermissions2 = {
-            canManageUsers: false,
-            canManageListings: false,
-            canManageProjects: false,
-            canManageBlog: false,
-            canManageCMS: false,
-            canViewAnalytics: false,
-            canManageMessages: false,
-            canManageVerification: false,
-            canManageSettings: false,
-            canManageAdmins: false,
-            canAccessAuditLogs: false,
-            canManageDocuments: false,
-            canResetPasswords: false,
-            canForceLogout: false,
-            adminRole: "super_admin"
-          };
+    if (req.auth?.userId) {
+      console.log("Auth handler: Clerk userId found:", req.auth.userId);
+      const clerkUserId = req.auth.userId;
+      let dbUser = await storage.getUserByClerkId(clerkUserId);
+      console.log("Auth handler: DB user lookup result:", dbUser ? "FOUND" : "NOT FOUND");
+      console.log("Auth handler: Attempting to sync user from Clerk...");
+      try {
+        await syncClerkUser(clerkUserId);
+        console.log("Auth handler: Sync completed, looking up user again...");
+        dbUser = await storage.getUserByClerkId(clerkUserId);
+      } catch (syncError) {
+        console.error("Auth handler: Error syncing Clerk user:", syncError);
+        if (!dbUser) {
+          return res.status(500).json({ message: "Failed to sync user data" });
+        }
       }
+      if (!dbUser) {
+        console.log("Auth handler: User not found after sync attempt");
+        return res.status(404).json({ message: "User not found" });
+      }
+      console.log("Auth handler: Returning user data for:", dbUser.email);
+      let adminPermissions2 = null;
+      if (dbUser.role === "admin") {
+        try {
+          adminPermissions2 = await storage.getAdminPermissions(dbUser.id);
+        } catch (permError) {
+          console.error("Error fetching admin permissions:", permError);
+        }
+      }
+      return res.json({
+        ...dbUser,
+        adminPermissions: adminPermissions2
+      });
     }
-    console.log("[AUTH/USER] Retrieved admin permissions for user:", userId, adminPermissions2 ? "admin" : "non-admin");
-    return res.status(200).json({
-      id: userId,
-      role,
-      email: payload.email,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      adminPermissions: adminPermissions2
-    });
-  } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    const cookieHeader = req.headers?.cookie || "";
+    const cookies = parse(cookieHeader || "");
+    const token = cookies["fm_auth"];
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+    try {
+      const payload = jwt2.verify(token, JWT_SECRET2);
+      const userId = payload.sub;
+      const role = payload.role;
+      let dbUser = null;
+      try {
+        dbUser = await storage.getUser(userId) || await storage.getUserByClerkId(userId);
+      } catch (e) {
+        console.error("Error fetching user from DB:", e);
+      }
+      let adminPermissions2 = null;
+      if (role === "admin") {
+        const adminRole = payload.adminRole || "super_admin";
+        switch (adminRole) {
+          case "super_admin":
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: "super_admin"
+            };
+            break;
+          case "verification_admin":
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: false,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "verification_admin"
+            };
+            break;
+          case "content_admin":
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: false,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: true,
+              canManageAdmins: false,
+              canAccessAuditLogs: false,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "content_admin"
+            };
+            break;
+          case "analytics_admin":
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: true,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: true,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "analytics_admin"
+            };
+            break;
+          default:
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: false,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: false,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "super_admin"
+            };
+        }
+      }
+      console.log("[AUTH/USER] Retrieved admin permissions for user:", userId, adminPermissions2 ? "admin" : "non-admin");
+      return res.status(200).json({
+        id: userId,
+        role,
+        email: payload.email,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        adminPermissions: adminPermissions2
+      });
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+  } catch (error) {
+    console.error("Auth handler error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 }
 var JWT_SECRET2;
@@ -2903,50 +3332,220 @@ var init_auth_user = __esm({
   "api/auth_user.ts"() {
     "use strict";
     init_storage();
+    init_localAuth();
     JWT_SECRET2 = process.env.JWT_SECRET || "dev-secret-change-me";
   }
 });
 
 // server/index.ts
 import "dotenv/config";
-import path2 from "path";
+import path3 from "path";
 import express2 from "express";
 import cors from "cors";
 
 // server/routes.ts
 init_storage();
-import { createServer } from "http";
-
-// server/clerk.ts
-init_storage();
-import { Clerk } from "@clerk/clerk-sdk-node";
-console.log("Initializing Clerk with secret key:", process.env.CLERK_SECRET_KEY ? "PRESENT" : "MISSING");
-var clerk = Clerk({
-  secretKey: process.env.CLERK_SECRET_KEY
-});
-var requireAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  console.log("Auth header received:", authHeader ? authHeader.substring(0, 20) + "..." : "NONE");
-  return clerk.expressRequireAuth({
-    onError: (error) => {
-      console.error("Clerk auth error:", error);
-      res.status(401).json({ message: "Unauthorized" });
-    }
-  })(req, res, next);
-};
-
-// server/localAuth.ts
-init_storage();
-
-// server/rbac.ts
+init_localAuth();
 init_db();
 init_schema();
-import { eq as eq2 } from "drizzle-orm";
+init_schema();
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { createServer } from "http";
+import { ZodError } from "zod";
+import { eq as eq3 } from "drizzle-orm";
+import bcrypt from "bcrypt";
+
+// server/ai/gemini.ts
+import { GoogleGenerativeAI } from "@google/generative-ai";
+var apiKey = process.env.GEMINI_API || process.env.GEMINI_API_KEY;
+var genAI = null;
+var model = null;
+if (apiKey) {
+  try {
+    genAI = new GoogleGenerativeAI(apiKey);
+    model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+  } catch (err) {
+    console.warn("Failed to initialize Google Generative AI client, falling back to local assistant:", err);
+    genAI = null;
+    model = null;
+  }
+} else {
+  console.warn("GEMINI API key not provided; using local assistant fallback.");
+}
+function localFallbackReply(userMessage, history = []) {
+  const hints = [
+    "You can ask about: marketplace listings, projects, seller verification, or account settings.",
+    "Try: 'How do I verify my seller account?' or 'How do I create a listing?'."
+  ];
+  return `I don't have access to the AI assistant right now. ${hints.join(" ")}
+
+You asked: ${userMessage}`;
+}
+async function askSupportBot(userMessage, history = []) {
+  const systemPrompt = `You are Fusion Mining's support assistant for a B2B mining investment and trading platform. Answer clearly and professionally. Do not provide legal, tax, or investment advice. If a question needs a human, say you'll connect them to an admin.`;
+  const contents = [
+    { role: "user", parts: [{ text: systemPrompt }] },
+    ...history.map((m) => ({ role: m.role, parts: [{ text: m.content }] })),
+    { role: "user", parts: [{ text: userMessage }] }
+  ];
+  if (!model) {
+    return localFallbackReply(userMessage, history);
+  }
+  try {
+    const result = await model.generateContent({ contents });
+    return result.response.text();
+  } catch (err) {
+    console.error("Generative AI error \u2014 falling back to local assistant:", err);
+    try {
+      if (err?.status === 429) {
+        return `The assistant is currently rate limited. Please try again shortly.`;
+      }
+    } catch (inner) {
+      console.error("Error inspecting generative AI error:", inner);
+    }
+    return localFallbackReply(userMessage, history);
+  }
+}
+
+// server/ai/hf.ts
+async function askHuggingFace(model2, prompt, apiKey2) {
+  const useRouter = model2.includes(":") || process.env.HF_USE_ROUTER === "1";
+  try {
+    if (useRouter) {
+      const systemMessage = prompt.split("\n\n")[0] || "";
+      const userContent = prompt;
+      const routerUrl = `https://router.huggingface.co/v1/chat/completions`;
+      const body = {
+        model: model2,
+        messages: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userContent }
+        ],
+        // Optional: adjust generation parameters
+        max_tokens: 512,
+        temperature: 0.7
+      };
+      try {
+        const preview = { model: model2, messages: body.messages };
+        console.debug("HF router request ->", routerUrl, JSON.stringify(preview).slice(0, 200));
+      } catch (e) {
+      }
+      const resp = await fetch(routerUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey2}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => "(no body)");
+        console.debug("HF router response error:", resp.status, resp.statusText, txt.slice ? txt.slice(0, 1e3) : txt);
+        const err = new Error(`HF Inference API error: ${resp.status}`);
+        err.status = resp.status;
+        err.statusText = resp.statusText;
+        err.body = txt;
+        throw err;
+      }
+      const data2 = await resp.json();
+      const content = data2?.choices?.[0]?.message?.content || data2?.choices?.[0]?.message || null;
+      if (!content) {
+        console.warn("Unexpected HF router response:", data2);
+        throw new Error("HF router returned unexpected response format");
+      }
+      try {
+        const outPreview = typeof content === "string" ? content.slice(0, 1e3) : JSON.stringify(content).slice(0, 1e3);
+        console.debug("HF router response OK (truncated):", outPreview);
+      } catch (e) {
+      }
+      return typeof content === "string" ? content : JSON.stringify(content);
+    }
+    const url = `https://api-inference.huggingface.co/models/${model2}`;
+    try {
+      const preview = { url, inputs: String(prompt).slice(0, 200) };
+      console.debug("HF inference request ->", url, JSON.stringify(preview));
+    } catch (e) {
+    }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey2}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: {
+          max_new_tokens: 256,
+          temperature: 0.7,
+          top_p: 0.9,
+          do_sample: true
+        }
+      })
+    });
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => "(no body)");
+      console.debug("HF inference response error:", response.status, response.statusText, String(errorBody).slice(0, 1e3));
+      if (response.status === 503) {
+        console.log("Model loading, retrying in 2 seconds...");
+        await new Promise((resolve) => setTimeout(resolve, 2e3));
+        return askHuggingFace(model2, prompt, apiKey2);
+      }
+      const err = new Error(`HF Inference API error: ${response.status}`);
+      err.status = response.status;
+      err.statusText = response.statusText;
+      err.body = errorBody;
+      throw err;
+    }
+    const data = await response.json();
+    let generatedText = null;
+    if (typeof data?.generated_text === "string") {
+      generatedText = data.generated_text;
+    } else if (Array.isArray(data) && data.length > 0) {
+      if (typeof data[0]?.generated_text === "string") {
+        generatedText = data[0].generated_text;
+      }
+    }
+    if (!generatedText) {
+      console.warn("Unexpected HF response format:", data);
+      throw new Error("HF model returned unexpected response format");
+    }
+    try {
+      console.debug("HF inference response OK (truncated):", generatedText.slice(0, 500));
+    } catch (e) {
+    }
+    if (generatedText.includes(prompt)) {
+      const idx = generatedText.indexOf(prompt);
+      generatedText = generatedText.substring(idx + prompt.length).trim();
+    }
+    return generatedText || "I'm here to help.";
+  } catch (err) {
+    console.error("HF Inference error:", err);
+    throw err;
+  }
+}
+function formatChatPrompt(userMessage, history = []) {
+  const systemPrompt = `You are Fusion Mining's support assistant for a B2B mining investment and trading platform. Answer clearly and professionally. Keep responses concise and to the point (brief by default, ~1-3 short sentences or <=100 words). Only provide more detailed explanations when the user asks for them. Explain platform features, help with navigation, and give high-level guidance about mining investment, but do not give personalized legal, tax, or investment advice. If a question needs a human, say you'll connect them to an admin.`;
+  let prompt = systemPrompt + "\n\n";
+  for (const msg of history) {
+    if (msg.role === "user") {
+      prompt += `User: ${msg.content}
+`;
+    } else if (msg.role === "assistant") {
+      prompt += `Assistant: ${msg.content}
+`;
+    }
+  }
+  prompt += `User: ${userMessage}
+Assistant:`;
+  return prompt;
+}
 
 // server/routes.ts
-init_db();
-init_schema();
-import { eq as eq3 } from "drizzle-orm";
+function formatZodError(error) {
+  return error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
+}
 var buyerUpgradeRequests = /* @__PURE__ */ new Map([
   ["upgrade-1", {
     id: "upgrade-1",
@@ -2986,36 +3585,1494 @@ var buyerUpgradeRequests = /* @__PURE__ */ new Map([
     documentCount: 2
   }]
 ]);
+var testUsersStore = /* @__PURE__ */ new Map([
+  ["test-buyer-789", {
+    id: "test-buyer-789",
+    email: "henry@fusionmining.com",
+    role: "buyer",
+    firstName: "Henry",
+    lastName: "Pass",
+    membershipTier: "premium",
+    verificationStatus: "not_requested"
+  }],
+  ["test-seller-456", {
+    id: "test-seller-456",
+    email: "ray@fusionmining.com",
+    role: "seller",
+    firstName: "Ray",
+    lastName: "Pass",
+    membershipTier: "basic",
+    verificationStatus: "approved"
+  }],
+  ["test-admin-super", {
+    id: "test-admin-super",
+    email: "superadmin@fusionmining.com",
+    role: "admin",
+    firstName: "Super",
+    lastName: "Admin",
+    membershipTier: "premium",
+    verificationStatus: "approved"
+  }],
+  ["test-admin-verification", {
+    id: "test-admin-verification",
+    email: "verifyadmin@fusionmining.com",
+    role: "admin",
+    firstName: "Verification",
+    lastName: "Admin",
+    membershipTier: "basic",
+    verificationStatus: "approved"
+  }],
+  ["test-admin-content", {
+    id: "test-admin-content",
+    email: "contentadmin@fusionmining.com",
+    role: "admin",
+    firstName: "Content",
+    lastName: "Admin",
+    membershipTier: "basic",
+    verificationStatus: "approved"
+  }],
+  ["test-admin-support", {
+    id: "test-admin-support",
+    email: "supportadmin@fusionmining.com",
+    role: "admin",
+    firstName: "Support",
+    lastName: "Admin",
+    membershipTier: "basic",
+    verificationStatus: "approved"
+  }],
+  ["test-admin-analytics", {
+    id: "test-admin-analytics",
+    email: "analyticsadmin@fusionmining.com",
+    role: "admin",
+    firstName: "Analytics",
+    lastName: "Admin",
+    membershipTier: "basic",
+    verificationStatus: "approved"
+  }]
+]);
+async function getAllBuyerUpgrades() {
+  return await db.select({
+    id: tierUpgradeRequests.id,
+    userId: tierUpgradeRequests.userId,
+    buyerEmail: users.email,
+    buyerFirstName: users.firstName,
+    buyerLastName: users.lastName,
+    requestedTier: tierUpgradeRequests.requestedTier,
+    status: tierUpgradeRequests.status,
+    rejectionReason: tierUpgradeRequests.rejectionReason,
+    submittedAt: tierUpgradeRequests.submittedAt,
+    reviewedAt: tierUpgradeRequests.reviewedAt,
+    documentCount: tierUpgradeRequests.documentCount,
+    createdAt: tierUpgradeRequests.createdAt,
+    updatedAt: tierUpgradeRequests.updatedAt
+  }).from(tierUpgradeRequests).leftJoin(users, eq3(tierUpgradeRequests.userId, users.id));
+}
+async function getPendingBuyerUpgrades() {
+  return await db.select({
+    id: tierUpgradeRequests.id,
+    userId: tierUpgradeRequests.userId,
+    buyerEmail: users.email,
+    buyerFirstName: users.firstName,
+    buyerLastName: users.lastName,
+    requestedTier: tierUpgradeRequests.requestedTier,
+    status: tierUpgradeRequests.status,
+    rejectionReason: tierUpgradeRequests.rejectionReason,
+    submittedAt: tierUpgradeRequests.submittedAt,
+    reviewedAt: tierUpgradeRequests.reviewedAt,
+    documentCount: tierUpgradeRequests.documentCount,
+    createdAt: tierUpgradeRequests.createdAt,
+    updatedAt: tierUpgradeRequests.updatedAt
+  }).from(tierUpgradeRequests).leftJoin(users, eq3(tierUpgradeRequests.userId, users.id)).where(eq3(tierUpgradeRequests.status, "pending"));
+}
+async function approveBuyerUpgrade(id) {
+  try {
+    const [request] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
+    if (request) {
+      await db.update(tierUpgradeRequests).set({
+        status: "approved",
+        reviewedAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq3(tierUpgradeRequests.id, id));
+      await db.update(users).set({ membershipTier: request.requestedTier }).where(eq3(users.id, request.userId));
+      const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
+      return updatedRequest;
+    }
+  } catch (error) {
+    console.error("Error approving buyer upgrade:", error);
+  }
+  return null;
+}
+async function rejectBuyerUpgrade(id, reason) {
+  try {
+    await db.update(tierUpgradeRequests).set({
+      status: "rejected",
+      rejectionReason: reason,
+      reviewedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq3(tierUpgradeRequests.id, id));
+    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error rejecting buyer upgrade:", error);
+  }
+  return null;
+}
+async function revertBuyerUpgrade(id) {
+  try {
+    await db.update(tierUpgradeRequests).set({
+      status: "draft",
+      rejectionReason: null,
+      reviewedAt: null,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq3(tierUpgradeRequests.id, id));
+    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
+    return updatedRequest;
+  } catch (error) {
+    console.error("Error reverting buyer upgrade:", error);
+  }
+  return null;
+}
 async function registerRoutes(app2) {
-  app2.get("/api/health", (req, res) => {
-    res.json({
-      status: "ok",
-      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      environment: process.env.NODE_ENV || "development"
-    });
-  });
-  app2.post("/api/clear-jwt", (req, res) => {
-    res.setHeader("Set-Cookie", [
-      "fm_auth=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0",
-      "fm_auth=; HttpOnly; Secure=false; SameSite=Lax; Path=/; Max-Age=0"
-      // Also clear non-secure for development
-    ]);
-    res.json({ success: true, message: "JWT cookies cleared" });
-  });
-  app2.get("/api/auth/user", requireAuth, async (req, res) => {
+  const isAuthenticated = requireAuth;
+  const isSeller = requireSeller;
+  const isAdmin = requireAdmin;
+  app2.get("/api/projects", async (req, res) => {
     try {
-      const clerkUserId = req.auth.userId;
-      const user = await storage.getUserByClerkId(clerkUserId);
-      if (!user) {
+      const projects2 = await storage.getProjects();
+      const isAdmin2 = req.user && req.user.role === "admin";
+      const filteredProjects = isAdmin2 ? projects2 : projects2.filter((p) => p.status === "active");
+      res.json(filteredProjects);
+    } catch (error) {
+      console.error("Error fetching projects:", error);
+      res.status(500).json({ message: "Failed to fetch projects" });
+    }
+  });
+  app2.get("/api/projects/:id", async (req, res) => {
+    try {
+      const project = await storage.getProjectById(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      console.error("Error fetching project:", error);
+      res.status(500).json({ message: "Failed to fetch project" });
+    }
+  });
+  app2.post("/api/projects", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      const validatedData = insertProjectSchema.parse(req.body);
+      const projectData = {
+        ...validatedData,
+        ownerId: userId
+      };
+      const project = await storage.createProject(projectData);
+      res.json(project);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating project:", error);
+      res.status(500).json({ message: "Failed to create project" });
+    }
+  });
+  app2.patch("/api/projects/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertProjectSchema.partial().parse(req.body);
+      const { ownerId, ...updateData } = validatedData;
+      const project = await storage.updateProject(req.params.id, updateData);
+      res.json(project);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating project:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating project:", error);
+      res.status(500).json({ message: "Failed to update project" });
+    }
+  });
+  app2.delete("/api/projects/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteProject(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      res.status(500).json({ message: "Failed to delete project" });
+    }
+  });
+  app2.patch("/api/projects/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const project = await storage.closeProject(req.params.id);
+      res.json(project);
+    } catch (error) {
+      console.error("Error closing project:", error);
+      res.status(500).json({ message: "Failed to close project" });
+    }
+  });
+  app2.post("/api/projects/interest", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.body;
+      if (projectId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+        if (hasInterest) {
+          return res.status(400).json({ message: "You have already expressed interest in this project" });
+        }
+      }
+      const validatedData = insertExpressInterestSchema.parse({
+        ...req.body,
+        userId
+      });
+      const interest = await storage.expressProjectInterest(validatedData);
+      const buyer = await storage.getUserById(userId);
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (project && buyer && project.ownerId) {
+          const projectOwner = await storage.getUserById(project.ownerId);
+          if (projectOwner) {
+            const thread2 = await storage.createMessageThread({
+              title: `Inquiry about: ${project.name}`,
+              type: "project_interest",
+              projectId,
+              buyerId: userId,
+              sellerId: project.ownerId,
+              adminId: null,
+              createdBy: userId,
+              context: "project_interest",
+              status: "open"
+            });
+            await storage.createNotification({
+              userId: project.ownerId,
+              type: "interest_received",
+              title: "New Interest in Your Project",
+              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
+              link: `/dashboard/messages`
+            });
+            const ownerName = `${projectOwner.firstName || ""} ${projectOwner.lastName || ""}`.trim() || "Project Owner";
+            const buyerName = `${buyer.firstName || ""} ${buyer.lastName || ""}`.trim() || "there";
+            await storage.createMessage({
+              threadId: thread2.id,
+              senderId: project.ownerId,
+              receiverId: userId,
+              subject: `Re: Inquiry about ${project.name}`,
+              content: `Hello ${buyerName},
+
+Thank you for your interest in ${project.name}. I'm ${ownerName}, the project owner. I'd be happy to discuss this opportunity with you.
+
+Please feel free to ask any questions you may have.
+
+Best regards,
+${ownerName}`,
+              context: "project_interest",
+              relatedProjectId: projectId,
+              isAutoRelay: true
+            });
+          }
+        }
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
+        if (listing && buyer && seller) {
+          const thread2 = await storage.createMessageThread({
+            title: `Inquiry about: ${listing.title}`,
+            type: "marketplace_inquiry",
+            listingId,
+            buyerId: userId,
+            sellerId: listing.sellerId,
+            adminId: null,
+            createdBy: userId,
+            context: "marketplace",
+            status: "open"
+          });
+          await storage.createNotification({
+            userId: seller.id,
+            type: "interest_received",
+            title: "New Interest in Your Listing",
+            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
+            link: `/dashboard/messages`
+          });
+          const sellerName = `${seller.firstName || ""} ${seller.lastName || ""}`.trim() || "Seller";
+          const buyerName = `${buyer.firstName || ""} ${buyer.lastName || ""}`.trim() || "there";
+          await storage.createMessage({
+            threadId: thread2.id,
+            senderId: listing.sellerId,
+            receiverId: userId,
+            subject: `Re: Inquiry about ${listing.title}`,
+            content: `Hello ${buyerName},
+
+Thank you for your interest in ${listing.title}. I'm ${sellerName}, the seller. I'd be happy to provide more information and answer any questions you might have.
+
+Feel free to reach out with your questions.
+
+Best regards,
+${sellerName}`,
+            context: "marketplace",
+            relatedListingId: listingId,
+            isAutoRelay: true
+          });
+        }
+      }
+      await storage.createActivityLog({
+        userId,
+        activityType: "interest_expressed",
+        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent")
+      });
+      const adminUsers = await storage.getUsersByRole("admin");
+      let titleText = "";
+      if (projectId) {
+        const proj = await storage.getProjectById(projectId);
+        titleText = proj?.name || projectId;
+      } else if (listingId) {
+        const list = await storage.getMarketplaceListingById(listingId);
+        titleText = list?.title || listingId;
+      }
+      for (const admin of adminUsers) {
+        await storage.createNotification({
+          userId: admin.id,
+          type: "interest_received",
+          title: "New Interest Expression",
+          message: `${buyer?.firstName || ""} ${buyer?.lastName || ""} expressed interest in ${projectId ? "project" : "listing"}: ${titleText}`,
+          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`
+        });
+      }
+      res.json(interest);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error expressing interest:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error expressing interest:", error);
+      res.status(500).json({ message: "Failed to express interest" });
+    }
+  });
+  app2.get("/api/projects/:id/has-interest", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const projectId = req.params.id;
+      const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+      res.json({ hasInterest });
+    } catch (error) {
+      console.error("Error checking interest:", error);
+      res.status(500).json({ message: "Failed to check interest" });
+    }
+  });
+  app2.get("/api/admin/projects-interest", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const interests = await storage.getAllExpressedInterests();
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching expressed interests:", error);
+      res.status(500).json({ message: "Failed to fetch expressed interests" });
+    }
+  });
+  app2.get("/api/marketplace/listings", async (req, res) => {
+    try {
+      const { type, status } = req.query;
+      const isAdmin2 = req.user && req.user.role === "admin";
+      const listings = await storage.getMarketplaceListings({
+        type,
+        status
+      });
+      const filteredListings = isAdmin2 ? listings : listings.filter((l) => l.status === "approved");
+      res.json(filteredListings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+  app2.get("/api/dashboard/listings", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const listings = await storage.getListingsBySellerId(userId);
+      res.json(listings || []);
+    } catch (error) {
+      console.error("Error fetching dashboard listings:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard listings" });
+    }
+  });
+  app2.get("/api/marketplace/listings/:id", async (req, res) => {
+    try {
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+      const seller = listing.sellerId ? await storage.getUserById(listing.sellerId) : null;
+      res.json({
+        ...listing,
+        sellerName: seller ? `${seller.firstName || ""} ${seller.lastName || ""}`.trim() : void 0
+      });
+    } catch (error) {
+      console.error("Error fetching listing:", error);
+      res.status(500).json({ message: "Failed to fetch listing" });
+    }
+  });
+  app2.post("/api/marketplace/listings", isAuthenticated, isSeller, async (req, res) => {
+    try {
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const validatedData = insertMarketplaceListingSchema.parse({
+        ...req.body,
+        sellerId
+      });
+      const listing = await storage.createMarketplaceListing(validatedData);
+      try {
+        await storage.createActivityLog({
+          userId: sellerId,
+          activityType: "listing_created",
+          description: `Created marketplace listing: "${listing.title || listing.id}"`,
+          ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get("user-agent") || null,
+          metadata: { listingId: listing.id, listingType: listing.listingType }
+        });
+      } catch (logError) {
+        console.error("[ACTIVITY LOG] Failed to log listing creation:", logError);
+      }
+      res.json(listing);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+  app2.get("/api/marketplace/buyer-requests", async (req, res) => {
+    try {
+      const requests = await storage.getBuyerRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching buyer requests:", error);
+      res.status(500).json({ message: "Failed to fetch buyer requests" });
+    }
+  });
+  app2.get("/api/buyer-requests/latest", async (req, res) => {
+    try {
+      const requests = await storage.getBuyerRequests();
+      const latestRequests = requests.filter((r) => r.status === "active").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 6);
+      res.json(latestRequests);
+    } catch (error) {
+      console.error("Error fetching latest buyer requests:", error);
+      res.status(500).json({ message: "Failed to fetch latest requests" });
+    }
+  });
+  app2.post("/api/marketplace/buyer-requests", isAuthenticated, async (req, res) => {
+    try {
+      const buyerId = req.user.claims?.sub || req.user.id;
+      const tierCheck = await storage.checkUserCanCreateRFQ(buyerId);
+      if (!tierCheck.allowed) {
+        return res.status(403).json({
+          message: tierCheck.reason || "You have reached your tier limit for active RFQs",
+          tierLimitReached: true
+        });
+      }
+      const validatedData = insertBuyerRequestSchema.parse({
+        ...req.body,
+        buyerId
+      });
+      const request = await storage.createBuyerRequest(validatedData);
+      const currentMonth = (/* @__PURE__ */ new Date()).toISOString().slice(0, 7);
+      await storage.incrementUserRFQCount(buyerId, currentMonth);
+      res.json(request);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating buyer request:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating buyer request:", error);
+      res.status(500).json({ message: "Failed to create request" });
+    }
+  });
+  app2.patch("/api/marketplace/buyer-requests/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const buyerId = req.user.claims?.sub || req.user.id;
+      const id = req.params.id;
+      const existing = await storage.getBuyerRequestById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Request not found" });
+      }
+      if (existing.buyerId !== buyerId) {
+        return res.status(403).json({ message: "You are not allowed to modify this request" });
+      }
+      const updated = await storage.updateBuyerRequestStatus(id, "closed");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error closing buyer request:", error);
+      res.status(500).json({ message: "Failed to close request" });
+    }
+  });
+  app2.get("/api/dashboard/listings", isAuthenticated, async (req, res) => {
+    try {
+      const sellerId = req.user.claims?.sub || req.user.id;
+      const listings = await storage.getListingsBySellerId(sellerId);
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching user listings:", error);
+      res.status(500).json({ message: "Failed to fetch listings" });
+    }
+  });
+  app2.patch("/api/marketplace/listings/:id", isAuthenticated, isAdmin, requireAdminPermission("canManageListings"), async (req, res) => {
+    try {
+      const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
+      const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
+      res.json(listing);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating listing:", error);
+      res.status(500).json({ message: "Failed to update listing" });
+    }
+  });
+  app2.delete("/api/marketplace/listings/:id", isAuthenticated, isAdmin, requireAdminPermission("canManageListings"), async (req, res) => {
+    try {
+      await storage.deleteMarketplaceListing(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting listing:", error);
+      res.status(500).json({ message: "Failed to delete listing" });
+    }
+  });
+  app2.patch("/api/marketplace/listings/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const user = await storage.getUserById(userId);
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (user?.role !== "admin" && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller or admin can close this listing" });
+      }
+      const closedListing = await storage.closeMarketplaceListing(req.params.id);
+      res.json(closedListing);
+    } catch (error) {
+      console.error("Error closing listing:", error);
+      res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+  app2.post("/api/threads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, title } = req.body;
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+      const currentUser = await storage.getUserById(userId);
+      if (!currentUser) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(user);
+      let buyerId = userId;
+      let sellerId = null;
+      let adminId = null;
+      let threadTitle = title;
+      const adminUser = await storage.getAdminUser();
+      adminId = adminUser?.id || null;
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        sellerId = project.ownerId;
+        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        sellerId = listing.sellerId;
+        threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+      }
+      const thread2 = await storage.createMessageThread({
+        title: threadTitle,
+        type: projectId ? "project_interest" : "marketplace_inquiry",
+        projectId,
+        listingId,
+        buyerId,
+        sellerId,
+        adminId,
+        createdBy: userId,
+        status: "open"
+      });
+      res.json(thread2);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      console.error("Error creating thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+  app2.get("/api/threads", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const threads = await storage.getThreadsByUserId(userId);
+      res.json(threads);
+    } catch (error) {
+      console.error("Error fetching threads:", error);
+      res.status(500).json({ message: "Failed to fetch threads" });
+    }
+  });
+  app2.get("/api/threads/all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status;
+      const priority = req.query.priority;
+      const assignedAdminId = req.query.assignedAdminId;
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching admin support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+  app2.get("/api/admin/threads/categorized", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const allTickets = await storage.getAdminSupportTickets();
+      const open = allTickets.filter((t) => t.ticketStatus === "open");
+      const inProgress = allTickets.filter((t) => t.ticketStatus === "in_progress");
+      const waitingUser = allTickets.filter((t) => t.ticketStatus === "waiting_user");
+      const resolved = allTickets.filter((t) => t.ticketStatus === "resolved");
+      res.json({
+        open,
+        inProgress,
+        waitingUser,
+        resolved
+      });
+    } catch (error) {
+      console.error("Error fetching categorized support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+  app2.get("/api/threads/:id", isAuthenticated, async (req, res) => {
+    try {
+      const thread2 = await storage.getThreadById(req.params.id);
+      if (!thread2) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      res.json(thread2);
+    } catch (error) {
+      console.error("Error fetching thread:", error);
+      res.status(500).json({ message: "Failed to fetch thread" });
+    }
+  });
+  app2.get("/api/threads/:id/details", isAuthenticated, async (req, res) => {
+    try {
+      const threadId = req.params.id;
+      const details = await storage.getThreadWithParticipants(threadId);
+      if (!details) return res.status(404).json({ message: "Thread not found" });
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching thread details:", error);
+      res.status(500).json({ message: "Failed to fetch thread details" });
+    }
+  });
+  app2.get("/api/threads/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const messages2 = await storage.getMessagesByThreadId(req.params.id);
+      res.json(messages2);
+    } catch (error) {
+      console.error("Error fetching thread messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  app2.post("/api/threads/:id/messages", isAuthenticated, async (req, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const threadId = req.params.id;
+      const thread2 = await storage.getThreadById(threadId);
+      if (!thread2) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+      const sender = await storage.getUserById(senderId);
+      if (!sender) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const receiverId = senderId === thread2.buyerId ? thread2.sellerId : thread2.buyerId;
+      const validatedData = insertMessageSchema.parse({
+        threadId,
+        senderId,
+        receiverId,
+        subject: req.body.subject || thread2.title,
+        content: req.body.content,
+        relatedProjectId: thread2.projectId,
+        relatedListingId: thread2.listingId
+      });
+      const message = await storage.createMessage(validatedData);
+      await storage.updateThreadLastMessage(threadId);
+      try {
+        await storage.createActivityLog({
+          userId: senderId,
+          activityType: "message_sent",
+          description: `Sent message in thread: "${thread2.title || threadId}"`,
+          ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get("user-agent") || null,
+          metadata: { threadId, messageId: message.id, receiverId }
+        });
+      } catch (logError) {
+        console.error("[ACTIVITY LOG] Failed to log message:", logError);
+      }
+      res.json(message);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  app2.patch("/api/threads/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const thread2 = await storage.closeThread(req.params.id);
+      res.json(thread2);
+    } catch (error) {
+      console.error("Error closing thread:", error);
+      res.status(500).json({ message: "Failed to close thread" });
+    }
+  });
+  app2.post("/api/support/tickets", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { title, description, priority } = req.body;
+      if (!title || !description) {
+        return res.status(400).json({ message: "Title and description are required" });
+      }
+      const ticket = await storage.createSupportTicket(userId, title, description, priority);
+      await storage.createMessage({
+        threadId: ticket.id,
+        senderId: userId,
+        receiverId: "admin",
+        // Will be matched to actual admin later
+        subject: title,
+        content: description,
+        context: "general"
+      });
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating support ticket:", error);
+      res.status(500).json({ message: "Failed to create support ticket" });
+    }
+  });
+  app2.post("/api/admin/support/tickets/:id/claim", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const ticketId = req.params.id;
+      const ticket = await storage.claimSupportTicket(ticketId, adminId);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error claiming support ticket:", error);
+      res.status(500).json({ message: "Failed to claim support ticket" });
+    }
+  });
+  app2.patch("/api/admin/support/tickets/:id/resolve", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { notes } = req.body;
+      const ticket = await storage.resolveSupportTicket(ticketId, notes);
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error resolving support ticket:", error);
+      res.status(500).json({ message: "Failed to resolve support ticket" });
+    }
+  });
+  app2.get("/api/admin/support/tickets", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status;
+      const priority = req.query.priority;
+      const assignedAdminId = req.query.assignedAdminId;
+      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching support tickets:", error);
+      res.status(500).json({ message: "Failed to fetch support tickets" });
+    }
+  });
+  app2.patch("/api/threads/:id/ticket-status", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { status } = req.body;
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      const validStatuses = ["open", "in_progress", "waiting_user", "resolved"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      const ticket = await storage.updateTicketStatus(ticketId, status);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket status:", error);
+      res.status(500).json({ message: "Failed to update ticket status" });
+    }
+  });
+  app2.patch("/api/threads/:id/ticket-priority", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { priority } = req.body;
+      if (!priority) {
+        return res.status(400).json({ message: "Priority is required" });
+      }
+      const validPriorities = ["low", "normal", "high", "urgent"];
+      if (!validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
+      const ticket = await storage.updateTicketPriority(ticketId, priority);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket priority:", error);
+      res.status(500).json({ message: "Failed to update ticket priority" });
+    }
+  });
+  app2.patch("/api/threads/:id/ticket-assign", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const ticketId = req.params.id;
+      const { assignedAdminId } = req.body;
+      const ticket = await storage.updateTicketAssignee(ticketId, assignedAdminId);
+      if (!ticket) {
+        return res.status(404).json({ message: "Ticket not found" });
+      }
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error updating ticket assignee:", error);
+      res.status(500).json({ message: "Failed to update ticket assignee" });
+    }
+  });
+  app2.get("/api/admin/analytics", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const summary = await storage.getAnalyticsSummary();
+      return res.json(summary);
+    } catch (err) {
+      console.error("Analytics error", err);
+      return res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+  app2.post("/api/assistant/chat", async (req, res) => {
+    try {
+      const userId = req.user ? req.user.claims?.sub || req.user.id : null;
+      const { message, history } = req.body;
+      if (!message || typeof message !== "string") {
+        return res.status(400).json({ message: "message is required" });
+      }
+      const safeHistory = Array.isArray(history) ? history.filter((h) => h && typeof h.content === "string").map((h) => ({
+        role: h.role === "assistant" ? "assistant" : "user",
+        content: h.content
+      })) : [];
+      let reply = "";
+      const hfApiKey = process.env.HF_API_KEY;
+      const hfModel = process.env.HF_MODEL || "deepseek-ai/DeepSeek-V3.2:novita";
+      try {
+        const m = String(hfModel || "").toLowerCase();
+        if (!process.env.HF_USE_ROUTER && (m.includes("llama") || hfModel.includes("/"))) {
+          process.env.HF_USE_ROUTER = "1";
+          console.debug("HF_USE_ROUTER enabled for model:", hfModel);
+        }
+      } catch (e) {
+      }
+      if (hfApiKey) {
+        try {
+          const prompt = formatChatPrompt(message, safeHistory);
+          reply = await askHuggingFace(hfModel, prompt, hfApiKey);
+        } catch (hfErr) {
+          console.error("HF Inference failed, falling back to Gemini/local:", hfErr);
+          reply = await askSupportBot(message, safeHistory);
+        }
+      } else {
+        reply = await askSupportBot(message, safeHistory);
+      }
+      res.json({ reply, userId });
+    } catch (error) {
+      console.error("Assistant chat error:", error);
+      try {
+        if (error && (error.status === 429 || error?.errorDetails && Array.isArray(error.errorDetails))) {
+          let retryDelay = null;
+          const details = error.errorDetails || [];
+          for (const d of details) {
+            if (d && typeof d === "object" && d["@type"] && d["@type"].includes("RetryInfo")) {
+              retryDelay = d.retryDelay || null;
+              break;
+            }
+          }
+          if (retryDelay && typeof retryDelay === "string") {
+            const m = /^\s*(\d+(?:\.\d+)?)(s|m|h)?\s*$/i.exec(retryDelay);
+            if (m) {
+              const val = Number(m[1]);
+              const unit = (m[2] || "s").toLowerCase();
+              let seconds = val;
+              if (unit === "m") seconds = val * 60;
+              if (unit === "h") seconds = val * 3600;
+              res.setHeader("Retry-After", String(Math.ceil(seconds)));
+            }
+          }
+          return res.status(429).json({ message: "Assistant quota exceeded; please try again later", retryDelay });
+        }
+      } catch (innerErr) {
+        console.error("Error while handling assistant error details:", innerErr);
+      }
+      res.status(500).json({ message: "Assistant is temporarily unavailable" });
+    }
+  });
+  const uploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "messages");
+  fs.mkdirSync(uploadsRoot, { recursive: true });
+  const storageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp2 = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp2}-${sanitizedOriginal}`);
+    }
+  });
+  const upload = multer({
+    storage: storageEngine,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    // 10 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/gif",
+        "application/pdf",
+        "text/plain"
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type"));
+    }
+  });
+  app2.post("/api/uploads/messages", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const relativePath = `/attached_assets/files/uploads/messages/${req.file.filename}`;
+      res.json({
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+  app2.get("/api/messages", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const messages2 = await storage.getMessagesByUserId(userId);
+      res.json(messages2);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  app2.post("/api/messages", isAuthenticated, async (req, res) => {
+    try {
+      const senderId = req.user.claims?.sub || req.user.id;
+      const receiverId = req.body.receiverId;
+      const sender = await storage.getUserById(senderId);
+      const receiver = await storage.getUserById(receiverId);
+      if (!sender || !receiver) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      const adminUser = await storage.getAdminUser();
+      const adminId = adminUser?.id;
+      let isAllowed = sender.role === "admin" || receiver.role === "admin" || sender.role === "buyer" && receiverId === adminId || sender.role === "seller" && receiverId === adminId;
+      const relatedListingId = req.body?.relatedListingId;
+      if (!isAllowed && relatedListingId) {
+        try {
+          const listing = await storage.getMarketplaceListingById(relatedListingId);
+          if (listing && listing.sellerId === receiverId) {
+            isAllowed = true;
+          }
+        } catch (err) {
+          console.warn("Failed to lookup listing for message authorization", err);
+        }
+      }
+      if (!isAllowed) {
+        return res.status(403).json({
+          message: "You are not authorized to send this message. For inquiries about listings or projects, contact the listing seller or admin."
+        });
+      }
+      const validatedData = insertMessageSchema.parse({
+        ...req.body,
+        senderId
+      });
+      const idempotencyKey = req.header("Idempotency-Key") || req.header("idempotency-key") || null;
+      const message = await storage.createMessageWithIdempotency(idempotencyKey, validatedData);
+      await storage.createNotification({
+        userId: receiverId,
+        type: "message",
+        title: "New Message",
+        message: `${sender.firstName} ${sender.lastName} sent you a message`,
+        link: "/messages"
+      });
+      res.json(message);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating message:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating message:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+  app2.post("/api/messages/contact-seller", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId, sellerId } = req.body;
+      if (!projectId && !listingId) {
+        return res.status(400).json({ message: "Either projectId or listingId is required" });
+      }
+      if (!sellerId) {
+        return res.status(400).json({ message: "sellerId is required" });
+      }
+      const admin = await storage.getUserById(adminId);
+      if (!admin || admin.role !== "admin") {
+        return res.status(403).json({ message: "Only admins can use this endpoint" });
+      }
+      const existingThreads = await storage.getAllMessageThreads();
+      let existingThread = existingThreads.find(
+        (t) => t.type === "admin_to_seller" && t.adminId === adminId && t.sellerId === sellerId && (projectId ? t.projectId === projectId : t.listingId === listingId)
+      );
+      if (existingThread) {
+        return res.json({ thread: existingThread, existed: true });
+      }
+      let threadTitle = "";
+      if (projectId) {
+        const project = await storage.getProjectById(projectId);
+        if (!project) {
+          return res.status(404).json({ message: "Project not found" });
+        }
+        threadTitle = `Admin inquiry about project: ${project.name}`;
+      } else if (listingId) {
+        const listing = await storage.getMarketplaceListingById(listingId);
+        if (!listing) {
+          return res.status(404).json({ message: "Listing not found" });
+        }
+        threadTitle = `Admin inquiry about listing: ${listing.title}`;
+      }
+      const newThread = await storage.createMessageThread({
+        title: threadTitle,
+        type: "admin_to_seller",
+        projectId: projectId || null,
+        listingId: listingId || null,
+        buyerId: null,
+        sellerId,
+        adminId,
+        createdBy: adminId,
+        context: "general",
+        status: "open"
+      });
+      res.json({ thread: newThread, existed: false });
+    } catch (error) {
+      console.error("Error creating admin-seller thread:", error);
+      res.status(500).json({ message: "Failed to create thread" });
+    }
+  });
+  app2.get("/api/conversations/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const currentUserId = req.user.claims?.sub || req.user.id;
+      const otherUserId = req.params.userId;
+      const messages2 = await storage.getConversation(currentUserId, otherUserId);
+      res.json(messages2);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+  app2.get("/api/messages/:id/details", isAuthenticated, async (req, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      console.log(`Fetching message details for id=${messageId} (user=${currentUserId})`);
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) {
+        console.warn(`Message not found: id=${messageId}`);
+        return res.status(404).json({ message: "Message not found" });
+      }
+      try {
+        if (messageDetails.message && messageDetails.message.receiverId === currentUserId) {
+          await storage.markMessageAsRead(messageId);
+        }
+      } catch (err) {
+        console.error(`Failed to mark message read for id=${messageId}:`, err);
+      }
+      console.log(`Returning message details for id=${messageId}: sender=${messageDetails.sender?.id}`);
+      res.json(messageDetails);
+    } catch (error) {
+      console.error("Error fetching message details:", error);
+      res.status(500).json({ message: "Failed to fetch message details" });
+    }
+  });
+  app2.patch("/api/messages/:id/close", isAuthenticated, async (req, res) => {
+    try {
+      const messageId = req.params.id;
+      const currentUserId = req.user.claims?.sub || req.user.id;
+      const messageDetails = await storage.getMessageWithSenderDetails(messageId);
+      if (!messageDetails) return res.status(404).json({ message: "Message not found" });
+      const main = messageDetails.message;
+      const isParticipant = [main.senderId, main.receiverId].includes(currentUserId);
+      const user = await storage.getUser(currentUserId);
+      const isAdminUser = user?.role === "admin";
+      if (!isParticipant && !isAdminUser) {
+        return res.status(403).json({ message: "Not authorized to close this conversation" });
+      }
+      await storage.closeConversationByMessageId(messageId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error closing conversation:", error);
+      res.status(500).json({ message: "Failed to close conversation" });
+    }
+  });
+  app2.get("/api/messages/check-contact", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const { projectId, listingId } = req.query;
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+      if (projectId) {
+        const hasContacted = await storage.checkUserHasContactedAboutProject(userId, projectId);
+        return res.json({ hasContacted });
+      }
+      if (listingId) {
+        const hasContacted = await storage.checkUserHasContactedAboutListing(userId, listingId);
+        return res.json({ hasContacted });
+      }
+      return res.status(400).json({ error: "Either projectId or listingId is required" });
+    } catch (error) {
+      console.error("Error checking contact status:", error);
+      return res.status(500).json({ error: "Internal server error while checking contact status" });
+      res.status(500).json({ message: "Failed to check contact status" });
+    }
+  });
+  app2.get("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const currentUserId = req.user?.claims?.sub || req.user?.id;
+      const targetId = req.params.id;
+      const requestingUser = await storage.getUser(currentUserId);
+      const isAdminUser = requestingUser?.role === "admin";
+      if (!isAdminUser && currentUserId !== targetId) {
+        return res.status(403).json({ message: "Not authorized to view this user" });
+      }
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const profile = await storage.getUserProfile(targetId);
+      let listings = null;
+      let recentMessages = null;
+      try {
+        listings = await storage.getListingsBySellerId(targetId);
+      } catch (err) {
+        listings = null;
+      }
+      if (isAdminUser || currentUserId === targetId) {
+        try {
+          const msgs = await storage.getMessagesByUserId(targetId);
+          recentMessages = (msgs || []).slice(0, 5).map((m) => ({ id: m.id, content: m.content, createdAt: m.createdAt, senderId: m.senderId, receiverId: m.receiverId }));
+        } catch (err) {
+          recentMessages = null;
+        }
+      }
+      res.json({ user, profile, listings, recentMessages });
+    } catch (error) {
+      console.error("Error fetching user details:", error);
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
-  app2.get("/api/contact-settings", async (req, res) => {
+  app2.get("/api/public/users/:id", async (req, res) => {
+    try {
+      const targetId = req.params.id;
+      const user = await storage.getUserById(targetId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const profile = await storage.getUserProfile(targetId);
+      let publicListings = [];
+      try {
+        const allListings = await storage.getListingsBySellerId(targetId);
+        publicListings = (allListings || []).filter((l) => (l.status || "").toLowerCase() === "active");
+      } catch (err) {
+        publicListings = [];
+      }
+      const publicUser = { id: user.id, firstName: user.firstName, lastName: user.lastName, role: user.role };
+      const publicProfile = { companyName: profile?.companyName, location: profile?.location, bio: profile?.bio };
+      res.json({ user: publicUser, profile: publicProfile, listings: publicListings });
+    } catch (error) {
+      console.error("Error fetching public user profile:", error);
+      res.status(500).json({ message: "Failed to fetch public profile" });
+    }
+  });
+  app2.get("/api/blog", async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(true);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching blog posts:", error);
+      res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+  app2.get("/api/blog/:slug", async (req, res) => {
+    try {
+      const post = await storage.getBlogPostBySlug(req.params.slug);
+      if (!post) {
+        return res.status(404).json({ message: "Blog post not found" });
+      }
+      res.json(post);
+    } catch (error) {
+      console.error("Error fetching blog post:", error);
+      res.status(500).json({ message: "Failed to fetch blog post" });
+    }
+  });
+  app2.post("/api/blog", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const authorId = req.user.claims?.sub || req.user.id;
+      const validatedData = insertBlogPostSchema.parse({
+        ...req.body,
+        authorId
+      });
+      const post = await storage.createBlogPost(validatedData);
+      try {
+        await storage.createActivityLog({
+          userId: authorId,
+          activityType: "blog_post_created",
+          description: `Created blog post: "${post.title || post.id}"`,
+          ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get("user-agent") || null,
+          metadata: { postId: post.id, slug: post.slug }
+        });
+      } catch (logError) {
+        console.error("[ACTIVITY LOG] Failed to log blog post creation:", logError);
+      }
+      res.json(post);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating blog post:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating blog post:", error);
+      res.status(500).json({ message: "Failed to create blog post" });
+    }
+  });
+  app2.patch("/api/blog/:id/publish", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const post = await storage.publishBlogPost(req.params.id);
+      res.json(post);
+    } catch (error) {
+      console.error("Error publishing blog post:", error);
+      res.status(500).json({ message: "Failed to publish blog post" });
+    }
+  });
+  app2.patch("/api/blog/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertBlogPostSchema.partial().parse(req.body);
+      const post = await storage.updateBlogPost(req.params.id, validatedData);
+      res.json(post);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating blog post:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating blog post:", error);
+      res.status(500).json({ message: "Failed to update blog post" });
+    }
+  });
+  app2.delete("/api/blog/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteBlogPost(req.params.id);
+      res.json({ message: "Blog post deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting blog post:", error);
+      res.status(500).json({ message: "Failed to delete blog post" });
+    }
+  });
+  app2.get("/api/blog/admin/all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const posts = await storage.getBlogPosts(false);
+      res.json(posts);
+    } catch (error) {
+      console.error("Error fetching all blog posts:", error);
+      res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+  app2.get("/api/sustainability", async (req, res) => {
+    try {
+      const items = await storage.getSustainabilityContent();
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching sustainability content:", error);
+      res.status(500).json({ message: "Failed to fetch sustainability content" });
+    }
+  });
+  app2.post("/api/sustainability", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.parse(req.body);
+      const item = await storage.createSustainabilityContent(validatedData);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating sustainability content:", error);
+      res.status(500).json({ message: "Failed to create sustainability content" });
+    }
+  });
+  app2.patch("/api/sustainability/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertSustainabilityContentSchema.partial().parse(req.body);
+      const item = await storage.updateSustainabilityContent(req.params.id, validatedData);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating sustainability content:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating sustainability content:", error);
+      res.status(500).json({ message: "Failed to update sustainability content" });
+    }
+  });
+  app2.delete("/api/sustainability/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteSustainabilityContent(req.params.id);
+      res.json({ message: "Sustainability content deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting sustainability content:", error);
+      res.status(500).json({ message: "Failed to delete sustainability content" });
+    }
+  });
+  app2.post("/api/contact", async (req, res) => {
+    try {
+      const validatedData = insertContactSubmissionSchema.parse(req.body);
+      const submission = await storage.createContactSubmission(validatedData);
+      try {
+        const adminUser = await storage.getAdminUser();
+        let thread2 = null;
+        if (adminUser) {
+          const requesterId = req.user ? req.user.claims?.sub || req.user.id : null;
+          if (requesterId) {
+            thread2 = await storage.createMessageThread({
+              title: submission.subject || "Contact Admin",
+              type: "support",
+              projectId: null,
+              listingId: null,
+              buyerId: requesterId,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: requesterId,
+              context: "support",
+              status: "open",
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: "open"
+            });
+            const content = `Contact submission from ${submission.name || ""} <${submission.email || ""}>
+Phone: ${submission.phone || "N/A"}
+
+${submission.message}
+
+View thread: /dashboard/messages?threadId=${thread2.id}`;
+            await storage.createMessage({
+              threadId: thread2.id,
+              senderId: requesterId,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: "support",
+              isAutoRelay: false
+            });
+            await storage.updateThreadLastMessage(thread2.id);
+          } else {
+            thread2 = await storage.createMessageThread({
+              title: submission.subject || "Contact Form Submission",
+              type: "support",
+              projectId: null,
+              listingId: null,
+              buyerId: null,
+              sellerId: null,
+              adminId: adminUser.id,
+              createdBy: adminUser.id,
+              context: "support",
+              status: "open",
+              isAdminSupport: true,
+              assignedAdminId: adminUser.id,
+              ticketStatus: "open"
+            });
+            const content = `Contact submission from ${submission.name} <${submission.email}>
+Phone: ${submission.phone || "N/A"}
+
+${submission.message}
+
+View thread: /dashboard/messages?threadId=${thread2.id}`;
+            await storage.createMessage({
+              threadId: thread2.id,
+              senderId: adminUser.id,
+              receiverId: adminUser.id,
+              subject: submission.subject,
+              content,
+              context: "support",
+              isAutoRelay: true
+            });
+            await storage.updateThreadLastMessage(thread2.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to create support thread for contact submission:", err);
+      }
+      try {
+        const adminUsers = await storage.getUsersByRole("admin");
+        for (const admin of adminUsers) {
+          await storage.createNotification({
+            userId: admin.id,
+            type: "message",
+            title: "New Contact Submission",
+            message: `${submission.name || "Visitor"} submitted a contact: ${submission.subject || "No subject"}`,
+            link: thread ? `/dashboard/messages?threadId=${thread.id}` : `/dashboard/messages`
+          });
+        }
+      } catch (err) {
+        console.error("Failed to create admin notifications for contact submission:", err);
+      }
+      res.json(submission);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error submitting contact form:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error submitting contact form:", error);
+      res.status(500).json({ message: "Failed to submit contact form" });
+    }
+  });
+  app2.get("/api/contact/submissions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const submissions = await storage.getContactSubmissions();
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching contact submissions:", error);
+      res.status(500).json({ message: "Failed to fetch submissions" });
+    }
+  });
+  app2.patch("/api/contact/submissions/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status || !["new", "contacted", "resolved"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
+      const submission = await storage.updateContactSubmissionStatus(req.params.id, status);
+      res.json(submission);
+    } catch (error) {
+      console.error("Error updating contact submission:", error);
+      res.status(500).json({ message: "Failed to update submission" });
+    }
+  });
+  app2.get("/api/contact/settings", async (req, res) => {
     try {
       const settings = await storage.getContactSettings();
       res.json(settings);
@@ -3024,14 +5081,1436 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "Failed to fetch contact settings" });
     }
   });
+  app2.patch("/api/contact/settings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateContactSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating contact settings:", error);
+      res.status(500).json({ message: "Failed to update contact settings" });
+    }
+  });
+  app2.get("/api/admin/verification-queue", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const listings = await storage.getPendingListings();
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching verification queue:", error);
+      res.status(500).json({ message: "Failed to fetch verification queue" });
+    }
+  });
+  app2.get("/api/admin/stats", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const allUsers = await storage.getAllUsers();
+      const totalUsers = allUsers.length;
+      const admins = allUsers.filter((u) => u.role === "admin").length;
+      const sellers = allUsers.filter((u) => u.role === "seller").length;
+      const buyers = allUsers.filter((u) => u.role === "buyer").length;
+      const pendingListings = await storage.getPendingListings();
+      const allListings = await db.select().from(marketplaceListings);
+      const totalListings = allListings.length;
+      const approvedListings = allListings.filter((l) => l.status === "approved").length;
+      const allProjects = await db.select().from(projects);
+      const totalProjects = allProjects.length;
+      const activeProjects = allProjects.filter((p) => p.status === "active").length;
+      const allMessages = await db.select().from(messages);
+      const totalMessages = allMessages.length;
+      const unreadMessages = allMessages.filter((m) => !m.read).length;
+      const allBuyerRequests = await db.select().from(buyerRequests);
+      const totalRFQs = allBuyerRequests.length;
+      return res.json({
+        totalUsers,
+        admins,
+        sellers,
+        buyers,
+        pendingVerifications: pendingListings.length,
+        totalListings,
+        approvedListings,
+        totalProjects,
+        activeProjects,
+        totalMessages,
+        unreadMessages,
+        totalRFQs
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+  });
+  app2.post("/api/admin/verify/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const reviewerId = req.user.id;
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      await storage.approveListing(listingId, reviewerId);
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: "listing_approved",
+            description: `Listing "${listing.title || listingId}" was approved by admin`,
+            ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+            userAgent: req.get("user-agent") || null,
+            metadata: { listingId, reviewerId }
+          });
+        } catch (logError) {
+          console.error("[ACTIVITY LOG] Failed to log listing approval:", logError);
+        }
+      }
+      try {
+        await storage.logAdminAudit({
+          adminId: reviewerId,
+          action: "listing_approved",
+          targetType: "listing",
+          targetId: listingId,
+          changes: {
+            title: listing?.title,
+            type: listing?.type,
+            status: "approved"
+          },
+          ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+          userAgent: req.get("user-agent") || null
+        });
+      } catch (auditError) {
+        console.error("[ADMIN AUDIT] Failed to log listing approval:", auditError);
+      }
+      res.json({ message: "Listing approved successfully" });
+    } catch (error) {
+      console.error("Error approving listing:", error);
+      res.status(500).json({ message: "Failed to approve listing" });
+    }
+  });
+  app2.post("/api/admin/reject/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const reviewerId = req.user.id;
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      await storage.rejectListing(listingId, reviewerId);
+      if (listing?.sellerId) {
+        try {
+          await storage.createActivityLog({
+            userId: listing.sellerId,
+            activityType: "listing_rejected",
+            description: `Listing "${listing.title || listingId}" was rejected by admin`,
+            ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+            userAgent: req.get("user-agent") || null,
+            metadata: { listingId, reviewerId }
+          });
+        } catch (logError) {
+          console.error("[ACTIVITY LOG] Failed to log listing rejection:", logError);
+        }
+      }
+      try {
+        await storage.logAdminAudit({
+          adminId: reviewerId,
+          action: "listing_rejected",
+          targetType: "listing",
+          targetId: listingId,
+          changes: {
+            title: listing?.title,
+            type: listing?.type,
+            status: "rejected"
+          },
+          ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+          userAgent: req.get("user-agent") || null
+        });
+      } catch (auditError) {
+        console.error("[ADMIN AUDIT] Failed to log listing rejection:", auditError);
+      }
+      res.json({ message: "Listing rejected successfully" });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ message: "Failed to reject listing" });
+    }
+  });
+  app2.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const users2 = await storage.getAllUsers();
+      const profiles = await db.select().from(userProfiles);
+      const profileMap = new Map(profiles.map((p) => [p.userId, p]));
+      const adminUsers = users2.filter((u) => u.role === "admin");
+      const adminPermissionsMap = /* @__PURE__ */ new Map();
+      for (const adminUser of adminUsers) {
+        try {
+          const permissions = await storage.getAdminPermissions(adminUser.id);
+          if (permissions) {
+            adminPermissionsMap.set(adminUser.id, permissions);
+          }
+        } catch (error) {
+        }
+      }
+      const mergedUsers = users2.map((user) => {
+        const profile = profileMap.get(user.id);
+        const testUser = testUsersStore.get(user.id);
+        const adminPermissions2 = adminPermissionsMap.get(user.id);
+        return {
+          ...user,
+          phoneNumber: profile?.phoneNumber || "-",
+          companyName: profile?.companyName || "-",
+          // For admin user management, always trust the real database values
+          // for membershipTier and verificationStatus, not any testUser overrides.
+          ...adminPermissions2 && {
+            adminRole: adminPermissions2.adminRole
+          }
+        };
+      });
+      res.json(mergedUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  app2.post("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { email, password, username, firstName, lastName, role } = req.body || {};
+      if (!email || !role) {
+        return res.status(400).json({ message: "Email and role are required" });
+      }
+      let hashedPassword = void 0;
+      if (password) {
+        const saltRounds = 10;
+        hashedPassword = await bcrypt.hash(password, saltRounds);
+        console.log("[CREATE USER] Password hashed for user:", email);
+      }
+      const user = await storage.upsertUser({
+        email,
+        firstName,
+        lastName,
+        password: hashedPassword,
+        username: username || void 0,
+        // allow setting role on creation
+        // @ts-ignore
+        role
+      });
+      if (role === "admin") {
+        await storage.upsertAdminPermissions({ adminUserId: user.id });
+      }
+      console.log("[CREATE USER] User created successfully:", { id: user.id, email, username, role });
+      res.json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/role", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { role } = req.body;
+      if (!role || !["admin", "buyer", "seller"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      const user = await storage.updateUserRole(req.params.id, role);
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/info", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { firstName, lastName, email, phoneNumber, companyName, password, username } = req.body;
+      const userId = req.params.id;
+      if (firstName || lastName || email || password || username) {
+        const updateData = {};
+        if (firstName !== void 0) updateData.firstName = firstName;
+        if (lastName !== void 0) updateData.lastName = lastName;
+        if (email !== void 0) updateData.email = email;
+        if (username !== void 0) updateData.username = username;
+        if (password) {
+          const saltRounds = 10;
+          updateData.password = await bcrypt.hash(password, saltRounds);
+          console.log("[UPDATE USER] Password updated and hashed for user:", userId);
+        }
+        await db.update(users).set(updateData).where(eq3(users.id, userId));
+      }
+      if (phoneNumber !== void 0 || companyName !== void 0) {
+        const profileUpdateData = {};
+        if (phoneNumber !== void 0) profileUpdateData.phoneNumber = phoneNumber;
+        if (companyName !== void 0) profileUpdateData.companyName = companyName;
+        const existingProfile = await db.select().from(userProfiles).where(eq3(userProfiles.userId, userId)).limit(1);
+        if (existingProfile.length > 0) {
+          await db.update(userProfiles).set(profileUpdateData).where(eq3(userProfiles.userId, userId));
+        } else {
+          await db.insert(userProfiles).values({
+            userId,
+            ...profileUpdateData,
+            profileType: "individual"
+          });
+        }
+      }
+      const updatedUser = await storage.getUser(userId);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user information:", error);
+      res.status(500).json({ message: "Failed to update user information" });
+    }
+  });
+  app2.delete("/api/admin/users/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteUser(req.params.id);
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+  app2.get("/api/admin/users/:id/listings", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const sellerId = req.params.id;
+      const listings = await storage.getListingsBySellerId(sellerId);
+      res.json(listings);
+    } catch (error) {
+      console.error("Error fetching user listings (admin):", error);
+      res.status(500).json({ message: "Failed to fetch user listings" });
+    }
+  });
+  app2.get("/api/admin/roles", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ROLE_PERMISSIONS: ROLE_PERMISSIONS2, getAdminRoleDisplayName: getAdminRoleDisplayName2 } = await Promise.resolve().then(() => (init_rbac(), rbac_exports));
+      const roles = Object.keys(ROLE_PERMISSIONS2).map((role) => ({
+        value: role,
+        label: getAdminRoleDisplayName2(role),
+        permissions: ROLE_PERMISSIONS2[role]
+      }));
+      res.json(roles);
+    } catch (error) {
+      console.error("Error fetching admin roles:", error);
+      res.status(500).json({ message: "Failed to fetch admin roles" });
+    }
+  });
+  app2.get("/api/admin/users/by-role/:role", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { role } = req.params;
+      if (!["admin", "buyer", "seller"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      const allUsers = await storage.getAllUsers();
+      const filteredUsers = allUsers.filter((u) => u.role === role);
+      if (role === "admin") {
+        const usersWithPermissions = await Promise.all(
+          filteredUsers.map(async (user) => {
+            const permissions = await storage.getAdminPermissions(user.id);
+            return {
+              ...user,
+              adminRole: permissions?.adminRole || null,
+              permissions: permissions || null
+            };
+          })
+        );
+        res.json(usersWithPermissions);
+      } else {
+        res.json(filteredUsers);
+      }
+    } catch (error) {
+      console.error("Error fetching users by role:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/admin-role", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { adminRole } = req.body;
+      const userId = req.params.id;
+      if (!adminRole || !["super_admin", "verification_admin", "content_admin", "support_admin", "analytics_admin"].includes(adminRole)) {
+        return res.status(400).json({ message: "Invalid admin role" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user || user.role !== "admin") {
+        return res.status(400).json({ message: "User must be an admin" });
+      }
+      const { ROLE_PERMISSIONS: ROLE_PERMISSIONS2 } = await Promise.resolve().then(() => (init_rbac(), rbac_exports));
+      const defaultPermissions = ROLE_PERMISSIONS2[adminRole];
+      const permissions = await storage.upsertAdminPermissions({
+        adminUserId: userId,
+        adminRole,
+        ...defaultPermissions
+      });
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error updating admin role:", error);
+      res.status(500).json({ message: "Failed to update admin role" });
+    }
+  });
+  app2.put("/api/admin/users/:id/custom-permissions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const permissions = req.body;
+      if (req.adminPermissions?.adminRole !== "super_admin") {
+        return res.status(403).json({ message: "Only Super Admins can update custom permissions" });
+      }
+      const updated = await storage.updateAdminPermissions({
+        adminUserId: userId,
+        ...permissions
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating custom permissions:", error);
+      res.status(500).json({ message: "Failed to update permissions" });
+    }
+  });
+  app2.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit) : 500;
+      const fromDate = req.query.from;
+      const toDate = req.query.to;
+      const action = req.query.action;
+      let auditLogs = await storage.getAdminAuditLogs();
+      if (action && action !== "all") {
+        auditLogs = auditLogs.filter((log) => log.action === action);
+      }
+      if (fromDate || toDate) {
+        auditLogs = auditLogs.filter((log) => {
+          const logDate = new Date(log.createdAt);
+          if (fromDate && logDate < new Date(fromDate)) return false;
+          if (toDate) {
+            const toDateEnd = new Date(toDate);
+            toDateEnd.setHours(23, 59, 59, 999);
+            if (logDate > toDateEnd) return false;
+          }
+          return true;
+        });
+      }
+      res.json(auditLogs.slice(0, limit));
+    } catch (error) {
+      console.error("Error fetching admin audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app2.post("/api/admin/audit-log", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { action, targetType, targetId, changes } = req.body;
+      if (!action || !targetType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      await db.insert(adminAuditLogs).values({
+        adminId,
+        action,
+        targetType,
+        targetId: targetId || null,
+        changes: changes || null,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      res.json({ message: "Audit log recorded" });
+    } catch (error) {
+      console.error("Error logging admin action:", error);
+      res.status(500).json({ message: "Failed to log action" });
+    }
+  });
+  app2.get("/api/admin/activity-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit) : 500;
+      const activityType = req.query.activityType;
+      const userId = req.query.userId;
+      const logs = await storage.getActivityLogs(limit);
+      let filteredLogs = logs.filter((log) => {
+        return log.user?.role !== "admin";
+      });
+      if (activityType) {
+        filteredLogs = filteredLogs.filter((log) => log.activityType === activityType);
+      }
+      if (userId) {
+        filteredLogs = filteredLogs.filter((log) => log.userId === userId);
+      }
+      res.json(filteredLogs);
+    } catch (error) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+  app2.get("/api/activity-logs/me", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const limit = req.query.limit ? parseInt(req.query.limit) : 50;
+      const logs = await storage.getUserActivityLogs(userId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching user activity logs:", error);
+      res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+  app2.get("/api/notifications", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const notifications3 = await storage.getUserNotifications(userId);
+      res.json(notifications3);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+  app2.get("/api/notifications/unread-count", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const count = await storage.getUnreadNotificationCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+  app2.post("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
+    try {
+      await storage.markNotificationAsRead(req.params.id);
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+  app2.post("/api/notifications/mark-all-read", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      await storage.markAllNotificationsAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+  app2.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
+        storage.getUserListingsCount(userId),
+        storage.getUserUnreadMessagesCount(userId),
+        storage.getUserInterestsCount(userId)
+      ]);
+      res.json({
+        listingsCount,
+        unreadMessagesCount,
+        interestsCount
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+  app2.get("/api/videos/active", async (req, res) => {
+    try {
+      const videos2 = await storage.getActiveVideos();
+      res.json(videos2);
+    } catch (error) {
+      console.error("Error fetching active videos:", error);
+      res.status(500).json({ message: "Failed to fetch active videos" });
+    }
+  });
+  app2.get("/api/videos", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const videos2 = await storage.getAllVideos();
+      res.json(videos2);
+    } catch (error) {
+      console.error("Error fetching videos:", error);
+      res.status(500).json({ message: "Failed to fetch videos" });
+    }
+  });
+  app2.post("/api/videos", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertVideoSchema.parse(req.body);
+      const video = await storage.createVideo(validatedData);
+      res.json(video);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating video:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating video:", error);
+      res.status(500).json({ message: "Failed to create video" });
+    }
+  });
+  app2.patch("/api/videos/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateVideoSchema.parse({ ...req.body, id: req.params.id });
+      const video = await storage.updateVideo(validatedData);
+      res.json(video);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error updating video:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating video:", error);
+      res.status(500).json({ message: "Failed to update video" });
+    }
+  });
+  app2.post("/api/videos/:id/toggle-active", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const video = await storage.toggleVideoActive(req.params.id);
+      res.json(video);
+    } catch (error) {
+      console.error("Error toggling video active status:", error);
+      res.status(400).json({ message: error.message || "Failed to toggle video status" });
+    }
+  });
+  app2.delete("/api/videos/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteVideo(req.params.id);
+      res.json({ message: "Video deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting video:", error);
+      res.status(500).json({ message: "Failed to delete video" });
+    }
+  });
+  app2.get("/api/admin/settings/platform", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch platform settings" });
+    }
+  });
+  app2.post("/api/admin/settings/platform", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertPlatformSettingSchema.parse({ ...req.body, updatedBy: req.user.id });
+      const setting = await storage.createPlatformSetting(validatedData);
+      res.json(setting);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating platform setting:", error);
+      res.status(500).json({ message: "Failed to create platform setting" });
+    }
+  });
+  app2.patch("/api/admin/settings/platform/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const currentSetting = await storage.getAllPlatformSettings();
+      const existing = currentSetting.find((s) => s.id === req.params.id);
+      const validatedData = updatePlatformSettingSchema.parse({ ...req.body, id: req.params.id, updatedBy: req.user.id });
+      const setting = await storage.updatePlatformSetting(validatedData);
+      if (existing && req.body.value !== void 0) {
+        await storage.logSettingChange({
+          settingKey: existing.key,
+          oldValue: existing.value,
+          newValue: req.body.value,
+          changedBy: req.user.id
+        });
+      }
+      res.json(setting);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating platform setting:", error);
+      res.status(500).json({ message: "Failed to update platform setting" });
+    }
+  });
+  app2.delete("/api/admin/settings/platform/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deletePlatformSetting(req.params.id);
+      res.json({ message: "Platform setting deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting platform setting:", error);
+      res.status(500).json({ message: "Failed to delete platform setting" });
+    }
+  });
+  app2.get("/api/admin/settings/platform/category/:category", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getPlatformSettingsByCategory(req.params.category);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings by category:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+  app2.get("/api/admin/settings/audit", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { settingKey, limit } = req.query;
+      const logs = await storage.getSettingsAuditLogs(
+        settingKey,
+        limit ? parseInt(limit) : 50
+      );
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching settings audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app2.get("/api/admin/settings/email-templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching email templates:", error);
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+  app2.post("/api/admin/settings/email-templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertEmailTemplateSchema.parse(req.body);
+      const template = await storage.createEmailTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating email template:", error);
+      res.status(500).json({ message: "Failed to create email template" });
+    }
+  });
+  app2.patch("/api/admin/settings/email-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateEmailTemplateSchema.parse({ ...req.body, id: req.params.id });
+      const template = await storage.updateEmailTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating email template:", error);
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+  app2.delete("/api/admin/settings/email-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteEmailTemplate(req.params.id);
+      res.json({ message: "Email template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting email template:", error);
+      res.status(500).json({ message: "Failed to delete email template" });
+    }
+  });
+  app2.get("/api/admin/settings/login-history", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const userId = req.query.userId;
+      const history = await storage.getLoginHistory(userId);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching login history:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+  app2.get("/api/admin/settings/verification-rules", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const rules = await storage.getAllVerificationRules();
+      res.json(rules);
+    } catch (error) {
+      console.error("Error fetching verification rules:", error);
+      res.status(500).json({ message: "Failed to fetch verification rules" });
+    }
+  });
+  app2.post("/api/admin/settings/verification-rules", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertVerificationRuleSchema.parse(req.body);
+      const rule = await storage.createVerificationRule(validatedData);
+      res.json(rule);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating verification rule:", error);
+      res.status(500).json({ message: "Failed to create verification rule" });
+    }
+  });
+  app2.patch("/api/admin/settings/verification-rules/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateVerificationRuleSchema.parse({ ...req.body, id: req.params.id });
+      const rule = await storage.updateVerificationRule(validatedData);
+      res.json(rule);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating verification rule:", error);
+      res.status(500).json({ message: "Failed to update verification rule" });
+    }
+  });
+  app2.delete("/api/admin/settings/verification-rules/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteVerificationRule(req.params.id);
+      res.json({ message: "Verification rule deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting verification rule:", error);
+      res.status(500).json({ message: "Failed to delete verification rule" });
+    }
+  });
+  app2.get("/api/admin/settings/document-templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const templates = await storage.getAllDocumentTemplates();
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching document templates:", error);
+      res.status(500).json({ message: "Failed to fetch document templates" });
+    }
+  });
+  app2.post("/api/admin/settings/document-templates", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertDocumentTemplateSchema.parse(req.body);
+      const template = await storage.createDocumentTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating document template:", error);
+      res.status(500).json({ message: "Failed to create document template" });
+    }
+  });
+  app2.patch("/api/admin/settings/document-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = updateDocumentTemplateSchema.parse({ ...req.body, id: req.params.id });
+      const template = await storage.updateDocumentTemplate(validatedData);
+      res.json(template);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error updating document template:", error);
+      res.status(500).json({ message: "Failed to update document template" });
+    }
+  });
+  app2.delete("/api/admin/settings/document-templates/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.deleteDocumentTemplate(req.params.id);
+      res.json({ message: "Document template deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting document template:", error);
+      res.status(500).json({ message: "Failed to delete document template" });
+    }
+  });
+  app2.get("/api/admin/settings/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const adminId = req.query.adminId;
+      const logs = await storage.getAdminAuditLogs(adminId);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/password-reset", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(req.params.id, hashedPassword);
+      await storage.logAdminAudit({
+        adminId: req.user.id,
+        action: "user_password_reset",
+        targetType: "user",
+        targetId: req.params.id,
+        changes: { resetBy: "admin" },
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent")
+      });
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error resetting user password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  app2.post("/api/admin/users/:id/force-logout", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      await storage.forceUserLogout(req.params.id);
+      await storage.logAdminAudit({
+        adminId: req.user.id,
+        action: "user_force_logout",
+        targetType: "user",
+        targetId: req.params.id,
+        changes: {},
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent")
+      });
+      res.json({ message: "User logged out successfully" });
+    } catch (error) {
+      console.error("Error forcing user logout:", error);
+      res.status(500).json({ message: "Failed to force logout" });
+    }
+  });
+  app2.patch("/api/admin/users/:id/role", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { role } = req.body;
+      if (!["admin", "buyer", "seller"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      const updatedUser = await storage.updateUserRole(req.params.id, role);
+      await storage.logAdminAudit({
+        adminId: req.user.id,
+        action: "user_role_updated",
+        targetType: "user",
+        targetId: req.params.id,
+        changes: { newRole: role },
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent")
+      });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+  app2.patch("/api/account/profile", isAuthenticated, async (req, res) => {
+    try {
+      const { firstName, lastName, email, profileImageUrl } = req.body;
+      const updatedUser = await storage.updateUserInfo(req.user.id, {
+        firstName,
+        lastName,
+        email,
+        profileImageUrl
+      });
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+  app2.post("/api/account/password-change", isAuthenticated, async (req, res) => {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current and new password required" });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+      const user = await storage.getUserById(req.user.id);
+      if (!user || !user.password) {
+        return res.status(400).json({ message: "Invalid user" });
+      }
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await storage.updateUserPassword(req.user.id, hashedPassword);
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+  app2.get("/api/account/login-history", isAuthenticated, async (req, res) => {
+    try {
+      const history = await storage.getLoginHistory(req.user.id);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching login history:", error);
+      res.status(500).json({ message: "Failed to fetch login history" });
+    }
+  });
+  app2.get("/api/account/2fa/status", isAuthenticated, async (req, res) => {
+    try {
+      const twoFAStatus = await storage.getTwoFactorAuthStatus(req.user.id);
+      res.json(twoFAStatus);
+    } catch (error) {
+      console.error("Error fetching 2FA status:", error);
+      res.status(500).json({ message: "Failed to fetch 2FA status" });
+    }
+  });
+  app2.post("/api/account/2fa/enable", isAuthenticated, async (req, res) => {
+    try {
+      await storage.enableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA enabled successfully" });
+    } catch (error) {
+      console.error("Error enabling 2FA:", error);
+      res.status(500).json({ message: "Failed to enable 2FA" });
+    }
+  });
+  app2.post("/api/account/2fa/disable", isAuthenticated, async (req, res) => {
+    try {
+      await storage.disableTwoFactorAuth(req.user.id);
+      res.json({ message: "2FA disabled successfully" });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      res.status(500).json({ message: "Failed to disable 2FA" });
+    }
+  });
+  app2.post("/api/verification/request", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "seller") {
+        return res.status(403).json({ message: "Only sellers can request verification" });
+      }
+      let seller = await storage.getUser(req.user.id);
+      if (!seller) {
+        console.log("[VERIFICATION] Creating missing seller in database:", req.user.id);
+        try {
+          await storage.upsertUser({
+            id: req.user.id,
+            email: req.user.email || "seller@fusionmining.com",
+            firstName: req.user.firstName || "Seller",
+            lastName: req.user.lastName || "User"
+          });
+          console.log("[VERIFICATION] User upserted successfully");
+          await storage.updateUserRole(req.user.id, "seller");
+          console.log("[VERIFICATION] User role updated to seller");
+          seller = await storage.getUser(req.user.id);
+          if (!seller) {
+            throw new Error("User was not created in database after upsert");
+          }
+          console.log("[VERIFICATION] User confirmed in database");
+        } catch (userError) {
+          console.error("[VERIFICATION] Error creating user:", userError);
+          throw userError;
+        }
+      } else {
+        console.log("[VERIFICATION] Seller already exists in database");
+      }
+      const request = await storage.createVerificationRequest(req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating verification request:", error);
+      res.status(500).json({ message: "Failed to create verification request" });
+    }
+  });
+  app2.post("/api/verification/submit", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "seller") {
+        return res.status(403).json({ message: "Only sellers can submit verification" });
+      }
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      if (!request) {
+        return res.status(404).json({ message: "Verification request not found" });
+      }
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      if (!documents || documents.length === 0) {
+        return res.status(400).json({ message: "Please upload at least one document before submitting" });
+      }
+      const updatedRequest = await storage.updateVerificationRequestStatus(request.id, "pending");
+      const updatedDocuments = await storage.getDocumentsByRequestId(request.id);
+      const seller = await storage.getUser(req.user.id);
+      if (seller) {
+        await storage.createNotification({
+          userId: req.user.id,
+          type: "seller_verification",
+          title: "Verification Request Submitted",
+          message: "Your seller verification request has been submitted for review. We will review it within 2-3 business days.",
+          link: "/dashboard/seller-verification"
+        });
+      }
+      const adminUser = await storage.getAdminUser();
+      if (adminUser) {
+        await storage.createNotification({
+          userId: adminUser.id,
+          type: "seller_verification",
+          title: "New Seller Verification Request",
+          message: `${seller?.firstName} ${seller?.lastName} (${seller?.email}) submitted a new verification request.`,
+          link: "/admin?tab=seller-verification"
+        });
+      }
+      console.log("[VERIFICATION] Request submitted:", request.id, "Status changed to pending");
+      res.json({ ...updatedRequest, documents: updatedDocuments });
+    } catch (error) {
+      console.error("Error submitting verification request:", error);
+      res.status(500).json({ message: "Failed to submit verification request" });
+    }
+  });
+  app2.get("/api/verification/my-request", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "seller") {
+        return res.status(403).json({ message: "Only sellers can access this endpoint" });
+      }
+      const request = await storage.getVerificationRequestBySellerId(req.user.id);
+      if (!request) {
+        return res.json(null);
+      }
+      const documents = await storage.getDocumentsByRequestId(request.id);
+      res.json({ ...request, documents });
+    } catch (error) {
+      console.error("Error fetching verification request:", error);
+      res.status(500).json({ message: "Failed to fetch verification request" });
+    }
+  });
+  app2.get("/api/verification/requests", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const requests = await storage.getAllVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch verification requests" });
+    }
+  });
+  app2.get("/api/verification/requests/pending", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const requests = await storage.getAllPendingVerificationRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching pending verification requests:", error);
+      res.status(500).json({ message: "Failed to fetch pending verification requests" });
+    }
+  });
+  app2.get("/api/verification/documents/:requestId", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const documents = await storage.getDocumentsByRequestId(req.params.requestId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching verification documents:", error);
+      res.status(500).json({ message: "Failed to fetch verification documents" });
+    }
+  });
+  app2.post("/api/verification/approve/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const request = await storage.approveVerificationRequest(req.params.id, req.user.id);
+      res.json(request);
+    } catch (error) {
+      console.error("Error approving verification request:", error);
+      res.status(500).json({ message: "Failed to approve verification request" });
+    }
+  });
+  app2.post("/api/verification/reject/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+      const request = await storage.rejectVerificationRequest(req.params.id, req.user.id, reason);
+      res.json(request);
+    } catch (error) {
+      console.error("Error rejecting verification request:", error);
+      res.status(500).json({ message: "Failed to reject verification request" });
+    }
+  });
+  const verificationUploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "verification");
+  fs.mkdirSync(verificationUploadsRoot, { recursive: true });
+  const verificationStorageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, verificationUploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp2 = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp2}-${sanitizedOriginal}`);
+    }
+  });
+  const verificationUpload = multer({
+    storage: verificationStorageEngine,
+    limits: { fileSize: 20 * 1024 * 1024 },
+    // 20 MB for verification documents
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "application/pdf",
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type. Please upload PDF, JPG, PNG, or DOC files."));
+    }
+  });
+  app2.post("/api/verification/upload", isAuthenticated, verificationUpload.single("file"), async (req, res) => {
+    try {
+      if (req.user.role !== "seller") {
+        return res.status(403).json({ message: "Only sellers can upload verification documents" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const { requestId, documentType } = req.body;
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+      const request = await storage.getVerificationRequestById(requestId);
+      if (!request || request.sellerId !== req.user.id) {
+        return res.status(403).json({ message: "Invalid verification request" });
+      }
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      const document = await storage.createVerificationDocument({
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype
+      });
+      res.json({
+        document,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+    } catch (error) {
+      console.error("Error uploading verification document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload verification document" });
+    }
+  });
+  app2.post("/api/buyer/tier-upgrade-request", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "buyer") {
+        return res.status(403).json({ message: "Only buyers can request tier upgrades" });
+      }
+      const { requestedTier } = req.body;
+      if (!requestedTier || !["standard", "premium"].includes(requestedTier)) {
+        return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
+      }
+      const newRequest = {
+        id: `tier-upgrade-${Date.now()}`,
+        userId: req.user.id,
+        buyerEmail: req.user.email || "",
+        buyerFirstName: req.user.firstName || "",
+        buyerLastName: req.user.lastName || "",
+        requestedTier,
+        status: "draft",
+        submittedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        documentCount: 0
+      };
+      buyerUpgradeRequests.set(newRequest.id, newRequest);
+      res.json(newRequest);
+    } catch (error) {
+      console.error("Error creating tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to create tier upgrade request" });
+    }
+  });
+  app2.get("/api/buyer/tier-upgrade-request", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "buyer") {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
+      }
+      let userRequest = null;
+      for (const request of Array.from(buyerUpgradeRequests.values())) {
+        if (request.userId === req.user.id) {
+          userRequest = request;
+          break;
+        }
+      }
+      res.json(userRequest);
+    } catch (error) {
+      console.error("Error fetching tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to fetch tier upgrade request" });
+    }
+  });
+  app2.post("/api/buyer/tier-upgrade/upload", isAuthenticated, verificationUpload.single("file"), async (req, res) => {
+    try {
+      if (req.user.role !== "buyer") {
+        return res.status(403).json({ message: "Only buyers can upload tier upgrade documents" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const { requestId, documentType } = req.body;
+      if (!requestId || !documentType) {
+        return res.status(400).json({ message: "Request ID and document type are required" });
+      }
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      const mockDocument = {
+        id: `doc-${Date.now()}`,
+        requestId,
+        documentType,
+        fileName: req.file.originalname,
+        filePath: relativePath,
+        uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      res.json({
+        document: mockDocument,
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype
+      });
+    } catch (error) {
+      console.error("Error uploading tier upgrade document:", error);
+      res.status(500).json({ message: error.message || "Failed to upload document" });
+    }
+  });
+  app2.post("/api/buyer/tier-upgrade/submit", isAuthenticated, async (req, res) => {
+    try {
+      if (req.user.role !== "buyer") {
+        return res.status(403).json({ message: "Only buyers can submit tier upgrade requests" });
+      }
+      const { requestId } = req.body;
+      if (!requestId) {
+        return res.status(400).json({ message: "Request ID is required" });
+      }
+      const request = buyerUpgradeRequests.get(requestId);
+      if (!request) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+      if (request.userId !== req.user.id) {
+        return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
+      }
+      request.status = "pending";
+      request.submittedAt = (/* @__PURE__ */ new Date()).toISOString();
+      buyerUpgradeRequests.set(requestId, request);
+      res.json({
+        success: true,
+        message: "Tier upgrade request submitted successfully",
+        status: "pending",
+        submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Error submitting tier upgrade request:", error);
+      res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
+    }
+  });
+  app2.get("/api/admin/buyer-upgrades/pending", async (req, res) => {
+    try {
+      const isDev = process.env.NODE_ENV === "development";
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const pendingRequests = getPendingBuyerUpgrades();
+      res.json(pendingRequests);
+    } catch (error) {
+      console.error("Error fetching pending buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch pending buyer tier upgrades" });
+    }
+  });
+  app2.get("/api/admin/buyer-upgrades", async (req, res) => {
+    try {
+      const isDev = process.env.NODE_ENV === "development";
+      if (!isDev && !req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const allRequests = getAllBuyerUpgrades();
+      res.json(allRequests);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrades:", error);
+      res.status(500).json({ message: "Failed to fetch buyer tier upgrades" });
+    }
+  });
+  app2.get("/api/admin/buyer-upgrades/documents/:requestId", async (req, res) => {
+    const isDev = process.env.NODE_ENV === "development";
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { requestId } = req.params;
+      const mockDocuments = [
+        {
+          id: "doc-1",
+          documentType: "certificate_of_incorporation",
+          fileName: "Company_Certificate.pdf",
+          filePath: "/attached_assets/files/uploads/verification/cert.pdf",
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
+        },
+        {
+          id: "doc-2",
+          documentType: "company_profile",
+          fileName: "Company_Profile.docx",
+          filePath: "/attached_assets/files/uploads/verification/profile.docx",
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
+        },
+        {
+          id: "doc-3",
+          documentType: "shareholder_list",
+          fileName: "Shareholders.pdf",
+          filePath: "/attached_assets/files/uploads/verification/shareholders.pdf",
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
+        },
+        {
+          id: "doc-4",
+          documentType: "tax_certificate",
+          fileName: "Tax_Certificate.pdf",
+          filePath: "/attached_assets/files/uploads/verification/tax.pdf",
+          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
+        }
+      ];
+      res.json(mockDocuments);
+    } catch (error) {
+      console.error("Error fetching buyer tier upgrade documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  app2.post("/api/admin/buyer-upgrades/approve/:id", async (req, res) => {
+    const isDev = process.env.NODE_ENV === "development";
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+      const updated = await approveBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+      await storage.createNotification({
+        userId: updated.userId,
+        type: "tier_upgrade",
+        title: "Tier Upgrade Approved",
+        message: `Congratulations! Your upgrade to ${updated.requestedTier} tier has been approved.`,
+        link: "/dashboard"
+      });
+      res.json({
+        success: true,
+        message: "Tier upgrade request approved successfully",
+        status: "approved",
+        reviewedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Error approving buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to approve tier upgrade request" });
+    }
+  });
+  app2.post("/api/admin/buyer-upgrades/reject/:id", async (req, res) => {
+    const isDev = process.env.NODE_ENV === "development";
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+      const updated = await rejectBuyerUpgrade(id, reason);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+      await storage.createNotification({
+        userId: updated.userId,
+        type: "tier_upgrade",
+        title: "Tier Upgrade Rejected",
+        message: `Your upgrade request to ${updated.requestedTier} tier was rejected. Reason: ${reason}`,
+        link: "/dashboard"
+      });
+      res.json({
+        success: true,
+        message: "Tier upgrade request rejected successfully",
+        status: "rejected",
+        rejectionReason: reason,
+        reviewedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Error rejecting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to reject tier upgrade request" });
+    }
+  });
+  app2.post("/api/admin/buyer-upgrades/revert/:id", async (req, res) => {
+    const isDev = process.env.NODE_ENV === "development";
+    if (!isDev && !req.user?.id) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    try {
+      const { id } = req.params;
+      const updated = await revertBuyerUpgrade(id);
+      if (!updated) {
+        return res.status(404).json({ message: "Tier upgrade request not found" });
+      }
+      res.json({
+        success: true,
+        message: "Tier upgrade request reverted to draft successfully",
+        status: "draft"
+      });
+    } catch (error) {
+      console.error("Error reverting buyer tier upgrade:", error);
+      res.status(500).json({ message: "Failed to revert tier upgrade request" });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
 
 // server/vite.ts
 import express from "express";
-import fs from "fs";
-import path from "path";
+import fs2 from "fs";
+import path2 from "path";
 import { nanoid } from "nanoid";
 var viteLogger;
 async function setupVite(app2, server) {
@@ -3045,7 +6524,7 @@ async function setupVite(app2, server) {
   };
   const reactPlugin = await import("@vitejs/plugin-react").then((m) => m.default);
   const vite = await createViteServer({
-    root: path.resolve(import.meta.dirname, "..", "client"),
+    root: path2.resolve(import.meta.dirname, "..", "client"),
     configFile: false,
     customLogger: {
       ...viteLogger,
@@ -3062,26 +6541,26 @@ async function setupVite(app2, server) {
     appType: "custom",
     resolve: {
       alias: {
-        "@": path.resolve(import.meta.dirname, "..", "client", "src"),
-        "@shared": path.resolve(import.meta.dirname, "..", "shared"),
+        "@": path2.resolve(import.meta.dirname, "..", "client", "src"),
+        "@shared": path2.resolve(import.meta.dirname, "..", "shared"),
         // Serve project-level assets from the attached_assets folder during dev
-        "@assets": path.resolve(import.meta.dirname, "..", "attached_assets")
+        "@assets": path2.resolve(import.meta.dirname, "..", "attached_assets")
       }
     },
     plugins: [reactPlugin()]
   });
-  app2.use("/attached_assets", express.static(path.resolve(import.meta.dirname, "..", "attached_assets")));
+  app2.use("/attached_assets", express.static(path2.resolve(import.meta.dirname, "..", "attached_assets")));
   app2.use(vite.middlewares);
   app2.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path.resolve(
+      const clientTemplate = path2.resolve(
         import.meta.dirname,
         "..",
         "client",
         "index.html"
       );
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      let template = await fs2.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
@@ -3095,26 +6574,27 @@ async function setupVite(app2, server) {
   });
 }
 function serveStatic(app2) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
-  const attachedAssetsPath = path.resolve(import.meta.dirname, "..", "attached_assets");
-  if (!fs.existsSync(distPath)) {
+  const distPath = path2.resolve(import.meta.dirname, "..", "dist", "public");
+  const attachedAssetsPath = path2.resolve(import.meta.dirname, "..", "attached_assets");
+  if (!fs2.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
-  if (fs.existsSync(attachedAssetsPath)) {
+  if (fs2.existsSync(attachedAssetsPath)) {
     app2.use("/attached_assets", express.static(attachedAssetsPath));
   }
   app2.use(express.static(distPath));
   app2.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    res.sendFile(path2.resolve(distPath, "index.html"));
   });
 }
 
 // server/index.ts
+init_clerk();
 import pg from "pg";
 if (!process.env.CLERK_SECRET_KEY) {
-  __require("dotenv").config({ path: path2.resolve(__dirname, "..", ".env") });
+  __require("dotenv").config({ path: path3.resolve(__dirname, "..", ".env") });
 }
 var app = express2();
 app.use(express2.json());
@@ -3134,7 +6614,7 @@ app.use(cors({
 }));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path3 = req.path;
+  const path4 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -3143,8 +6623,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path3.startsWith("/api")) {
-      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+    if (path4.startsWith("/api")) {
+      let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -3168,7 +6648,7 @@ app.use((req, res, next) => {
       const authUserHandler = (await Promise.resolve().then(() => (init_auth_user(), auth_user_exports))).default;
       app.post("/api/login", loginHandler);
       app.post("/api/logout", logoutHandler);
-      app.get("/api/auth/user", authUserHandler);
+      app.get("/api/auth/user", requireAuth, authUserHandler);
       console.log("API handlers mounted");
     }
     app.use((err, _req, res, _next) => {
