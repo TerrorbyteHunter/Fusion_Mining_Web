@@ -115,7 +115,20 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", (req, res) => {
+    try {
+      const indexFile = path.resolve(distPath, "index.html");
+      const exists = fs.existsSync(indexFile);
+      console.log(`Static fallback: ${req.method} ${req.originalUrl} -> index.html exists=${exists} path=${indexFile}`);
+      if (!exists) {
+        // Let Express return its default 404 if index is missing
+        res.status(404).send('Not Found');
+        return;
+      }
+      res.sendFile(indexFile);
+    } catch (e) {
+      console.error('Error serving index.html fallback:', e instanceof Error ? e.stack || e.message : String(e));
+      res.status(500).send('Internal Server Error');
+    }
   });
 }
