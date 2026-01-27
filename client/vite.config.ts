@@ -12,6 +12,9 @@ export default defineConfig({
       }
     }
   },
+  build: {
+    outDir: '../build/public'
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

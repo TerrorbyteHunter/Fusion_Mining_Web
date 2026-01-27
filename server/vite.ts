@@ -96,9 +96,9 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  // Build output is in dist/public, but since this is called from server/vite.ts,
-  // we need to go up one level from server/ to get to project root, then to dist/public
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  // Build output is in build/public, but since this is called from server/vite.ts,
+  // we need to go up one level from server/ to get to project root, then to build/public
+  const distPath = path.resolve(import.meta.dirname, "..", "build", "public");
   const attachedAssetsPath = path.resolve(import.meta.dirname, "..", "attached_assets");
 
   if (!fs.existsSync(distPath)) {

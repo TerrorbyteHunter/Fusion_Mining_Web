@@ -12,7 +12,7 @@ services:
     # Build Configuration
     buildCommand: npm install && npm run build
     startCommand: npm start
-    publishDir: dist
+    publishDir: build
     
     # Health Check (optional but recommended)
     healthCheckPath: /api/health

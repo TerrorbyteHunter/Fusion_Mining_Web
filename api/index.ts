@@ -3,6 +3,6 @@
 
 // Import the built server bundle
 // @ts-ignore: import of built JS bundle without types
-import app from '../dist/index.js';
+import app from '../build/index.js';
 
 export default app;
