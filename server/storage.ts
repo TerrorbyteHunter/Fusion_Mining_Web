@@ -34,6 +34,8 @@ import {
   sellerVerificationDocuments,
   tierUpgradePayments,
   paymentMethodDetails,
+  tierUpgradeRequests,
+  tierUpgradeDocuments,
   type AdminPermissions,
   type InsertAdminPermissions,
   type UpdateAdminPermissions,
@@ -206,7 +208,7 @@ export interface IStorage {
   getThreadWithParticipants(id: string): Promise<any>;
   updateThreadLastMessage(threadId: string): Promise<void>;
   closeThread(threadId: string): Promise<MessageThread>;
-  
+
   // Message operations
   createMessage(message: InsertMessage): Promise<Message>;
   getMessagesByThreadId(threadId: string): Promise<Message[]>;
@@ -284,7 +286,7 @@ export interface IStorage {
   createMembershipBenefit(benefit: InsertMembershipBenefit): Promise<MembershipBenefit>;
   getAllMembershipBenefits(): Promise<MembershipBenefit[]>;
   getMembershipBenefitByTier(tier: string): Promise<MembershipBenefit | undefined>;
-  
+
   // Tier Usage Tracking operations
   getUserTierUsage(userId: string, month: string): Promise<TierUsageTracking | undefined>;
   incrementUserRFQCount(userId: string, month: string): Promise<void>;
@@ -298,7 +300,7 @@ export interface IStorage {
   createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting>;
   updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting>;
   deletePlatformSetting(id: string): Promise<void>;
-  
+
   // Settings Audit operations
   getSettingsAuditLogs(settingKey?: string, limit?: number): Promise<SettingsAudit[]>;
   logSettingChange(audit: InsertSettingsAudit): Promise<void>;
@@ -347,7 +349,24 @@ export interface IStorage {
   getDocumentsByRequestId(requestId: string): Promise<any[]>;
   updateUserVerificationStatus(userId: string, status: string, badgeColor?: string): Promise<User>;
 
-  // User Management (Admin) operations
+  // Buyer Tier Upgrade operations
+  createTierUpgradeRequest(requestId: string, userId: string, requestedTier: string): Promise<any>;
+  submitTierUpgradeRequest(requestId: string): Promise<any>;
+  getTierUpgradeRequestById(id: string): Promise<any>;
+  getTierUpgradeRequestByUserId(userId: string): Promise<any>;
+  getAllTierUpgradeRequests(): Promise<any[]>;
+  getPendingTierUpgradeRequests(): Promise<any[]>;
+  approveTierUpgradeRequest(id: string, reviewerId: string): Promise<any>;
+  rejectTierUpgradeRequest(id: string, reviewerId: string, reason: string): Promise<any>;
+  revertTierUpgradeRequest(id: string): Promise<any>;
+  createTierUpgradeDocument(data: any): Promise<any>;
+  getTierUpgradeDocuments(requestId: string): Promise<any[]>;
+  createPaymentMethodDetails(data: InsertPaymentMethodDetails): Promise<PaymentMethodDetails>;
+  getAllPaymentMethodDetails(): Promise<PaymentMethodDetails[]>;
+  getPaymentMethodDetailsByMethod(method: string): Promise<PaymentMethodDetails | undefined>;
+  createTierUpgradePayment(data: any): Promise<any>;
+  updateTierUpgradePayment(id: string, data: any): Promise<any>;
+  getTierUpgradePaymentByRequestId(requestId: string): Promise<any | undefined>;
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
   forceUserLogout(userId: string): Promise<void>;
   updateUserInfo(userId: string, data: any): Promise<User>;
@@ -401,7 +420,7 @@ export class DatabaseStorage implements IStorage {
         .from(users)
         .where(eq(users.clerkId, userData.clerkId))
         .limit(1);
-      
+
       if (existingUsers.length > 0) {
         // Update existing Clerk user
         const updateData: any = {
@@ -412,12 +431,12 @@ export class DatabaseStorage implements IStorage {
           role: userData.role,
           updatedAt: new Date(),
         };
-        
+
         // Only update password if provided
         if (userData.password) {
           updateData.password = userData.password;
         }
-        
+
         const [user] = await db
           .update(users)
           .set(updateData)
@@ -426,7 +445,7 @@ export class DatabaseStorage implements IStorage {
         return user;
       }
     }
-    
+
     // Check if user exists by email (for legacy users)
     if (userData.email) {
       const existingUsers = await db
@@ -434,7 +453,7 @@ export class DatabaseStorage implements IStorage {
         .from(users)
         .where(eq(users.email, userData.email))
         .limit(1);
-      
+
       if (existingUsers.length > 0) {
         // Update existing user, preserving the original ID and merging data
         const updateData: any = {
@@ -443,22 +462,22 @@ export class DatabaseStorage implements IStorage {
           profileImageUrl: userData.profileImageUrl,
           updatedAt: new Date(),
         };
-        
+
         // Update clerkId if provided (linking legacy user to Clerk)
         if (userData.clerkId) {
           updateData.clerkId = userData.clerkId;
         }
-        
+
         // Update role if provided
         if (userData.role) {
           updateData.role = userData.role;
         }
-        
+
         // Only update password if provided
         if (userData.password) {
           updateData.password = userData.password;
         }
-        
+
         const [user] = await db
           .update(users)
           .set(updateData)
@@ -467,7 +486,7 @@ export class DatabaseStorage implements IStorage {
         return user;
       }
     }
-    
+
     // No existing user, insert new one
     const [user] = await db
       .insert(users)
@@ -694,7 +713,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(projects, eq(expressInterest.projectId, projects.id))
       .leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id))
       .orderBy(desc(expressInterest.createdAt));
-    
+
     return interests;
   }
 
@@ -988,7 +1007,7 @@ export class DatabaseStorage implements IStorage {
 
     return results.map(r => {
       const { thread, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
-      const thread_without_context = { 
+      const thread_without_context = {
         ...thread,
         // Explicitly omit the context field
         id: thread.id,
@@ -1244,7 +1263,7 @@ export class DatabaseStorage implements IStorage {
       }).length;
 
       weeklyActivity.push({
-        week: `${start.toISOString().slice(0,10)}`,
+        week: `${start.toISOString().slice(0, 10)}`,
         listings: listingsCount,
         messages: messagesCount,
         users: usersCount,
@@ -1407,10 +1426,10 @@ export class DatabaseStorage implements IStorage {
       createdAt: result.createdAt,
       relatedProjectId: result.project?.id || null,
       relatedListingId: result.listing?.id || null,
-      senderName: result.senderFirstName && result.senderLastName 
-        ? `${result.senderFirstName} ${result.senderLastName}` 
+      senderName: result.senderFirstName && result.senderLastName
+        ? `${result.senderFirstName} ${result.senderLastName}`
         : undefined,
-      context: result.listing 
+      context: result.listing
         ? 'marketplace' as const
         : result.project
           ? 'project_interest' as const
@@ -1686,7 +1705,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(contactSettings)
       .limit(1);
-    
+
     if (settings.length === 0) {
       // Create default settings if none exist
       const [defaultSettings] = await db
@@ -1703,13 +1722,13 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return defaultSettings;
     }
-    
+
     return settings[0];
   }
 
   async updateContactSettings(settingsData: Partial<InsertContactSettings>): Promise<ContactSettings> {
     const existing = await this.getContactSettings();
-    
+
     if (!existing) {
       const [newSettings] = await db
         .insert(contactSettings)
@@ -1717,7 +1736,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return newSettings;
     }
-    
+
     const [updated] = await db
       .update(contactSettings)
       .set({
@@ -1739,7 +1758,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(marketplaceListings.status, 'pending'))
       .orderBy(desc(marketplaceListings.createdAt));
   }
-  
+
 
   async rejectListing(listingId: string, reviewerId: string): Promise<void> {
     // Update listing status
@@ -1797,7 +1816,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(activityLogs.userId, users.id))
       .orderBy(desc(activityLogs.createdAt))
       .limit(limit);
-    
+
     return results.map(r => ({
       id: r.id,
       userId: r.userId,
@@ -1889,7 +1908,7 @@ export class DatabaseStorage implements IStorage {
           eq(messageThreads.sellerId, userId)
         )
       );
-    
+
     if (threads.length === 0) return 0;
 
     // Then count unread messages in those threads where the user is the receiver
@@ -1904,7 +1923,7 @@ export class DatabaseStorage implements IStorage {
           eq(messages.read, false)
         )
       );
-    
+
     return result[0]?.count || 0;
   }
 
@@ -1938,10 +1957,10 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)::int` })
       .from(videos)
       .where(eq(videos.active, true));
-    
+
     const count = activeVideosCount[0]?.count || 0;
     const shouldActivate = count < 4 && (videoData.active !== false);
-    
+
     const [video] = await db
       .insert(videos)
       .values({ ...videoData, active: shouldActivate })
@@ -1980,23 +1999,23 @@ export class DatabaseStorage implements IStorage {
       .from(videos)
       .where(eq(videos.id, id))
       .limit(1);
-    
+
     if (!currentVideo) {
       throw new Error("Video not found");
     }
-    
+
     if (!currentVideo.active) {
       const activeVideosCount = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(videos)
         .where(eq(videos.active, true));
-      
+
       const count = activeVideosCount[0]?.count || 0;
       if (count >= 4) {
         throw new Error("Maximum of 4 active videos allowed");
       }
     }
-    
+
     const [video] = await db
       .update(videos)
       .set({ active: !currentVideo.active })
@@ -2021,29 +2040,29 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSustainabilityContent(): Promise<SustainabilityContent[]> {
-      try {
-        return await db
-          .select()
-          .from(sustainabilityContent)
-          .orderBy(sustainabilityContent.order);
-      } catch (err: any) {
-        if (err?.code === '42P01') return [];
-        throw err;
-      }
+    try {
+      return await db
+        .select()
+        .from(sustainabilityContent)
+        .orderBy(sustainabilityContent.order);
+    } catch (err: any) {
+      if (err?.code === '42P01') return [];
+      throw err;
+    }
   }
 
   async getSustainabilityContentById(id: string): Promise<SustainabilityContent | undefined> {
-      try {
-        const [item] = await db
-          .select()
-          .from(sustainabilityContent)
-          .where(eq(sustainabilityContent.id, id))
-          .limit(1);
-        return item;
-      } catch (err: any) {
-        if (err?.code === '42P01') return undefined;
-        throw err;
-      }
+    try {
+      const [item] = await db
+        .select()
+        .from(sustainabilityContent)
+        .where(eq(sustainabilityContent.id, id))
+        .limit(1);
+      return item;
+    } catch (err: any) {
+      if (err?.code === '42P01') return undefined;
+      throw err;
+    }
   }
 
   async updateSustainabilityContent(id: string, content: Partial<InsertSustainabilityContent>): Promise<SustainabilityContent> {
@@ -2135,7 +2154,7 @@ export class DatabaseStorage implements IStorage {
   async updateUserMembershipTier(userId: string, tier: string): Promise<User> {
     const [updated] = await db
       .update(users)
-      .set({ 
+      .set({
         membershipTier: tier as any,
         updatedAt: new Date(),
       })
@@ -2161,11 +2180,11 @@ export class DatabaseStorage implements IStorage {
 
   async incrementUserRFQCount(userId: string, month: string): Promise<void> {
     const existing = await this.getUserTierUsage(userId, month);
-    
+
     if (existing) {
       await db
         .update(tierUsageTracking)
-        .set({ 
+        .set({
           activeRFQsCount: sql`${tierUsageTracking.activeRFQsCount} + 1`,
           updatedAt: new Date()
         })
@@ -2196,13 +2215,13 @@ export class DatabaseStorage implements IStorage {
 
   async checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     const user = await this.getUser(userId);
-    
+
     if (!user) {
       return { allowed: false, reason: 'User not found' };
     }
 
     const benefit = await this.getMembershipBenefitByTier(user.membershipTier);
-    
+
     if (!benefit) {
       return { allowed: false, reason: 'Membership tier not configured' };
     }
@@ -2213,10 +2232,10 @@ export class DatabaseStorage implements IStorage {
     }
 
     const activeCount = await this.getUserActiveRFQCount(userId);
-    
+
     if (activeCount >= benefit.maxActiveRFQs) {
-      return { 
-        allowed: false, 
+      return {
+        allowed: false,
         reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? 's' : ''}. Upgrade to create more RFQs.`
       };
     }
@@ -2228,73 +2247,73 @@ export class DatabaseStorage implements IStorage {
   // Platform Settings operations
   // ========================================================================
   async getAllPlatformSettings(): Promise<PlatformSetting[]> {
-      try {
-        return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
-      } catch (err: any) {
-        if (err?.code === '42P01') return [];
-        throw err;
-      }
+    try {
+      return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+    } catch (err: any) {
+      if (err?.code === '42P01') return [];
+      throw err;
+    }
   }
 
   async createPlatformSetting(setting: InsertPlatformSetting): Promise<PlatformSetting> {
-      try {
-        const [created] = await db.insert(platformSettings).values(setting).returning();
-        return created;
-      } catch (err: any) {
-        if (err?.code === '42P01') throw new Error('Platform settings table missing');
-        throw err;
-      }
+    try {
+      const [created] = await db.insert(platformSettings).values(setting).returning();
+      return created;
+    } catch (err: any) {
+      if (err?.code === '42P01') throw new Error('Platform settings table missing');
+      throw err;
+    }
   }
 
   async updatePlatformSetting(setting: UpdatePlatformSetting): Promise<PlatformSetting> {
-      try {
-        const { id, ...updates } = setting;
-        const [updated] = await db
-          .update(platformSettings)
-          .set({ ...updates, updatedAt: new Date() })
-          .where(eq(platformSettings.id, id!))
-          .returning();
-        return updated;
-      } catch (err: any) {
-        if (err?.code === '42P01') throw new Error('Platform settings table missing');
-        throw err;
-      }
+    try {
+      const { id, ...updates } = setting;
+      const [updated] = await db
+        .update(platformSettings)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(platformSettings.id, id!))
+        .returning();
+      return updated;
+    } catch (err: any) {
+      if (err?.code === '42P01') throw new Error('Platform settings table missing');
+      throw err;
+    }
   }
 
   async deletePlatformSetting(id: string): Promise<void> {
-      try {
-        await db.delete(platformSettings).where(eq(platformSettings.id, id));
-      } catch (err: any) {
-        if (err?.code === '42P01') return;
-        throw err;
-      }
+    try {
+      await db.delete(platformSettings).where(eq(platformSettings.id, id));
+    } catch (err: any) {
+      if (err?.code === '42P01') return;
+      throw err;
+    }
   }
 
   async getPlatformSettingByKey(key: string): Promise<PlatformSetting | undefined> {
-      try {
-        const [setting] = await db
-          .select()
-          .from(platformSettings)
-          .where(eq(platformSettings.key, key))
-          .limit(1);
-        return setting;
-      } catch (err: any) {
-        if (err?.code === '42P01') return undefined;
-        throw err;
-      }
+    try {
+      const [setting] = await db
+        .select()
+        .from(platformSettings)
+        .where(eq(platformSettings.key, key))
+        .limit(1);
+      return setting;
+    } catch (err: any) {
+      if (err?.code === '42P01') return undefined;
+      throw err;
+    }
   }
 
   async getPlatformSettingsByCategory(category: string): Promise<PlatformSetting[]> {
-      try {
-        return await db
-          .select()
-          .from(platformSettings)
-          .where(eq(platformSettings.category, category))
-          .orderBy(platformSettings.key);
-      } catch (err: any) {
-        if (err?.code === '42P01') return [];
-        throw err;
-      }
+    try {
+      return await db
+        .select()
+        .from(platformSettings)
+        .where(eq(platformSettings.category, category))
+        .orderBy(platformSettings.key);
+    } catch (err: any) {
+      if (err?.code === '42P01') return [];
+      throw err;
+    }
   }
 
   // ========================================================================
@@ -2408,7 +2427,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDocumentTemplate(template: UpdateDocumentTemplate): Promise<DocumentTemplate> {
-    const { id, ...updates} = template;
+    const { id, ...updates } = template;
     const [updated] = await db
       .update(documentTemplates)
       .set({ ...updates, updatedAt: new Date() })
@@ -2448,13 +2467,13 @@ export class DatabaseStorage implements IStorage {
       })
       .from(adminAuditLogs)
       .leftJoin(users, eq(adminAuditLogs.adminId, users.id));
-    
+
     if (adminId) {
       const results = await baseQuery
         .where(eq(adminAuditLogs.adminId, adminId))
         .orderBy(desc(adminAuditLogs.createdAt))
         .limit(200);
-      
+
       return results.map(r => ({
         id: r.id,
         adminId: r.adminId,
@@ -2468,11 +2487,11 @@ export class DatabaseStorage implements IStorage {
         admin: r.admin?.id ? r.admin as User : null,
       }));
     }
-    
+
     const results = await baseQuery
       .orderBy(desc(adminAuditLogs.createdAt))
       .limit(200);
-    
+
     return results.map(r => ({
       id: r.id,
       adminId: r.adminId,
@@ -2505,7 +2524,7 @@ export class DatabaseStorage implements IStorage {
 
   async enableTwoFactorAuth(userId: string): Promise<void> {
     const existing = await this.getTwoFactorAuthStatus(userId);
-    
+
     if (existing) {
       await db
         .update(twoFactorAuth)
@@ -2571,7 +2590,7 @@ export class DatabaseStorage implements IStorage {
         )
       )
       .limit(1);
-    
+
     if (existing.length > 0) {
       return existing[0];
     }
@@ -2621,7 +2640,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(sellerVerificationRequests.status, 'pending'))
       .orderBy(desc(sellerVerificationRequests.submittedAt));
-    
+
     return requests;
   }
 
@@ -2643,7 +2662,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id))
       .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .orderBy(desc(sellerVerificationRequests.submittedAt));
-    
+
     return requests;
   }
 
@@ -2763,7 +2782,7 @@ export class DatabaseStorage implements IStorage {
       verificationStatus: status as any,
       updatedAt: new Date(),
     };
-    
+
     if (badgeColor !== undefined) {
       updateData.badgeColor = badgeColor;
     }
@@ -2773,7 +2792,7 @@ export class DatabaseStorage implements IStorage {
       .set(updateData)
       .where(eq(users.id, userId))
       .returning();
-    
+
     return updated;
   }
 
@@ -2861,6 +2880,219 @@ export class DatabaseStorage implements IStorage {
       .where(eq(paymentMethodDetails.id, id))
       .returning();
     return method;
+  }
+
+  // ========================================================================
+  // Buyer Tier Upgrade operations implementation
+  // ========================================================================
+  async createTierUpgradeRequest(requestId: string, userId: string, requestedTier: string): Promise<any> {
+    const [request] = await db
+      .insert(tierUpgradeRequests)
+      .values({
+        id: requestId,
+        userId,
+        requestedTier: requestedTier as any,
+        status: 'draft',
+        submittedAt: new Date(),
+      })
+      .returning();
+    return request;
+  }
+
+  async submitTierUpgradeRequest(requestId: string): Promise<any> {
+    const [request] = await db
+      .update(tierUpgradeRequests)
+      .set({
+        status: 'pending',
+        submittedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, requestId))
+      .returning();
+    return request;
+  }
+
+  async getTierUpgradeRequestById(id: string): Promise<any> {
+    const [request] = await db
+      .select({
+        ...tierUpgradeRequests, // all fields from request
+        buyerEmail: users.email,
+        buyerFirstName: users.firstName,
+        buyerLastName: users.lastName,
+      })
+      .from(tierUpgradeRequests)
+      .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .where(eq(tierUpgradeRequests.id, id));
+    return request;
+  }
+
+  async getTierUpgradeRequestByUserId(userId: string): Promise<any> {
+    const [request] = await db
+      .select({
+        ...tierUpgradeRequests,
+        buyerEmail: users.email,
+        buyerFirstName: users.firstName,
+        buyerLastName: users.lastName,
+      })
+      .from(tierUpgradeRequests)
+      .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .where(eq(tierUpgradeRequests.userId, userId))
+      .orderBy(desc(tierUpgradeRequests.createdAt))
+      .limit(1);
+    return request;
+  }
+
+  async getAllTierUpgradeRequests(): Promise<any[]> {
+    return await db
+      .select({
+        id: tierUpgradeRequests.id,
+        userId: tierUpgradeRequests.userId,
+        requestedTier: tierUpgradeRequests.requestedTier,
+        status: tierUpgradeRequests.status,
+        rejectionReason: tierUpgradeRequests.rejectionReason,
+        submittedAt: tierUpgradeRequests.submittedAt,
+        reviewedAt: tierUpgradeRequests.reviewedAt,
+        reviewedBy: tierUpgradeRequests.reviewedBy,
+        documentCount: tierUpgradeRequests.documentCount,
+        createdAt: tierUpgradeRequests.createdAt,
+        updatedAt: tierUpgradeRequests.updatedAt,
+        buyerEmail: users.email,
+        buyerFirstName: users.firstName,
+        buyerLastName: users.lastName,
+      })
+      .from(tierUpgradeRequests)
+      .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .orderBy(desc(tierUpgradeRequests.submittedAt));
+  }
+
+  async getPendingTierUpgradeRequests(): Promise<any[]> {
+    return await db
+      .select({
+        id: tierUpgradeRequests.id,
+        userId: tierUpgradeRequests.userId,
+        requestedTier: tierUpgradeRequests.requestedTier,
+        status: tierUpgradeRequests.status,
+        rejectionReason: tierUpgradeRequests.rejectionReason,
+        submittedAt: tierUpgradeRequests.submittedAt,
+        reviewedAt: tierUpgradeRequests.reviewedAt,
+        reviewedBy: tierUpgradeRequests.reviewedBy,
+        documentCount: tierUpgradeRequests.documentCount,
+        createdAt: tierUpgradeRequests.createdAt,
+        updatedAt: tierUpgradeRequests.updatedAt,
+        buyerEmail: users.email,
+        buyerFirstName: users.firstName,
+        buyerLastName: users.lastName,
+      })
+      .from(tierUpgradeRequests)
+      .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .where(or(eq(tierUpgradeRequests.status, 'pending'), eq(tierUpgradeRequests.status, 'draft')))
+      .orderBy(desc(tierUpgradeRequests.submittedAt));
+  }
+
+  async approveTierUpgradeRequest(id: string, reviewerId: string): Promise<any> {
+    // First get the request
+    const request = await this.getTierUpgradeRequestById(id);
+    if (!request) throw new Error("Request not found");
+
+    // Update request status
+    const [updatedRequest] = await db
+      .update(tierUpgradeRequests)
+      .set({
+        status: 'approved',
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, id))
+      .returning();
+
+    // Update user tier
+    await db
+      .update(users)
+      .set({ membershipTier: request.requestedTier as any })
+      .where(eq(users.id, request.userId));
+
+    return updatedRequest;
+  }
+
+  async rejectTierUpgradeRequest(id: string, reviewerId: string, reason: string): Promise<any> {
+    const [updatedRequest] = await db
+      .update(tierUpgradeRequests)
+      .set({
+        status: 'rejected',
+        rejectionReason: reason,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async revertTierUpgradeRequest(id: string): Promise<any> {
+    const [updatedRequest] = await db
+      .update(tierUpgradeRequests)
+      .set({
+        status: 'draft',
+        rejectionReason: null, // Clear rejection reason
+        reviewedBy: null,
+        reviewedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(tierUpgradeRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  async createTierUpgradeDocument(data: any): Promise<any> {
+    const [doc] = await db
+      .insert(tierUpgradeDocuments)
+      .values(data)
+      .returning();
+
+    // Increment document count on request
+    await db.execute(sql`
+      UPDATE ${tierUpgradeRequests}
+      SET document_count = document_count + 1, updated_at = NOW()
+      WHERE id = ${data.requestId}
+    `);
+
+    return doc;
+  }
+
+  async getTierUpgradeDocuments(requestId: string): Promise<any[]> {
+    return await db
+      .select()
+      .from(tierUpgradeDocuments)
+      .where(eq(tierUpgradeDocuments.requestId, requestId))
+      .orderBy(desc(tierUpgradeDocuments.uploadedAt));
+  }
+
+  async createTierUpgradePayment(data: any): Promise<any> {
+    const [payment] = await db
+      .insert(tierUpgradePayments)
+      .values(data)
+      .returning();
+    return payment;
+  }
+
+  async updateTierUpgradePayment(id: string, data: any): Promise<any> {
+    const [updated] = await db
+      .update(tierUpgradePayments)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tierUpgradePayments.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getTierUpgradePaymentByRequestId(requestId: string): Promise<any | undefined> {
+    const [payment] = await db
+      .select()
+      .from(tierUpgradePayments)
+      .where(eq(tierUpgradePayments.upgradeRequestId, requestId))
+      .limit(1);
+    return payment;
   }
 }
 

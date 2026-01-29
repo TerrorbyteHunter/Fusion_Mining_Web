@@ -61,63 +61,9 @@ function getUserId(req: any): string | null {
 }
 
 // ========================================================================
-// In-Memory State Management for Demo/Development
+// Buyer Tier Upgrade Routes
 // ========================================================================
 
-interface BuyerUpgradeRequest {
-  id: string;
-  userId: string;
-  buyerEmail: string;
-  buyerFirstName: string;
-  buyerLastName: string;
-  requestedTier: string;
-  status: 'draft' | 'pending' | 'approved' | 'rejected';
-  rejectionReason?: string;
-  submittedAt?: string;
-  reviewedAt?: string;
-  documentCount: number;
-}
-
-// In-memory storage for tier upgrade requests
-const buyerUpgradeRequests: Map<string, BuyerUpgradeRequest> = new Map([
-  ['upgrade-1', {
-    id: 'upgrade-1',
-    userId: 'test-buyer-789',
-    buyerEmail: 'henry@fusionmining.com',
-    buyerFirstName: 'Henry',
-    buyerLastName: 'Brown',
-    requestedTier: 'premium',
-    status: 'approved',
-    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 4,
-  }],
-  ['upgrade-2', {
-    id: 'upgrade-2',
-    userId: 'buyer-2',
-    buyerEmail: 'buyer2@example.com',
-    buyerFirstName: 'John',
-    buyerLastName: 'Doe',
-    requestedTier: 'standard',
-    status: 'approved',
-    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 3,
-  }],
-  ['upgrade-3', {
-    id: 'upgrade-3',
-    userId: 'buyer-3',
-    buyerEmail: 'buyer3@example.com',
-    buyerFirstName: 'Sarah',
-    buyerLastName: 'Smith',
-    requestedTier: 'premium',
-    status: 'rejected',
-    rejectionReason: 'Incomplete documentation. Missing Director ID and Tax Certificate.',
-    submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-    documentCount: 2,
-  }],
-]);
 
 interface TestUser {
   id: string;
@@ -652,7 +598,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/marketplace/listings', async (req: any, res) => {
     try {
       const { type, status } = req.query;
-      const isAdmin = req.user && req.user.role === 'admin';
+      // Use getUserId helper and check role from storage for robust admin check
+      const userId = getUserId(req);
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin = user && user.role === 'admin';
+
       const listings = await storage.getMarketplaceListings({
         type: type as string,
         status: status as string,
@@ -853,15 +803,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/marketplace/listings/:id/close', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const user = await storage.getUserById(userId);
       const listing = await storage.getMarketplaceListingById(req.params.id);
 
       if (!listing) {
         return res.status(404).json({ message: "Listing not found" });
       }
 
-      if (user?.role !== 'admin' && listing.sellerId !== userId) {
+      // Check if user is admin or the seller
+      if (req.user.role !== 'admin' && listing.sellerId !== req.user.id) {
         return res.status(403).json({ message: "Only the seller or admin can close this listing" });
       }
 
@@ -872,6 +821,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to close listing" });
     }
   });
+
+  // Admin Create Listing endpoint
+  app.post('/api/admin/listings/create', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+    try {
+      console.log("[ADMIN] Creating listing with body:", req.body);
+
+      const validatedData = insertMarketplaceListingSchema.parse({
+        ...req.body,
+        sellerId: req.body.sellerId || req.user!.id, // Default to admin's ID if no sellerId provided
+        status: 'active', // Admin created listings are active by default
+        verified: true, // Admin created listings are verified by default
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      const listing = await storage.createMarketplaceListing(validatedData);
+
+      // Log activity
+      try {
+        await storage.createActivityLog({
+          userId: req.user!.id,
+          action: 'admin_create_listing',
+          entityType: 'listing',
+          entityId: listing.id,
+          details: `Admin created listing: ${listing.title}`,
+          metadata: { listingId: listing.id, listingType: listing.type },
+        });
+      } catch (logError) {
+        console.error('[ACTIVITY LOG] Failed to log listing creation:', logError);
+      }
+
+      res.status(201).json(listing);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+
+  // Admin Reject endpoint
+  app.post('/api/admin/reject/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageVerification'), async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const listingId = req.params.id;
+
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+
+      console.log(`[ADMIN] Rejecting listing ${listingId} with reason: ${reason}`);
+
+      // 1. Update listing status and reason
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+
+      await storage.updateMarketplaceListing(listingId, {
+        status: 'rejected',
+        rejectionReason: reason
+      });
+
+      res.json({ success: true, message: "Listing rejected" });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ message: "Failed to reject listing" });
+    }
+  });
+
 
   // ========================================================================
   // Message Thread Routes
@@ -3459,7 +3480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
-  // Buyer Tier Upgrade Routes (Placeholder - storage methods need to be implemented)
+  // Buyer Tier Upgrade Routes
   // ========================================================================
 
   // Create tier upgrade request (Buyer only)
@@ -3474,20 +3495,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
       }
 
-      // Create and store in in-memory map
-      const newRequest: BuyerUpgradeRequest = {
-        id: `tier-upgrade-${Date.now()}`,
-        userId: req.user.id,
-        buyerEmail: req.user.email || '',
-        buyerFirstName: req.user.firstName || '',
-        buyerLastName: req.user.lastName || '',
-        requestedTier,
-        status: 'draft',
-        submittedAt: new Date().toISOString(),
-        documentCount: 0,
-      };
-      buyerUpgradeRequests.set(newRequest.id, newRequest);
-      res.json(newRequest);
+      // Check if request already exists
+      const existing = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      if (existing && (existing.status === 'pending' || existing.status === 'draft')) {
+        // If draft, return it. If pending, error? 
+        // Logic: if draft exists, return it.
+        if (existing.status === 'draft') return res.json(existing);
+        return res.status(400).json({ message: "You already have a pending tier upgrade request" });
+      }
+
+      const requestId = `tier-upgrade-${Date.now()}`;
+      const request = await storage.createTierUpgradeRequest(requestId, req.user.id, requestedTier);
+
+      res.json(request);
     } catch (error) {
       console.error("Error creating tier upgrade request:", error);
       res.status(500).json({ message: "Failed to create tier upgrade request" });
@@ -3501,16 +3521,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only buyers can access this endpoint" });
       }
 
-      // Find the user's tier upgrade request from in-memory store
-      let userRequest: BuyerUpgradeRequest | null = null;
-      for (const request of Array.from(buyerUpgradeRequests.values())) {
-        if (request.userId === req.user.id) {
-          userRequest = request;
-          break;
-        }
-      }
-
-      res.json(userRequest);
+      const request = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      res.json(request || null);
     } catch (error) {
       console.error("Error fetching tier upgrade request:", error);
       res.status(500).json({ message: "Failed to fetch tier upgrade request" });
@@ -3536,18 +3548,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
 
-      // For now, return mock data - storage methods to be implemented
-      const mockDocument = {
-        id: `doc-${Date.now()}`,
+      const document = await storage.createTierUpgradeDocument({
         requestId,
         documentType,
         fileName: req.file.originalname,
         filePath: relativePath,
-        uploadedAt: new Date().toISOString(),
-      };
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+      });
 
       res.json({
-        document: mockDocument,
+        document,
         filename: req.file.originalname,
         url: relativePath,
         size: req.file.size,
@@ -3571,8 +3582,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Request ID is required" });
       }
 
-      // Find and update the request in in-memory store
-      const request = buyerUpgradeRequests.get(requestId);
+      const request = await storage.getTierUpgradeRequestById(requestId);
       if (!request) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
@@ -3581,20 +3591,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
 
-      // Update status to 'pending'
-      request.status = 'pending';
-      request.submittedAt = new Date().toISOString();
-      buyerUpgradeRequests.set(requestId, request);
+      const updated = await storage.submitTierUpgradeRequest(requestId);
 
       res.json({
         success: true,
         message: "Tier upgrade request submitted successfully",
-        status: 'pending',
-        submittedAt: new Date().toISOString(),
+        status: updated.status,
+        submittedAt: updated.submittedAt,
       });
     } catch (error: any) {
       console.error("Error submitting tier upgrade request:", error);
       res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
+    }
+  });
+  // Get current user's tier upgrade request (Buyer)
+  app.get('/api/buyer/tier-upgrade-request', isAuthenticated, async (req: any, res) => {
+    try {
+      if (req.user.role !== 'buyer') {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
+      }
+
+      const request = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      res.json(request || null);
+    } catch (error) {
+      console.error("Error fetching tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to fetch tier upgrade request" });
     }
   });
 
@@ -3603,16 +3624,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   // Get pending buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades/pending', async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades/pending', requireAdmin, async (req: any, res) => {
     try {
-      // In development, allow requests without full auth (mock data)
-      const isDev = process.env.NODE_ENV === 'development';
-      if (!isDev && !req.user?.id) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // Return pending requests from in-memory store
-      const pendingRequests = getPendingBuyerUpgrades();
+      const pendingRequests = await storage.getPendingTierUpgradeRequests();
       res.json(pendingRequests);
     } catch (error) {
       console.error("Error fetching pending buyer tier upgrades:", error);
@@ -3621,16 +3635,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all buyer tier upgrade requests (Admin only)
-  app.get('/api/admin/buyer-upgrades', async (req: any, res) => {
+  app.get('/api/admin/buyer-upgrades', requireAdmin, async (req: any, res) => {
     try {
-      // In development, allow requests without full auth (mock data)
-      const isDev = process.env.NODE_ENV === 'development';
-      if (!isDev && !req.user?.id) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      // Return all requests from in-memory store
-      const allRequests = getAllBuyerUpgrades();
+      const allRequests = await storage.getAllTierUpgradeRequests();
       res.json(allRequests);
     } catch (error) {
       console.error("Error fetching buyer tier upgrades:", error);
@@ -3639,47 +3646,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get documents for a buyer tier upgrade request (Admin only)
-  app.get('/api/admin/buyer-upgrades/documents/:requestId', async (req: any, res) => {
-    // In development, allow requests without full auth (mock data)
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.get('/api/admin/buyer-upgrades/documents/:requestId', requireAdmin, async (req: any, res) => {
     try {
       const { requestId } = req.params;
-
-      // For now, return mock data - storage methods to be implemented
-      const mockDocuments = [
-        {
-          id: 'doc-1',
-          documentType: 'certificate_of_incorporation',
-          fileName: 'Company_Certificate.pdf',
-          filePath: '/attached_assets/files/uploads/verification/cert.pdf',
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'doc-2',
-          documentType: 'company_profile',
-          fileName: 'Company_Profile.docx',
-          filePath: '/attached_assets/files/uploads/verification/profile.docx',
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'doc-3',
-          documentType: 'shareholder_list',
-          fileName: 'Shareholders.pdf',
-          filePath: '/attached_assets/files/uploads/verification/shareholders.pdf',
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: 'doc-4',
-          documentType: 'tax_certificate',
-          fileName: 'Tax_Certificate.pdf',
-          filePath: '/attached_assets/files/uploads/verification/tax.pdf',
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ];
-      res.json(mockDocuments);
+      const documents = await storage.getTierUpgradeDocuments(requestId);
+      res.json(documents);
     } catch (error) {
       console.error("Error fetching buyer tier upgrade documents:", error);
       res.status(500).json({ message: "Failed to fetch documents" });
@@ -3687,20 +3658,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve buyer tier upgrade request (Admin only)
-  app.post('/api/admin/buyer-upgrades/approve/:id', async (req: any, res) => {
-    // In development, allow requests without full auth (mock data)
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post('/api/admin/buyer-upgrades/approve/:id', requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const reviewerId = req.user.id;
 
-      // Update in-memory store
-      const updated = await approveBuyerUpgrade(id);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const updated = await storage.approveTierUpgradeRequest(id, reviewerId);
 
       // Create notification for buyer
       await storage.createNotification({
@@ -3715,7 +3678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         message: "Tier upgrade request approved successfully",
         status: 'approved',
-        reviewedAt: new Date().toISOString(),
+        reviewedAt: updated.reviewedAt,
       });
     } catch (error) {
       console.error("Error approving buyer tier upgrade:", error);
@@ -3724,27 +3687,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reject buyer tier upgrade request (Admin only)
-  app.post('/api/admin/buyer-upgrades/reject/:id', async (req: any, res) => {
-    // In development, allow requests without full auth (mock data)
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post('/api/admin/buyer-upgrades/reject/:id', requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
+      const reviewerId = req.user.id;
 
       if (!reason) {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
 
-      // Update in-memory store
-      const updated = await rejectBuyerUpgrade(id, reason);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const updated = await storage.rejectTierUpgradeRequest(id, reviewerId, reason);
 
-      // Create notification for buyer
       await storage.createNotification({
         userId: updated.userId,
         type: 'tier_upgrade',
@@ -3758,7 +3712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Tier upgrade request rejected successfully",
         status: 'rejected',
         rejectionReason: reason,
-        reviewedAt: new Date().toISOString(),
+        reviewedAt: updated.reviewedAt,
       });
     } catch (error) {
       console.error("Error rejecting buyer tier upgrade:", error);
@@ -3767,31 +3721,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Revert buyer tier upgrade request to draft (Admin only)
-  app.post('/api/admin/buyer-upgrades/revert/:id', async (req: any, res) => {
-    // In development, allow requests without full auth (mock data)
-    const isDev = process.env.NODE_ENV === 'development';
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app.post('/api/admin/buyer-upgrades/revert/:id', requireAdmin, async (req: any, res) => {
     try {
       const { id } = req.params;
-
-      // Update in-memory store
-      const updated = await revertBuyerUpgrade(id);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const updated = await storage.revertTierUpgradeRequest(id);
 
       res.json({
         success: true,
         message: "Tier upgrade request reverted to draft successfully",
         status: 'draft',
+        updatedAt: updated.updatedAt,
       });
     } catch (error) {
       console.error("Error reverting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to revert tier upgrade request" });
     }
   });
+
+  // ========================================================================
+  // Tier Upgrade Payment Routes
+  // ========================================================================
+
+  // Get all active payment methods
+  app.get('/api/payment-methods', async (req, res) => {
+    try {
+      const methods = await storage.getAllPaymentMethodDetails();
+      // If none exist, seed some defaults for demo
+      if (methods.length === 0) {
+        const defaults = [
+          {
+            method: 'bank_transfer',
+            name: 'Bank Transfer (Zambia)',
+            description: 'Local ZMK/USD bank transfer',
+            instructions: 'Please transfer the amount to the provided account and upload proof of payment.',
+            accountDetails: { bank: 'Zambia National Commercial Bank (Zanaco)', accountName: 'Fusion Mining Limited', accountNo: '54829302930' },
+            currencyCode: 'ZMW',
+            currencyName: 'Zambian Kwacha',
+            isActive: true
+          },
+          {
+            method: 'airtel_money',
+            name: 'Airtel Money',
+            description: 'Mobile money payment',
+            instructions: 'Send money to +260 978 838 939 and upload confirmation message screenshot.',
+            accountDetails: { merchantId: 'FUSION789', phone: '+260 978 838 939' },
+            currencyCode: 'ZMW',
+            currencyName: 'Zambian Kwacha',
+            isActive: true
+          },
+          {
+            method: 'wechat_alipay',
+            name: 'WeChat / AliPay (USD)',
+            description: 'International digital payments',
+            instructions: 'Scan the QR code to pay via WeChat or AliPay.',
+            accountDetails: { wechatId: 'fusion_mining_china', alipayId: 'fusion@mining.com' },
+            currencyCode: 'USD',
+            currencyName: 'US Dollar',
+            isActive: true
+          }
+        ];
+
+        for (const d of defaults) {
+          await storage.createPaymentMethodDetails(d as any);
+        }
+        return res.json(await storage.getAllPaymentMethodDetails());
+      }
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+
+  // Create payment record for tier upgrade
+  app.post('/api/buyer/tier-upgrade/payment', isAuthenticated, async (req: any, res) => {
+    try {
+      const { upgradeRequestId, paymentMethod, amount } = req.body;
+      if (!upgradeRequestId || !paymentMethod || !amount) {
+        return res.status(400).json({ message: "Missing required payment fields" });
+      }
+
+      // amount is in USD from frontend
+      const exchangeRate = 25.0; // Fixed rate for demo
+      const amountZMW = amount * exchangeRate;
+
+      const payment = await storage.createTierUpgradePayment({
+        upgradeRequestId,
+        userId: req.user.id,
+        requestedTier: 'premium', // Default to premium for now or fetch from request
+        paymentMethod,
+        amountUSD: amount.toString(),
+        amount: amountZMW.toString(),
+        currency: 'ZMW',
+        status: 'pending',
+      } as any);
+
+      res.json(payment);
+    } catch (error: any) {
+      console.error("Error creating tier upgrade payment:", error);
+      res.status(500).json({ message: error.message || "Failed to create payment" });
+    }
+  });
+
+  // Upload proof of payment for a tier upgrade
+  app.post('/api/buyer/tier-upgrade/payment/:id/proof', isAuthenticated, verificationUpload.single('proofOfPayment'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No proof of payment file uploaded" });
+      }
+
+      const paymentId = req.params.id;
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+
+      const updated = await storage.updateTierUpgradePayment(paymentId, {
+        proofOfPaymentUrl: relativePath,
+        status: 'paid', // Mark as paid once proof is uploaded
+      } as any);
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error uploading proof of payment:", error);
+      res.status(500).json({ message: error.message || "Failed to upload proof" });
+    }
+  });
+
+
 
   // ========================================================================
   // Notification Routes

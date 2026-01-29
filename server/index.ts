@@ -13,8 +13,18 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { requireAuth } from "./clerk";
 import pg from "pg";
+import clerkWebhookHandler from "../api/clerk-webhook";
 
 const app = express();
+
+// Special handling for Clerk webhook to get raw body for signature verification
+// Must be defined BEFORE the global express.json() middleware
+app.post('/api/clerk-webhook', express.json({
+  verify: (req: any, _res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}), clerkWebhookHandler);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -141,19 +151,19 @@ app.use((req, res, next) => {
     } else {
       // Production: serve static files
       console.log('Production mode: serving static files');
+      try {
+        const checkPath = path.resolve(process.cwd(), 'build', 'public');
+        console.log('Resolved build public path for production:', checkPath);
+        console.log('Exists:', fs.existsSync(checkPath));
         try {
-          const checkPath = path.resolve(process.cwd(), 'build', 'public');
-          console.log('Resolved build public path for production:', checkPath);
-          console.log('Exists:', fs.existsSync(checkPath));
-          try {
-            console.log('Files at build/public:', fs.readdirSync(checkPath).slice(0, 20));
-          } catch (e) {
-            console.log('Could not list files at build/public:', e instanceof Error ? e.message : String(e));
-          }
+          console.log('Files at build/public:', fs.readdirSync(checkPath).slice(0, 20));
         } catch (e) {
-          console.log('Error while checking build/public path:', e instanceof Error ? e.message : String(e));
+          console.log('Could not list files at build/public:', e instanceof Error ? e.message : String(e));
         }
-        serveStatic(app);
+      } catch (e) {
+        console.log('Error while checking build/public path:', e instanceof Error ? e.message : String(e));
+      }
+      serveStatic(app);
 
       // Only listen on port if NOT on Vercel or Replit
       // Vercel and Replit don't need us to call server.listen()

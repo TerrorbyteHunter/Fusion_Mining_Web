@@ -172,6 +172,7 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   price: varchar("price"), // e.g., "$5000/tonne"
   imageUrl: varchar("image_url"),
   status: listingStatusEnum("status").notNull().default('pending'),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -784,18 +785,96 @@ export const sellerVerificationDocumentsRelations = relations(sellerVerification
 }));
 
 // ============================================================================
+// Payment Methods and Tier Upgrade Payments
+// ============================================================================
+export const paymentMethodEnum = pgEnum('payment_method', ['bank_transfer', 'airtel_money', 'wechat_alipay']);
+
+export const tierUpgradeRequests = pgTable("tier_upgrade_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestedTier: membershipTierEnum("requested_tier").notNull(),
+  status: varchar("status").notNull().default('draft'), // draft, pending, approved, rejected
+  rejectionReason: text("rejection_reason"),
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  documentCount: integer("document_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const tierUpgradePayments = pgTable("tier_upgrade_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  upgradeRequestId: varchar("upgrade_request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  requestedTier: membershipTierEnum("requested_tier").notNull(),
+  paymentMethod: paymentMethodEnum("payment_method").notNull(),
+  amountUSD: decimal("amount_usd", { precision: 10, scale: 2 }).notNull(), // Original USD amount
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Converted amount in local currency
+  currency: varchar("currency").notNull().default('ZMW'), // Local currency code
+  status: varchar("status").notNull().default('pending'), // pending, paid, verified, rejected
+  paymentDetails: jsonb("payment_details"), // Store payment method specific details
+  proofOfPaymentUrl: varchar("proof_of_payment_url"),
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by").references(() => users.id),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Tier Upgrade Documents
+// ============================================================================
+export const tierUpgradeDocuments = pgTable("tier_upgrade_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestId: varchar("request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: 'cascade' }),
+  documentType: varchar("document_type").notNull(), // e.g., 'proof_of_funds', 'company_reg'
+  fileName: varchar("file_name").notNull(),
+  filePath: varchar("file_path").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: varchar("mime_type"),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+}, (table) => [
+  index("IDX_tier_upgrade_doc_req_id").on(table.requestId),
+]);
+
+export const tierUpgradeRequestsRelations = relations(tierUpgradeRequests, ({ one, many }) => ({
+  user: one(users, {
+    fields: [tierUpgradeRequests.userId],
+    references: [users.id],
+    relationName: 'user',
+  }),
+  reviewer: one(users, {
+    fields: [tierUpgradeRequests.reviewedBy],
+    references: [users.id],
+    relationName: 'reviewer',
+  }),
+  documents: many(tierUpgradeDocuments),
+}));
+
+export const tierUpgradeDocumentsRelations = relations(tierUpgradeDocuments, ({ one }) => ({
+  request: one(tierUpgradeRequests, {
+    fields: [tierUpgradeDocuments.requestId],
+    references: [tierUpgradeRequests.id],
+  }),
+}));
+
+// ============================================================================
 // Zod Schemas for validation
 // ============================================================================
 
 // User schemas
 export const upsertUserSchema = createInsertSchema(users).pick({
   id: true,
+  clerkId: true,
   email: true,
   username: true,
   password: true,
   firstName: true,
   lastName: true,
   profileImageUrl: true,
+  role: true,
 });
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -1137,44 +1216,7 @@ export const insertSellerVerificationDocumentSchema = createInsertSchema(sellerV
 export type InsertSellerVerificationDocument = z.infer<typeof insertSellerVerificationDocumentSchema>;
 export type SellerVerificationDocument = typeof sellerVerificationDocuments.$inferSelect;
 
-// ============================================================================
-// Payment Methods and Tier Upgrade Payments
-// ============================================================================
-export const paymentMethodEnum = pgEnum('payment_method', ['bank_transfer', 'airtel_money', 'wechat_alipay']);
 
-export const tierUpgradeRequests = pgTable("tier_upgrade_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  requestedTier: membershipTierEnum("requested_tier").notNull(),
-  status: varchar("status").notNull().default('draft'), // draft, pending, approved, rejected
-  rejectionReason: text("rejection_reason"),
-  submittedAt: timestamp("submitted_at"),
-  reviewedAt: timestamp("reviewed_at"),
-  reviewedBy: varchar("reviewed_by").references(() => users.id),
-  documentCount: integer("document_count").notNull().default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export const tierUpgradePayments = pgTable("tier_upgrade_payments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  upgradeRequestId: varchar("upgrade_request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: 'cascade' }),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  requestedTier: membershipTierEnum("requested_tier").notNull(),
-  paymentMethod: paymentMethodEnum("payment_method").notNull(),
-  amountUSD: decimal("amount_usd", { precision: 10, scale: 2 }).notNull(), // Original USD amount
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(), // Converted amount in local currency
-  currency: varchar("currency").notNull().default('ZMW'), // Local currency code
-  status: varchar("status").notNull().default('pending'), // pending, paid, verified, rejected
-  paymentDetails: jsonb("payment_details"), // Store payment method specific details
-  proofOfPaymentUrl: varchar("proof_of_payment_url"),
-  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
-  verifiedAt: timestamp("verified_at"),
-  verifiedBy: varchar("verified_by").references(() => users.id),
-  rejectionReason: text("rejection_reason"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
 
 export const paymentMethodDetails = pgTable("payment_method_details", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

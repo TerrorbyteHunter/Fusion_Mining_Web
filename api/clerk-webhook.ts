@@ -1,59 +1,99 @@
-import express from 'express';
-import { db } from '../server/db';
-import { users } from '../shared/schema';
+import { Webhook } from 'svix';
+import { storage } from '../server/storage';
 
-const router = express.Router();
+export default async function clerkWebhookHandler(req: any, res: any) {
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
-// Clerk webhook endpoint for user.created and user.updated
-
-router.post('/api/clerk-webhook', async (req, res) => {
-  const event = req.body;
-  if (!event || !event.type || !event.data) {
-    return res.status(400).json({ message: 'Invalid webhook payload' });
+  if (!WEBHOOK_SECRET) {
+    console.error('CLERK_WEBHOOK_SECRET is not set');
+    return res.status(500).json({ message: 'Webhook secret not configured' });
   }
 
-  if (event.type === 'user.created' || event.type === 'user.updated') {
-    const user = event.data;
-    // Upsert user in Supabase (Postgres)
+  // Get the headers
+  const svix_id = req.headers["svix-id"] as string;
+  const svix_timestamp = req.headers["svix-timestamp"] as string;
+  const svix_signature = req.headers["svix-signature"] as string;
+
+  // If there are no headers, error out
+  if (!svix_id || !svix_timestamp || !svix_signature) {
+    console.error('Missing svix headers');
+    return res.status(400).json({ message: 'Error occured -- no svix headers' });
+  }
+
+  // Get the body
+  // We need the raw body for verification.
+  const body = req.rawBody || JSON.stringify(req.body);
+
+  // Create a new Svix instance with your secret.
+  const wh = new Webhook(WEBHOOK_SECRET);
+
+  let evt: any;
+
+  // Verify the payload with the headers
+  try {
+    evt = wh.verify(body, {
+      "svix-id": svix_id,
+      "svix-timestamp": svix_timestamp,
+      "svix-signature": svix_signature,
+    });
+  } catch (err) {
+    console.error('Error verifying webhook:', err);
+    return res.status(400).json({ message: 'Error occured' });
+  }
+
+  // Handle the webhooks
+  const eventType = evt.type;
+  console.log(`Clerk Webhook received: ${eventType}`);
+
+  if (eventType === 'user.created' || eventType === 'user.updated') {
+    const { id, email_addresses, first_name, last_name, image_url, public_metadata, unsafe_metadata } = evt.data;
+
+    const email = email_addresses?.[0]?.email_address;
+    const role = (public_metadata?.role || unsafe_metadata?.role || 'buyer') as any;
+
     try {
-      await db
-        .insert(users)
-        .values({
-          clerkId: user.id,
-          email: user.email_addresses?.[0]?.email_address || null,
-          first_name: user.first_name || null,
-          last_name: user.last_name || null,
-          role: 'user', // or 'admin' if you want to auto-promote
-          // Add other fields as needed
-        })
-        .onConflictDoUpdate({
-          target: users.clerkId,
-          set: {
-            email: user.email_addresses?.[0]?.email_address || null,
-            first_name: user.first_name || null,
-            last_name: user.last_name || null,
-            // Add other fields as needed
-          },
+      console.log(`Upserting user: ${id} (${email})`);
+      const user = await storage.upsertUser({
+        clerkId: id,
+        email: email || '',
+        firstName: first_name || '',
+        lastName: last_name || '',
+        profileImageUrl: image_url || null,
+        role: role,
+      });
+
+      // Ensure profile exists
+      const existingProfile = await storage.getUserProfile(user.id);
+      if (!existingProfile) {
+        console.log(`Creating profile for user: ${user.id}`);
+        await storage.createUserProfile({
+          userId: user.id,
+          profileType: 'individual',
+          verified: false,
         });
-      return res.status(200).json({ message: 'User upserted' });
+      }
+
+      return res.status(200).json({ message: 'User updated in database' });
     } catch (error) {
-      console.error('Error upserting user from Clerk webhook:', error);
-      return res.status(500).json({ message: 'Failed to upsert user' });
+      console.error('Error updating user from Clerk webhook:', error);
+      return res.status(500).json({ message: 'Internal server error' });
     }
   }
 
-  if (event.type === 'user.deleted') {
-    const user = event.data;
+  if (eventType === 'user.deleted') {
+    const { id } = evt.data;
     try {
-      await db.delete(users).where(eq(users.clerkId, user.id));
-      return res.status(200).json({ message: 'User deleted' });
+      console.log(`Deleting user: ${id}`);
+      const user = await storage.getUserByClerkId(id);
+      if (user) {
+        await storage.deleteUser(user.id);
+      }
+      return res.status(200).json({ message: 'User deleted from database' });
     } catch (error) {
       console.error('Error deleting user from Clerk webhook:', error);
-      return res.status(500).json({ message: 'Failed to delete user' });
+      return res.status(500).json({ message: 'Internal server error' });
     }
   }
 
-  res.status(200).json({ message: 'Event ignored' });
-});
-
-export default router;
+  return res.status(200).json({ message: 'Webhook received' });
+}

@@ -58,6 +58,8 @@ interface TierUpgradeRequest {
     fileName: string;
     uploadedAt: string;
   }>;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface PendingDocument {
@@ -104,7 +106,7 @@ export default function BuyerTierUpgrade() {
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [documentType, setDocumentType] = useState<DocumentType>('certificate_of_incorporation');
   const [submitting, setSubmitting] = useState(false);
 
@@ -321,28 +323,28 @@ export default function BuyerTierUpgrade() {
   });
 
   const handleAddDocument = async () => {
-    if (!selectedFile) {
+    if (selectedFiles.length === 0) {
       toast({
         title: "Error",
-        description: "Please select a file to upload.",
+        description: "Please select at least one file to upload.",
         variant: "destructive",
       });
       return;
     }
 
-    const newDoc: PendingDocument = {
-      file: selectedFile,
+    const newDocs: PendingDocument[] = selectedFiles.map(file => ({
+      file,
       documentType: documentType,
       id: Math.random().toString(36).substr(2, 9),
-    };
+    }));
 
-    setPendingDocuments([...pendingDocuments, newDoc]);
-    setSelectedFile(null);
+    setPendingDocuments([...pendingDocuments, ...newDocs]);
+    setSelectedFiles([]);
     setDocumentType('certificate_of_incorporation');
 
     toast({
-      title: "Document Added",
-      description: `${selectedFile.name} has been added to your upload list.`,
+      title: "Documents Added",
+      description: `${newDocs.length} ${newDocs.length === 1 ? 'document has' : 'documents have'} been added to your upload list.`,
     });
   };
 
@@ -607,10 +609,10 @@ export default function BuyerTierUpgrade() {
                     <tbody className="[&_tr:last-child]:border-0">
                       {upgradeHistory.map((req) => (
                         <tr key={req.id} className="border-b transition-colors hover:bg-muted/50">
-                          <td className="p-4 align-middle">{new Date(req.submittedAt || req.createdAt).toLocaleDateString()}</td>
+                          <td className="p-4 align-middle">{new Date(req.submittedAt || (req as any).createdAt).toLocaleDateString()}</td>
                           <td className="p-4 align-middle capitalize">{req.requestedTier}</td>
                           <td className="p-4 align-middle">{getStatusBadge(req.status)}</td>
-                          <td className="p-4 align-middle text-right">{new Date(req.updatedAt || req.createdAt).toLocaleDateString()}</td>
+                          <td className="p-4 align-middle text-right">{new Date((req as any).updatedAt || (req as any).createdAt).toLocaleDateString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -714,24 +716,28 @@ export default function BuyerTierUpgrade() {
                       </div>
 
                       <div>
-                        <Label htmlFor="modal-file-upload" className="text-sm">Select File</Label>
+                        <Label htmlFor="modal-file-upload" className="text-sm">Select Files</Label>
                         <Input
                           id="modal-file-upload"
                           type="file"
+                          multiple
                           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                          onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            setSelectedFiles(files);
+                          }}
                           data-testid="input-modal-file-upload"
                           className="mt-1"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Accepted formats: PDF, JPG, PNG, DOC (Max 20MB)
+                          Accepted formats: PDF, JPG, PNG, DOC (Max 20MB per file)
                         </p>
                       </div>
                     </div>
 
                     <Button
                       onClick={handleAddDocument}
-                      disabled={!selectedFile}
+                      disabled={selectedFiles.length === 0}
                       variant="outline"
                       size="sm"
                       className="w-full"
@@ -956,7 +962,7 @@ export default function BuyerTierUpgrade() {
                     onClick={() => {
                       setModalOpen(false);
                       setPendingDocuments([]);
-                      setSelectedFile(null);
+                      setSelectedFiles([]);
                       setCurrentStep('documents');
                     }}
                     variant="outline"

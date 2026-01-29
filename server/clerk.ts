@@ -116,13 +116,38 @@ export const requireAdminPermission = (permission: keyof typeof adminPermissions
       }
 
       // Get admin permissions from database
-      const adminPerms = await storage.getAdminPermissions(req.auth.userId);
+      let adminPerms = await storage.getAdminPermissions(req.auth.userId);
+
+      // If no permissions in DB, check if user is admin and provide default super_admin permissions
       if (!adminPerms) {
-        return res.status(403).json({ message: 'Admin access required' });
+        const dbUser = await storage.getUserByClerkId(req.auth.userId);
+        if (!dbUser || dbUser.role !== 'admin') {
+          return res.status(403).json({ message: 'Admin access required' });
+        }
+
+        // Default to super_admin with all permissions
+        console.log(`[requireAdminPermission] No permissions in DB for admin user ${req.auth.userId}, granting all permissions as super_admin`);
+        adminPerms = {
+          canManageUsers: true,
+          canManageListings: true,
+          canManageProjects: true,
+          canManageBlog: true,
+          canManageCMS: true,
+          canViewAnalytics: true,
+          canManageMessages: true,
+          canManageVerification: true,
+          canManageSettings: true,
+          canManageAdmins: true,
+          canAccessAuditLogs: true,
+          canManageDocuments: true,
+          canResetPasswords: true,
+          canForceLogout: true,
+          adminRole: 'super_admin'
+        } as any;
       }
 
       // Check if the user has the required permission
-      if (!adminPerms[permission]) {
+      if (!adminPerms?.[permission]) {
         return res.status(403).json({ message: `Permission '${permission}' required` });
       }
 

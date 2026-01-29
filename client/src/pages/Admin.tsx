@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -128,6 +129,17 @@ export default function Admin() {
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [createListingOpen, setCreateListingOpen] = useState(false);
   const [showPerms, setShowPerms] = useState(false);
+  const [createListingForm, setCreateListingForm] = useState({
+    title: "",
+    description: "",
+    price: "",
+    type: "mineral" as "mineral" | "partnership" | "project",
+    quantity: "",
+    location: "",
+    specifications: "",
+    sellerId: "", // Optional: if empty, defaults to admin
+    imageUrl: ""
+  });
   const [newUserForm, setNewUserForm] = useState({
     email: "",
     password: "",
@@ -218,27 +230,11 @@ export default function Admin() {
     loadCurrentAdminPerms();
   }, [isAdmin, user]);
 
-  // Redirect to overview if current tab is not accessible based on permissions
-  useEffect(() => {
-    if (!adminPermissions) return;
-
-    const tabPermissionMap: Record<string, keyof typeof adminPermissions> = {
-      'users': 'canManageUsers',
-      'listings': 'canManageListings',
-      'verification': 'canManageVerification',
-      'messages': 'canManageMessages',
-      'analytics': 'canViewAnalytics',
-      'activity': 'canAccessAuditLogs',
-      'admin-activities': 'canAccessAuditLogs',
-      'settings': 'canManageSettings',
-    };
-
-    const requiredPermission = tabPermissionMap[activeTab];
-    if (requiredPermission && !adminPermissions[requiredPermission]) {
-      // User doesn't have permission for this tab, redirect to overview
-      setActiveTab('overview');
-    }
-  }, [adminPermissions, activeTab]);
+  // Removed problematic redirect useEffect that was causing navigation bugs
+  // The permission checking is now handled by:
+  // 1. Default super_admin permissions when loading fails
+  // 2. AdminSidebar filtering menu items based on permissions
+  // 3. Granting all access when permissions are null
 
   useEffect(() => {
     async function loadPerms() {
@@ -479,14 +475,25 @@ export default function Admin() {
     },
   });
 
+  const [rejectionDialog, setRejectionDialog] = useState<{ open: boolean, listingId: string | null }>({ open: false, listingId: null });
+  const [rejectionReason, setRejectionReason] = useState("");
+
   // Reject listing mutation
   const rejectMutation = useMutation({
-    mutationFn: async (listingId: string) => {
-      return await apiRequest("POST", `/api/admin/reject/${listingId}`, {});
+    mutationFn: async ({ listingId, reason }: { listingId: string, reason: string }) => {
+      // Use the dedicated reject endpoint which we will ensure exists
+      return await apiRequest("POST", `/api/admin/reject/${listingId}`, { reason });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/verification-queue"] });
+      // Also invalidate all listings as status changes
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+      setRejectionDialog({ open: false, listingId: null });
+      setRejectionReason("");
       toast({ title: "Listing Rejected", description: "The listing has been rejected." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reject listing", variant: "destructive" });
     },
   });
 
@@ -577,6 +584,49 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to create user. Note: POST /api/admin/users endpoint may need to be added.", variant: "destructive" });
+    },
+  });
+
+  // Create admin listing mutation
+  const createAdminListingMutation = useMutation({
+    mutationFn: async (listingData: typeof createListingForm) => {
+      // Convert price to number
+      const payload = {
+        ...listingData,
+        price: parseFloat(listingData.price) || 0,
+      };
+
+      // Remove empty optional fields to avoid validation errors if backend expects valid values
+      if (!payload.sellerId) delete (payload as any).sellerId;
+      if (!payload.imageUrl) delete (payload as any).imageUrl;
+      if (!payload.specifications) delete (payload as any).specifications; // This might need to be an object if schema requires it, but schema says json/string?
+
+      return await apiRequest("POST", "/api/admin/listings/create", payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/verification-queue"] });
+      setCreateListingOpen(false);
+      setCreateListingForm({
+        title: "",
+        description: "",
+        price: "",
+        type: "mineral",
+        quantity: "",
+        location: "",
+        specifications: "",
+        sellerId: "",
+        imageUrl: ""
+      });
+      toast({ title: "Listing created", description: "New listing has been created successfully." });
+    },
+    onError: (error: any) => {
+      console.error("Failed to create listing:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create listing.",
+        variant: "destructive"
+      });
     },
   });
 
@@ -1036,7 +1086,7 @@ export default function Admin() {
                       }
                     }}
                     onApprove={(id) => approveMutation.mutate(id)}
-                    onReject={(id) => rejectMutation.mutate(id)}
+                    onReject={(id) => setRejectionDialog({ open: true, listingId: id })}
                     loading={loadingListings}
                   />
                 </TabsContent>
@@ -1051,7 +1101,7 @@ export default function Admin() {
                       }
                     }}
                     onApprove={(id) => approveMutation.mutate(id)}
-                    onReject={(id) => rejectMutation.mutate(id)}
+                    onReject={(id) => setRejectionDialog({ open: true, listingId: id })}
                     loading={loadingListings}
                   />
                 </TabsContent>
@@ -1066,7 +1116,7 @@ export default function Admin() {
                       }
                     }}
                     onApprove={(id) => approveMutation.mutate(id)}
-                    onReject={(id) => rejectMutation.mutate(id)}
+                    onReject={(id) => setRejectionDialog({ open: true, listingId: id })}
                     loading={loadingListings}
                   />
                 </TabsContent>
@@ -1081,7 +1131,7 @@ export default function Admin() {
                       }
                     }}
                     onApprove={(id) => approveMutation.mutate(id)}
-                    onReject={(id) => rejectMutation.mutate(id)}
+                    onReject={(id) => setRejectionDialog({ open: true, listingId: id })}
                     loading={loadingListings}
                   />
                 </TabsContent>
@@ -1133,7 +1183,7 @@ export default function Admin() {
                           key={l.id}
                           listing={l}
                           onApprove={() => approveMutation.mutate(l.id)}
-                          onReject={() => rejectMutation.mutate(l.id)}
+                          onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
                       ))}
@@ -1168,7 +1218,7 @@ export default function Admin() {
                           key={l.id}
                           listing={l}
                           onApprove={() => approveMutation.mutate(l.id)}
-                          onReject={() => rejectMutation.mutate(l.id)}
+                          onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
                       ))}
@@ -1203,7 +1253,7 @@ export default function Admin() {
                           key={l.id}
                           listing={l}
                           onApprove={() => approveMutation.mutate(l.id)}
-                          onReject={() => rejectMutation.mutate(l.id)}
+                          onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
                       ))}
@@ -1238,7 +1288,7 @@ export default function Admin() {
                           key={l.id}
                           listing={l}
                           onApprove={() => approveMutation.mutate(l.id)}
-                          onReject={() => rejectMutation.mutate(l.id)}
+                          onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
                       ))}
@@ -2352,6 +2402,44 @@ export default function Admin() {
           </DialogContent>
         </Dialog>
 
+        {/* Rejection Reason Dialog */}
+        <Dialog open={rejectionDialog.open} onOpenChange={(open) => !open && setRejectionDialog({ open: false, listingId: null })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Listing</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this listing. This will be visible to the seller.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="rejection-reason" className="mb-2 block">Reason for Rejection</Label>
+              <Textarea
+                id="rejection-reason"
+                placeholder="e.g. Missing required documentation, invalid price..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRejectionDialog({ open: false, listingId: null })}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (rejectionDialog.listingId) {
+                    rejectMutation.mutate({ listingId: rejectionDialog.listingId, reason: rejectionReason });
+                  }
+                }}
+                disabled={rejectMutation.isPending || !rejectionReason.trim()}
+              >
+                {rejectMutation.isPending ? "Rejecting..." : "Reject Listing"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Create Listing Dialog */}
         <Dialog open={createListingOpen} onOpenChange={setCreateListingOpen}>
           <DialogContent className="max-w-2xl">
@@ -2359,18 +2447,116 @@ export default function Admin() {
               <DialogTitle>Create Listing</DialogTitle>
               <DialogDescription>Create a new marketplace listing on behalf of a seller</DialogDescription>
             </DialogHeader>
-            <div className="py-4">
-              <p className="text-sm text-muted-foreground">Listing creation form coming soon. For now, sellers can create listings through their dashboard.</p>
+            <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto px-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="listing-title">Title</Label>
+                  <Input
+                    id="listing-title"
+                    placeholder="Listing title"
+                    value={createListingForm.title}
+                    onChange={(e) => setCreateListingForm({ ...createListingForm, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="listing-type">Type</Label>
+                  <Select
+                    value={createListingForm.type}
+                    onValueChange={(value: any) => setCreateListingForm({ ...createListingForm, type: value })}
+                  >
+                    <SelectTrigger id="listing-type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mineral">Mineral</SelectItem>
+                      <SelectItem value="partnership">Partnership</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="listing-description">Description</Label>
+                <Textarea
+                  id="listing-description"
+                  placeholder="Detailed description of the listing"
+                  className="min-h-[100px]"
+                  value={createListingForm.description}
+                  onChange={(e) => setCreateListingForm({ ...createListingForm, description: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="listing-price">Price ($)</Label>
+                  <Input
+                    id="listing-price"
+                    type="number"
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    value={createListingForm.price}
+                    onChange={(e) => setCreateListingForm({ ...createListingForm, price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="listing-quantity">Quantity (with units)</Label>
+                  <Input
+                    id="listing-quantity"
+                    placeholder="e.g. 500 tons"
+                    value={createListingForm.quantity}
+                    onChange={(e) => setCreateListingForm({ ...createListingForm, quantity: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="listing-location">Location</Label>
+                  <Input
+                    id="listing-location"
+                    placeholder="City, Country"
+                    value={createListingForm.location}
+                    onChange={(e) => setCreateListingForm({ ...createListingForm, location: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="listing-seller">Seller ID (Optional)</Label>
+                  <Input
+                    id="listing-seller"
+                    placeholder="Defaults to your admin ID if empty"
+                    value={createListingForm.sellerId}
+                    onChange={(e) => setCreateListingForm({ ...createListingForm, sellerId: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="listing-specs">Specifications</Label>
+                <Textarea
+                  id="listing-specs"
+                  placeholder="Technical specifications (purity, grade, etc.)"
+                  value={createListingForm.specifications}
+                  onChange={(e) => setCreateListingForm({ ...createListingForm, specifications: e.target.value })}
+                />
+              </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateListingOpen(false)}>Close</Button>
+              <Button variant="outline" onClick={() => setCreateListingOpen(false)}>Cancel</Button>
+              <Button
+                onClick={() => createAdminListingMutation.mutate(createListingForm)}
+                disabled={createAdminListingMutation.isPending || !createListingForm.title || !createListingForm.price}
+              >
+                {createAdminListingMutation.isPending ? "Creating..." : "Create Listing"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Legacy status-only edit dialog removed in favor of full edit dialog below */}
       </div>
-    </div>
+    </div >
   );
 }
 

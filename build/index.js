@@ -120,8 +120,11 @@ __export(schema_exports, {
   threadTypeEnum: () => threadTypeEnum,
   ticketPriorityEnum: () => ticketPriorityEnum,
   ticketStatusEnum: () => ticketStatusEnum,
+  tierUpgradeDocuments: () => tierUpgradeDocuments,
+  tierUpgradeDocumentsRelations: () => tierUpgradeDocumentsRelations,
   tierUpgradePayments: () => tierUpgradePayments,
   tierUpgradeRequests: () => tierUpgradeRequests,
+  tierUpgradeRequestsRelations: () => tierUpgradeRequestsRelations,
   tierUsageTracking: () => tierUsageTracking,
   tierUsageTrackingRelations: () => tierUsageTrackingRelations,
   toolSubcategoryEnum: () => toolSubcategoryEnum,
@@ -171,7 +174,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema;
+var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, tierUpgradeDocuments, tierUpgradeRequestsRelations, tierUpgradeDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -307,6 +310,7 @@ var init_schema = __esm({
       // e.g., "$5000/tonne"
       imageUrl: varchar("image_url"),
       status: listingStatusEnum("status").notNull().default("pending"),
+      rejectionReason: text("rejection_reason"),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull()
     });
@@ -832,6 +836,38 @@ var init_schema = __esm({
       request: one(sellerVerificationRequests, {
         fields: [sellerVerificationDocuments.requestId],
         references: [sellerVerificationRequests.id]
+      })
+    }));
+    tierUpgradeDocuments = pgTable("tier_upgrade_documents", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      requestId: varchar("request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: "cascade" }),
+      documentType: varchar("document_type").notNull(),
+      // e.g., 'proof_of_funds', 'company_reg'
+      fileName: varchar("file_name").notNull(),
+      filePath: varchar("file_path").notNull(),
+      fileSize: integer("file_size"),
+      mimeType: varchar("mime_type"),
+      uploadedAt: timestamp("uploaded_at").defaultNow().notNull()
+    }, (table) => [
+      index("IDX_tier_upgrade_doc_req_id").on(table.requestId)
+    ]);
+    tierUpgradeRequestsRelations = relations(tierUpgradeRequests, ({ one, many }) => ({
+      user: one(users, {
+        fields: [tierUpgradeRequests.userId],
+        references: [users.id],
+        relationName: "user"
+      }),
+      reviewer: one(users, {
+        fields: [tierUpgradeRequests.reviewedBy],
+        references: [users.id],
+        relationName: "reviewer"
+      }),
+      documents: many(tierUpgradeDocuments)
+    }));
+    tierUpgradeDocumentsRelations = relations(tierUpgradeDocuments, ({ one }) => ({
+      request: one(tierUpgradeRequests, {
+        fields: [tierUpgradeDocuments.requestId],
+        references: [tierUpgradeRequests.id]
       })
     }));
     upsertUserSchema = createInsertSchema(users).pick({
@@ -2726,6 +2762,127 @@ var init_storage = __esm({
         const [method] = await db.update(paymentMethodDetails).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentMethodDetails.id, id)).returning();
         return method;
       }
+      // ========================================================================
+      // Buyer Tier Upgrade operations implementation
+      // ========================================================================
+      async createTierUpgradeRequest(requestId, userId, requestedTier) {
+        const [request] = await db.insert(tierUpgradeRequests).values({
+          id: requestId,
+          userId,
+          requestedTier,
+          status: "draft",
+          submittedAt: /* @__PURE__ */ new Date()
+        }).returning();
+        return request;
+      }
+      async submitTierUpgradeRequest(requestId) {
+        const [request] = await db.update(tierUpgradeRequests).set({
+          status: "pending",
+          submittedAt: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(tierUpgradeRequests.id, requestId)).returning();
+        return request;
+      }
+      async getTierUpgradeRequestById(id) {
+        const [request] = await db.select({
+          ...tierUpgradeRequests,
+          // all fields from request
+          buyerEmail: users.email,
+          buyerFirstName: users.firstName,
+          buyerLastName: users.lastName
+        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.id, id));
+        return request;
+      }
+      async getTierUpgradeRequestByUserId(userId) {
+        const [request] = await db.select({
+          ...tierUpgradeRequests,
+          buyerEmail: users.email,
+          buyerFirstName: users.firstName,
+          buyerLastName: users.lastName
+        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.userId, userId)).orderBy(desc(tierUpgradeRequests.createdAt)).limit(1);
+        return request;
+      }
+      async getAllTierUpgradeRequests() {
+        return await db.select({
+          id: tierUpgradeRequests.id,
+          userId: tierUpgradeRequests.userId,
+          requestedTier: tierUpgradeRequests.requestedTier,
+          status: tierUpgradeRequests.status,
+          rejectionReason: tierUpgradeRequests.rejectionReason,
+          submittedAt: tierUpgradeRequests.submittedAt,
+          reviewedAt: tierUpgradeRequests.reviewedAt,
+          reviewedBy: tierUpgradeRequests.reviewedBy,
+          documentCount: tierUpgradeRequests.documentCount,
+          createdAt: tierUpgradeRequests.createdAt,
+          updatedAt: tierUpgradeRequests.updatedAt,
+          buyerEmail: users.email,
+          buyerFirstName: users.firstName,
+          buyerLastName: users.lastName
+        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).orderBy(desc(tierUpgradeRequests.submittedAt));
+      }
+      async getPendingTierUpgradeRequests() {
+        return await db.select({
+          id: tierUpgradeRequests.id,
+          userId: tierUpgradeRequests.userId,
+          requestedTier: tierUpgradeRequests.requestedTier,
+          status: tierUpgradeRequests.status,
+          rejectionReason: tierUpgradeRequests.rejectionReason,
+          submittedAt: tierUpgradeRequests.submittedAt,
+          reviewedAt: tierUpgradeRequests.reviewedAt,
+          reviewedBy: tierUpgradeRequests.reviewedBy,
+          documentCount: tierUpgradeRequests.documentCount,
+          createdAt: tierUpgradeRequests.createdAt,
+          updatedAt: tierUpgradeRequests.updatedAt,
+          buyerEmail: users.email,
+          buyerFirstName: users.firstName,
+          buyerLastName: users.lastName
+        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(or(eq(tierUpgradeRequests.status, "pending"), eq(tierUpgradeRequests.status, "draft"))).orderBy(desc(tierUpgradeRequests.submittedAt));
+      }
+      async approveTierUpgradeRequest(id, reviewerId) {
+        const request = await this.getTierUpgradeRequestById(id);
+        if (!request) throw new Error("Request not found");
+        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+          status: "approved",
+          reviewedBy: reviewerId,
+          reviewedAt: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(tierUpgradeRequests.id, id)).returning();
+        await db.update(users).set({ membershipTier: request.requestedTier }).where(eq(users.id, request.userId));
+        return updatedRequest;
+      }
+      async rejectTierUpgradeRequest(id, reviewerId, reason) {
+        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+          status: "rejected",
+          rejectionReason: reason,
+          reviewedBy: reviewerId,
+          reviewedAt: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(tierUpgradeRequests.id, id)).returning();
+        return updatedRequest;
+      }
+      async revertTierUpgradeRequest(id) {
+        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+          status: "draft",
+          rejectionReason: null,
+          // Clear rejection reason
+          reviewedBy: null,
+          reviewedAt: null,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(tierUpgradeRequests.id, id)).returning();
+        return updatedRequest;
+      }
+      async createTierUpgradeDocument(data) {
+        const [doc] = await db.insert(tierUpgradeDocuments).values(data).returning();
+        await db.execute(sql2`
+      UPDATE ${tierUpgradeRequests}
+      SET document_count = document_count + 1, updated_at = NOW()
+      WHERE id = ${data.requestId}
+    `);
+        return doc;
+      }
+      async getTierUpgradeDocuments(requestId) {
+        return await db.select().from(tierUpgradeDocuments).where(eq(tierUpgradeDocuments.requestId, requestId)).orderBy(desc(tierUpgradeDocuments.uploadedAt));
+      }
     };
     storage = new DatabaseStorage();
   }
@@ -2807,11 +2964,32 @@ var init_clerk = __esm({
           if (!req.auth?.userId) {
             return res.status(401).json({ message: "Unauthorized" });
           }
-          const adminPerms = await storage.getAdminPermissions(req.auth.userId);
+          let adminPerms = await storage.getAdminPermissions(req.auth.userId);
           if (!adminPerms) {
-            return res.status(403).json({ message: "Admin access required" });
+            const dbUser = await storage.getUserByClerkId(req.auth.userId);
+            if (!dbUser || dbUser.role !== "admin") {
+              return res.status(403).json({ message: "Admin access required" });
+            }
+            console.log(`[requireAdminPermission] No permissions in DB for admin user ${req.auth.userId}, granting all permissions as super_admin`);
+            adminPerms = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: "super_admin"
+            };
           }
-          if (!adminPerms[permission]) {
+          if (!adminPerms?.[permission]) {
             return res.status(403).json({ message: `Permission '${permission}' required` });
           }
           next();
@@ -3186,9 +3364,11 @@ async function handler3(req, res) {
       let adminPermissions2 = null;
       if (dbUser.role === "admin") {
         try {
+          console.log("[AUTH_USER] User is admin, fetching permissions for:", dbUser.id);
           adminPermissions2 = await storage.getAdminPermissions(dbUser.id);
+          console.log("[AUTH_USER] Permissions from DB:", JSON.stringify(adminPermissions2, null, 2));
           if (!adminPermissions2) {
-            console.log("No admin permissions found in DB, providing default super_admin permissions for user:", dbUser.id);
+            console.log("[AUTH_USER] No admin permissions found in DB, providing default super_admin permissions for user:", dbUser.id);
             adminPermissions2 = {
               canManageUsers: true,
               canManageListings: true,
@@ -3206,9 +3386,13 @@ async function handler3(req, res) {
               canForceLogout: true,
               adminRole: "super_admin"
             };
+            console.log("[AUTH_USER] Default permissions set:", JSON.stringify(adminPermissions2, null, 2));
+          } else {
+            console.log("[AUTH_USER] Using permissions from database");
           }
         } catch (permError) {
-          console.error("Error fetching admin permissions:", permError);
+          console.error("[AUTH_USER] Error fetching admin permissions:", permError);
+          console.log("[AUTH_USER] Providing default super_admin permissions due to error");
           adminPermissions2 = {
             canManageUsers: true,
             canManageListings: true,
@@ -3584,45 +3768,9 @@ Assistant:`;
 function formatZodError(error) {
   return error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
 }
-var buyerUpgradeRequests = /* @__PURE__ */ new Map([
-  ["upgrade-1", {
-    id: "upgrade-1",
-    userId: "test-buyer-789",
-    buyerEmail: "henry@fusionmining.com",
-    buyerFirstName: "Henry",
-    buyerLastName: "Brown",
-    requestedTier: "premium",
-    status: "approved",
-    submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString(),
-    reviewedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1e3).toISOString(),
-    documentCount: 4
-  }],
-  ["upgrade-2", {
-    id: "upgrade-2",
-    userId: "buyer-2",
-    buyerEmail: "buyer2@example.com",
-    buyerFirstName: "John",
-    buyerLastName: "Doe",
-    requestedTier: "standard",
-    status: "approved",
-    submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1e3).toISOString(),
-    reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1e3).toISOString(),
-    documentCount: 3
-  }],
-  ["upgrade-3", {
-    id: "upgrade-3",
-    userId: "buyer-3",
-    buyerEmail: "buyer3@example.com",
-    buyerFirstName: "Sarah",
-    buyerLastName: "Smith",
-    requestedTier: "premium",
-    status: "rejected",
-    rejectionReason: "Incomplete documentation. Missing Director ID and Tax Certificate.",
-    submittedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1e3).toISOString(),
-    reviewedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1e3).toISOString(),
-    documentCount: 2
-  }]
-]);
+function getUserId(req) {
+  return req.auth?.userId || req.user?.claims?.sub || req.user?.id || null;
+}
 var testUsersStore = /* @__PURE__ */ new Map([
   ["test-buyer-789", {
     id: "test-buyer-789",
@@ -3688,88 +3836,6 @@ var testUsersStore = /* @__PURE__ */ new Map([
     verificationStatus: "approved"
   }]
 ]);
-async function getAllBuyerUpgrades() {
-  return await db.select({
-    id: tierUpgradeRequests.id,
-    userId: tierUpgradeRequests.userId,
-    buyerEmail: users.email,
-    buyerFirstName: users.firstName,
-    buyerLastName: users.lastName,
-    requestedTier: tierUpgradeRequests.requestedTier,
-    status: tierUpgradeRequests.status,
-    rejectionReason: tierUpgradeRequests.rejectionReason,
-    submittedAt: tierUpgradeRequests.submittedAt,
-    reviewedAt: tierUpgradeRequests.reviewedAt,
-    documentCount: tierUpgradeRequests.documentCount,
-    createdAt: tierUpgradeRequests.createdAt,
-    updatedAt: tierUpgradeRequests.updatedAt
-  }).from(tierUpgradeRequests).leftJoin(users, eq3(tierUpgradeRequests.userId, users.id));
-}
-async function getPendingBuyerUpgrades() {
-  return await db.select({
-    id: tierUpgradeRequests.id,
-    userId: tierUpgradeRequests.userId,
-    buyerEmail: users.email,
-    buyerFirstName: users.firstName,
-    buyerLastName: users.lastName,
-    requestedTier: tierUpgradeRequests.requestedTier,
-    status: tierUpgradeRequests.status,
-    rejectionReason: tierUpgradeRequests.rejectionReason,
-    submittedAt: tierUpgradeRequests.submittedAt,
-    reviewedAt: tierUpgradeRequests.reviewedAt,
-    documentCount: tierUpgradeRequests.documentCount,
-    createdAt: tierUpgradeRequests.createdAt,
-    updatedAt: tierUpgradeRequests.updatedAt
-  }).from(tierUpgradeRequests).leftJoin(users, eq3(tierUpgradeRequests.userId, users.id)).where(eq3(tierUpgradeRequests.status, "pending"));
-}
-async function approveBuyerUpgrade(id) {
-  try {
-    const [request] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
-    if (request) {
-      await db.update(tierUpgradeRequests).set({
-        status: "approved",
-        reviewedAt: /* @__PURE__ */ new Date(),
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq3(tierUpgradeRequests.id, id));
-      await db.update(users).set({ membershipTier: request.requestedTier }).where(eq3(users.id, request.userId));
-      const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
-      return updatedRequest;
-    }
-  } catch (error) {
-    console.error("Error approving buyer upgrade:", error);
-  }
-  return null;
-}
-async function rejectBuyerUpgrade(id, reason) {
-  try {
-    await db.update(tierUpgradeRequests).set({
-      status: "rejected",
-      rejectionReason: reason,
-      reviewedAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq3(tierUpgradeRequests.id, id));
-    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
-    return updatedRequest;
-  } catch (error) {
-    console.error("Error rejecting buyer upgrade:", error);
-  }
-  return null;
-}
-async function revertBuyerUpgrade(id) {
-  try {
-    await db.update(tierUpgradeRequests).set({
-      status: "draft",
-      rejectionReason: null,
-      reviewedAt: null,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq3(tierUpgradeRequests.id, id));
-    const [updatedRequest] = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.id, id)).limit(1);
-    return updatedRequest;
-  } catch (error) {
-    console.error("Error reverting buyer upgrade:", error);
-  }
-  return null;
-}
 async function registerRoutes(app2) {
   const isAuthenticated = requireAuth;
   const isSeller = requireSeller;
@@ -4013,7 +4079,9 @@ ${sellerName}`,
   app2.get("/api/marketplace/listings", async (req, res) => {
     try {
       const { type, status } = req.query;
-      const isAdmin2 = req.user && req.user.role === "admin";
+      const userId = getUserId(req);
+      const user = userId ? await storage.getUser(userId) : null;
+      const isAdmin2 = user && user.role === "admin";
       const listings = await storage.getMarketplaceListings({
         type,
         status
@@ -4179,13 +4247,11 @@ ${sellerName}`,
   });
   app2.patch("/api/marketplace/listings/:id/close", isAuthenticated, async (req, res) => {
     try {
-      const userId = req.user.claims?.sub || req.user.id;
-      const user = await storage.getUserById(userId);
       const listing = await storage.getMarketplaceListingById(req.params.id);
       if (!listing) {
         return res.status(404).json({ message: "Listing not found" });
       }
-      if (user?.role !== "admin" && listing.sellerId !== userId) {
+      if (req.user.role !== "admin" && listing.sellerId !== req.user.id) {
         return res.status(403).json({ message: "Only the seller or admin can close this listing" });
       }
       const closedListing = await storage.closeMarketplaceListing(req.params.id);
@@ -4193,6 +4259,65 @@ ${sellerName}`,
     } catch (error) {
       console.error("Error closing listing:", error);
       res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+  app2.post("/api/admin/listings/create", isAuthenticated, isAdmin, requireAdminPermission("canManageListings"), async (req, res) => {
+    try {
+      console.log("[ADMIN] Creating listing with body:", req.body);
+      const validatedData = insertMarketplaceListingSchema.parse({
+        ...req.body,
+        sellerId: req.body.sellerId || req.user.id,
+        // Default to admin's ID if no sellerId provided
+        status: "active",
+        // Admin created listings are active by default
+        verified: true,
+        // Admin created listings are verified by default
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      const listing = await storage.createMarketplaceListing(validatedData);
+      try {
+        await storage.createActivityLog({
+          userId: req.user.id,
+          action: "admin_create_listing",
+          entityType: "listing",
+          entityId: listing.id,
+          details: `Admin created listing: ${listing.title}`,
+          metadata: { listingId: listing.id, listingType: listing.type }
+        });
+      } catch (logError) {
+        console.error("[ACTIVITY LOG] Failed to log listing creation:", logError);
+      }
+      res.status(201).json(listing);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.error("Validation error creating listing:", formatZodError(error));
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error creating listing:", error);
+      res.status(500).json({ message: "Failed to create listing" });
+    }
+  });
+  app2.post("/api/admin/reject/:id", isAuthenticated, isAdmin, requireAdminPermission("canManageVerification"), async (req, res) => {
+    try {
+      const { reason } = req.body;
+      const listingId = req.params.id;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
+      console.log(`[ADMIN] Rejecting listing ${listingId} with reason: ${reason}`);
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      await storage.updateMarketplaceListing(listingId, {
+        status: "rejected",
+        rejectionReason: reason
+      });
+      res.json({ success: true, message: "Listing rejected" });
+    } catch (error) {
+      console.error("Error rejecting listing:", error);
+      res.status(500).json({ message: "Failed to reject listing" });
     }
   });
   app2.post("/api/threads", isAuthenticated, async (req, res) => {
@@ -6289,19 +6414,14 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       if (!requestedTier || !["standard", "premium"].includes(requestedTier)) {
         return res.status(400).json({ message: "Invalid tier. Must be 'standard' or 'premium'" });
       }
-      const newRequest = {
-        id: `tier-upgrade-${Date.now()}`,
-        userId: req.user.id,
-        buyerEmail: req.user.email || "",
-        buyerFirstName: req.user.firstName || "",
-        buyerLastName: req.user.lastName || "",
-        requestedTier,
-        status: "draft",
-        submittedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        documentCount: 0
-      };
-      buyerUpgradeRequests.set(newRequest.id, newRequest);
-      res.json(newRequest);
+      const existing = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      if (existing && (existing.status === "pending" || existing.status === "draft")) {
+        if (existing.status === "draft") return res.json(existing);
+        return res.status(400).json({ message: "You already have a pending tier upgrade request" });
+      }
+      const requestId = `tier-upgrade-${Date.now()}`;
+      const request = await storage.createTierUpgradeRequest(requestId, req.user.id, requestedTier);
+      res.json(request);
     } catch (error) {
       console.error("Error creating tier upgrade request:", error);
       res.status(500).json({ message: "Failed to create tier upgrade request" });
@@ -6312,14 +6432,8 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       if (req.user.role !== "buyer") {
         return res.status(403).json({ message: "Only buyers can access this endpoint" });
       }
-      let userRequest = null;
-      for (const request of Array.from(buyerUpgradeRequests.values())) {
-        if (request.userId === req.user.id) {
-          userRequest = request;
-          break;
-        }
-      }
-      res.json(userRequest);
+      const request = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      res.json(request || null);
     } catch (error) {
       console.error("Error fetching tier upgrade request:", error);
       res.status(500).json({ message: "Failed to fetch tier upgrade request" });
@@ -6338,16 +6452,16 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
         return res.status(400).json({ message: "Request ID and document type are required" });
       }
       const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
-      const mockDocument = {
-        id: `doc-${Date.now()}`,
+      const document = await storage.createTierUpgradeDocument({
         requestId,
         documentType,
         fileName: req.file.originalname,
         filePath: relativePath,
-        uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype
+      });
       res.json({
-        document: mockDocument,
+        document,
         filename: req.file.originalname,
         url: relativePath,
         size: req.file.size,
@@ -6367,107 +6481,70 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       if (!requestId) {
         return res.status(400).json({ message: "Request ID is required" });
       }
-      const request = buyerUpgradeRequests.get(requestId);
+      const request = await storage.getTierUpgradeRequestById(requestId);
       if (!request) {
         return res.status(404).json({ message: "Tier upgrade request not found" });
       }
       if (request.userId !== req.user.id) {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
-      request.status = "pending";
-      request.submittedAt = (/* @__PURE__ */ new Date()).toISOString();
-      buyerUpgradeRequests.set(requestId, request);
+      const updated = await storage.submitTierUpgradeRequest(requestId);
       res.json({
         success: true,
         message: "Tier upgrade request submitted successfully",
-        status: "pending",
-        submittedAt: (/* @__PURE__ */ new Date()).toISOString()
+        status: updated.status,
+        submittedAt: updated.submittedAt
       });
     } catch (error) {
       console.error("Error submitting tier upgrade request:", error);
       res.status(500).json({ message: error.message || "Failed to submit tier upgrade request" });
     }
   });
-  app2.get("/api/admin/buyer-upgrades/pending", async (req, res) => {
+  app2.get("/api/buyer/tier-upgrade-request", isAuthenticated, async (req, res) => {
     try {
-      const isDev = process.env.NODE_ENV === "development";
-      if (!isDev && !req.user?.id) {
-        return res.status(401).json({ message: "Unauthorized" });
+      if (req.user.role !== "buyer") {
+        return res.status(403).json({ message: "Only buyers can access this endpoint" });
       }
-      const pendingRequests = getPendingBuyerUpgrades();
+      const request = await storage.getTierUpgradeRequestByUserId(req.user.id);
+      res.json(request || null);
+    } catch (error) {
+      console.error("Error fetching tier upgrade request:", error);
+      res.status(500).json({ message: "Failed to fetch tier upgrade request" });
+    }
+  });
+  app2.get("/api/admin/buyer-upgrades/pending", requireAdmin, async (req, res) => {
+    try {
+      const pendingRequests = await storage.getPendingTierUpgradeRequests();
       res.json(pendingRequests);
     } catch (error) {
       console.error("Error fetching pending buyer tier upgrades:", error);
       res.status(500).json({ message: "Failed to fetch pending buyer tier upgrades" });
     }
   });
-  app2.get("/api/admin/buyer-upgrades", async (req, res) => {
+  app2.get("/api/admin/buyer-upgrades", requireAdmin, async (req, res) => {
     try {
-      const isDev = process.env.NODE_ENV === "development";
-      if (!isDev && !req.user?.id) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const allRequests = getAllBuyerUpgrades();
+      const allRequests = await storage.getAllTierUpgradeRequests();
       res.json(allRequests);
     } catch (error) {
       console.error("Error fetching buyer tier upgrades:", error);
       res.status(500).json({ message: "Failed to fetch buyer tier upgrades" });
     }
   });
-  app2.get("/api/admin/buyer-upgrades/documents/:requestId", async (req, res) => {
-    const isDev = process.env.NODE_ENV === "development";
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app2.get("/api/admin/buyer-upgrades/documents/:requestId", requireAdmin, async (req, res) => {
     try {
       const { requestId } = req.params;
-      const mockDocuments = [
-        {
-          id: "doc-1",
-          documentType: "certificate_of_incorporation",
-          fileName: "Company_Certificate.pdf",
-          filePath: "/attached_assets/files/uploads/verification/cert.pdf",
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
-        },
-        {
-          id: "doc-2",
-          documentType: "company_profile",
-          fileName: "Company_Profile.docx",
-          filePath: "/attached_assets/files/uploads/verification/profile.docx",
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
-        },
-        {
-          id: "doc-3",
-          documentType: "shareholder_list",
-          fileName: "Shareholders.pdf",
-          filePath: "/attached_assets/files/uploads/verification/shareholders.pdf",
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
-        },
-        {
-          id: "doc-4",
-          documentType: "tax_certificate",
-          fileName: "Tax_Certificate.pdf",
-          filePath: "/attached_assets/files/uploads/verification/tax.pdf",
-          uploadedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1e3).toISOString()
-        }
-      ];
-      res.json(mockDocuments);
+      const documents = await storage.getTierUpgradeDocuments(requestId);
+      res.json(documents);
     } catch (error) {
       console.error("Error fetching buyer tier upgrade documents:", error);
       res.status(500).json({ message: "Failed to fetch documents" });
     }
   });
-  app2.post("/api/admin/buyer-upgrades/approve/:id", async (req, res) => {
-    const isDev = process.env.NODE_ENV === "development";
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app2.post("/api/admin/buyer-upgrades/approve/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const updated = await approveBuyerUpgrade(id);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const reviewerId = req.user.id;
+      const updated = await storage.approveTierUpgradeRequest(id, reviewerId);
       await storage.createNotification({
         userId: updated.userId,
         type: "tier_upgrade",
@@ -6479,28 +6556,22 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
         success: true,
         message: "Tier upgrade request approved successfully",
         status: "approved",
-        reviewedAt: (/* @__PURE__ */ new Date()).toISOString()
+        reviewedAt: updated.reviewedAt
       });
     } catch (error) {
       console.error("Error approving buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to approve tier upgrade request" });
     }
   });
-  app2.post("/api/admin/buyer-upgrades/reject/:id", async (req, res) => {
-    const isDev = process.env.NODE_ENV === "development";
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app2.post("/api/admin/buyer-upgrades/reject/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
       const { reason } = req.body;
+      const reviewerId = req.user.id;
       if (!reason) {
         return res.status(400).json({ message: "Rejection reason is required" });
       }
-      const updated = await rejectBuyerUpgrade(id, reason);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const updated = await storage.rejectTierUpgradeRequest(id, reviewerId, reason);
       await storage.createNotification({
         userId: updated.userId,
         type: "tier_upgrade",
@@ -6513,28 +6584,22 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
         message: "Tier upgrade request rejected successfully",
         status: "rejected",
         rejectionReason: reason,
-        reviewedAt: (/* @__PURE__ */ new Date()).toISOString()
+        reviewedAt: updated.reviewedAt
       });
     } catch (error) {
       console.error("Error rejecting buyer tier upgrade:", error);
       res.status(500).json({ message: "Failed to reject tier upgrade request" });
     }
   });
-  app2.post("/api/admin/buyer-upgrades/revert/:id", async (req, res) => {
-    const isDev = process.env.NODE_ENV === "development";
-    if (!isDev && !req.user?.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  app2.post("/api/admin/buyer-upgrades/revert/:id", requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      const updated = await revertBuyerUpgrade(id);
-      if (!updated) {
-        return res.status(404).json({ message: "Tier upgrade request not found" });
-      }
+      const updated = await storage.revertTierUpgradeRequest(id);
       res.json({
         success: true,
         message: "Tier upgrade request reverted to draft successfully",
-        status: "draft"
+        status: "draft",
+        updatedAt: updated.updatedAt
       });
     } catch (error) {
       console.error("Error reverting buyer tier upgrade:", error);
