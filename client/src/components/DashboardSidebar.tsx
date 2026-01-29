@@ -1,3 +1,4 @@
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,23 +59,19 @@ export function DashboardSidebar({
       label: "Messages",
       icon: MessageSquare,
       href: "/dashboard/messages",
-    },
-    // ...existing code...
-    ...(permissions?.adminRole === 'super_admin'
-      ? [
-          {
-            label: "Super Admin Panel",
-            icon: Crown,
-            href: "/admin/super",
-            testId: "sidebar-super-admin-panel",
-            highlight: true
-          }
-        ]
-      : []),
-    // ...existing code...
-  ];
       testId: "sidebar-messages"
     },
+    ...(user?.permissions?.adminRole === 'super_admin'
+      ? [
+        {
+          label: "Super Admin Panel",
+          icon: Crown,
+          href: "/admin/super",
+          testId: "sidebar-super-admin-panel",
+          highlight: true
+        }
+      ]
+      : []),
     ...(isSeller
       ? [
         {
