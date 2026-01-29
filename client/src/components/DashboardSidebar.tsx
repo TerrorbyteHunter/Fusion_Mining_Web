@@ -13,7 +13,8 @@ import {
   TrendingUp,
   ShieldCheck,
   CheckCircle,
-  Menu
+  Menu,
+  Crown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
