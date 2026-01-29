@@ -3187,8 +3187,45 @@ async function handler3(req, res) {
       if (dbUser.role === "admin") {
         try {
           adminPermissions2 = await storage.getAdminPermissions(dbUser.id);
+          if (!adminPermissions2) {
+            console.log("No admin permissions found in DB, providing default super_admin permissions for user:", dbUser.id);
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: "super_admin"
+            };
+          }
         } catch (permError) {
           console.error("Error fetching admin permissions:", permError);
+          adminPermissions2 = {
+            canManageUsers: true,
+            canManageListings: true,
+            canManageProjects: true,
+            canManageBlog: true,
+            canManageCMS: true,
+            canViewAnalytics: true,
+            canManageMessages: true,
+            canManageVerification: true,
+            canManageSettings: true,
+            canManageAdmins: true,
+            canAccessAuditLogs: true,
+            canManageDocuments: true,
+            canResetPasswords: true,
+            canForceLogout: true,
+            adminRole: "super_admin"
+          };
         }
       }
       return res.json({

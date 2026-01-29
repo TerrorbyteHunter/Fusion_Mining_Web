@@ -46,8 +46,49 @@ export default async function handler(req: any, res: any) {
       if (dbUser.role === 'admin') {
         try {
           adminPermissions = await storage.getAdminPermissions(dbUser.id);
+
+          // If no permissions found in database, provide default super_admin permissions
+          // This ensures admin users always have access to the admin panel
+          if (!adminPermissions) {
+            console.log('No admin permissions found in DB, providing default super_admin permissions for user:', dbUser.id);
+            adminPermissions = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: 'super_admin'
+            };
+          }
         } catch (permError) {
           console.error('Error fetching admin permissions:', permError);
+          // Even on error, provide default super_admin permissions
+          adminPermissions = {
+            canManageUsers: true,
+            canManageListings: true,
+            canManageProjects: true,
+            canManageBlog: true,
+            canManageCMS: true,
+            canViewAnalytics: true,
+            canManageMessages: true,
+            canManageVerification: true,
+            canManageSettings: true,
+            canManageAdmins: true,
+            canAccessAuditLogs: true,
+            canManageDocuments: true,
+            canResetPasswords: true,
+            canForceLogout: true,
+            adminRole: 'super_admin'
+          };
         }
       }
 
