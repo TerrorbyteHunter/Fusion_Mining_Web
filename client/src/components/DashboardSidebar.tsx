@@ -58,22 +58,9 @@ export function DashboardSidebar({
       label: "Messages",
       icon: MessageSquare,
       href: "/dashboard/messages",
-import { Crown } from "lucide-react";
-
-export function DashboardSidebar({
-  mobileOpen: externalMobileOpen,
-  onMobileOpenChange
-}: DashboardSidebarProps = {}) {
-  const [location] = useLocation();
-  const { user, isSeller, isAdmin, permissions } = useAuth();
-  const isSuperAdmin = permissions?.adminRole === 'super_admin';
-  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-
-  // ...existing code...
-
-  const menuItems = [
+    },
     // ...existing code...
-    ...(isSuperAdmin
+    ...(permissions?.adminRole === 'super_admin'
       ? [
           {
             label: "Super Admin Panel",
