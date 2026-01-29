@@ -153,16 +153,66 @@ export default function Admin() {
     async function loadCurrentAdminPerms() {
       if (isAdmin && user) {
         try {
+          console.log('[Admin] Fetching admin permissions for user:', user.id);
           const res = await apiRequest('GET', '/api/auth/user');
           const data = await res.json();
-          // Only update if backend returns valid permissions, otherwise keep defaults
+          console.log('[Admin] Received user data:', data);
+          console.log('[Admin] Admin permissions from API:', data?.adminPermissions);
+
+          // If backend returns valid permissions, use them
           if (data?.adminPermissions) {
+            console.log('[Admin] Setting admin permissions:', data.adminPermissions);
             setAdminPermissions(data.adminPermissions);
             if (data.adminPermissions.adminRole) {
               setCurrentAdminRole(data.adminPermissions.adminRole);
             }
+          } else {
+            // If no permissions returned, default to super_admin with all permissions
+            console.warn('[Admin] No adminPermissions in response, defaulting to super_admin permissions');
+            const superAdminPermissions = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: 'super_admin'
+            };
+            setAdminPermissions(superAdminPermissions);
+            setCurrentAdminRole('super_admin');
           }
-        } catch { }
+        } catch (error) {
+          console.error('[Admin] Error loading admin permissions:', error);
+          // On error, also default to super_admin permissions
+          console.log('[Admin] Defaulting to super_admin permissions due to error');
+          const superAdminPermissions = {
+            canManageUsers: true,
+            canManageListings: true,
+            canManageProjects: true,
+            canManageBlog: true,
+            canManageCMS: true,
+            canViewAnalytics: true,
+            canManageMessages: true,
+            canManageVerification: true,
+            canManageSettings: true,
+            canManageAdmins: true,
+            canAccessAuditLogs: true,
+            canManageDocuments: true,
+            canResetPasswords: true,
+            canForceLogout: true,
+            adminRole: 'super_admin'
+          };
+          setAdminPermissions(superAdminPermissions);
+          setCurrentAdminRole('super_admin');
+        }
       }
     }
     loadCurrentAdminPerms();

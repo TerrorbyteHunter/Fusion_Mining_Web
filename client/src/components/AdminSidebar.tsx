@@ -181,7 +181,15 @@ export function AdminSidebar({
   // Filter menu items based on permissions
   const menuItems = allMenuItems.filter((item) => {
     if (!item.permission) return true; // Always show items with no permission requirement
-    return effectivePermissions?.[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
+
+    // If no permissions object exists (null/undefined), grant all permissions (assume super_admin)
+    // This is a safety net in case permission loading fails
+    if (!effectivePermissions) {
+      console.warn('[AdminSidebar] No effective permissions found, granting all access (super_admin fallback)');
+      return true;
+    }
+
+    return effectivePermissions[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
   });
 
   const handleTabClick = (item: typeof menuItems[0]) => {

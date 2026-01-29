@@ -45,12 +45,14 @@ export default async function handler(req: any, res: any) {
       let adminPermissions = null;
       if (dbUser.role === 'admin') {
         try {
+          console.log('[AUTH_USER] User is admin, fetching permissions for:', dbUser.id);
           adminPermissions = await storage.getAdminPermissions(dbUser.id);
+          console.log('[AUTH_USER] Permissions from DB:', JSON.stringify(adminPermissions, null, 2));
 
           // If no permissions found in database, provide default super_admin permissions
           // This ensures admin users always have access to the admin panel
           if (!adminPermissions) {
-            console.log('No admin permissions found in DB, providing default super_admin permissions for user:', dbUser.id);
+            console.log('[AUTH_USER] No admin permissions found in DB, providing default super_admin permissions for user:', dbUser.id);
             adminPermissions = {
               canManageUsers: true,
               canManageListings: true,
@@ -68,10 +70,14 @@ export default async function handler(req: any, res: any) {
               canForceLogout: true,
               adminRole: 'super_admin'
             };
+            console.log('[AUTH_USER] Default permissions set:', JSON.stringify(adminPermissions, null, 2));
+          } else {
+            console.log('[AUTH_USER] Using permissions from database');
           }
         } catch (permError) {
-          console.error('Error fetching admin permissions:', permError);
+          console.error('[AUTH_USER] Error fetching admin permissions:', permError);
           // Even on error, provide default super_admin permissions
+          console.log('[AUTH_USER] Providing default super_admin permissions due to error');
           adminPermissions = {
             canManageUsers: true,
             canManageListings: true,
