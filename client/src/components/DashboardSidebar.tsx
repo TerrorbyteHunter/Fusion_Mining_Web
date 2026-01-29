@@ -1,4 +1,3 @@
-import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,6 +57,34 @@ export function DashboardSidebar({
       label: "Messages",
       icon: MessageSquare,
       href: "/dashboard/messages",
+import { Crown } from "lucide-react";
+
+export function DashboardSidebar({
+  mobileOpen: externalMobileOpen,
+  onMobileOpenChange
+}: DashboardSidebarProps = {}) {
+  const [location] = useLocation();
+  const { user, isSeller, isAdmin, permissions } = useAuth();
+  const isSuperAdmin = permissions?.adminRole === 'super_admin';
+  const [internalMobileOpen, setInternalMobileOpen] = useState(false);
+
+  // ...existing code...
+
+  const menuItems = [
+    // ...existing code...
+    ...(isSuperAdmin
+      ? [
+          {
+            label: "Super Admin Panel",
+            icon: Crown,
+            href: "/admin/super",
+            testId: "sidebar-super-admin-panel",
+            highlight: true
+          }
+        ]
+      : []),
+    // ...existing code...
+  ];
       testId: "sidebar-messages"
     },
     ...(isSeller
