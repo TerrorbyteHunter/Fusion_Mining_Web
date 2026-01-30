@@ -18,7 +18,18 @@ import {
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { UserProfile } from "@shared/schema";
-import { User, Building2, Save } from "lucide-react";
+import { User, Save, Trash2, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ProfileManagement() {
   const { toast } = useToast();
@@ -31,6 +42,8 @@ export default function ProfileManagement() {
     bio: "",
     interests: [] as string[],
   });
+  const [deletionReason, setDeletionReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: profile, isLoading: profileLoading } = useQuery<UserProfile>({
     queryKey: ["/api/profile"],
@@ -243,6 +256,70 @@ export default function ProfileManagement() {
                   <Save className="mr-2 h-4 w-4" />
                   Save Profile
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Danger Zone */}
+          {!profileLoading && (
+            <Card className="mt-12 border-destructive/50">
+              <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5" />
+                  Danger Zone
+                </CardTitle>
+                <CardDescription>
+                  Actions here are permanent and require administrative approval
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Requesting an account deletion will send a formal request to our administrators.
+                  Once processed, all your data, listings, and projects will be permanently removed.
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="w-full">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Request Account Deletion
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Request Account Deletion?</AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-4">
+                        <p>
+                          Please provide a reason for your request. An administrator will review this and delete your account within 30 days.
+                        </p>
+                        <Textarea
+                          placeholder="Reason for deletion (optional)"
+                          value={deletionReason}
+                          onChange={(e) => setDeletionReason(e.target.value)}
+                        />
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          setIsDeleting(true);
+                          try {
+                            await apiRequest("POST", "/api/account-deletion-request", { reason: deletionReason });
+                            toast({ title: "Request Submitted", description: "An admin will review your deletion request." });
+                            setDeletionReason("");
+                          } catch (err) {
+                            toast({ title: "Error", description: "Failed to submit request", variant: "destructive" });
+                          } finally {
+                            setIsDeleting(false);
+                          }
+                        }}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        {isDeleting ? "Submitting..." : "Submit Request"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           )}

@@ -28,6 +28,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // shared/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
+  accountDeletionRequests: () => accountDeletionRequests,
+  accountDeletionRequestsRelations: () => accountDeletionRequestsRelations,
   activityLogs: () => activityLogs,
   activityLogsRelations: () => activityLogsRelations,
   activityTypeEnum: () => activityTypeEnum,
@@ -45,6 +47,7 @@ __export(schema_exports, {
   emailTemplates: () => emailTemplates,
   expressInterest: () => expressInterest,
   expressInterestRelations: () => expressInterestRelations,
+  insertAccountDeletionRequestSchema: () => insertAccountDeletionRequestSchema,
   insertActivityLogSchema: () => insertActivityLogSchema,
   insertAdminAuditLogSchema: () => insertAdminAuditLogSchema,
   insertAdminPermissionsSchema: () => insertAdminPermissionsSchema,
@@ -174,7 +177,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, tierUpgradeDocuments, tierUpgradeRequestsRelations, tierUpgradeDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema;
+var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, accountDeletionRequests, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, accountDeletionRequestsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, tierUpgradeDocuments, tierUpgradeRequestsRelations, tierUpgradeDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema, insertAccountDeletionRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -241,6 +244,7 @@ var init_schema = __esm({
       bio: text("bio"),
       interests: text("interests").array(),
       verified: boolean("verified").notNull().default(false),
+      onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull()
     });
@@ -442,6 +446,15 @@ var init_schema = __esm({
       status: varchar("status").notNull().default("new"),
       // new, contacted, resolved
       createdAt: timestamp("created_at").defaultNow().notNull()
+    });
+    accountDeletionRequests = pgTable("account_deletion_requests", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      reason: text("reason"),
+      status: varchar("status").notNull().default("pending"),
+      // pending, processed, cancelled
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull()
     });
     sustainabilityContent = pgTable("sustainability_content", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -691,6 +704,7 @@ var init_schema = __esm({
       interests: many(expressInterest),
       activityLogs: many(activityLogs),
       notifications: many(notifications),
+      deletionRequests: many(accountDeletionRequests),
       tierUsage: many(tierUsageTracking),
       // sellerVerificationRequests references users in two different ways (sellerId and reviewedBy).
       // Disambiguate the relations by giving explicit relation names so Drizzle can map fields correctly.
@@ -813,6 +827,12 @@ var init_schema = __esm({
         references: [users.id]
       })
     }));
+    accountDeletionRequestsRelations = relations(accountDeletionRequests, ({ one }) => ({
+      user: one(users, {
+        fields: [accountDeletionRequests.userId],
+        references: [users.id]
+      })
+    }));
     tierUsageTrackingRelations = relations(tierUsageTracking, ({ one }) => ({
       user: one(users, {
         fields: [tierUsageTracking.userId],
@@ -838,6 +858,45 @@ var init_schema = __esm({
         references: [sellerVerificationRequests.id]
       })
     }));
+    paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "airtel_money", "wechat_alipay"]);
+    tierUpgradeRequests = pgTable("tier_upgrade_requests", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      requestedTier: membershipTierEnum("requested_tier").notNull(),
+      status: varchar("status").notNull().default("draft"),
+      // draft, pending, approved, rejected
+      rejectionReason: text("rejection_reason"),
+      submittedAt: timestamp("submitted_at"),
+      reviewedAt: timestamp("reviewed_at"),
+      reviewedBy: varchar("reviewed_by").references(() => users.id),
+      documentCount: integer("document_count").notNull().default(0),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull()
+    });
+    tierUpgradePayments = pgTable("tier_upgrade_payments", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      upgradeRequestId: varchar("upgrade_request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: "cascade" }),
+      userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+      requestedTier: membershipTierEnum("requested_tier").notNull(),
+      paymentMethod: paymentMethodEnum("payment_method").notNull(),
+      amountUSD: decimal("amount_usd", { precision: 10, scale: 2 }).notNull(),
+      // Original USD amount
+      amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+      // Converted amount in local currency
+      currency: varchar("currency").notNull().default("ZMW"),
+      // Local currency code
+      status: varchar("status").notNull().default("pending"),
+      // pending, paid, verified, rejected
+      paymentDetails: jsonb("payment_details"),
+      // Store payment method specific details
+      proofOfPaymentUrl: varchar("proof_of_payment_url"),
+      submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+      verifiedAt: timestamp("verified_at"),
+      verifiedBy: varchar("verified_by").references(() => users.id),
+      rejectionReason: text("rejection_reason"),
+      createdAt: timestamp("created_at").defaultNow().notNull(),
+      updatedAt: timestamp("updated_at").defaultNow().notNull()
+    });
     tierUpgradeDocuments = pgTable("tier_upgrade_documents", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       requestId: varchar("request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: "cascade" }),
@@ -872,12 +931,14 @@ var init_schema = __esm({
     }));
     upsertUserSchema = createInsertSchema(users).pick({
       id: true,
+      clerkId: true,
       email: true,
       username: true,
       password: true,
       firstName: true,
       lastName: true,
-      profileImageUrl: true
+      profileImageUrl: true,
+      role: true
     });
     insertAdminPermissionsSchema = createInsertSchema(adminPermissions).omit({
       id: true,
@@ -1068,45 +1129,6 @@ var init_schema = __esm({
       id: true,
       uploadedAt: true
     });
-    paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "airtel_money", "wechat_alipay"]);
-    tierUpgradeRequests = pgTable("tier_upgrade_requests", {
-      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-      userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-      requestedTier: membershipTierEnum("requested_tier").notNull(),
-      status: varchar("status").notNull().default("draft"),
-      // draft, pending, approved, rejected
-      rejectionReason: text("rejection_reason"),
-      submittedAt: timestamp("submitted_at"),
-      reviewedAt: timestamp("reviewed_at"),
-      reviewedBy: varchar("reviewed_by").references(() => users.id),
-      documentCount: integer("document_count").notNull().default(0),
-      createdAt: timestamp("created_at").defaultNow().notNull(),
-      updatedAt: timestamp("updated_at").defaultNow().notNull()
-    });
-    tierUpgradePayments = pgTable("tier_upgrade_payments", {
-      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-      upgradeRequestId: varchar("upgrade_request_id").notNull().references(() => tierUpgradeRequests.id, { onDelete: "cascade" }),
-      userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-      requestedTier: membershipTierEnum("requested_tier").notNull(),
-      paymentMethod: paymentMethodEnum("payment_method").notNull(),
-      amountUSD: decimal("amount_usd", { precision: 10, scale: 2 }).notNull(),
-      // Original USD amount
-      amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-      // Converted amount in local currency
-      currency: varchar("currency").notNull().default("ZMW"),
-      // Local currency code
-      status: varchar("status").notNull().default("pending"),
-      // pending, paid, verified, rejected
-      paymentDetails: jsonb("payment_details"),
-      // Store payment method specific details
-      proofOfPaymentUrl: varchar("proof_of_payment_url"),
-      submittedAt: timestamp("submitted_at").defaultNow().notNull(),
-      verifiedAt: timestamp("verified_at"),
-      verifiedBy: varchar("verified_by").references(() => users.id),
-      rejectionReason: text("rejection_reason"),
-      createdAt: timestamp("created_at").defaultNow().notNull(),
-      updatedAt: timestamp("updated_at").defaultNow().notNull()
-    });
     paymentMethodDetails = pgTable("payment_method_details", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       method: paymentMethodEnum("method").notNull().unique(),
@@ -1155,6 +1177,12 @@ var init_schema = __esm({
       createdAt: true,
       updatedAt: true
     }).partial().required({ id: true });
+    insertAccountDeletionRequestSchema = createInsertSchema(accountDeletionRequests).omit({
+      id: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true
+    });
   }
 });
 
@@ -2883,6 +2911,34 @@ var init_storage = __esm({
       async getTierUpgradeDocuments(requestId) {
         return await db.select().from(tierUpgradeDocuments).where(eq(tierUpgradeDocuments.requestId, requestId)).orderBy(desc(tierUpgradeDocuments.uploadedAt));
       }
+      async createTierUpgradePayment(data) {
+        const [payment] = await db.insert(tierUpgradePayments).values(data).returning();
+        return payment;
+      }
+      async updateTierUpgradePayment(id, data) {
+        const [updated] = await db.update(tierUpgradePayments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tierUpgradePayments.id, id)).returning();
+        return updated;
+      }
+      async getTierUpgradePaymentByRequestId(requestId) {
+        const [payment] = await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.upgradeRequestId, requestId)).limit(1);
+        return payment;
+      }
+      // Onboarding & Deletion Implementation
+      async completeOnboarding(userId, role) {
+        await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+        await db.update(userProfiles).set({ onboardingCompleted: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(userProfiles.userId, userId));
+      }
+      async createAccountDeletionRequest(data) {
+        const [request] = await db.insert(accountDeletionRequests).values(data).returning();
+        return request;
+      }
+      async getAccountDeletionRequests() {
+        return await db.select().from(accountDeletionRequests).orderBy(desc(accountDeletionRequests.createdAt));
+      }
+      async updateAccountDeletionRequestStatus(id, status) {
+        const [updated] = await db.update(accountDeletionRequests).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq(accountDeletionRequests.id, id)).returning();
+        return updated;
+      }
     };
     storage = new DatabaseStorage();
   }
@@ -3361,6 +3417,8 @@ async function handler3(req, res) {
         return res.status(404).json({ message: "User not found" });
       }
       console.log("Auth handler: Returning user data for:", dbUser.email);
+      const profile = await storage.getUserProfile(dbUser.id);
+      const onboardingCompleted = profile?.onboardingCompleted || false;
       let adminPermissions2 = null;
       if (dbUser.role === "admin") {
         try {
@@ -3414,6 +3472,7 @@ async function handler3(req, res) {
       }
       return res.json({
         ...dbUser,
+        onboardingCompleted,
         adminPermissions: adminPermissions2
       });
     }
@@ -6606,6 +6665,124 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       res.status(500).json({ message: "Failed to revert tier upgrade request" });
     }
   });
+  app2.get("/api/payment-methods", async (req, res) => {
+    try {
+      const methods = await storage.getAllPaymentMethodDetails();
+      if (methods.length === 0) {
+        const defaults = [
+          {
+            method: "bank_transfer",
+            name: "Bank Transfer (Zambia)",
+            description: "Local ZMK/USD bank transfer",
+            instructions: "Please transfer the amount to the provided account and upload proof of payment.",
+            accountDetails: { bank: "Zambia National Commercial Bank (Zanaco)", accountName: "Fusion Mining Limited", accountNo: "54829302930" },
+            currencyCode: "ZMW",
+            currencyName: "Zambian Kwacha",
+            isActive: true
+          },
+          {
+            method: "airtel_money",
+            name: "Airtel Money",
+            description: "Mobile money payment",
+            instructions: "Send money to +260 978 838 939 and upload confirmation message screenshot.",
+            accountDetails: { merchantId: "FUSION789", phone: "+260 978 838 939" },
+            currencyCode: "ZMW",
+            currencyName: "Zambian Kwacha",
+            isActive: true
+          },
+          {
+            method: "wechat_alipay",
+            name: "WeChat / AliPay (USD)",
+            description: "International digital payments",
+            instructions: "Scan the QR code to pay via WeChat or AliPay.",
+            accountDetails: { wechatId: "fusion_mining_china", alipayId: "fusion@mining.com" },
+            currencyCode: "USD",
+            currencyName: "US Dollar",
+            isActive: true
+          }
+        ];
+        for (const d of defaults) {
+          await storage.createPaymentMethodDetails(d);
+        }
+        return res.json(await storage.getAllPaymentMethodDetails());
+      }
+      res.json(methods);
+    } catch (error) {
+      console.error("Error fetching payment methods:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods" });
+    }
+  });
+  app2.post("/api/buyer/tier-upgrade/payment", isAuthenticated, async (req, res) => {
+    try {
+      const { upgradeRequestId, paymentMethod, amount } = req.body;
+      if (!upgradeRequestId || !paymentMethod || !amount) {
+        return res.status(400).json({ message: "Missing required payment fields" });
+      }
+      const exchangeRate = 25;
+      const amountZMW = amount * exchangeRate;
+      const payment = await storage.createTierUpgradePayment({
+        upgradeRequestId,
+        userId: req.user.id,
+        requestedTier: "premium",
+        // Default to premium for now or fetch from request
+        paymentMethod,
+        amountUSD: amount.toString(),
+        amount: amountZMW.toString(),
+        currency: "ZMW",
+        status: "pending"
+      });
+      res.json(payment);
+    } catch (error) {
+      console.error("Error creating tier upgrade payment:", error);
+      res.status(500).json({ message: error.message || "Failed to create payment" });
+    }
+  });
+  app2.post("/api/buyer/tier-upgrade/payment/:id/proof", isAuthenticated, verificationUpload.single("proofOfPayment"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No proof of payment file uploaded" });
+      }
+      const paymentId = req.params.id;
+      const relativePath = `/attached_assets/files/uploads/verification/${req.file.filename}`;
+      const updated = await storage.updateTierUpgradePayment(paymentId, {
+        proofOfPaymentUrl: relativePath,
+        status: "paid"
+        // Mark as paid once proof is uploaded
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error uploading proof of payment:", error);
+      res.status(500).json({ message: error.message || "Failed to upload proof" });
+    }
+  });
+  app2.post("/api/complete-onboarding", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { role } = req.body;
+      if (!["buyer", "seller"].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      await storage.completeOnboarding(userId, role);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+  app2.post("/api/account-deletion-request", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const { reason } = req.body;
+      const request = await storage.createAccountDeletionRequest({
+        userId,
+        reason
+      });
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating deletion request:", error);
+      res.status(500).json({ message: "Failed to submit deletion request" });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
@@ -6708,10 +6885,94 @@ function serveStatic(app2) {
 // server/index.ts
 init_clerk();
 import pg from "pg";
+
+// api/clerk-webhook.ts
+init_storage();
+import { Webhook } from "svix";
+async function clerkWebhookHandler(req, res) {
+  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
+  if (!WEBHOOK_SECRET) {
+    console.error("CLERK_WEBHOOK_SECRET is not set");
+    return res.status(500).json({ message: "Webhook secret not configured" });
+  }
+  const svix_id = req.headers["svix-id"];
+  const svix_timestamp = req.headers["svix-timestamp"];
+  const svix_signature = req.headers["svix-signature"];
+  if (!svix_id || !svix_timestamp || !svix_signature) {
+    console.error("Missing svix headers");
+    return res.status(400).json({ message: "Error occured -- no svix headers" });
+  }
+  const body = req.rawBody || JSON.stringify(req.body);
+  const wh = new Webhook(WEBHOOK_SECRET);
+  let evt;
+  try {
+    evt = wh.verify(body, {
+      "svix-id": svix_id,
+      "svix-timestamp": svix_timestamp,
+      "svix-signature": svix_signature
+    });
+  } catch (err) {
+    console.error("Error verifying webhook:", err);
+    return res.status(400).json({ message: "Error occured" });
+  }
+  const eventType = evt.type;
+  console.log(`Clerk Webhook received: ${eventType}`);
+  if (eventType === "user.created" || eventType === "user.updated") {
+    const { id, email_addresses, first_name, last_name, image_url, public_metadata, unsafe_metadata } = evt.data;
+    const email = email_addresses?.[0]?.email_address;
+    const role = public_metadata?.role || unsafe_metadata?.role || "buyer";
+    try {
+      console.log(`Upserting user: ${id} (${email})`);
+      const user = await storage.upsertUser({
+        clerkId: id,
+        email: email || "",
+        firstName: first_name || "",
+        lastName: last_name || "",
+        profileImageUrl: image_url || null,
+        role
+      });
+      const existingProfile = await storage.getUserProfile(user.id);
+      if (!existingProfile) {
+        console.log(`Creating profile for user: ${user.id}`);
+        await storage.createUserProfile({
+          userId: user.id,
+          profileType: "individual",
+          verified: false
+        });
+      }
+      return res.status(200).json({ message: "User updated in database" });
+    } catch (error) {
+      console.error("Error updating user from Clerk webhook:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+  if (eventType === "user.deleted") {
+    const { id } = evt.data;
+    try {
+      console.log(`Deleting user: ${id}`);
+      const user = await storage.getUserByClerkId(id);
+      if (user) {
+        await storage.deleteUser(user.id);
+      }
+      return res.status(200).json({ message: "User deleted from database" });
+    } catch (error) {
+      console.error("Error deleting user from Clerk webhook:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  }
+  return res.status(200).json({ message: "Webhook received" });
+}
+
+// server/index.ts
 if (!process.env.CLERK_SECRET_KEY) {
   __require("dotenv").config({ path: path3.resolve(__dirname, "..", ".env") });
 }
 var app = express2();
+app.post("/api/clerk-webhook", express2.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString();
+  }
+}), clerkWebhookHandler);
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
 console.log("Starting server bootstrap", { NODE_ENV: process.env.NODE_ENV, PORT: process.env.PORT });

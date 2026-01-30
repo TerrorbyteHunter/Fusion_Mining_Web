@@ -93,6 +93,7 @@ export const userProfiles = pgTable("user_profiles", {
   bio: text("bio"),
   interests: text("interests").array(),
   verified: boolean("verified").notNull().default(false),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -323,6 +324,18 @@ export const contactSubmissions = pgTable("contact_submissions", {
   message: text("message").notNull(),
   status: varchar("status").notNull().default('new'), // new, contacted, resolved
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ============================================================================
+// Account Deletion Requests
+// ============================================================================
+export const accountDeletionRequests = pgTable("account_deletion_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reason: text("reason"),
+  status: varchar("status").notNull().default('pending'), // pending, processed, cancelled
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // ============================================================================
@@ -621,6 +634,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   interests: many(expressInterest),
   activityLogs: many(activityLogs),
   notifications: many(notifications),
+  deletionRequests: many(accountDeletionRequests),
   tierUsage: many(tierUsageTracking),
   // sellerVerificationRequests references users in two different ways (sellerId and reviewedBy).
   // Disambiguate the relations by giving explicit relation names so Drizzle can map fields correctly.
@@ -752,6 +766,13 @@ export const activityLogsRelations = relations(activityLogs, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountDeletionRequestsRelations = relations(accountDeletionRequests, ({ one }) => ({
+  user: one(users, {
+    fields: [accountDeletionRequests.userId],
     references: [users.id],
   }),
 }));
@@ -1278,3 +1299,13 @@ export const updateTierUpgradeRequestSchema = createInsertSchema(tierUpgradeRequ
 export type InsertTierUpgradeRequest = z.infer<typeof insertTierUpgradeRequestSchema>;
 export type UpdateTierUpgradeRequest = z.infer<typeof updateTierUpgradeRequestSchema>;
 export type TierUpgradeRequest = typeof tierUpgradeRequests.$inferSelect;
+
+// Account Deletion Request schemas
+export const insertAccountDeletionRequestSchema = createInsertSchema(accountDeletionRequests).omit({
+  id: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAccountDeletionRequest = z.infer<typeof insertAccountDeletionRequestSchema>;
+export type AccountDeletionRequest = typeof accountDeletionRequests.$inferSelect;

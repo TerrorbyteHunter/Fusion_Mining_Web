@@ -49,7 +49,8 @@ export default async function clerkWebhookHandler(req: any, res: any) {
     const { id, email_addresses, first_name, last_name, image_url, public_metadata, unsafe_metadata } = evt.data;
 
     const email = email_addresses?.[0]?.email_address;
-    const role = (public_metadata?.role || unsafe_metadata?.role || 'buyer') as any;
+    const clerkRole = public_metadata?.role || unsafe_metadata?.role;
+    const role = (clerkRole || 'buyer') as any;
 
     try {
       console.log(`Upserting user: ${id} (${email})`);
@@ -70,6 +71,7 @@ export default async function clerkWebhookHandler(req: any, res: any) {
           userId: user.id,
           profileType: 'individual',
           verified: false,
+          onboardingCompleted: !!clerkRole || role === 'admin',
         });
       }
 

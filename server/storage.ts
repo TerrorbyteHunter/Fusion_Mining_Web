@@ -19,6 +19,7 @@ import {
   notifications,
   videos,
   adminPermissions,
+  accountDeletionRequests,
   membershipBenefits,
   tierUsageTracking,
   platformSettings,
@@ -110,6 +111,8 @@ import {
   type PaymentMethodDetails,
   type InsertPaymentMethodDetails,
   type UpdatePaymentMethodDetails,
+  type AccountDeletionRequest,
+  type InsertAccountDeletionRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, or, sql, inArray } from "drizzle-orm";
@@ -370,6 +373,12 @@ export interface IStorage {
   updateUserPassword(userId: string, hashedPassword: string): Promise<void>;
   forceUserLogout(userId: string): Promise<void>;
   updateUserInfo(userId: string, data: any): Promise<User>;
+
+  // Onboarding & Deletion
+  completeOnboarding(userId: string, role: string): Promise<void>;
+  createAccountDeletionRequest(data: InsertAccountDeletionRequest): Promise<AccountDeletionRequest>;
+  getAccountDeletionRequests(): Promise<AccountDeletionRequest[]>;
+  updateAccountDeletionRequestStatus(id: string, status: string): Promise<AccountDeletionRequest>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3093,6 +3102,41 @@ export class DatabaseStorage implements IStorage {
       .where(eq(tierUpgradePayments.upgradeRequestId, requestId))
       .limit(1);
     return payment;
+  }
+
+  // Onboarding & Deletion Implementation
+  async completeOnboarding(userId: string, role: string): Promise<void> {
+    await db.update(users)
+      .set({ role: role as any, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+
+    await db.update(userProfiles)
+      .set({ onboardingCompleted: true, updatedAt: new Date() })
+      .where(eq(userProfiles.userId, userId));
+  }
+
+  async createAccountDeletionRequest(data: InsertAccountDeletionRequest): Promise<AccountDeletionRequest> {
+    const [request] = await db
+      .insert(accountDeletionRequests)
+      .values(data)
+      .returning();
+    return request;
+  }
+
+  async getAccountDeletionRequests(): Promise<AccountDeletionRequest[]> {
+    return await db
+      .select()
+      .from(accountDeletionRequests)
+      .orderBy(desc(accountDeletionRequests.createdAt));
+  }
+
+  async updateAccountDeletionRequestStatus(id: string, status: string): Promise<AccountDeletionRequest> {
+    const [updated] = await db
+      .update(accountDeletionRequests)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(accountDeletionRequests.id, id))
+      .returning();
+    return updated;
   }
 }
 

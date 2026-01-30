@@ -41,6 +41,10 @@ export default async function handler(req: any, res: any) {
 
       console.log('Auth handler: Returning user data for:', dbUser.email);
 
+      // Get onboarding status from profile
+      const profile = await storage.getUserProfile(dbUser.id);
+      const onboardingCompleted = (dbUser.role === 'admin') || (profile?.onboardingCompleted || false);
+
       // Get admin permissions if user is admin
       let adminPermissions = null;
       if (dbUser.role === 'admin') {
@@ -100,6 +104,7 @@ export default async function handler(req: any, res: any) {
 
       return res.json({
         ...dbUser,
+        onboardingCompleted,
         adminPermissions,
       });
     }

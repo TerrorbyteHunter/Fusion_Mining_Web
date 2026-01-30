@@ -41,11 +41,21 @@ import LegalDisclaimer from "@/pages/LegalDisclaimer";
 import DashboardLayout from "@/pages/DashboardLayout";
 import SellerVerification from "@/pages/SellerVerification";
 import { SupportChatWidget } from "@/components/SupportChatWidget";
-import CreateBuyerRequest from "@/pages/CreateBuyerRequest";
+import Onboarding from "@/pages/Onboarding";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect } from "react";
 
 function Router() {
-  const [location] = useLocation();
-  
+  const [location, setLocation] = useLocation();
+  const { isAuthenticated, onboardingCompleted, isLoading } = useAuth();
+
+  // Handle onboarding redirect
+  useEffect(() => {
+    if (isAuthenticated && !isLoading && !onboardingCompleted && location !== '/onboarding') {
+      setLocation('/onboarding');
+    }
+  }, [isAuthenticated, isLoading, onboardingCompleted, location, setLocation]);
+
   const isAdminSection = location.startsWith('/admin');
   const showLMETicker = !isAdminSection && location !== '/login' && location !== '/signup';
 
@@ -102,6 +112,9 @@ function Router() {
             <Route path="/legal/terms" component={LegalTerms} />
             <Route path="/legal/privacy" component={LegalPrivacy} />
             <Route path="/legal/disclaimer" component={LegalDisclaimer} />
+
+            {/* Onboarding */}
+            <Route path="/onboarding" component={Onboarding} />
 
             {/* 404 */}
             <Route component={NotFound} />

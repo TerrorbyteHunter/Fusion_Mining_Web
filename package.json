@@ -16,6 +16,9 @@
     "db:generate": "drizzle-kit generate",
     "db:seed": "cross-env NODE_ENV=development tsx server/seed.ts",
     "db:sync-clerk": "cross-env NODE_ENV=development tsx scripts/sync-clerk-users.ts",
+    "db:fix-onboarding": "cross-env NODE_ENV=development tsx scripts/fix-onboarding.ts",
+    "db:fix-projects": "cross-env NODE_ENV=development tsx scripts/fix-project-owners.ts",
+    "db:cleanup": "cross-env NODE_ENV=development tsx scripts/cleanup-db.ts",
     "e2e": "playwright test"
   },
   "dependencies": {

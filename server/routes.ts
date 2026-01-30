@@ -3848,6 +3848,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // ========================================================================
+  // Onboarding & Account Deletion Routes
+  // ========================================================================
+  app.post('/api/complete-onboarding', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { role } = req.body;
+      if (!['buyer', 'seller'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      await storage.completeOnboarding(userId, role);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      res.status(500).json({ message: "Failed to complete onboarding" });
+    }
+  });
+
+  app.post('/api/account-deletion-request', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.id;
+      const { reason } = req.body;
+      const request = await storage.createAccountDeletionRequest({
+        userId,
+        reason,
+      });
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating deletion request:", error);
+      res.status(500).json({ message: "Failed to submit deletion request" });
+    }
+  });
+
+  // ========================================================================
   // Notification Routes
   // ========================================================================
 

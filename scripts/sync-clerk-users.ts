@@ -36,6 +36,7 @@ async function syncAllUsers() {
                         userId: dbUser.id,
                         profileType: 'individual',
                         verified: false,
+                        onboardingCompleted: true,
                     });
                 }
                 console.log(`  - Done.`);

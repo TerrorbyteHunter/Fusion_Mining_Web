@@ -32,7 +32,8 @@ export const syncClerkUser = async (clerkUserId: string) => {
       }
 
       // Get role and admin role from Clerk metadata
-      const role = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || 'buyer';
+      const clerkRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role;
+      const role = clerkRole || 'buyer';
       const adminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
 
       console.log('syncClerkUser: User role and adminRole:', { role, adminRole });
@@ -54,6 +55,7 @@ export const syncClerkUser = async (clerkUserId: string) => {
         userId: dbUser.id,
         profileType: 'individual',
         verified: false,
+        onboardingCompleted: !!clerkRole || role === 'admin',
       });
       console.log('syncClerkUser: Profile creation completed');
 

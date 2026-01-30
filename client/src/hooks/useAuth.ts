@@ -45,6 +45,7 @@ export function useAuth() {
     isAdmin,
     isSeller,
     isBuyer,
+    onboardingCompleted: userData?.onboardingCompleted || user?.role === 'admin' || false,
     permissions: userData?.adminPermissions || null, // Return admin permissions from user data
   };
 }
