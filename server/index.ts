@@ -14,6 +14,9 @@ import { setupVite, serveStatic } from "./vite";
 import { requireAuth } from "./clerk";
 import pg from "pg";
 import clerkWebhookHandler from "../api/clerk-webhook";
+import loginHandler from '../api/login';
+import logoutHandler from '../api/logout';
+import authUserHandler from '../api/auth_user';
 
 const app = express();
 
@@ -89,19 +92,12 @@ app.use((req, res, next) => {
     const server = await registerRoutes(app);
     console.log('Routes registered');
 
-    // In development, mount API handlers from api/ directory
-    if (app.get("env") === "development") {
-      console.log('Mounting API handlers for development...');
-      const loginHandler = (await import('../api/login')).default;
-      const logoutHandler = (await import('../api/logout')).default;
-      const authUserHandler = (await import('../api/auth_user')).default;
+    // Register API handlers (required for both dev and prod on some platforms)
+    app.post('/api/login', loginHandler);
+    app.post('/api/logout', logoutHandler);
+    app.get('/api/auth/user', requireAuth, authUserHandler);
 
-      app.post('/api/login', loginHandler);
-      app.post('/api/logout', logoutHandler);
-      app.get('/api/auth/user', requireAuth, authUserHandler);
-
-      console.log('API handlers mounted');
-    }
+    // In development, setup Vite
 
     // Central error handler: respond and log, but don't rethrow here to avoid crashing the process
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

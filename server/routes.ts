@@ -6,7 +6,7 @@ import fs from "fs";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, syncClerkUser } from "./localAuth";
-import { getClerkUser } from "./clerk";
+import { getClerkUser, clerk } from "./clerk";
 import { ROLE_PERMISSIONS } from "./rbac";
 import { ZodError } from "zod";
 import { db } from "./db";
@@ -3858,6 +3858,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid role" });
       }
       await storage.completeOnboarding(userId, role);
+
+      // Also update Clerk metadata so sync doesn't overwrite it later
+      if (req.auth?.userId) {
+        try {
+          await clerk.users.updateUserMetadata(req.auth.userId, {
+            publicMetadata: {
+              role: role,
+            }
+          });
+        } catch (clerkError) {
+          console.error("Error updating Clerk metadata:", clerkError);
+          // Don't fail the whole request if Clerk update fails, 
+          // as we've already updated our local DB
+        }
+      }
+
       res.json({ success: true });
     } catch (error) {
       console.error("Error completing onboarding:", error);
