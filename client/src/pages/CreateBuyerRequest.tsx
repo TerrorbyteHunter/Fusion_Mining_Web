@@ -18,13 +18,24 @@ import {
 } from "@/components/ui/select";
 import { MAIN_CATEGORIES, getSubcategoriesForMain, getSpecificTypes } from "@shared/categories";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Package, Info } from "lucide-react";
+import { Package, Info, Crown, Zap } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Link } from "wouter";
 
 export default function CreateBuyerRequest() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showTierModal, setShowTierModal] = useState(false);
+  const [limitInfo, setLimitInfo] = useState<{ limit?: number; current?: number; reason?: string }>({});
 
   const [form, setForm] = useState({
     title: "",
@@ -99,15 +110,6 @@ export default function CreateBuyerRequest() {
       if (form.budget) payload.budget = form.budget;
 
       const res = await apiRequest("POST", "/api/marketplace/buyer-requests", payload);
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const message =
-          data.message ||
-          (data.tierLimitReached
-            ? "You have reached your RFQ limit for your membership tier."
-            : "Failed to create RFQ");
-        throw new Error(message);
-      }
       return res.json();
     },
     onSuccess: () => {
@@ -118,12 +120,22 @@ export default function CreateBuyerRequest() {
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
       setLocation("/dashboard");
     },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Handle tier limit error with a nice modal
+      if (error.status === 403 && error.data?.tierLimitReached) {
+        setLimitInfo({
+          limit: error.data.limit,
+          current: error.data.current,
+          reason: error.message
+        });
+        setShowTierModal(true);
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -340,6 +352,52 @@ export default function CreateBuyerRequest() {
           </Card>
         </div>
       </section>
+
+      <Dialog open={showTierModal} onOpenChange={setShowTierModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4 text-amber-600">
+              <Zap className="h-6 w-6 fill-current" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-display font-bold">Limit Reached</DialogTitle>
+            <DialogDescription className="text-center text-base pt-2">
+              {limitInfo.reason || "You have reached the maximum number of active RFQs for your current membership tier."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 my-4 space-y-3">
+            <div className="flex justify-between items-center text-sm font-medium">
+              <span className="text-slate-500">Current Usage</span>
+              <span className="text-slate-900 font-bold">{limitInfo.current} / {limitInfo.limit} RFQs</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2">
+              <div
+                className="bg-amber-500 h-2 rounded-full transition-all duration-1000"
+                style={{ width: '100%' }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 text-center italic">
+              Close inactive RFQs in your dashboard to free up slots.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowTierModal(false)}
+              className="w-full"
+            >
+              Maybe Later
+            </Button>
+            <Link href="/dashboard/upgrade-tier">
+              <Button className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0 shadow-md">
+                <Crown className="mr-2 h-4 w-4" />
+                Upgrade Membership
+              </Button>
+            </Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

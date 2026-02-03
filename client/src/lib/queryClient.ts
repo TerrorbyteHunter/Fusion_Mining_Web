@@ -2,8 +2,26 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = res.statusText;
+    let data: any = null;
+    try {
+      data = await res.json();
+      message = data.message || JSON.stringify(data);
+    } catch (e) {
+      // Fallback to text if parsing JSON fails
+      try {
+        const text = await res.text();
+        if (text) message = text;
+      } catch (e2) {
+        // Leave as statusText
+      }
+    }
+
+    // Create error and attach metadata
+    const error = new Error(message);
+    (error as any).status = res.status;
+    (error as any).data = data;
+    throw error;
   }
 }
 
@@ -71,46 +89,48 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const apiBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
-    const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
-    const path = queryKey.join("/") as string;
-    const fullUrl = /^https?:\/\//i.test(path) ? path : `${normalizedBase}${path}`;
-    
-    // Get Clerk token if available
-    const headers: Record<string, string> = {};
-    try {
-      // @ts-ignore
-      if (window.Clerk && window.Clerk.session) {
+    async ({ queryKey }) => {
+      const apiBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
+      const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
+      const path = queryKey.join("/") as string;
+      const fullUrl = /^https?:\/\//i.test(path) ? path : `${normalizedBase}${path}`;
+
+      // Get Clerk token if available
+      const headers: Record<string, string> = {};
+      try {
         // @ts-ignore
-        const token = await window.Clerk.session.getToken();
-        console.log('QueryFn - Clerk token retrieved:', token ? 'YES' : 'NO');
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-          console.log('QueryFn - Authorization header set');
+        if (window.Clerk && window.Clerk.session) {
+          // @ts-ignore
+          const token = await window.Clerk.session.getToken();
+          console.log('QueryFn - Clerk token retrieved:', token ? 'YES' : 'NO');
+          if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+            console.log('QueryFn - Authorization header set');
+          }
+        } else {
+          console.log('QueryFn - Clerk not available:', {
+            // @ts-ignore
+            clerk: !!window.Clerk,
+            // @ts-ignore
+            session: !!(window as any).Clerk?.session
+          });
         }
-      } else {
-        console.log('QueryFn - Clerk not available:', {
-          clerk: !!window.Clerk,
-          session: !!(window as any).Clerk?.session
-        });
+      } catch (error) {
+        console.warn("Failed to get Clerk token for query:", error);
       }
-    } catch (error) {
-      console.warn("Failed to get Clerk token for query:", error);
-    }
 
-    const res = await fetch(fullUrl, {
-      credentials: "include",
-      headers,
-    });
+      const res = await fetch(fullUrl, {
+        credentials: "include",
+        headers,
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+      await throwIfResNotOk(res);
+      return await res.json();
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

@@ -29,11 +29,11 @@ async function seed() {
 
     // Seed membership tier benefits first
     console.log("Creating membership tier benefits...");
-    
+
     await db.insert(membershipBenefits).values([
       {
         tier: "basic",
-        maxActiveRFQs: 3,
+        maxActiveRFQs: 2,
         canAccessAnalytics: false,
         canDirectMessage: false,
         prioritySupport: false,
@@ -51,20 +51,31 @@ async function seed() {
       },
       {
         tier: "premium",
-        maxActiveRFQs: 999, // Effectively unlimited
+        maxActiveRFQs: -1, // Unlimited
         canAccessAnalytics: true,
         canDirectMessage: true,
         prioritySupport: true,
         visibilityRanking: 1, // Highest visibility
-        monthlyPrice: "149.99",
+        monthlyPrice: "199.99",
       },
-    ]).onConflictDoNothing();
+    ]).onConflictDoUpdate({
+      target: [membershipBenefits.tier],
+      set: {
+        maxActiveRFQs: sql`EXCLUDED.max_active_rfqs`,
+        canAccessAnalytics: sql`EXCLUDED.can_access_analytics`,
+        canDirectMessage: sql`EXCLUDED.can_direct_message`,
+        prioritySupport: sql`EXCLUDED.priority_support`,
+        visibilityRanking: sql`EXCLUDED.visibility_ranking`,
+        monthlyPrice: sql`EXCLUDED.monthly_price`,
+        updatedAt: sql`now()`,
+      },
+    });
 
     console.log("✓ Membership tier benefits created");
 
     // Create test users
     console.log("Creating test users...");
-    
+
     const [adminUser] = await db.insert(users).values({
       id: "test-admin-123",
       email: "admin@fusionmining.com",
@@ -93,7 +104,7 @@ async function seed() {
 
     // Create user profiles
     console.log("Creating user profiles...");
-    
+
     await db.insert(userProfiles).values({
       userId: "test-seller-456",
       profileType: "company",
@@ -120,7 +131,7 @@ async function seed() {
 
     // Create sample projects
     console.log("Creating sample projects...");
-    
+
     await db.insert(projects).values([
       {
         name: "Konkola Copper Mine",
@@ -248,8 +259,8 @@ async function seed() {
 
     // Create marketplace listings
     console.log("Creating marketplace listings...");
-    
-  await db.insert(marketplaceListings).values([
+
+    await db.insert(marketplaceListings).values([
       {
         sellerId: "test-seller-456",
         type: "mineral",
@@ -385,7 +396,7 @@ async function seed() {
         price: "$50,000+ (project dependent)",
         status: "approved",
       },
-  ] as any).onConflictDoNothing();
+    ] as any).onConflictDoNothing();
 
     console.log("✓ Marketplace listings created");
 
@@ -398,7 +409,7 @@ async function seed() {
 
     // Create buyer requests
     console.log("Creating buyer requests...");
-    
+
     await db.insert(buyerRequests).values([
       {
         buyerId: "test-buyer-789",
@@ -436,7 +447,7 @@ async function seed() {
 
     // Create blog posts (News & Insights)
     console.log("Creating blog posts...");
-    
+
     await db.insert(blogPosts).values([
       {
         authorId: "test-admin-123",
@@ -673,7 +684,7 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
 
     // Create support tickets for testing
     console.log("Creating support tickets...");
-    
+
     await db.insert(messageThreads).values([
       {
         id: "ticket-001",
@@ -934,7 +945,7 @@ The tech revolution positions Zambia as Africa's most advanced mining destinatio
     console.log("Admin: admin@fusionmining.com (test-admin-123)");
     console.log("Seller: seller@fusionmining.com (test-seller-456)");
     console.log("Buyer: buyer@fusionmining.com (test-buyer-789)");
-    
+
   } catch (error) {
     console.error("Error seeding database:", error);
     throw error;

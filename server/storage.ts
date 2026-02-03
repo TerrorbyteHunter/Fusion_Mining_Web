@@ -2222,7 +2222,7 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
-  async checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string }> {
+  async checkUserCanCreateRFQ(userId: string): Promise<{ allowed: boolean; reason?: string; limit?: number; current?: number }> {
     const user = await this.getUser(userId);
 
     if (!user) {
@@ -2237,7 +2237,7 @@ export class DatabaseStorage implements IStorage {
 
     // -1 means unlimited
     if (benefit.maxActiveRFQs === -1) {
-      return { allowed: true };
+      return { allowed: true, limit: -1 };
     }
 
     const activeCount = await this.getUserActiveRFQCount(userId);
@@ -2245,11 +2245,13 @@ export class DatabaseStorage implements IStorage {
     if (activeCount >= benefit.maxActiveRFQs) {
       return {
         allowed: false,
-        reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? 's' : ''}. Upgrade to create more RFQs.`
+        reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? 's' : ''}. Upgrade your membership to create more RFQs.`,
+        limit: benefit.maxActiveRFQs,
+        current: activeCount
       };
     }
 
-    return { allowed: true };
+    return { allowed: true, limit: benefit.maxActiveRFQs, current: activeCount };
   }
 
   // ========================================================================

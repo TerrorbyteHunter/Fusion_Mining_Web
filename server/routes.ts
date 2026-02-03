@@ -718,7 +718,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!tierCheck.allowed) {
         return res.status(403).json({
           message: tierCheck.reason || 'You have reached your tier limit for active RFQs',
-          tierLimitReached: true
+          tierLimitReached: true,
+          limit: tierCheck.limit,
+          current: tierCheck.current
         });
       }
 
