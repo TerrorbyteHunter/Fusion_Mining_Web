@@ -1900,11 +1900,21 @@ export class DatabaseStorage implements IStorage {
   // Stats operations for dashboard
   // ========================================================================
   async getUserListingsCount(userId: string): Promise<number> {
-    const result = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(marketplaceListings)
-      .where(eq(marketplaceListings.sellerId, userId));
-    return result[0]?.count || 0;
+    const [listingsResult, rfqResult] = await Promise.all([
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(marketplaceListings)
+        .where(eq(marketplaceListings.sellerId, userId)),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(buyerRequests)
+        .where(eq(buyerRequests.buyerId, userId))
+    ]);
+
+    const listingsCount = listingsResult[0]?.count || 0;
+    const rfqCount = rfqResult[0]?.count || 0;
+
+    return listingsCount + rfqCount;
   }
 
   async getUserUnreadMessagesCount(userId: string): Promise<number> {
