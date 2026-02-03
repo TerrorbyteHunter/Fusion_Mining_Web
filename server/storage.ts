@@ -289,6 +289,7 @@ export interface IStorage {
   createMembershipBenefit(benefit: InsertMembershipBenefit): Promise<MembershipBenefit>;
   getAllMembershipBenefits(): Promise<MembershipBenefit[]>;
   getMembershipBenefitByTier(tier: string): Promise<MembershipBenefit | undefined>;
+  initializeMembershipBenefits(): Promise<void>;
 
   // Tier Usage Tracking operations
   getUserTierUsage(userId: string, month: string): Promise<TierUsageTracking | undefined>;
@@ -2146,6 +2147,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(membershipBenefits.tier, tier as any))
       .limit(1);
     return benefit;
+  }
+
+  async initializeMembershipBenefits(): Promise<void> {
+    try {
+      const benefits = [
+        {
+          tier: "basic",
+          maxActiveRFQs: 2,
+          canAccessAnalytics: false,
+          canDirectMessage: false,
+          prioritySupport: false,
+          visibilityRanking: 3,
+          monthlyPrice: "0.00",
+        },
+        {
+          tier: "standard",
+          maxActiveRFQs: 10,
+          canAccessAnalytics: true,
+          canDirectMessage: true,
+          prioritySupport: false,
+          visibilityRanking: 2,
+          monthlyPrice: "49.99",
+        },
+        {
+          tier: "premium",
+          maxActiveRFQs: -1,
+          canAccessAnalytics: true,
+          canDirectMessage: true,
+          prioritySupport: true,
+          visibilityRanking: 1,
+          monthlyPrice: "199.99",
+        },
+      ];
+
+      for (const benefit of benefits) {
+        await db.insert(membershipBenefits)
+          .values(benefit as any)
+          .onConflictDoUpdate({
+            target: [membershipBenefits.tier],
+            set: {
+              maxActiveRFQs: benefit.maxActiveRFQs,
+              canAccessAnalytics: benefit.canAccessAnalytics,
+              canDirectMessage: benefit.canDirectMessage,
+              prioritySupport: benefit.prioritySupport,
+              visibilityRanking: benefit.visibilityRanking,
+              monthlyPrice: benefit.monthlyPrice,
+              updatedAt: new Date(),
+            },
+          });
+      }
+      console.log("✓ Membership benefits initialized/synced");
+    } catch (error) {
+      console.error("Failed to initialize membership benefits:", error);
+    }
   }
 
   async updateMembershipBenefit(tier: string, benefitData: Partial<InsertMembershipBenefit>): Promise<MembershipBenefit> {

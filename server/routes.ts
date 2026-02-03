@@ -324,6 +324,12 @@ async function requireAnalyticsAccess(req: any, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize/Sync membership benefits on startup (ensures tiers exist in DB)
+  await storage.initializeMembershipBenefits();
+
+  // Sync user tiers from approved requests if any (ensure DB and app are in sync)
+  await initializeUserTiersFromApprovedRequests();
+
   // Middleware aliases for compatibility with legacy routes
   const isAuthenticated = requireAuth;
   const isSeller = requireSeller;
