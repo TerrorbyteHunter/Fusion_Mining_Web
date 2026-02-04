@@ -1,13 +1,21 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +41,10 @@ import {
   ChevronDown,
   ChevronUp,
   XCircle,
+  Download,
+  Calendar as CalendarIcon,
+  Search,
+  Filter,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -161,6 +173,43 @@ export default function AdminBuyerUpgradeReview() {
 
   const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
 
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const filteredRequests = allRequests?.filter(request => {
+    // Status filter
+    if (statusFilter !== "all" && request.status !== statusFilter) return false;
+
+    // Search filter
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      const matchesName = (request.companyName || "").toLowerCase().includes(searchLower) ||
+        `${request.buyerFirstName} ${request.buyerLastName}`.toLowerCase().includes(searchLower);
+      const matchesEmail = request.buyerEmail.toLowerCase().includes(searchLower);
+      if (!matchesName && !matchesEmail) return false;
+    }
+
+    // Date range filter
+    if (request.submittedAt) {
+      const submittedDate = new Date(request.submittedAt);
+      if (startDate) {
+        const start = new Date(startDate);
+        if (submittedDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        // Set end to end of day
+        end.setHours(23, 59, 59, 999);
+        if (submittedDate > end) return false;
+      }
+    }
+
+    return true;
+  });
+
   const toggleExpand = (id: string) => {
     setExpandedRequests(prev => ({ ...prev, [id]: !prev[id] }));
   };
@@ -273,15 +322,28 @@ export default function AdminBuyerUpgradeReview() {
               Review Docs
             </Button>
             {request.proofOfPaymentUrl && (
-              <Button
-                onClick={() => window.open(request.proofOfPaymentUrl, '_blank')}
-                variant="outline"
-                size="sm"
-                className="hover:bg-emerald-50 border-emerald-200 text-emerald-700"
-              >
-                <Receipt className="h-4 w-4 mr-2" />
-                View Payment
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => window.open(request.proofOfPaymentUrl, '_blank')}
+                  variant="outline"
+                  size="sm"
+                  className="hover:bg-emerald-50 border-emerald-200 text-emerald-700"
+                >
+                  <Receipt className="h-4 w-4 mr-2" />
+                  View Payment
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="hover:bg-emerald-50 border-emerald-200 text-emerald-700"
+                >
+                  <a href={request.proofOfPaymentUrl} download="payment_proof" target="_blank" rel="noopener noreferrer">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Proof
+                  </a>
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -331,7 +393,8 @@ export default function AdminBuyerUpgradeReview() {
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</span>
                   <span className="text-lg font-black text-indigo-600">
-                    {request.paymentAmount ? `${request.paymentCurrency} ${request.paymentAmount}` : 'No Payment Info'}
+                    {request.requestedTier.toLowerCase() === 'standard' ? '$50' :
+                      request.requestedTier.toLowerCase() === 'premium' ? '$200' : 'Free'}/Equivalent
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1">
@@ -445,6 +508,149 @@ export default function AdminBuyerUpgradeReview() {
     );
   };
 
+  const CompactRequestStrip = ({ request, isExpanded, onToggle }: { request: BuyerUpgradeRequest, isExpanded: boolean, onToggle: () => void }) => (
+    <div className={`border rounded-lg overflow-hidden transition-all duration-200 ${isExpanded ? 'ring-1 ring-indigo-200 shadow-md mb-4' : 'hover:bg-slate-50 mb-2'}`}>
+      {/* The Strip */}
+      <div
+        className="flex items-center justify-between p-3 cursor-pointer select-none"
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 ${request.requestedTier.toLowerCase() === 'premium' ? 'bg-amber-500' : 'bg-blue-600'
+            }`}>
+            {request.requestedTier.toLowerCase() === 'premium' ? <ShieldCheck className="h-4 w-4" /> : <Building2 className="h-4 w-4" />}
+          </div>
+          <div className="min-w-0">
+            <p className="font-bold text-slate-800 text-sm truncate">
+              {request.companyName || `${request.buyerFirstName} ${request.buyerLastName}`}
+            </p>
+            <p className="text-[10px] text-slate-500 truncate">{request.buyerEmail}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 shrink-0">
+          <div className="hidden md:block text-right">
+            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Submitted</p>
+            <p className="text-xs font-semibold text-slate-600">
+              {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}
+            </p>
+          </div>
+          <div className="w-24 flex justify-end">
+            {getTierBadge(request.requestedTier)}
+          </div>
+          <div className="w-24 flex justify-end">
+            {getStatusBadge(request.status)}
+          </div>
+          <div className="ml-2">
+            {isExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded Details */}
+      {isExpanded && (
+        <div className="px-4 pb-4 bg-slate-50/30 border-t border-slate-100 animate-in slide-in-from-top-2 duration-200">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <Building2 className="h-3 w-3" /> Buyer Account Details
+              </h4>
+              <div className="grid grid-cols-1 gap-2">
+                <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100/50">
+                  <span className="text-slate-500">Contact Person</span>
+                  <span className="font-medium">{request.buyerFirstName} {request.buyerLastName}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100/50">
+                  <span className="text-slate-500 flex items-center gap-1.5"><Phone className="h-3 w-3" /> Phone</span>
+                  <span className="font-medium">{request.phoneNumber || 'Not Provided'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100/50">
+                  <span className="text-slate-500 flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Location</span>
+                  <span className="font-medium truncate max-w-[180px] text-right">{request.location || 'Not Provided'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <CreditCard className="h-3 w-3" /> Transaction Summary
+              </h4>
+              <div className="bg-white p-3 rounded-lg shadow-sm border border-slate-200/60">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Amount</span>
+                  <span className="text-base font-black text-indigo-600">
+                    {request.requestedTier.toLowerCase() === 'standard' ? '$50' :
+                      request.requestedTier.toLowerCase() === 'premium' ? '$200' : 'Free'}/Equivalent
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] py-1">
+                  <span className="text-slate-500">Method</span>
+                  <span className="font-bold text-slate-700 capitalize">{request.paymentMethod?.replace('_', ' ') || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] py-1">
+                  <span className="text-slate-500">Status</span>
+                  <Badge variant="outline" className={`text-[8px] h-fit py-0 ${request.paymentStatus === 'verified' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' :
+                    request.paymentStatus === 'paid' ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-amber-200 text-amber-600 bg-amber-50'
+                    }`}>
+                    {request.paymentStatus?.toUpperCase() || 'PENDING'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {request.rejectionReason && (
+            <div className="p-3 rounded-lg bg-rose-50 border border-rose-100 mb-4">
+              <div className="flex items-center gap-2 text-rose-700 text-[10px] font-bold mb-1">
+                <XCircle className="h-3.5 w-3.5" /> Rejection History
+              </div>
+              <p className="text-[11px] text-rose-600 italic leading-relaxed">"{request.rejectionReason}"</p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex gap-2">
+              <Button
+                onClick={() => handleViewDocuments(request)}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs hover:bg-slate-50 border-slate-200"
+              >
+                <Eye className="h-3.5 w-3.5 mr-1.5 text-indigo-500" />
+                Docs
+              </Button>
+              {request.proofOfPaymentUrl && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => window.open(request.proofOfPaymentUrl, '_blank')}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs hover:bg-emerald-50 border-emerald-200 text-emerald-700"
+                  >
+                    <Receipt className="h-3.5 w-3.5 mr-1.5" />
+                    View Payment
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="h-8 text-xs hover:bg-emerald-50 border-emerald-200 text-emerald-700"
+                  >
+                    <a href={request.proofOfPaymentUrl} download="payment_proof" target="_blank" rel="noopener noreferrer">
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      DL
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+            {renderActionButtons(request)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-background">
       <AdminSidebar />
@@ -505,15 +711,103 @@ export default function AdminBuyerUpgradeReview() {
                 </TabsContent>
 
                 <TabsContent value="all" className="mt-6 space-y-6">
+                  {/* Filters Bar */}
+                  <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                    <div className="flex items-center gap-2 text-slate-800 font-bold text-sm mb-1">
+                      <Filter className="h-4 w-4 text-indigo-600" />
+                      Filters & Search
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      {/* Search */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Search</Label>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                          <Input
+                            placeholder="Name, company, email..."
+                            className="pl-9 h-9 text-sm"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Status</Label>
+                        <Select value={statusFilter} onValueChange={setStatusFilter}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="All Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="draft">Draft</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Date Range Start */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">From Date</Label>
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="date"
+                            className="pl-9 h-9 text-sm"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Date Range End */}
+                      <div className="space-y-1.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">To Date</Label>
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+                          <Input
+                            type="date"
+                            className="pl-9 h-9 text-sm"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {(statusFilter !== "all" || searchQuery || startDate || endDate) && (
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-indigo-600 hover:text-indigo-700 font-bold"
+                          onClick={() => {
+                            setStatusFilter("all");
+                            setSearchQuery("");
+                            setStartDate("");
+                            setEndDate("");
+                          }}
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1.5" />
+                          Reset Filters
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
                   {allLoading ? (
                     <div className="space-y-4">
-                      <Skeleton className="h-32 w-full rounded-xl" />
-                      <Skeleton className="h-32 w-full rounded-xl" />
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                      <Skeleton className="h-12 w-full rounded-lg" />
+                      <Skeleton className="h-12 w-full rounded-lg" />
                     </div>
-                  ) : allRequests && allRequests.length > 0 ? (
-                    <div className="space-y-6">
-                      {allRequests.map((request) => (
-                        <RequestCard
+                  ) : filteredRequests && filteredRequests.length > 0 ? (
+                    <div className="space-y-1">
+                      {filteredRequests.map((request) => (
+                        <CompactRequestStrip
                           key={request.id}
                           request={request}
                           isExpanded={expandedRequests[request.id]}
@@ -525,9 +819,10 @@ export default function AdminBuyerUpgradeReview() {
                     <Card className="border-dashed border-2 bg-slate-50/50">
                       <CardContent className="pt-12 pb-12 text-center">
                         <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
-                          <ShieldCheck className="h-6 w-6" />
+                          <Filter className="h-6 w-6" />
                         </div>
-                        <p className="text-slate-500 font-medium">No upgrade requests found</p>
+                        <p className="text-slate-500 font-medium">No requests match your filters</p>
+                        <p className="text-sm text-slate-400 mt-1">Try adjusting your status or date range</p>
                       </CardContent>
                     </Card>
                   )}
@@ -575,14 +870,28 @@ export default function AdminBuyerUpgradeReview() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(doc.filePath, '_blank')}
-                    data-testid={`button-view-file-${doc.id}`}
-                  >
-                    View
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(doc.filePath, '_blank')}
+                      data-testid={`button-view-file-${doc.id}`}
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      asChild
+                      className="hover:bg-indigo-50 border-slate-200"
+                    >
+                      <a href={doc.filePath} download={doc.fileName} target="_blank" rel="noopener noreferrer">
+                        <Download className="h-4 w-4 mr-1 text-indigo-600" />
+                        Download
+                      </a>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

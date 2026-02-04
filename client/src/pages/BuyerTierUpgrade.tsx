@@ -115,6 +115,7 @@ export default function BuyerTierUpgrade() {
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
 
   const [submitting, setSubmitting] = useState(false);
+  const [activeUpload, setActiveUpload] = useState<{ type: DocumentType, label: string } | null>(null);
 
   // Payment flow state
   const [currentStep, setCurrentStep] = useState<'documents' | 'payment' | 'proof'>('documents');
@@ -759,7 +760,7 @@ export default function BuyerTierUpgrade() {
                                     ? 'text-indigo-600 hover:bg-indigo-50/50'
                                     : 'bg-indigo-600 text-white hover:bg-indigo-700 border-none shadow-sm'
                                     }`}
-                                  onClick={() => document.getElementById(`file-${req.type}`)?.click()}
+                                  onClick={() => setActiveUpload({ type: req.type, label: req.label })}
                                 >
                                   {isHandled ? 'Change' : 'Upload'}
                                 </Button>
@@ -1057,6 +1058,72 @@ export default function BuyerTierUpgrade() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Dedicated Upload Dialog for each document type */}
+      <Dialog open={!!activeUpload} onOpenChange={(open) => !open && setActiveUpload(null)}>
+        <DialogContent className="sm:max-w-md bg-white border-0 shadow-2xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 text-white text-center">
+            <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4">
+              {activeUpload?.type === 'mineral_trading_permit' && <ShieldCheck className="h-8 w-8" />}
+              {activeUpload?.type === 'certificate_of_incorporation' && <FileText className="h-8 w-8" />}
+              {activeUpload?.type === 'company_profile' && <Building2 className="h-8 w-8" />}
+              {activeUpload?.type === 'shareholder_list' && <Users className="h-8 w-8" />}
+              {activeUpload?.type === 'tax_certificate' && <Receipt className="h-8 w-8" />}
+              {activeUpload?.type === 'relevant_documents' && <Upload className="h-8 w-8" />}
+            </div>
+            <h3 className="text-xl font-bold">{activeUpload?.label}</h3>
+            <p className="text-indigo-100 text-sm mt-1">Upload your official document for verification</p>
+          </div>
+
+          <div className="p-6">
+            <div
+              className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/30 group cursor-pointer"
+              onClick={() => document.getElementById('dialog-file-input')?.click()}
+            >
+              <input
+                type="file"
+                id="dialog-file-input"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && activeUpload) {
+                    const newDoc: PendingDocument = {
+                      file,
+                      documentType: activeUpload.type,
+                      id: Math.random().toString(36).substr(2, 9),
+                    };
+                    setPendingDocuments(prev => [
+                      ...prev.filter(d => d.documentType !== activeUpload.type),
+                      newDoc
+                    ]);
+                    setActiveUpload(null);
+                    toast({
+                      title: "Document Added",
+                      description: `${activeUpload.label} has been staged for upload.`,
+                    });
+                  }
+                }}
+              />
+              <div className="inline-flex items-center justify-center p-4 bg-slate-50 rounded-full text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-100 transition-colors mb-4">
+                <Upload className="h-6 w-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-600">Click to select or drag and drop</p>
+              <p className="text-xs text-slate-400 mt-2">PDF, JPG, PNG or DOC (Max 20MB)</p>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <Button
+                variant="outline"
+                className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 font-bold"
+                onClick={() => setActiveUpload(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
