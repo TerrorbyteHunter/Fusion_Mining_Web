@@ -3599,6 +3599,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
 
+      // Check for mandatory documents
+      const documents = await storage.getTierUpgradeDocuments(requestId);
+      const mandatoryTypes = [
+        'mineral_trading_permit',
+        'certificate_of_incorporation',
+        'company_profile',
+        'shareholder_list',
+        'tax_certificate'
+      ];
+
+      const uploadedTypes = new Set(documents.map(d => d.documentType));
+      const missingTypes = mandatoryTypes.filter(type => !uploadedTypes.has(type));
+
+      if (missingTypes.length > 0) {
+        // Map types to human readable labels for the error message
+        const typeLabels: Record<string, string> = {
+          mineral_trading_permit: 'Mineral Trading Permit',
+          certificate_of_incorporation: 'Certificate of Incorporation',
+          company_profile: 'Company Profile',
+          shareholder_list: 'Shareholder/Director List',
+          tax_certificate: 'Tax Certificate'
+        };
+        const missingLabels = missingTypes.map(t => typeLabels[t] || t).join(', ');
+        return res.status(400).json({
+          message: `Missing mandatory documents: ${missingLabels}. Please upload all required documents before submitting.`
+        });
+      }
+
       const updated = await storage.submitTierUpgradeRequest(requestId);
 
       res.json({

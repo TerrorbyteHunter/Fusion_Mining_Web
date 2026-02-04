@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -36,10 +36,12 @@ import {
 } from "lucide-react";
 
 type DocumentType =
+  | 'mineral_trading_permit'
   | 'certificate_of_incorporation'
   | 'company_profile'
   | 'shareholder_list'
   | 'tax_certificate'
+  | 'relevant_documents'
   | 'letter_of_authorization'
   | 'director_id';
 
@@ -107,7 +109,7 @@ export default function BuyerTierUpgrade() {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [documentType, setDocumentType] = useState<DocumentType>('certificate_of_incorporation');
+  const [documentType, setDocumentType] = useState<DocumentType>('mineral_trading_permit');
   const [submitting, setSubmitting] = useState(false);
 
   // Payment flow state
@@ -128,11 +130,7 @@ export default function BuyerTierUpgrade() {
     queryKey: ['/api/payment-methods'],
   });
 
-  // Fetch existing payment for upgrade request
-  const { data: existingPayment } = useQuery<TierUpgradePayment | null>({
-    queryKey: ['/api/buyer/tier-upgrade/payment', upgradeRequest?.id],
-    enabled: !!upgradeRequest?.id,
-  });
+
 
   // Fetch upgrade history
   const { data: upgradeHistory } = useQuery<TierUpgradeRequest[]>({
@@ -340,7 +338,7 @@ export default function BuyerTierUpgrade() {
 
     setPendingDocuments([...pendingDocuments, ...newDocs]);
     setSelectedFiles([]);
-    setDocumentType('certificate_of_incorporation');
+    setDocumentType('mineral_trading_permit');
 
     toast({
       title: "Documents Added",
@@ -353,10 +351,25 @@ export default function BuyerTierUpgrade() {
   };
 
   const handleSubmitUpgrade = async () => {
-    if (pendingDocuments.length === 0) {
+    const mandatoryTypes: DocumentType[] = [
+      'mineral_trading_permit',
+      'certificate_of_incorporation',
+      'company_profile',
+      'shareholder_list',
+      'tax_certificate'
+    ];
+
+    const uploadedTypes = new Set([
+      ...(upgradeRequest?.documents?.map(d => d.documentType) || []),
+      ...pendingDocuments.map(d => d.documentType)
+    ]);
+
+    const missingTypes = mandatoryTypes.filter(type => !uploadedTypes.has(type));
+
+    if (missingTypes.length > 0) {
       toast({
-        title: "Error",
-        description: "Please add at least one document before submitting.",
+        title: "Missing Mandatory Documents",
+        description: `Please upload the following mandatory documents: ${missingTypes.map(t => documentTypeLabels[t]).join(', ')}`,
         variant: "destructive",
       });
       return;
@@ -436,10 +449,12 @@ export default function BuyerTierUpgrade() {
   };
 
   const documentTypeLabels: Record<DocumentType, string> = {
+    mineral_trading_permit: 'Mineral Trading Permit',
     certificate_of_incorporation: 'Certificate of Incorporation',
     company_profile: 'Company Profile',
     shareholder_list: 'Shareholder/Director List',
     tax_certificate: 'Tax Certificate',
+    relevant_documents: 'Other Relevant Documents',
     letter_of_authorization: 'Letter of Authorization',
     director_id: 'Director ID',
   };
@@ -685,11 +700,12 @@ export default function BuyerTierUpgrade() {
                   <div className="space-y-2 text-sm">
                     <p className="font-medium">Documents needed:</p>
                     <ul className="space-y-1 text-muted-foreground text-xs">
-                      <li>a) Company Certificate of Incorporation</li>
-                      <li>b) Company Profile</li>
-                      <li>c) Shareholder/Director List</li>
-                      <li>d) Tax Certificate</li>
-                      <li>e) Letter of Authorization (if applicable)</li>
+                      <li>a) Mineral Trading Permit</li>
+                      <li>b) Company Certificate of Incorporation</li>
+                      <li>c) Company Profile</li>
+                      <li>d) Shareholder/Director List</li>
+                      <li>e) Tax Certificate</li>
+                      <li>f) Any other relevant documents</li>
                     </ul>
                   </div>
 
