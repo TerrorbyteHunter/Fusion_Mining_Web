@@ -23,6 +23,16 @@ import {
   Check,
   X,
   RotateCcw,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  Receipt,
+  ShieldCheck,
+  ChevronDown,
+  ChevronUp,
+  XCircle,
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -39,6 +49,14 @@ interface BuyerUpgradeRequest {
   submittedAt?: string;
   reviewedAt?: string;
   documentCount: number;
+  companyName?: string;
+  phoneNumber?: string;
+  location?: string;
+  paymentAmount?: string;
+  paymentCurrency?: string;
+  paymentMethod?: string;
+  proofOfPaymentUrl?: string;
+  paymentStatus?: string;
 }
 
 interface UpgradeDocument {
@@ -56,7 +74,7 @@ export default function AdminBuyerUpgradeReview() {
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
+
 
   // Fetch pending upgrade requests
   const { data: pendingRequests, isLoading: pendingLoading } = useQuery<BuyerUpgradeRequest[]>({
@@ -141,31 +159,214 @@ export default function AdminBuyerUpgradeReview() {
     },
   });
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-600">Pending Review</Badge>;
-      case 'approved':
-        return <Badge className="bg-green-600">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
+  const [expandedRequests, setExpandedRequests] = useState<Record<string, boolean>>({});
+
+  const toggleExpand = (id: string) => {
+    setExpandedRequests(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const getTierColor = (tier: string) => {
-    switch (tier) {
-      case 'standard':
-        return 'text-blue-600';
-      case 'premium':
-        return 'text-amber-600';
-      default:
-        return 'text-muted-foreground';
-    }
+  const statusColors: Record<string, string> = {
+    draft: 'bg-slate-100 text-slate-700 border-slate-200',
+    pending: 'bg-amber-100 text-amber-700 border-amber-200',
+    approved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    rejected: 'bg-rose-100 text-rose-700 border-rose-200',
   };
+
+  const getStatusBadge = (status: string) => {
+    const colorClass = statusColors[status] || 'bg-slate-100 text-slate-700 border-slate-200';
+    return (
+      <Badge className={`${colorClass} border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider h-fit shadow-sm`}>
+        {status.replace('_', ' ')}
+      </Badge>
+    );
+  };
+
+  const getTierBadge = (tier: string) => {
+    const tierStyles: Record<string, string> = {
+      basic: 'from-slate-400 to-slate-500',
+      standard: 'from-blue-500 to-indigo-600',
+      premium: 'from-amber-400 to-orange-500',
+    };
+    const style = tierStyles[tier.toLowerCase()] || 'from-slate-400 to-slate-500';
+    return (
+      <Badge className={`bg-gradient-to-r ${style} text-white border-none shadow-md px-3 py-1 font-bold text-xs`}>
+        {tier.toUpperCase()}
+      </Badge>
+    );
+  };
+
+  const RequestCard = ({ request, isExpanded, onToggle }: { request: BuyerUpgradeRequest, isExpanded: boolean, onToggle: () => void }) => (
+    <Card className="overflow-hidden border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 group">
+      <div className={`h-1.5 w-full bg-gradient-to-r ${request.requestedTier.toLowerCase() === 'premium' ? 'from-amber-400 to-orange-500' : 'from-blue-500 to-indigo-600'
+        }`} />
+
+      <CardHeader className="pb-4 pt-6 cursor-pointer select-none" onClick={onToggle}>
+        <div className="flex items-start justify-between">
+          <div className="flex gap-4">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-lg ${request.requestedTier.toLowerCase() === 'premium' ? 'bg-amber-500' : 'bg-blue-600'
+              }`}>
+              {request.requestedTier.toLowerCase() === 'premium' ? <ShieldCheck className="h-6 w-6" /> : <Building2 className="h-6 w-6" />}
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold text-slate-800">
+                {request.companyName || `${request.buyerFirstName} ${request.buyerLastName}`}
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-1 text-slate-500 text-sm">
+                <Mail className="h-3.5 w-3.5" />
+                {request.buyerEmail}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2 text-right">
+            {getStatusBadge(request.status)}
+            {getTierBadge(request.requestedTier)}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+          <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Documents</p>
+              <p className="text-sm font-semibold text-slate-700">{request.documentCount} Files Provided</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Submitted On</p>
+              <p className="text-sm font-semibold text-slate-700">
+                {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+              <Receipt className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Payment Proof</p>
+              <p className="text-sm font-semibold text-slate-700 capitalize">
+                {request.proofOfPaymentUrl ? 'Uploaded' : 'Pending'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100 mt-2">
+          <div className="flex gap-3">
+            <Button
+              onClick={() => handleViewDocuments(request)}
+              variant="outline"
+              size="sm"
+              className="hover:bg-slate-50 border-slate-200"
+            >
+              <Eye className="h-4 w-4 mr-2 text-indigo-500" />
+              Review Docs
+            </Button>
+            {request.proofOfPaymentUrl && (
+              <Button
+                onClick={() => window.open(request.proofOfPaymentUrl, '_blank')}
+                variant="outline"
+                size="sm"
+                className="hover:bg-emerald-50 border-emerald-200 text-emerald-700"
+              >
+                <Receipt className="h-4 w-4 mr-2" />
+                View Payment
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggle}
+              className="text-slate-500 hover:text-slate-800"
+            >
+              {isExpanded ? (
+                <>Hide Details <ChevronUp className="h-4 w-4 ml-1" /></>
+              ) : (
+                <>Show Details <ChevronDown className="h-4 w-4 ml-1" /></>
+              )}
+            </Button>
+            {renderActionButtons(request)}
+          </div>
+        </div>
+
+        {isExpanded && (
+          <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50/30 -mx-6 px-6 pb-2 grid grid-cols-1 md:grid-cols-2 gap-8 animate-in slide-in-from-top-4 duration-300">
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5" /> Buyer Account Details
+              </h4>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center justify-between text-sm py-2 border-b border-slate-100">
+                  <span className="text-slate-500">Contact Person</span>
+                  <span className="font-medium">{request.buyerFirstName} {request.buyerLastName}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm py-2 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5"><Phone className="h-3 w-3" /> Phone Number</span>
+                  <span className="font-medium">{request.phoneNumber || 'Not Provided'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm py-2 border-b border-slate-100">
+                  <span className="text-slate-500 flex items-center gap-1.5"><MapPin className="h-3 w-3" /> Business Location</span>
+                  <span className="font-medium truncate max-w-[200px]">{request.location || 'Not Provided'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                <CreditCard className="h-3.5 w-3.5" /> Transaction Summary
+              </h4>
+              <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200/60">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amount</span>
+                  <span className="text-lg font-black text-indigo-600">
+                    {request.paymentAmount ? `${request.paymentCurrency} ${request.paymentAmount}` : 'No Payment Info'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs py-1">
+                  <span className="text-slate-500">Method</span>
+                  <span className="font-bold text-slate-700 capitalize">{request.paymentMethod?.replace('_', ' ') || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs py-1">
+                  <span className="text-slate-500">Status</span>
+                  <Badge variant="outline" className={`text-[9px] h-fit py-0 ${request.paymentStatus === 'verified' ? 'border-emerald-200 text-emerald-600 bg-emerald-50' :
+                    request.paymentStatus === 'paid' ? 'border-blue-200 text-blue-600 bg-blue-50' : 'border-amber-200 text-amber-600 bg-amber-50'
+                    }`}>
+                    {request.paymentStatus?.toUpperCase() || 'PENDING'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {request.rejectionReason && (
+              <div className="md:col-span-2 p-4 rounded-xl bg-rose-50 border border-rose-100 mt-2">
+                <div className="flex items-center gap-2 text-rose-700 text-sm font-bold mb-1">
+                  <XCircle className="h-4 w-4" /> Rejection History
+                </div>
+                <p className="text-xs text-rose-600 italic leading-relaxed">"{request.rejectionReason}"</p>
+                <div className="text-[10px] text-rose-400 mt-2 uppercase font-bold tracking-tighter">
+                  Reviewed on: {request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString() : 'N/A'}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+
 
   const handleViewDocuments = (request: BuyerUpgradeRequest) => {
     setSelectedRequest(request);
@@ -273,156 +474,60 @@ export default function AdminBuyerUpgradeReview() {
                   </TabsTrigger>
                 </TabsList>
 
-                {/* Pending Requests Tab */}
-                <TabsContent value="pending" className="space-y-4">
+                <TabsContent value="pending" className="mt-6 space-y-6">
                   {pendingLoading ? (
                     <div className="space-y-4">
-                      <Skeleton className="h-32 w-full" />
-                      <Skeleton className="h-32 w-full" />
+                      <Skeleton className="h-32 w-full rounded-xl" />
+                      <Skeleton className="h-32 w-full rounded-xl" />
                     </div>
                   ) : pendingRequests && pendingRequests.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {pendingRequests.map((request) => (
-                        <Card key={request.id} data-testid={`upgrade-card-${request.id}`}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-4 flex-wrap">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg">
-                                  {request.buyerFirstName} {request.buyerLastName}
-                                </CardTitle>
-                                <CardDescription className="text-xs mt-1">
-                                  {request.buyerEmail}
-                                </CardDescription>
-                              </div>
-                              {getStatusBadge(request.status)}
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Requested Tier</p>
-                                  <p className={`font-semibold capitalize text-sm ${getTierColor(request.requestedTier)}`}>
-                                    {request.requestedTier}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Documents</p>
-                                  <p className="font-semibold text-sm">{request.documentCount} uploaded</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Submitted</p>
-                                  <p className="font-semibold text-sm">
-                                    {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex gap-2 pt-2 flex-wrap">
-                                <Button
-                                  onClick={() => handleViewDocuments(request)}
-                                  variant="outline"
-                                  size="sm"
-                                  data-testid={`button-view-docs-${request.id}`}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Documents
-                                </Button>
-                                {renderActionButtons(request)}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <RequestCard
+                          key={request.id}
+                          request={request}
+                          isExpanded={expandedRequests[request.id]}
+                          onToggle={() => toggleExpand(request.id)}
+                        />
                       ))}
                     </div>
                   ) : (
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <p className="text-muted-foreground">No pending upgrade requests</p>
+                    <Card className="border-dashed border-2 bg-slate-50/50">
+                      <CardContent className="pt-12 pb-12 text-center">
+                        <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                          <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <p className="text-slate-500 font-medium">No pending upgrade requests</p>
+                        <p className="text-sm text-slate-400 mt-1">Check back later for new submissions</p>
                       </CardContent>
                     </Card>
                   )}
                 </TabsContent>
 
-                {/* All Requests Tab */}
-                <TabsContent value="all" className="space-y-4">
+                <TabsContent value="all" className="mt-6 space-y-6">
                   {allLoading ? (
                     <div className="space-y-4">
-                      <Skeleton className="h-32 w-full" />
-                      <Skeleton className="h-32 w-full" />
+                      <Skeleton className="h-32 w-full rounded-xl" />
+                      <Skeleton className="h-32 w-full rounded-xl" />
                     </div>
                   ) : allRequests && allRequests.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {allRequests.map((request) => (
-                        <Card key={request.id} data-testid={`upgrade-card-all-${request.id}`}>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-4 flex-wrap">
-                              <div className="flex-1">
-                                <CardTitle className="text-lg">
-                                  {request.buyerFirstName} {request.buyerLastName}
-                                </CardTitle>
-                                <CardDescription className="text-xs mt-1">
-                                  {request.buyerEmail}
-                                </CardDescription>
-                              </div>
-                              {getStatusBadge(request.status)}
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-4 gap-4">
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Requested Tier</p>
-                                  <p className={`font-semibold capitalize text-sm ${getTierColor(request.requestedTier)}`}>
-                                    {request.requestedTier}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Documents</p>
-                                  <p className="font-semibold text-sm">{request.documentCount} uploaded</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Submitted</p>
-                                  <p className="font-semibold text-sm">
-                                    {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'N/A'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Reviewed</p>
-                                  <p className="font-semibold text-sm">
-                                    {request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString() : 'Pending'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {request.rejectionReason && (
-                                <div className="p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-                                  <p className="text-xs font-medium text-red-900 dark:text-red-200 mb-1">Rejection Reason:</p>
-                                  <p className="text-xs text-red-800 dark:text-red-300">{request.rejectionReason}</p>
-                                </div>
-                              )}
-
-                              <div className="flex gap-2 pt-2 flex-wrap">
-                                <Button
-                                  onClick={() => handleViewDocuments(request)}
-                                  variant="outline"
-                                  size="sm"
-                                  data-testid={`button-view-docs-all-${request.id}`}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Documents
-                                </Button>
-                                {renderActionButtons(request)}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <RequestCard
+                          key={request.id}
+                          request={request}
+                          isExpanded={expandedRequests[request.id]}
+                          onToggle={() => toggleExpand(request.id)}
+                        />
                       ))}
                     </div>
                   ) : (
-                    <Card>
-                      <CardContent className="pt-6 text-center">
-                        <p className="text-muted-foreground">No upgrade requests</p>
+                    <Card className="border-dashed border-2 bg-slate-50/50">
+                      <CardContent className="pt-12 pb-12 text-center">
+                        <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4 text-slate-400">
+                          <ShieldCheck className="h-6 w-6" />
+                        </div>
+                        <p className="text-slate-500 font-medium">No upgrade requests found</p>
                       </CardContent>
                     </Card>
                   )}
@@ -470,9 +575,9 @@ export default function AdminBuyerUpgradeReview() {
                       </p>
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => window.open(doc.filePath, '_blank')}
                     data-testid={`button-view-file-${doc.id}`}
                   >

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -33,6 +33,11 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
+  ShieldCheck,
+  Building2,
+  Users,
+  Receipt,
+  Download,
 } from "lucide-react";
 
 type DocumentType =
@@ -108,8 +113,7 @@ export default function BuyerTierUpgrade() {
   const [selectedTier, setSelectedTier] = useState<string>("");
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [documentType, setDocumentType] = useState<DocumentType>('mineral_trading_permit');
+
   const [submitting, setSubmitting] = useState(false);
 
   // Payment flow state
@@ -320,31 +324,7 @@ export default function BuyerTierUpgrade() {
     },
   });
 
-  const handleAddDocument = async () => {
-    if (selectedFiles.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one file to upload.",
-        variant: "destructive",
-      });
-      return;
-    }
 
-    const newDocs: PendingDocument[] = selectedFiles.map(file => ({
-      file,
-      documentType: documentType,
-      id: Math.random().toString(36).substr(2, 9),
-    }));
-
-    setPendingDocuments([...pendingDocuments, ...newDocs]);
-    setSelectedFiles([]);
-    setDocumentType('mineral_trading_permit');
-
-    toast({
-      title: "Documents Added",
-      description: `${newDocs.length} ${newDocs.length === 1 ? 'document has' : 'documents have'} been added to your upload list.`,
-    });
-  };
 
   const handleRemoveDocument = (id: string) => {
     setPendingDocuments(pendingDocuments.filter(doc => doc.id !== id));
@@ -687,118 +667,162 @@ export default function BuyerTierUpgrade() {
 
               {/* Documents Step */}
               {currentStep === 'documents' && (
-                <>
-                  {/* Required Documents Info */}
-                  <Alert>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Required Documents</AlertTitle>
-                    <AlertDescription>
-                      Please upload all required business verification documents:
-                    </AlertDescription>
-                  </Alert>
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <div className="grid grid-cols-1 gap-4">
+                    {[
+                      { type: 'mineral_trading_permit' as DocumentType, label: 'Mineral Trading Permit', icon: ShieldCheck, description: 'Valid permit issued by the Ministry of Mines' },
+                      { type: 'certificate_of_incorporation' as DocumentType, label: 'Certificate of Incorporation', icon: FileText, description: 'Official company registration certificate' },
+                      { type: 'company_profile' as DocumentType, label: 'Company Profile', icon: Building2, description: 'Overview of company operations and history' },
+                      { type: 'shareholder_list' as DocumentType, label: 'Shareholder/Director List', icon: Users, description: 'List of all directors and shareholders' },
+                      { type: 'tax_certificate' as DocumentType, label: 'Tax Certificate', icon: Receipt, description: 'Valid TPIN or Tax Clearance Certificate' }
+                    ].map((req) => {
+                      const Icon = req.icon;
+                      const pendingFile = pendingDocuments.find(d => d.documentType === req.type);
+                      const uploadedFile = upgradeRequest?.documents?.find(d => d.documentType === req.type);
+                      const isHandled = !!pendingFile || !!uploadedFile;
 
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium">Documents needed:</p>
-                    <ul className="space-y-1 text-muted-foreground text-xs">
-                      <li>a) Mineral Trading Permit</li>
-                      <li>b) Company Certificate of Incorporation</li>
-                      <li>c) Company Profile</li>
-                      <li>d) Shareholder/Director List</li>
-                      <li>e) Tax Certificate</li>
-                      <li>f) Any other relevant documents</li>
-                    </ul>
-                  </div>
-
-                  {/* Document Upload Form */}
-                  <div className="space-y-4 border-t pt-4">
-                    <div className="space-y-3">
-                      <div>
-                        <Label htmlFor="modal-document-type" className="text-sm">Document Type</Label>
-                        <Select
-                          value={documentType}
-                          onValueChange={(value) => setDocumentType(value as DocumentType)}
+                      return (
+                        <div
+                          key={req.type}
+                          className={`group relative p-4 rounded-xl border transition-all duration-300 ${isHandled ? 'bg-emerald-50/30 border-emerald-200' : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm'
+                            }`}
                         >
-                          <SelectTrigger id="modal-document-type" data-testid="select-modal-document-type" className="mt-1">
-                            <SelectValue placeholder="Select document type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(documentTypeLabels).map(([value, label]) => (
-                              <SelectItem key={value} value={value}>
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex gap-4">
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${isHandled ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'
+                                }`}>
+                                <Icon className="h-5 w-5" />
+                              </div>
+                              <div className="space-y-0.5">
+                                <h4 className={`text-sm font-bold ${isHandled ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                  {req.label}
+                                </h4>
+                                <p className="text-[11px] text-slate-500 max-w-[280px]">
+                                  {req.description}
+                                </p>
+                                {(pendingFile || uploadedFile) && (
+                                  <div className="flex items-center gap-1.5 mt-2 px-2 py-1 bg-white/60 border border-emerald-100 rounded-md w-fit">
+                                    <FileText className="h-3 w-3 text-emerald-600" />
+                                    <span className="text-[10px] font-medium text-emerald-700 truncate max-w-[150px]">
+                                      {pendingFile?.file.name || uploadedFile?.fileName}
+                                    </span>
+                                    {pendingFile && (
+                                      <button
+                                        onClick={() => handleRemoveDocument(pendingFile.id)}
+                                        className="ml-1 p-0.5 hover:bg-rose-100 rounded-full text-rose-500 transition-colors"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
 
-                      <div>
-                        <Label htmlFor="modal-file-upload" className="text-sm">Select Files</Label>
-                        <Input
-                          id="modal-file-upload"
+                            <div className="flex flex-col items-end gap-2 shrink-0">
+                              {isHandled ? (
+                                <Badge variant="outline" className="bg-emerald-100/50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
+                                  <Check className="h-3 w-3 mr-1" /> READY
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-slate-50 text-slate-400 border-slate-200 text-[10px] font-bold tracking-tighter">
+                                  MISSING
+                                </Badge>
+                              )}
+
+                              <div className="relative">
+                                <input
+                                  type="file"
+                                  id={`file-${req.type}`}
+                                  className="hidden"
+                                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                      const newDoc: PendingDocument = {
+                                        file,
+                                        documentType: req.type,
+                                        id: Math.random().toString(36).substr(2, 9),
+                                      };
+                                      // Replace existing pending for this type if any, or add new
+                                      setPendingDocuments(prev => [
+                                        ...prev.filter(d => d.documentType !== req.type),
+                                        newDoc
+                                      ]);
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  variant={isHandled ? "ghost" : "outline"}
+                                  size="sm"
+                                  className={`h-8 text-xs font-bold ${isHandled
+                                    ? 'text-indigo-600 hover:bg-indigo-50/50'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 border-none shadow-sm'
+                                    }`}
+                                  onClick={() => document.getElementById(`file-${req.type}`)?.click()}
+                                >
+                                  {isHandled ? 'Change' : 'Upload'}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Other Documents Section */}
+                    <div className="mt-2 p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Other Relevant Documents</h4>
+                          <p className="text-[10px] text-slate-400">Additional proof of business capacity or certifications</p>
+                        </div>
+                        <input
                           type="file"
+                          id="file-relevant"
+                          className="hidden"
                           multiple
                           accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                           onChange={(e) => {
                             const files = Array.from(e.target.files || []);
-                            setSelectedFiles(files);
+                            const newDocs: PendingDocument[] = files.map(file => ({
+                              file,
+                              documentType: 'relevant_documents',
+                              id: Math.random().toString(36).substr(2, 9),
+                            }));
+                            setPendingDocuments(prev => [...prev, ...newDocs]);
                           }}
-                          data-testid="input-modal-file-upload"
-                          className="mt-1"
                         />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Accepted formats: PDF, JPG, PNG, DOC (Max 20MB per file)
-                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-[10px] font-bold text-indigo-600 hover:bg-indigo-100"
+                          onClick={() => document.getElementById('file-relevant')?.click()}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Add More
+                        </Button>
                       </div>
-                    </div>
 
-                    <Button
-                      onClick={handleAddDocument}
-                      disabled={selectedFiles.length === 0}
-                      variant="outline"
-                      size="sm"
-                      className="w-full"
-                      data-testid="button-add-document"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      Add Document
-                    </Button>
-                  </div>
-
-                  {/* Uploaded Documents List */}
-                  {pendingDocuments.length > 0 && (
-                    <div className="space-y-3 border-t pt-4">
-                      <p className="text-sm font-medium">Documents to Upload ({pendingDocuments.length})</p>
-                      <div className="space-y-2">
-                        {pendingDocuments.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between p-3 bg-muted/50 rounded-md"
-                            data-testid={`pending-document-${doc.id}`}
-                          >
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{doc.file.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {documentTypeLabels[doc.documentType]}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => handleRemoveDocument(doc.id)}
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 flex-shrink-0 ml-2"
-                              data-testid={`button-remove-document-${doc.id}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
+                      <div className="flex flex-wrap gap-2">
+                        {pendingDocuments.filter(d => d.documentType === 'relevant_documents').map(doc => (
+                          <div key={doc.id} className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
+                            <FileText className="h-3 w-3 text-slate-400" />
+                            <span className="text-[10px] font-medium text-slate-600 truncate max-w-[100px]">{doc.file.name}</span>
+                            <button onClick={() => handleRemoveDocument(doc.id)} className="text-rose-400 hover:text-rose-600">
+                              <X className="h-3 w-3" />
+                            </button>
                           </div>
                         ))}
                       </div>
+                      {upgradeRequest?.documents?.filter(d => d.documentType === 'relevant_documents').map(doc => (
+                        <div key={doc.id} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-lg shadow-sm">
+                          <Check className="h-3 w-3 text-emerald-500" />
+                          <span className="text-[10px] font-medium text-emerald-700 truncate max-w-[100px]">{doc.fileName}</span>
+                        </div>
+                      ))}
                     </div>
-                  )}
-                </>
+                  </div>
+                </div>
               )}
 
               {/* Payment Method Selection Step */}

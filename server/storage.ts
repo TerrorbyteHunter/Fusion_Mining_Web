@@ -3035,9 +3035,19 @@ export class DatabaseStorage implements IStorage {
         buyerEmail: users.email,
         buyerFirstName: users.firstName,
         buyerLastName: users.lastName,
+        companyName: userProfiles.companyName,
+        phoneNumber: userProfiles.phoneNumber,
+        location: userProfiles.location,
+        paymentAmount: tierUpgradePayments.amount,
+        paymentCurrency: tierUpgradePayments.currency,
+        paymentMethod: tierUpgradePayments.paymentMethod,
+        proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
+        paymentStatus: tierUpgradePayments.status,
       })
       .from(tierUpgradeRequests)
       .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId))
+      .leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId))
       .orderBy(desc(tierUpgradeRequests.submittedAt));
   }
 
@@ -3058,9 +3068,19 @@ export class DatabaseStorage implements IStorage {
         buyerEmail: users.email,
         buyerFirstName: users.firstName,
         buyerLastName: users.lastName,
+        companyName: userProfiles.companyName,
+        phoneNumber: userProfiles.phoneNumber,
+        location: userProfiles.location,
+        paymentAmount: tierUpgradePayments.amount,
+        paymentCurrency: tierUpgradePayments.currency,
+        paymentMethod: tierUpgradePayments.paymentMethod,
+        proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
+        paymentStatus: tierUpgradePayments.status,
       })
       .from(tierUpgradeRequests)
       .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
+      .leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId))
+      .leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId))
       .where(or(eq(tierUpgradeRequests.status, 'pending'), eq(tierUpgradeRequests.status, 'draft')))
       .orderBy(desc(tierUpgradeRequests.submittedAt));
   }
