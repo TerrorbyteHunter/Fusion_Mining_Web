@@ -50,11 +50,13 @@ function Router() {
   const { isAuthenticated, onboardingCompleted, isLoading } = useAuth();
 
   // Handle onboarding redirect
-  useEffect(() => {
-    if (isAuthenticated && !isLoading && !onboardingCompleted && location !== '/onboarding') {
-      setLocation('/onboarding');
-    }
-  }, [isAuthenticated, isLoading, onboardingCompleted, location, setLocation]);
+  // Handle onboarding redirect - Temporarily disabled by user request
+  // useEffect(() => {
+  //   if (isAuthenticated && !isLoading && !onboardingCompleted && location !== '/onboarding') {
+  //     setLocation('/onboarding');
+  //   }
+  // }, [isAuthenticated, isLoading, onboardingCompleted, location, setLocation]);
+
 
   const isAdminSection = location.startsWith('/admin');
   const showLMETicker = !isAdminSection && location !== '/login' && location !== '/signup';

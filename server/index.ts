@@ -1,10 +1,17 @@
 import 'dotenv/config';
 import path from 'path';
 import fs from 'fs';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 
 // Load .env from parent directory if not found in current directory
 if (!process.env.CLERK_SECRET_KEY) {
-  require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+  try {
+    require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+  } catch (e) {
+    console.warn('Failed to load parent .env file:', e);
+  }
 }
 
 import express, { type Request, Response, NextFunction } from "express";

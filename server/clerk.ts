@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { storage } from './storage';
 
 // Initialize Clerk with your secret key
-// console.log('Initializing Clerk with secret key:', process.env.CLERK_SECRET_KEY ? 'PRESENT' : 'MISSING');
+console.log('Initializing Clerk with secret key:', process.env.CLERK_SECRET_KEY ? 'PRESENT' : 'MISSING');
 export const clerk = Clerk({
   secretKey: process.env.CLERK_SECRET_KEY!,
 });
@@ -14,16 +14,24 @@ export const clerk = Clerk({
 // Middleware to require authentication
 export const requireAuth = async (req: any, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  // console.log('Auth header received:', authHeader ? authHeader.substring(0, 20) + '...' : 'NONE');
+  console.log('requireAuth called for:', req.method, req.path);
+  console.log('Auth header received:', authHeader ? authHeader.substring(0, 20) + '...' : 'NONE');
+
   return clerk.expressRequireAuth({
     onError: (error) => {
       console.error('Clerk auth error:', error);
-      res.status(401).json({ message: 'Unauthorized' });
+      console.error('Request headers:', JSON.stringify(req.headers, null, 2));
+      res.status(401).json({ message: 'Unauthorized', error: error.message });
     }
   })(req, res, async () => {
-    // console.log('Clerk auth successful, req.auth:', req.auth);
+    console.log('Clerk auth successful, req.auth:', req.auth);
     if (req.auth?.userId) {
-      req.user = await storage.getUserByClerkId(req.auth.userId);
+      try {
+        req.user = await storage.getUserByClerkId(req.auth.userId);
+        console.log('Detailed user lookup:', req.user ? `Found user ${req.user.id}` : 'User not found in DB');
+      } catch (err) {
+        console.error('Error looking up user in DB:', err);
+      }
     }
     next();
   });
@@ -31,7 +39,7 @@ export const requireAuth = async (req: any, res: Response, next: NextFunction) =
 
 // Middleware to require admin role (includes authentication)
 export const requireAdmin = async (req: any, res: Response, next: NextFunction) => {
-  console.log('requireAdmin: Using Clerk auth');
+  console.log('requireAdmin: Using Clerk auth for', req.path);
   return clerk.expressRequireAuth({
     onError: (error) => {
       console.error('requireAdmin: Clerk auth failed:', error);

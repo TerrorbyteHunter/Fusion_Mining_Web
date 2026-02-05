@@ -55,7 +55,8 @@ export const syncClerkUser = async (clerkUserId: string) => {
         userId: dbUser.id,
         profileType: 'individual',
         verified: false,
-        onboardingCompleted: !!clerkRole || role === 'admin',
+        // Force onboarding completed as we are defaulting new users to 'buyer' without manual onboarding step
+        onboardingCompleted: true,
       });
       console.log('syncClerkUser: Profile creation completed');
 

@@ -93,7 +93,23 @@ export default function CreateBuyerRequest() {
         if (form.mainCategory === "minerals" && form.subcategory) {
           payload.mineralSubcategory = form.subcategory;
         } else if (form.mainCategory === "mining_equipment" && form.subcategory) {
-          payload.toolSubcategory = form.subcategory;
+          const ppeKeys = [
+            'head_face_protection',
+            'respiratory_protection',
+            'hand_foot_protection',
+            'fall_protection',
+            'protective_clothing',
+            'other_ppe'
+          ];
+
+          if (ppeKeys.includes(form.subcategory)) {
+            payload.ppeSubcategory = form.subcategory;
+            // Also update mainCategory to mining_ppe if it's strictly a PPE item, 
+            // to ensure data consistency, although flexible schema might allow equipment+ppe
+            // payload.mainCategory = 'mining_ppe';
+          } else {
+            payload.toolSubcategory = form.subcategory;
+          }
         } else if (form.mainCategory === "mining_services" && form.subcategory) {
           payload.serviceSubcategory = form.subcategory;
         } else if (form.mainCategory === "mining_ppe" && form.subcategory) {
