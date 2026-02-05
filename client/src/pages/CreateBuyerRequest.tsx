@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { MAIN_CATEGORIES, getSubcategoriesForMain, getSpecificTypes } from "@shared/categories";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Package, Info, Crown, Zap } from "lucide-react";
+import { Package, Info, Crown, Zap, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +35,7 @@ export default function CreateBuyerRequest() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showTierModal, setShowTierModal] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [limitInfo, setLimitInfo] = useState<{ limit?: number; current?: number; reason?: string }>({});
 
   const [form, setForm] = useState({
@@ -129,12 +130,9 @@ export default function CreateBuyerRequest() {
       return res.json();
     },
     onSuccess: () => {
-      toast({
-        title: "RFQ created",
-        description: "Your request has been submitted.",
-      });
+      setIsSubmitted(true);
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
-      setLocation("/dashboard");
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
     },
     onError: (error: any) => {
       // Handle tier limit error with a nice modal
@@ -157,6 +155,29 @@ export default function CreateBuyerRequest() {
 
   if (authLoading || !isAuthenticated || user?.role !== "buyer") {
     return null;
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 min-h-[60vh] animate-in fade-in zoom-in duration-500">
+        <div className="rounded-full bg-green-100 p-6 mb-6">
+          <CheckCircle2 className="h-16 w-16 text-green-600" />
+        </div>
+        <h2 className="text-3xl font-bold font-display mb-2 text-center">RFQ Submitted!</h2>
+        <p className="text-muted-foreground text-center max-w-md mb-8">
+          Your request has been successfully submitted and is now being reviewed by our admin team.
+          You will be notified once it is approved.
+        </p>
+        <div className="flex gap-4">
+          <Link href="/dashboard">
+            <Button variant="outline">Go to Dashboard</Button>
+          </Link>
+          <Link href="/dashboard/requests">
+            <Button>View My Requests</Button>
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const availableSubcategories = form.mainCategory

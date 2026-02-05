@@ -57,7 +57,7 @@ function formatZodError(error: ZodError): string {
 
 // Helper function to safely get user ID from request
 function getUserId(req: any): string | null {
-  return req.auth?.userId || req.user?.claims?.sub || req.user?.id || null;
+  return req.user?.id || req.auth?.userId || req.user?.claims?.sub || null;
 }
 
 // ========================================================================
@@ -2135,13 +2135,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Buyer requests / RFQs
       const allBuyerRequests = await db.select().from(buyerRequests);
       const totalRFQs = allBuyerRequests.length;
+      const pendingRFQsCount = allBuyerRequests.filter((r: any) => r.status === 'pending').length;
 
       return res.json({
         totalUsers,
         admins,
         sellers,
         buyers,
-        pendingVerifications: pendingListings.length,
+        pendingVerifications: pendingListings.length + pendingRFQsCount,
         totalListings,
         approvedListings,
         totalProjects,
@@ -4103,6 +4104,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get all notifications for current user
 
+
+  // Admin RFQ operations
+  app.post('/api/admin/rfqs/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const updated = await storage.updateBuyerRequestStatus(req.params.id, 'active');
+      res.json(updated);
+    } catch (error) {
+      console.error("Error verifying RFQ:", error);
+      res.status(500).json({ message: "Failed to verify RFQ" });
+    }
+  });
+
+  app.post('/api/admin/rfqs/:id/reject', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { reason } = req.body;
+      if (!reason) return res.status(400).json({ message: "Rejection reason required" });
+      const updated = await storage.rejectBuyerRequest(req.params.id, reason);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error rejecting RFQ:", error);
+      res.status(500).json({ message: "Failed to reject RFQ" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

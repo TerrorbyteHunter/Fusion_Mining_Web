@@ -206,6 +206,7 @@ export const buyerRequests = pgTable("buyer_requests", {
   expiryDate: timestamp("expiry_date"), // When the RFQ expires
 
   status: varchar("status").notNull().default('pending'), // pending, active, rejected, closed
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

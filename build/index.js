@@ -2,12 +2,6 @@ var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
-  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
-}) : x)(function(x) {
-  if (typeof require !== "undefined") return require.apply(this, arguments);
-  throw Error('Dynamic require of "' + x + '" is not supported');
-});
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -116,7 +110,7 @@ __export(schema_exports, {
   serviceSubcategoryEnum: () => serviceSubcategoryEnum,
   sessions: () => sessions,
   settingDataTypeEnum: () => settingDataTypeEnum,
-  settingsAudit: () => settingsAudit,
+  settingsAudit: () => settingsAudit2,
   sustainabilityContent: () => sustainabilityContent,
   templateTypeEnum: () => templateTypeEnum,
   threadStatusEnum: () => threadStatusEnum,
@@ -177,7 +171,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, accountDeletionRequests, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, accountDeletionRequestsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, tierUpgradeDocuments, tierUpgradeRequestsRelations, tierUpgradeDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema, insertAccountDeletionRequestSchema;
+var sessions, userRoleEnum, adminRoleEnum, profileTypeEnum, membershipTierEnum, verificationStatusEnum, users, adminPermissions, userProfiles, licenseTypeEnum, projectStatusEnum, projects, expressInterest, listingTypeEnum, listingStatusEnum, mainCategoryEnum, mineralSubcategoryEnum, toolSubcategoryEnum, serviceSubcategoryEnum, ppeSubcategoryEnum, marketplaceListings, buyerRequests, threadStatusEnum, ticketStatusEnum, ticketPriorityEnum, messageContextEnum, threadTypeEnum, messageThreads, messages, messageIdempotency, templateTypeEnum, messageTemplates, blogPosts, contactSubmissions, accountDeletionRequests, sustainabilityContent, verificationQueue, activityTypeEnum, activityLogs, notificationTypeEnum, notifications, videos, contactSettings, settingDataTypeEnum, platformSettings, settingsAudit2, emailTemplates, loginHistory, verificationRules, documentTemplates, adminAuditLogs, twoFactorAuth, membershipBenefits, tierUsageTracking, sellerVerificationRequestStatusEnum, sellerVerificationDocumentTypeEnum, sellerVerificationRequests, sellerVerificationDocuments, usersRelations, adminPermissionsRelations, userProfilesRelations, projectsRelations, expressInterestRelations, marketplaceListingsRelations, buyerRequestsRelations, messageThreadsRelations, messagesRelations, blogPostsRelations, verificationQueueRelations, activityLogsRelations, notificationsRelations, accountDeletionRequestsRelations, tierUsageTrackingRelations, sellerVerificationRequestsRelations, sellerVerificationDocumentsRelations, paymentMethodEnum, tierUpgradeRequests, tierUpgradePayments, tierUpgradeDocuments, tierUpgradeRequestsRelations, tierUpgradeDocumentsRelations, upsertUserSchema, insertAdminPermissionsSchema, updateAdminPermissionsSchema, insertUserProfileSchema, updateUserProfileSchema, insertProjectSchema, insertExpressInterestSchema, insertMarketplaceListingSchema, insertBuyerRequestSchema, insertMessageThreadSchema, insertMessageSchema, insertBlogPostSchema, insertContactSubmissionSchema, insertActivityLogSchema, insertNotificationSchema, insertVideoSchema, updateVideoSchema, insertSustainabilityContentSchema2, insertContactSettingsSchema, updateContactSettingsSchema, insertMembershipBenefitSchema, updateMembershipBenefitSchema, insertTierUsageTrackingSchema, updateTierUsageTrackingSchema, insertMessageTemplateSchema, updateMessageTemplateSchema, insertPlatformSettingSchema, updatePlatformSettingSchema, insertSettingsAuditSchema, insertEmailTemplateSchema, updateEmailTemplateSchema, insertLoginHistorySchema, insertVerificationRuleSchema, updateVerificationRuleSchema, insertDocumentTemplateSchema, updateDocumentTemplateSchema, insertAdminAuditLogSchema, insertTwoFactorAuthSchema, updateTwoFactorAuthSchema, insertSellerVerificationRequestSchema, updateSellerVerificationRequestSchema, insertSellerVerificationDocumentSchema, paymentMethodDetails, insertTierUpgradePaymentSchema, updateTierUpgradePaymentSchema, insertPaymentMethodDetailsSchema, updatePaymentMethodDetailsSchema, insertTierUpgradeRequestSchema, updateTierUpgradeRequestSchema, insertAccountDeletionRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -344,8 +338,9 @@ var init_schema = __esm({
       // Admin verification badge
       expiryDate: timestamp("expiry_date"),
       // When the RFQ expires
-      status: varchar("status").notNull().default("active"),
-      // active, closed
+      status: varchar("status").notNull().default("pending"),
+      // pending, active, rejected, closed
+      rejectionReason: text("rejection_reason"),
       createdAt: timestamp("created_at").defaultNow().notNull(),
       updatedAt: timestamp("updated_at").defaultNow().notNull()
     });
@@ -469,7 +464,8 @@ var init_schema = __esm({
     });
     verificationQueue = pgTable("verification_queue", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-      listingId: varchar("listing_id").notNull().references(() => marketplaceListings.id, { onDelete: "cascade" }).unique(),
+      listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: "cascade" }),
+      buyerRequestId: varchar("buyer_request_id").references(() => buyerRequests.id, { onDelete: "cascade" }),
       submittedAt: timestamp("submitted_at").defaultNow().notNull(),
       reviewedAt: timestamp("reviewed_at"),
       reviewedBy: varchar("reviewed_by").references(() => users.id),
@@ -532,7 +528,7 @@ var init_schema = __esm({
       updatedBy: varchar("updated_by").references(() => users.id),
       updatedAt: timestamp("updated_at").defaultNow().notNull()
     });
-    settingsAudit = pgTable("settings_audit", {
+    settingsAudit2 = pgTable("settings_audit", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       settingKey: varchar("setting_key", { length: 100 }).notNull(),
       oldValue: text("old_value"),
@@ -1065,7 +1061,7 @@ var init_schema = __esm({
     updatePlatformSettingSchema = createInsertSchema(platformSettings).omit({
       updatedAt: true
     }).partial().required({ id: true });
-    insertSettingsAuditSchema = createInsertSchema(settingsAudit).omit({
+    insertSettingsAuditSchema = createInsertSchema(settingsAudit2).omit({
       id: true,
       changedAt: true
     });
@@ -1201,1871 +1197,6 @@ var init_db = __esm({
       connectionString: process.env.DATABASE_URL
     });
     db = drizzle(pool, { schema: schema_exports });
-  }
-});
-
-// server/storage.ts
-import { eq, and, desc, or, sql as sql2, inArray } from "drizzle-orm";
-async function generateUniqueItemId(db2, length = 5) {
-  const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const maxAttempts = 20;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    let id = "";
-    for (let i = 0; i < length; i++) id += CHARS[Math.floor(Math.random() * CHARS.length)];
-    const exists = await db2.select().from(marketplaceListings).where(eq(marketplaceListings.itemId, id)).limit(1);
-    if (exists.length > 0) continue;
-    const exists2 = await db2.select().from(projects).where(eq(projects.itemId, id)).limit(1);
-    if (exists2.length > 0) continue;
-    const exists3 = await db2.select().from(buyerRequests).where(eq(buyerRequests.itemId, id)).limit(1);
-    if (exists3.length > 0) continue;
-    return id;
-  }
-  throw new Error("Failed to generate unique item id");
-}
-var DatabaseStorage, storage;
-var init_storage = __esm({
-  "server/storage.ts"() {
-    "use strict";
-    init_schema();
-    init_db();
-    DatabaseStorage = class {
-      // ========================================================================
-      // User operations
-      // ========================================================================
-      async getUser(id) {
-        const [user] = await db.select().from(users).where(eq(users.id, id));
-        return user;
-      }
-      async getUserById(id) {
-        return this.getUser(id);
-      }
-      async getUserByEmail(email) {
-        const [user] = await db.select().from(users).where(eq(users.email, email));
-        return user;
-      }
-      async getUserByUsername(username) {
-        const [user] = await db.select().from(users).where(eq(users.username, username));
-        return user;
-      }
-      async getUserByClerkId(clerkId) {
-        const [user] = await db.select().from(users).where(eq(users.clerkId, clerkId));
-        return user;
-      }
-      async getAdminUser() {
-        const [admin] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
-        return admin;
-      }
-      async getUsersByRole(role) {
-        return await db.select().from(users).where(eq(users.role, role));
-      }
-      async upsertUser(userData) {
-        if (userData.clerkId) {
-          const existingUsers = await db.select().from(users).where(eq(users.clerkId, userData.clerkId)).limit(1);
-          if (existingUsers.length > 0) {
-            const updateData = {
-              email: userData.email,
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-              profileImageUrl: userData.profileImageUrl,
-              role: userData.role,
-              updatedAt: /* @__PURE__ */ new Date()
-            };
-            if (userData.password) {
-              updateData.password = userData.password;
-            }
-            const [user2] = await db.update(users).set(updateData).where(eq(users.clerkId, userData.clerkId)).returning();
-            return user2;
-          }
-        }
-        if (userData.email) {
-          const existingUsers = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
-          if (existingUsers.length > 0) {
-            const updateData = {
-              firstName: userData.firstName,
-              lastName: userData.lastName,
-              profileImageUrl: userData.profileImageUrl,
-              updatedAt: /* @__PURE__ */ new Date()
-            };
-            if (userData.clerkId) {
-              updateData.clerkId = userData.clerkId;
-            }
-            if (userData.role) {
-              updateData.role = userData.role;
-            }
-            if (userData.password) {
-              updateData.password = userData.password;
-            }
-            const [user2] = await db.update(users).set(updateData).where(eq(users.email, userData.email)).returning();
-            return user2;
-          }
-        }
-        const [user] = await db.insert(users).values(userData).onConflictDoUpdate({
-          target: users.id,
-          set: {
-            ...userData,
-            updatedAt: /* @__PURE__ */ new Date()
-          }
-        }).returning();
-        return user;
-      }
-      async getAllUsers() {
-        return await db.select().from(users).orderBy(desc(users.createdAt));
-      }
-      async updateUserRole(id, role) {
-        const [user] = await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id)).returning();
-        return user;
-      }
-      async deleteUser(id) {
-        await db.delete(users).where(eq(users.id, id));
-      }
-      // ========================================================================
-      // Admin Permissions operations
-      // ========================================================================
-      async getAdminPermissions(adminUserId) {
-        const [row] = await db.select().from(adminPermissions).where(eq(adminPermissions.adminUserId, adminUserId)).limit(1);
-        return row;
-      }
-      async upsertAdminPermissions(data) {
-        const existing = await this.getAdminPermissions(data.adminUserId);
-        if (existing) {
-          const [updated] = await db.update(adminPermissions).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(adminPermissions.adminUserId, data.adminUserId)).returning();
-          return updated;
-        }
-        const [inserted] = await db.insert(adminPermissions).values(data).returning();
-        return inserted;
-      }
-      async updateAdminPermissions(data) {
-        const [updated] = await db.update(adminPermissions).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(adminPermissions.adminUserId, data.adminUserId)).returning();
-        return updated;
-      }
-      // ========================================================================
-      // User Profile operations
-      // ========================================================================
-      async getUserProfile(userId) {
-        const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
-        return profile;
-      }
-      async createUserProfile(profileData) {
-        const [profile] = await db.insert(userProfiles).values(profileData).returning();
-        return profile;
-      }
-      async updateUserProfile(profileData) {
-        const [profile] = await db.update(userProfiles).set({
-          ...profileData,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(userProfiles.userId, profileData.userId)).returning();
-        return profile;
-      }
-      // ========================================================================
-      // Project operations
-      // ========================================================================
-      async createProject(projectData) {
-        const dataToInsert = { ...projectData };
-        if (!dataToInsert.itemId && dataToInsert.status === "active") {
-          dataToInsert.itemId = await generateUniqueItemId(db);
-        }
-        const [project] = await db.insert(projects).values(dataToInsert).returning();
-        return project;
-      }
-      async getProjects() {
-        const results = await db.select({
-          project: projects,
-          owner: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          },
-          profile: userProfiles
-        }).from(projects).leftJoin(users, eq(projects.ownerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).orderBy(desc(projects.createdAt));
-        return results.map((r) => ({
-          ...r.project,
-          owner: r.owner ? { ...r.owner, verified: r.profile?.verified ?? false } : null
-        }));
-      }
-      async getProjectById(id) {
-        const results = await db.select({
-          project: projects,
-          owner: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          },
-          profile: userProfiles
-        }).from(projects).leftJoin(users, eq(projects.ownerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(projects.id, id));
-        if (results.length === 0) {
-          return void 0;
-        }
-        return {
-          ...results[0].project,
-          owner: results[0].owner ? { ...results[0].owner, verified: results[0].profile?.verified ?? false } : null
-        };
-      }
-      async updateProject(id, data) {
-        const updateData = { ...data, updatedAt: /* @__PURE__ */ new Date() };
-        if (data.status === "active") {
-          const [existing] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
-          if (existing && !existing.itemId) {
-            updateData.itemId = await generateUniqueItemId(db);
-          }
-        }
-        const [project] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning();
-        return project;
-      }
-      async deleteProject(id) {
-        await db.delete(projects).where(eq(projects.id, id));
-      }
-      async closeProject(id) {
-        const [project] = await db.update(projects).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(projects.id, id)).returning();
-        return project;
-      }
-      async expressProjectInterest(interestData) {
-        const [interest] = await db.insert(expressInterest).values(interestData).returning();
-        return interest;
-      }
-      async getAllExpressedInterests() {
-        const interests = await db.select({
-          id: expressInterest.id,
-          projectId: expressInterest.projectId,
-          listingId: expressInterest.listingId,
-          userId: expressInterest.userId,
-          message: expressInterest.message,
-          createdAt: expressInterest.createdAt,
-          userName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("userName"),
-          userEmail: users.email,
-          projectName: projects.name,
-          listingTitle: marketplaceListings.title
-        }).from(expressInterest).leftJoin(users, eq(expressInterest.userId, users.id)).leftJoin(projects, eq(expressInterest.projectId, projects.id)).leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id)).orderBy(desc(expressInterest.createdAt));
-        return interests;
-      }
-      // ========================================================================
-      // Marketplace Listing operations
-      // ========================================================================
-      async createMarketplaceListing(listingData) {
-        const [listing] = await db.insert(marketplaceListings).values(listingData).returning();
-        await db.insert(verificationQueue).values({
-          listingId: listing.id
-        });
-        return listing;
-      }
-      async getMarketplaceListings(filters) {
-        let whereConditions;
-        if (filters?.type && filters?.status) {
-          whereConditions = and(
-            eq(marketplaceListings.type, filters.type),
-            eq(marketplaceListings.status, filters.status)
-          );
-        } else if (filters?.type) {
-          whereConditions = eq(marketplaceListings.type, filters.type);
-        } else if (filters?.status) {
-          whereConditions = eq(marketplaceListings.status, filters.status);
-        }
-        let query = db.select({
-          listing: marketplaceListings,
-          seller: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          },
-          profile: userProfiles
-        }).from(marketplaceListings).leftJoin(users, eq(marketplaceListings.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId));
-        if (whereConditions) {
-          query = query.where(whereConditions);
-        }
-        const results = await query.orderBy(desc(marketplaceListings.createdAt));
-        return results.map((r) => ({
-          ...r.listing,
-          seller: r.seller ? { ...r.seller, verified: r.profile?.verified ?? false } : null
-        }));
-      }
-      async getMarketplaceListingById(id) {
-        const results = await db.select({
-          listing: marketplaceListings,
-          seller: {
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            email: users.email
-          },
-          profile: userProfiles
-        }).from(marketplaceListings).leftJoin(users, eq(marketplaceListings.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(marketplaceListings.id, id));
-        if (results.length === 0) {
-          return void 0;
-        }
-        return {
-          ...results[0].listing,
-          seller: results[0].seller ? { ...results[0].seller, verified: results[0].profile?.verified ?? false } : null
-        };
-      }
-      async updateListingStatus(id, status) {
-        const [listing] = await db.update(marketplaceListings).set({
-          status,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(marketplaceListings.id, id)).returning();
-        return listing;
-      }
-      async updateMarketplaceListing(id, data) {
-        const [listing] = await db.update(marketplaceListings).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(marketplaceListings.id, id)).returning();
-        return listing;
-      }
-      async deleteMarketplaceListing(id) {
-        await db.delete(marketplaceListings).where(eq(marketplaceListings.id, id));
-      }
-      async closeMarketplaceListing(id) {
-        const [listing] = await db.update(marketplaceListings).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(marketplaceListings.id, id)).returning();
-        return listing;
-      }
-      async getListingsBySellerId(sellerId) {
-        return await db.select().from(marketplaceListings).where(eq(marketplaceListings.sellerId, sellerId)).orderBy(desc(marketplaceListings.createdAt));
-      }
-      // When approving a listing, assign itemId if missing
-      async approveListing(listingId, reviewerId) {
-        const [existing] = await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, listingId)).limit(1);
-        let itemId = existing?.itemId || null;
-        if (!itemId) {
-          itemId = await generateUniqueItemId(db);
-        }
-        await db.update(marketplaceListings).set({
-          status: "approved",
-          itemId,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(marketplaceListings.id, listingId));
-        await db.update(verificationQueue).set({
-          reviewedAt: /* @__PURE__ */ new Date(),
-          reviewedBy: reviewerId
-        }).where(eq(verificationQueue.listingId, listingId));
-      }
-      // ========================================================================
-      // Buyer Request operations
-      // ========================================================================
-      async createBuyerRequest(requestData) {
-        if (!requestData.itemId) {
-          requestData.itemId = await generateUniqueItemId(db);
-        }
-        const [request] = await db.insert(buyerRequests).values(requestData).returning();
-        return request;
-      }
-      async getBuyerRequests() {
-        return await db.select().from(buyerRequests).orderBy(desc(buyerRequests.createdAt));
-      }
-      async getBuyerRequestById(id) {
-        const [request] = await db.select().from(buyerRequests).where(eq(buyerRequests.id, id));
-        return request;
-      }
-      async updateBuyerRequestStatus(id, status) {
-        const [updated] = await db.update(buyerRequests).set({
-          status,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(buyerRequests.id, id)).returning();
-        return updated;
-      }
-      // ========================================================================
-      // Message Thread operations
-      // ========================================================================
-      async createMessageThread(threadData) {
-        const [thread2] = await db.insert(messageThreads).values(threadData).returning();
-        return thread2;
-      }
-      async getThreadById(id) {
-        const [thread2] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
-        return thread2;
-      }
-      async getThreadWithParticipants(id) {
-        const thread2 = await this.getThreadById(id);
-        if (!thread2) return null;
-        const [listing] = thread2.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread2.listingId)).limit(1) : [null];
-        const [project] = thread2.projectId ? await db.select().from(projects).where(eq(projects.id, thread2.projectId)).limit(1) : [null];
-        const buyer = thread2.buyerId ? await this.getUserById(thread2.buyerId) : null;
-        const buyerProfile = thread2.buyerId ? await this.getUserProfile(thread2.buyerId) : null;
-        const seller = thread2.sellerId ? await this.getUserById(thread2.sellerId) : null;
-        const sellerProfile = thread2.sellerId ? await this.getUserProfile(thread2.sellerId) : null;
-        return {
-          thread: thread2,
-          listing: listing || null,
-          project: project || null,
-          buyer: buyer || null,
-          buyerProfile: buyerProfile || null,
-          seller: seller || null,
-          sellerProfile: sellerProfile || null
-        };
-      }
-      async getThreadsByUserId(userId) {
-        return await db.select().from(messageThreads).where(
-          or(
-            eq(messageThreads.buyerId, userId),
-            eq(messageThreads.sellerId, userId)
-          )
-        ).orderBy(desc(messageThreads.lastMessageAt));
-      }
-      async getThreadsByBuyerId(buyerId) {
-        return await db.select().from(messageThreads).where(eq(messageThreads.buyerId, buyerId)).orderBy(desc(messageThreads.lastMessageAt));
-      }
-      async getAllMessageThreads() {
-        const results = await db.select({
-          thread: messageThreads,
-          listing: marketplaceListings,
-          project: projects,
-          buyerFirstName: sql2`buyer.first_name`,
-          buyerLastName: sql2`buyer.last_name`,
-          sellerFirstName: sql2`seller.first_name`,
-          sellerLastName: sql2`seller.last_name`
-        }).from(messageThreads).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).leftJoin(
-          sql2`users as buyer`,
-          eq(messageThreads.buyerId, sql2`buyer.id`)
-        ).leftJoin(
-          sql2`users as seller`,
-          eq(messageThreads.sellerId, sql2`seller.id`)
-        ).orderBy(desc(messageThreads.lastMessageAt));
-        return results.map((r) => {
-          const { thread: thread2, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
-          const thread_without_context = {
-            ...thread2,
-            // Explicitly omit the context field
-            id: thread2.id,
-            title: thread2.title,
-            projectId: thread2.projectId,
-            listingId: thread2.listingId,
-            buyerId: thread2.buyerId,
-            sellerId: thread2.sellerId,
-            status: thread2.status,
-            lastMessageAt: thread2.lastMessageAt,
-            createdAt: thread2.createdAt
-          };
-          return {
-            ...thread_without_context,
-            listing,
-            project,
-            buyerName: buyerFirstName && buyerLastName ? `${buyerFirstName} ${buyerLastName}` : void 0,
-            sellerName: sellerFirstName && sellerLastName ? `${sellerFirstName} ${sellerLastName}` : void 0
-          };
-        });
-      }
-      async getThreadsBySellerId(sellerId) {
-        return await db.select().from(messageThreads).where(eq(messageThreads.sellerId, sellerId)).orderBy(desc(messageThreads.lastMessageAt));
-      }
-      async updateThreadLastMessage(threadId) {
-        await db.update(messageThreads).set({ lastMessageAt: /* @__PURE__ */ new Date() }).where(eq(messageThreads.id, threadId));
-      }
-      async closeThread(threadId) {
-        const [thread2] = await db.update(messageThreads).set({ status: "closed" }).where(eq(messageThreads.id, threadId)).returning();
-        return thread2;
-      }
-      // ========================================================================
-      // Support Ticket Operations (Privacy-Controlled)
-      // ========================================================================
-      /**
-       * Get admin support tickets (ONLY threads marked as admin support).
-       * Privacy: Admins can ONLY see support tickets, never buyer-seller conversations
-       */
-      async getAdminSupportTickets(filters) {
-        let query = db.select().from(messageThreads).where(eq(messageThreads.isAdminSupport, true));
-        if (filters?.status) {
-          query = query.where(eq(messageThreads.ticketStatus, filters.status));
-        }
-        if (filters?.priority) {
-          query = query.where(eq(messageThreads.ticketPriority, filters.priority));
-        }
-        if (filters?.assignedAdminId) {
-          query = query.where(eq(messageThreads.assignedAdminId, filters.assignedAdminId));
-        }
-        return await query.orderBy(desc(messageThreads.lastMessageAt));
-      }
-      /**
-       * Claim a support ticket (assign to an admin).
-       * Changes ticketStatus to 'in_progress'
-       */
-      async claimSupportTicket(ticketId, adminId) {
-        const [thread2] = await db.update(messageThreads).set({
-          assignedAdminId: adminId,
-          ticketStatus: "in_progress"
-        }).where(and(
-          eq(messageThreads.id, ticketId),
-          eq(messageThreads.isAdminSupport, true)
-        )).returning();
-        return thread2;
-      }
-      /**
-       * Resolve a support ticket with optional notes.
-       * Changes ticketStatus to 'resolved'
-       */
-      async resolveSupportTicket(ticketId, notes) {
-        const [thread2] = await db.update(messageThreads).set({
-          ticketStatus: "resolved",
-          resolvedAt: /* @__PURE__ */ new Date()
-        }).where(and(
-          eq(messageThreads.id, ticketId),
-          eq(messageThreads.isAdminSupport, true)
-        )).returning();
-        return thread2;
-      }
-      /**
-       * Create a new support ticket (user-initiated).
-       * User can contact admin about account/verification/payment issues
-       */
-      async createSupportTicket(userId, title, description, priority = "normal") {
-        const [thread2] = await db.insert(messageThreads).values({
-          title,
-          type: "general",
-          createdBy: userId,
-          buyerId: userId,
-          context: "general",
-          status: "open",
-          isAdminSupport: true,
-          ticketStatus: "open",
-          ticketPriority: priority
-        }).returning();
-        return thread2;
-      }
-      /**
-       * Update a support ticket's status.
-       */
-      async updateTicketStatus(ticketId, status) {
-        const [thread2] = await db.update(messageThreads).set({
-          ticketStatus: status
-        }).where(and(
-          eq(messageThreads.id, ticketId),
-          eq(messageThreads.isAdminSupport, true)
-        )).returning();
-        return thread2;
-      }
-      /**
-       * Update a support ticket's priority.
-       */
-      async updateTicketPriority(ticketId, priority) {
-        const [thread2] = await db.update(messageThreads).set({
-          ticketPriority: priority
-        }).where(and(
-          eq(messageThreads.id, ticketId),
-          eq(messageThreads.isAdminSupport, true)
-        )).returning();
-        return thread2;
-      }
-      /**
-       * Update a support ticket's assigned admin.
-       */
-      async updateTicketAssignee(ticketId, adminId) {
-        const [thread2] = await db.update(messageThreads).set({
-          assignedAdminId: adminId
-        }).where(and(
-          eq(messageThreads.id, ticketId),
-          eq(messageThreads.isAdminSupport, true)
-        )).returning();
-        return thread2;
-      }
-      /**
-       * Return analytics summary: user role counts, listing status counts,
-       * and simple weekly activity aggregates (last 4 weeks).
-       */
-      async getAnalyticsSummary() {
-        const allUsers = await db.select().from(users);
-        const allListings = await db.select().from(marketplaceListings);
-        const allMessages = await db.select().from(messages);
-        const usersByRole = {
-          buyers: allUsers.filter((u) => (u.role || "").toLowerCase() === "buyer").length,
-          sellers: allUsers.filter((u) => (u.role || "").toLowerCase() === "seller").length,
-          admins: allUsers.filter((u) => (u.role || "").toLowerCase() === "admin").length
-        };
-        const listingsByStatus = {
-          approved: allListings.filter((l) => (l.status || "").toLowerCase() === "approved").length,
-          pending: allListings.filter((l) => (l.status || "").toLowerCase() === "pending").length,
-          total: allListings.length
-        };
-        const now = /* @__PURE__ */ new Date();
-        const currentWeekStart = new Date(now);
-        currentWeekStart.setHours(0, 0, 0, 0);
-        currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
-        const weeklyActivity = [];
-        for (let i = 3; i >= 0; i--) {
-          const start = new Date(currentWeekStart);
-          start.setDate(start.getDate() - 7 * i);
-          const end = new Date(start);
-          end.setDate(start.getDate() + 7);
-          const listingsCount = allListings.filter((l) => {
-            const c = l.createdAt ? new Date(l.createdAt) : null;
-            return c && c >= start && c < end;
-          }).length;
-          const messagesCount = allMessages.filter((m) => {
-            const c = m.createdAt ? new Date(m.createdAt) : null;
-            return c && c >= start && c < end;
-          }).length;
-          const usersCount = allUsers.filter((u) => {
-            const c = u.createdAt ? new Date(u.createdAt) : null;
-            return c && c >= start && c < end;
-          }).length;
-          weeklyActivity.push({
-            week: `${start.toISOString().slice(0, 10)}`,
-            listings: listingsCount,
-            messages: messagesCount,
-            users: usersCount
-          });
-        }
-        return {
-          usersByRole,
-          listingsByStatus,
-          weeklyActivity
-        };
-      }
-      // ========================================================================
-      // Message operations
-      // ========================================================================
-      async getMessagesByThreadId(threadId) {
-        return await db.select().from(messages).where(eq(messages.threadId, threadId)).orderBy(messages.createdAt);
-      }
-      async createMessage(messageData) {
-        try {
-          const [message] = await db.insert(messages).values(messageData).returning();
-          return message;
-        } catch (err) {
-          if (err?.cause?.code === "42703" || err?.code === "42703") {
-            const minimalPayload = {
-              senderId: messageData.senderId,
-              receiverId: messageData.receiverId,
-              subject: messageData.subject,
-              content: messageData.content,
-              isAutoRelay: messageData.isAutoRelay ?? false
-            };
-            const [message] = await db.insert(messages).values(minimalPayload).returning();
-            return message;
-          }
-          throw err;
-        }
-      }
-      async getMessageByIdempotencyKey(key) {
-        const [row] = await db.select({ id: messageIdempotency.messageId }).from(messageIdempotency).where(eq(messageIdempotency.key, key)).limit(1);
-        if (!row) return void 0;
-        const messageId = row.id;
-        const [message] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
-        return message;
-      }
-      async createMessageWithIdempotency(key, messageData) {
-        if (!key) {
-          return await this.createMessage(messageData);
-        }
-        const existing = await this.getMessageByIdempotencyKey(key);
-        if (existing) return existing;
-        const message = await this.createMessage(messageData);
-        try {
-          await db.insert(messageIdempotency).values({
-            key,
-            messageId: message.id
-          });
-          return message;
-        } catch (err) {
-          if (err?.cause?.code === "23505" || err?.code === "23505") {
-            const mapped = await this.getMessageByIdempotencyKey(key);
-            if (mapped) return mapped;
-          }
-          throw err;
-        }
-      }
-      async getMessagesByUserId(userId) {
-        const threads = await db.select({
-          threadId: messageThreads.id
-        }).from(messageThreads).where(
-          or(
-            eq(messageThreads.buyerId, userId),
-            eq(messageThreads.sellerId, userId)
-          )
-        );
-        if (threads.length === 0) return [];
-        const threadIds = threads.map((t) => t.threadId);
-        const results = await db.select({
-          // Message fields
-          id: messages.id,
-          threadId: messages.threadId,
-          senderId: messages.senderId,
-          receiverId: messages.receiverId,
-          subject: messages.subject,
-          content: messages.content,
-          read: messages.read,
-          closed: messages.closed,
-          unread: messages.unread,
-          isAutoRelay: messages.isAutoRelay,
-          createdAt: messages.createdAt,
-          // Sender info
-          senderFirstName: users.firstName,
-          senderLastName: users.lastName,
-          // Context info
-          listing: marketplaceListings,
-          project: projects
-        }).from(messages).innerJoin(messageThreads, eq(messages.threadId, messageThreads.id)).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).where(inArray(messages.threadId, threadIds)).orderBy(messages.createdAt);
-        return results.map((result) => ({
-          id: result.id,
-          threadId: result.threadId,
-          senderId: result.senderId,
-          receiverId: result.receiverId,
-          subject: result.subject,
-          content: result.content,
-          read: result.read,
-          closed: result.closed,
-          unread: result.unread,
-          isAutoRelay: result.isAutoRelay,
-          createdAt: result.createdAt,
-          relatedProjectId: result.project?.id || null,
-          relatedListingId: result.listing?.id || null,
-          senderName: result.senderFirstName && result.senderLastName ? `${result.senderFirstName} ${result.senderLastName}` : void 0,
-          context: result.listing ? "marketplace" : result.project ? "project_interest" : "general"
-        }));
-      }
-      async getConversation(user1Id, user2Id) {
-        return await db.select().from(messages).where(
-          or(
-            and(
-              eq(messages.senderId, user1Id),
-              eq(messages.receiverId, user2Id)
-            ),
-            and(
-              eq(messages.senderId, user2Id),
-              eq(messages.receiverId, user1Id)
-            )
-          )
-        ).orderBy(messages.createdAt);
-      }
-      async markMessageAsRead(id) {
-        await db.update(messages).set({ read: true, unread: false }).where(eq(messages.id, id));
-      }
-      // Helper to get a message by id (used by some admin routes)
-      async getMessageById(id) {
-        const [message] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
-        return message;
-      }
-      // Return count of unread messages for a given user (receiver)
-      async getUnreadMessagesCount(userId) {
-        const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
-          and(
-            eq(messages.receiverId, userId),
-            eq(messages.unread, true)
-          )
-        );
-        return result[0]?.count || 0;
-      }
-      async closeConversationByMessageId(messageId) {
-        const [main] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
-        if (!main) return;
-        await db.update(messages).set({ closed: true }).where(
-          or(
-            and(eq(messages.senderId, main.senderId), eq(messages.receiverId, main.receiverId)),
-            and(eq(messages.senderId, main.receiverId), eq(messages.receiverId, main.senderId))
-          )
-        );
-      }
-      async checkUserHasContactedAboutProject(userId, projectId) {
-        const result = await db.select().from(messages).where(
-          and(
-            eq(messages.senderId, userId),
-            eq(messages.relatedProjectId, projectId)
-          )
-        ).limit(1);
-        return result.length > 0;
-      }
-      async checkUserHasContactedAboutListing(userId, listingId) {
-        const result = await db.select().from(messages).where(
-          and(
-            eq(messages.senderId, userId),
-            eq(messages.relatedListingId, listingId)
-          )
-        ).limit(1);
-        return result.length > 0;
-      }
-      async getMessageWithSenderDetails(messageId) {
-        const result = await db.select({
-          message: messages,
-          sender: users,
-          senderProfile: userProfiles
-        }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(messages.id, messageId)).limit(1);
-        if (!result[0]) return null;
-        const mainMessage = result[0].message;
-        const conversationMessages = await db.select({
-          message: messages,
-          sender: users,
-          senderProfile: userProfiles
-        }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(
-          and(
-            or(
-              and(
-                eq(messages.senderId, mainMessage.senderId),
-                eq(messages.receiverId, mainMessage.receiverId)
-              ),
-              and(
-                eq(messages.senderId, mainMessage.receiverId),
-                eq(messages.receiverId, mainMessage.senderId)
-              )
-            )
-          )
-        ).orderBy(desc(messages.createdAt));
-        const payload = {
-          ...result[0],
-          conversation: conversationMessages
-        };
-        try {
-          const content = mainMessage && (mainMessage.content || "");
-          const m = content.match(/Contact submission from\s+([^<\n]+)\s*<([^>]+)>[\s\S]*?Phone:\s*([^\n\r]*)[\s\S]*?\n\n([\s\S]*?)(?:\n\nView (?:submission|thread):\s*[^\s]+(?:id=|\?threadId=)([a-f0-9\-]+))?/i);
-          if (m) {
-            payload.contactSubmission = {
-              name: (m[1] || "").trim(),
-              email: (m[2] || "").trim(),
-              phone: (m[3] || "").trim(),
-              message: (m[4] || "").trim(),
-              submissionId: m[5] || void 0
-            };
-          }
-        } catch (err) {
-        }
-        return payload;
-      }
-      // ========================================================================
-      // Blog Post operations
-      // ========================================================================
-      async createBlogPost(postData) {
-        const [post] = await db.insert(blogPosts).values(postData).returning();
-        return post;
-      }
-      async getBlogPosts(publishedOnly = true) {
-        let query = db.select().from(blogPosts);
-        if (publishedOnly) {
-          query = query.where(eq(blogPosts.published, true));
-        }
-        return await query.orderBy(desc(blogPosts.createdAt));
-      }
-      async getBlogPostById(id) {
-        const [post] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
-        return post;
-      }
-      async getBlogPostBySlug(slug) {
-        const [post] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
-        return post;
-      }
-      async publishBlogPost(id) {
-        const [post] = await db.update(blogPosts).set({
-          published: true,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(blogPosts.id, id)).returning();
-        return post;
-      }
-      async updateBlogPost(id, postData) {
-        const [post] = await db.update(blogPosts).set({
-          ...postData,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(blogPosts.id, id)).returning();
-        return post;
-      }
-      async deleteBlogPost(id) {
-        await db.delete(blogPosts).where(eq(blogPosts.id, id));
-      }
-      // ========================================================================
-      // Contact Submission operations
-      // ========================================================================
-      async createContactSubmission(submissionData) {
-        const [submission] = await db.insert(contactSubmissions).values(submissionData).returning();
-        return submission;
-      }
-      async getContactSubmissions() {
-        return await db.select().from(contactSubmissions).orderBy(desc(contactSubmissions.createdAt));
-      }
-      async updateContactSubmissionStatus(id, status) {
-        const [submission] = await db.update(contactSubmissions).set({ status }).where(eq(contactSubmissions.id, id)).returning();
-        return submission;
-      }
-      // ========================================================================
-      // Contact Settings operations
-      // ========================================================================
-      async getContactSettings() {
-        const settings = await db.select().from(contactSettings).limit(1);
-        if (settings.length === 0) {
-          const [defaultSettings] = await db.insert(contactSettings).values({
-            officeAddress: "Fusion Mining Limited\nCentral Business District\nLusaka, Zambia",
-            phone: "+260 978 838 939",
-            email: "info@fusionmining.com",
-            supportEmail: "support@fusionmining.com",
-            mondayFriday: "8:00 AM - 5:00 PM",
-            saturday: "9:00 AM - 1:00 PM",
-            sunday: "Closed"
-          }).returning();
-          return defaultSettings;
-        }
-        return settings[0];
-      }
-      async updateContactSettings(settingsData) {
-        const existing = await this.getContactSettings();
-        if (!existing) {
-          const [newSettings] = await db.insert(contactSettings).values(settingsData).returning();
-          return newSettings;
-        }
-        const [updated] = await db.update(contactSettings).set({
-          ...settingsData,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(contactSettings.id, existing.id)).returning();
-        return updated;
-      }
-      // ========================================================================
-      // Verification Queue operations
-      // ========================================================================
-      async getPendingListings() {
-        return await db.select().from(marketplaceListings).where(eq(marketplaceListings.status, "pending")).orderBy(desc(marketplaceListings.createdAt));
-      }
-      async rejectListing(listingId, reviewerId) {
-        await db.update(marketplaceListings).set({
-          status: "rejected",
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(marketplaceListings.id, listingId));
-        await db.update(verificationQueue).set({
-          reviewedAt: /* @__PURE__ */ new Date(),
-          reviewedBy: reviewerId
-        }).where(eq(verificationQueue.listingId, listingId));
-      }
-      // ========================================================================
-      // Activity Log operations
-      // ========================================================================
-      async createActivityLog(logData) {
-        const [log] = await db.insert(activityLogs).values(logData).returning();
-        return log;
-      }
-      async getActivityLogs(limit = 100) {
-        const results = await db.select({
-          id: activityLogs.id,
-          userId: activityLogs.userId,
-          activityType: activityLogs.activityType,
-          description: activityLogs.description,
-          ipAddress: activityLogs.ipAddress,
-          userAgent: activityLogs.userAgent,
-          metadata: activityLogs.metadata,
-          createdAt: activityLogs.createdAt,
-          user: {
-            id: users.id,
-            email: users.email,
-            username: users.username,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            role: users.role,
-            profileImageUrl: users.profileImageUrl
-          }
-        }).from(activityLogs).leftJoin(users, eq(activityLogs.userId, users.id)).orderBy(desc(activityLogs.createdAt)).limit(limit);
-        return results.map((r) => ({
-          id: r.id,
-          userId: r.userId,
-          activityType: r.activityType,
-          description: r.description,
-          ipAddress: r.ipAddress,
-          userAgent: r.userAgent,
-          metadata: r.metadata,
-          createdAt: r.createdAt,
-          user: r.user?.id ? r.user : null
-        }));
-      }
-      async getUserActivityLogs(userId, limit = 50) {
-        return await db.select().from(activityLogs).where(eq(activityLogs.userId, userId)).orderBy(desc(activityLogs.createdAt)).limit(limit);
-      }
-      // ========================================================================
-      // Notification operations
-      // ========================================================================
-      async createNotification(notificationData) {
-        const [notification] = await db.insert(notifications).values(notificationData).returning();
-        return notification;
-      }
-      async getUserNotifications(userId) {
-        return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(50);
-      }
-      async getUnreadNotificationCount(userId) {
-        const result = await db.select({ count: sql2`count(*)::int` }).from(notifications).where(
-          and(
-            eq(notifications.userId, userId),
-            eq(notifications.read, false)
-          )
-        );
-        return result[0]?.count || 0;
-      }
-      async markNotificationAsRead(id) {
-        await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
-      }
-      async markAllNotificationsAsRead(userId) {
-        await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
-      }
-      // ========================================================================
-      // Stats operations for dashboard
-      // ========================================================================
-      async getUserListingsCount(userId) {
-        const result = await db.select({ count: sql2`count(*)::int` }).from(marketplaceListings).where(eq(marketplaceListings.sellerId, userId));
-        return result[0]?.count || 0;
-      }
-      async getUserUnreadMessagesCount(userId) {
-        const threads = await db.select({ id: messageThreads.id }).from(messageThreads).where(
-          or(
-            eq(messageThreads.buyerId, userId),
-            eq(messageThreads.sellerId, userId)
-          )
-        );
-        if (threads.length === 0) return 0;
-        const threadIds = threads.map((t) => t.id);
-        const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
-          and(
-            inArray(messages.threadId, threadIds),
-            eq(messages.receiverId, userId),
-            eq(messages.read, false)
-          )
-        );
-        return result[0]?.count || 0;
-      }
-      async getUserInterestsCount(userId) {
-        const result = await db.select({ count: sql2`count(*)::int` }).from(expressInterest).where(eq(expressInterest.userId, userId));
-        return result[0]?.count || 0;
-      }
-      async checkUserHasExpressedInterest(userId, projectId) {
-        const [interest] = await db.select().from(expressInterest).where(
-          and(
-            eq(expressInterest.userId, userId),
-            eq(expressInterest.projectId, projectId)
-          )
-        ).limit(1);
-        return !!interest;
-      }
-      // ========================================================================
-      // Video operations
-      // ========================================================================
-      async createVideo(videoData) {
-        const activeVideosCount = await db.select({ count: sql2`count(*)::int` }).from(videos).where(eq(videos.active, true));
-        const count = activeVideosCount[0]?.count || 0;
-        const shouldActivate = count < 4 && videoData.active !== false;
-        const [video] = await db.insert(videos).values({ ...videoData, active: shouldActivate }).returning();
-        return video;
-      }
-      async getActiveVideos() {
-        return await db.select().from(videos).where(eq(videos.active, true)).orderBy(desc(videos.createdAt)).limit(4);
-      }
-      async getAllVideos() {
-        return await db.select().from(videos).orderBy(desc(videos.createdAt));
-      }
-      async updateVideo(videoData) {
-        const [video] = await db.update(videos).set(videoData).where(eq(videos.id, videoData.id)).returning();
-        return video;
-      }
-      async toggleVideoActive(id) {
-        const [currentVideo] = await db.select().from(videos).where(eq(videos.id, id)).limit(1);
-        if (!currentVideo) {
-          throw new Error("Video not found");
-        }
-        if (!currentVideo.active) {
-          const activeVideosCount = await db.select({ count: sql2`count(*)::int` }).from(videos).where(eq(videos.active, true));
-          const count = activeVideosCount[0]?.count || 0;
-          if (count >= 4) {
-            throw new Error("Maximum of 4 active videos allowed");
-          }
-        }
-        const [video] = await db.update(videos).set({ active: !currentVideo.active }).where(eq(videos.id, id)).returning();
-        return video;
-      }
-      async deleteVideo(id) {
-        await db.delete(videos).where(eq(videos.id, id));
-      }
-      // ========================================================================
-      // Sustainability Content operations
-      // ========================================================================
-      async createSustainabilityContent(content) {
-        const [item] = await db.insert(sustainabilityContent).values(content).returning();
-        return item;
-      }
-      async getSustainabilityContent() {
-        try {
-          return await db.select().from(sustainabilityContent).orderBy(sustainabilityContent.order);
-        } catch (err) {
-          if (err?.code === "42P01") return [];
-          throw err;
-        }
-      }
-      async getSustainabilityContentById(id) {
-        try {
-          const [item] = await db.select().from(sustainabilityContent).where(eq(sustainabilityContent.id, id)).limit(1);
-          return item;
-        } catch (err) {
-          if (err?.code === "42P01") return void 0;
-          throw err;
-        }
-      }
-      async updateSustainabilityContent(id, content) {
-        const [item] = await db.update(sustainabilityContent).set(content).where(eq(sustainabilityContent.id, id)).returning();
-        return item;
-      }
-      async deleteSustainabilityContent(id) {
-        await db.delete(sustainabilityContent).where(eq(sustainabilityContent.id, id));
-      }
-      // ========================================================================
-      // Message Template operations
-      // ========================================================================
-      async createMessageTemplate(templateData) {
-        const [template] = await db.insert(messageTemplates).values(templateData).returning();
-        return template;
-      }
-      async getMessageTemplates(activeOnly = false) {
-        if (activeOnly) {
-          return await db.select().from(messageTemplates).where(eq(messageTemplates.active, true)).orderBy(messageTemplates.type);
-        }
-        return await db.select().from(messageTemplates).orderBy(messageTemplates.type);
-      }
-      async getMessageTemplateByType(type) {
-        const [template] = await db.select().from(messageTemplates).where(and(
-          eq(messageTemplates.type, type),
-          eq(messageTemplates.active, true)
-        )).limit(1);
-        return template;
-      }
-      // ========================================================================
-      // Membership Benefit operations
-      // ========================================================================
-      async createMembershipBenefit(benefitData) {
-        const [benefit] = await db.insert(membershipBenefits).values(benefitData).returning();
-        return benefit;
-      }
-      async getAllMembershipBenefits() {
-        return await db.select().from(membershipBenefits).orderBy(membershipBenefits.visibilityRanking);
-      }
-      async getMembershipBenefitByTier(tier) {
-        const [benefit] = await db.select().from(membershipBenefits).where(eq(membershipBenefits.tier, tier)).limit(1);
-        return benefit;
-      }
-      async updateMembershipBenefit(tier, benefitData) {
-        const [updated] = await db.update(membershipBenefits).set({
-          ...benefitData,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(membershipBenefits.tier, tier)).returning();
-        return updated;
-      }
-      async updateUserMembershipTier(userId, tier) {
-        const [updated] = await db.update(users).set({
-          membershipTier: tier,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(users.id, userId)).returning();
-        return updated;
-      }
-      // ========================================================================
-      // Tier Usage Tracking operations
-      // ========================================================================
-      async getUserTierUsage(userId, month) {
-        const [usage] = await db.select().from(tierUsageTracking).where(and(
-          eq(tierUsageTracking.userId, userId),
-          eq(tierUsageTracking.month, month)
-        )).limit(1);
-        return usage;
-      }
-      async incrementUserRFQCount(userId, month) {
-        const existing = await this.getUserTierUsage(userId, month);
-        if (existing) {
-          await db.update(tierUsageTracking).set({
-            activeRFQsCount: sql2`${tierUsageTracking.activeRFQsCount} + 1`,
-            updatedAt: /* @__PURE__ */ new Date()
-          }).where(eq(tierUsageTracking.id, existing.id));
-        } else {
-          await db.insert(tierUsageTracking).values({
-            userId,
-            month,
-            activeRFQsCount: 1,
-            messagesCount: 0,
-            analyticsViews: 0
-          });
-        }
-      }
-      async getUserActiveRFQCount(userId) {
-        const result = await db.select({ count: sql2`count(*)::int` }).from(buyerRequests).where(and(
-          eq(buyerRequests.buyerId, userId),
-          eq(buyerRequests.status, "active")
-        ));
-        return result[0]?.count || 0;
-      }
-      async checkUserCanCreateRFQ(userId) {
-        const user = await this.getUser(userId);
-        if (!user) {
-          return { allowed: false, reason: "User not found" };
-        }
-        const benefit = await this.getMembershipBenefitByTier(user.membershipTier);
-        if (!benefit) {
-          return { allowed: false, reason: "Membership tier not configured" };
-        }
-        if (benefit.maxActiveRFQs === -1) {
-          return { allowed: true };
-        }
-        const activeCount = await this.getUserActiveRFQCount(userId);
-        if (activeCount >= benefit.maxActiveRFQs) {
-          return {
-            allowed: false,
-            reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? "s" : ""}. Upgrade to create more RFQs.`
-          };
-        }
-        return { allowed: true };
-      }
-      // ========================================================================
-      // Platform Settings operations
-      // ========================================================================
-      async getAllPlatformSettings() {
-        try {
-          return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
-        } catch (err) {
-          if (err?.code === "42P01") return [];
-          throw err;
-        }
-      }
-      async createPlatformSetting(setting) {
-        try {
-          const [created] = await db.insert(platformSettings).values(setting).returning();
-          return created;
-        } catch (err) {
-          if (err?.code === "42P01") throw new Error("Platform settings table missing");
-          throw err;
-        }
-      }
-      async updatePlatformSetting(setting) {
-        try {
-          const { id, ...updates } = setting;
-          const [updated] = await db.update(platformSettings).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(platformSettings.id, id)).returning();
-          return updated;
-        } catch (err) {
-          if (err?.code === "42P01") throw new Error("Platform settings table missing");
-          throw err;
-        }
-      }
-      async deletePlatformSetting(id) {
-        try {
-          await db.delete(platformSettings).where(eq(platformSettings.id, id));
-        } catch (err) {
-          if (err?.code === "42P01") return;
-          throw err;
-        }
-      }
-      async getPlatformSettingByKey(key) {
-        try {
-          const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, key)).limit(1);
-          return setting;
-        } catch (err) {
-          if (err?.code === "42P01") return void 0;
-          throw err;
-        }
-      }
-      async getPlatformSettingsByCategory(category) {
-        try {
-          return await db.select().from(platformSettings).where(eq(platformSettings.category, category)).orderBy(platformSettings.key);
-        } catch (err) {
-          if (err?.code === "42P01") return [];
-          throw err;
-        }
-      }
-      // ========================================================================
-      // Settings Audit operations
-      // ========================================================================
-      async getSettingsAuditLogs(settingKey, limit = 50) {
-        if (settingKey) {
-          return await db.select().from(settingsAudit).where(eq(settingsAudit.settingKey, settingKey)).orderBy(desc(settingsAudit.changedAt)).limit(limit);
-        }
-        return await db.select().from(settingsAudit).orderBy(desc(settingsAudit.changedAt)).limit(limit);
-      }
-      async logSettingChange(audit) {
-        await db.insert(settingsAudit).values(audit);
-      }
-      // ========================================================================
-      // Email Template operations
-      // ========================================================================
-      async getAllEmailTemplates() {
-        return await db.select().from(emailTemplates).orderBy(desc(emailTemplates.createdAt));
-      }
-      async createEmailTemplate(template) {
-        const [created] = await db.insert(emailTemplates).values(template).returning();
-        return created;
-      }
-      async updateEmailTemplate(template) {
-        const { id, ...updates } = template;
-        const [updated] = await db.update(emailTemplates).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(emailTemplates.id, id)).returning();
-        return updated;
-      }
-      async deleteEmailTemplate(id) {
-        await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
-      }
-      // ========================================================================
-      // Login History operations
-      // ========================================================================
-      async getLoginHistory(userId) {
-        if (userId) {
-          return await db.select().from(loginHistory).where(eq(loginHistory.userId, userId)).orderBy(desc(loginHistory.createdAt)).limit(100);
-        }
-        return await db.select().from(loginHistory).orderBy(desc(loginHistory.createdAt)).limit(100);
-      }
-      async logLoginAttempt(data) {
-        await db.insert(loginHistory).values(data);
-      }
-      // ========================================================================
-      // Verification Rule operations
-      // ========================================================================
-      async getAllVerificationRules() {
-        return await db.select().from(verificationRules).orderBy(desc(verificationRules.createdAt));
-      }
-      async createVerificationRule(rule) {
-        const [created] = await db.insert(verificationRules).values(rule).returning();
-        return created;
-      }
-      async updateVerificationRule(rule) {
-        const { id, ...updates } = rule;
-        const [updated] = await db.update(verificationRules).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(verificationRules.id, id)).returning();
-        return updated;
-      }
-      async deleteVerificationRule(id) {
-        await db.delete(verificationRules).where(eq(verificationRules.id, id));
-      }
-      // ========================================================================
-      // Document Template operations
-      // ========================================================================
-      async getAllDocumentTemplates() {
-        return await db.select().from(documentTemplates).orderBy(desc(documentTemplates.createdAt));
-      }
-      async createDocumentTemplate(template) {
-        const [created] = await db.insert(documentTemplates).values(template).returning();
-        return created;
-      }
-      async updateDocumentTemplate(template) {
-        const { id, ...updates } = template;
-        const [updated] = await db.update(documentTemplates).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(documentTemplates.id, id)).returning();
-        return updated;
-      }
-      async deleteDocumentTemplate(id) {
-        await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
-      }
-      // ========================================================================
-      // Admin Audit Log operations
-      // ========================================================================
-      async getAdminAuditLogs(adminId) {
-        const baseQuery = db.select({
-          id: adminAuditLogs.id,
-          adminId: adminAuditLogs.adminId,
-          action: adminAuditLogs.action,
-          targetType: adminAuditLogs.targetType,
-          targetId: adminAuditLogs.targetId,
-          changes: adminAuditLogs.changes,
-          ipAddress: adminAuditLogs.ipAddress,
-          userAgent: adminAuditLogs.userAgent,
-          createdAt: adminAuditLogs.createdAt,
-          admin: {
-            id: users.id,
-            email: users.email,
-            username: users.username,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            role: users.role,
-            profileImageUrl: users.profileImageUrl
-          }
-        }).from(adminAuditLogs).leftJoin(users, eq(adminAuditLogs.adminId, users.id));
-        if (adminId) {
-          const results2 = await baseQuery.where(eq(adminAuditLogs.adminId, adminId)).orderBy(desc(adminAuditLogs.createdAt)).limit(200);
-          return results2.map((r) => ({
-            id: r.id,
-            adminId: r.adminId,
-            action: r.action,
-            targetType: r.targetType,
-            targetId: r.targetId,
-            changes: r.changes,
-            ipAddress: r.ipAddress,
-            userAgent: r.userAgent,
-            createdAt: r.createdAt,
-            admin: r.admin?.id ? r.admin : null
-          }));
-        }
-        const results = await baseQuery.orderBy(desc(adminAuditLogs.createdAt)).limit(200);
-        return results.map((r) => ({
-          id: r.id,
-          adminId: r.adminId,
-          action: r.action,
-          targetType: r.targetType,
-          targetId: r.targetId,
-          changes: r.changes,
-          ipAddress: r.ipAddress,
-          userAgent: r.userAgent,
-          createdAt: r.createdAt,
-          admin: r.admin?.id ? r.admin : null
-        }));
-      }
-      async logAdminAudit(data) {
-        await db.insert(adminAuditLogs).values(data);
-      }
-      // ========================================================================
-      // Two-Factor Auth operations
-      // ========================================================================
-      async getTwoFactorAuthStatus(userId) {
-        const [twoFA] = await db.select().from(twoFactorAuth).where(eq(twoFactorAuth.userId, userId)).limit(1);
-        return twoFA;
-      }
-      async enableTwoFactorAuth(userId) {
-        const existing = await this.getTwoFactorAuthStatus(userId);
-        if (existing) {
-          await db.update(twoFactorAuth).set({ enabled: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(twoFactorAuth.userId, userId));
-        } else {
-          await db.insert(twoFactorAuth).values({
-            userId,
-            enabled: true,
-            secret: null,
-            backupCodes: []
-          });
-        }
-      }
-      async disableTwoFactorAuth(userId) {
-        await db.update(twoFactorAuth).set({ enabled: false, updatedAt: /* @__PURE__ */ new Date() }).where(eq(twoFactorAuth.userId, userId));
-      }
-      // ========================================================================
-      // User Management (Admin) operations
-      // ========================================================================
-      async updateUserPassword(userId, hashedPassword) {
-        await db.update(users).set({ password: hashedPassword, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
-      }
-      async forceUserLogout(userId) {
-        await db.delete(sessions).where(sql2`${sessions.sess}->>'userId' = ${userId}`);
-      }
-      async updateUserInfo(userId, data) {
-        const [updated] = await db.update(users).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId)).returning();
-        return updated;
-      }
-      // ========================================================================
-      // Seller Verification operations
-      // ========================================================================
-      async createVerificationRequest(sellerId) {
-        const existing = await db.select().from(sellerVerificationRequests).where(
-          and(
-            eq(sellerVerificationRequests.sellerId, sellerId),
-            eq(sellerVerificationRequests.status, "pending")
-          )
-        ).limit(1);
-        if (existing.length > 0) {
-          return existing[0];
-        }
-        const [request] = await db.insert(sellerVerificationRequests).values({ sellerId }).returning();
-        return request;
-      }
-      async getVerificationRequestById(id) {
-        const [request] = await db.select().from(sellerVerificationRequests).where(eq(sellerVerificationRequests.id, id)).limit(1);
-        return request;
-      }
-      async getVerificationRequestBySellerId(sellerId) {
-        const [request] = await db.select().from(sellerVerificationRequests).where(eq(sellerVerificationRequests.sellerId, sellerId)).orderBy(desc(sellerVerificationRequests.createdAt)).limit(1);
-        return request;
-      }
-      async getAllPendingVerificationRequests() {
-        const requests = await db.select({
-          id: sellerVerificationRequests.id,
-          status: sellerVerificationRequests.status,
-          rejectionReason: sellerVerificationRequests.rejectionReason,
-          submittedAt: sellerVerificationRequests.submittedAt,
-          reviewedAt: sellerVerificationRequests.reviewedAt,
-          sellerId: users.id,
-          sellerEmail: users.email,
-          sellerFirstName: users.firstName,
-          sellerLastName: users.lastName,
-          sellerCompanyName: userProfiles.companyName
-        }).from(sellerVerificationRequests).leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(sellerVerificationRequests.status, "pending")).orderBy(desc(sellerVerificationRequests.submittedAt));
-        return requests;
-      }
-      async getAllVerificationRequests() {
-        const requests = await db.select({
-          id: sellerVerificationRequests.id,
-          status: sellerVerificationRequests.status,
-          rejectionReason: sellerVerificationRequests.rejectionReason,
-          submittedAt: sellerVerificationRequests.submittedAt,
-          reviewedAt: sellerVerificationRequests.reviewedAt,
-          sellerId: users.id,
-          sellerEmail: users.email,
-          sellerFirstName: users.firstName,
-          sellerLastName: users.lastName,
-          sellerCompanyName: userProfiles.companyName
-        }).from(sellerVerificationRequests).leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).orderBy(desc(sellerVerificationRequests.submittedAt));
-        return requests;
-      }
-      async updateVerificationRequestStatus(id, status) {
-        const [updated] = await db.update(sellerVerificationRequests).set({
-          status,
-          submittedAt: status === "pending" ? /* @__PURE__ */ new Date() : void 0,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(sellerVerificationRequests.id, id)).returning();
-        return updated;
-      }
-      async approveVerificationRequest(id, reviewerId) {
-        const request = await this.getVerificationRequestById(id);
-        if (!request) {
-          throw new Error("Verification request not found");
-        }
-        const seller = await this.getUserById(request.sellerId);
-        if (!seller) {
-          throw new Error("Seller not found");
-        }
-        const badgeColorMap = {
-          basic: "",
-          // No badge for basic tier
-          standard: "blue",
-          premium: "gold"
-        };
-        const badgeColor = badgeColorMap[seller.membershipTier] || "";
-        const [updated] = await db.update(sellerVerificationRequests).set({
-          status: "approved",
-          reviewedAt: /* @__PURE__ */ new Date(),
-          reviewedBy: reviewerId,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(sellerVerificationRequests.id, id)).returning();
-        await this.updateUserVerificationStatus(request.sellerId, "approved", badgeColor);
-        await this.logAdminAudit({
-          adminId: reviewerId,
-          action: "verification_approved",
-          targetType: "seller_verification_request",
-          targetId: id,
-          changes: { status: "approved", sellerId: request.sellerId }
-        });
-        return updated;
-      }
-      async rejectVerificationRequest(id, reviewerId, reason) {
-        const request = await this.getVerificationRequestById(id);
-        if (!request) {
-          throw new Error("Verification request not found");
-        }
-        const [updated] = await db.update(sellerVerificationRequests).set({
-          status: "rejected",
-          rejectionReason: reason,
-          reviewedAt: /* @__PURE__ */ new Date(),
-          reviewedBy: reviewerId,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(sellerVerificationRequests.id, id)).returning();
-        await this.updateUserVerificationStatus(request.sellerId, "rejected");
-        await this.logAdminAudit({
-          adminId: reviewerId,
-          action: "verification_rejected",
-          targetType: "seller_verification_request",
-          targetId: id,
-          changes: { status: "rejected", reason, sellerId: request.sellerId }
-        });
-        return updated;
-      }
-      async createVerificationDocument(data) {
-        const [document] = await db.insert(sellerVerificationDocuments).values(data).returning();
-        return document;
-      }
-      async getDocumentsByRequestId(requestId) {
-        return await db.select().from(sellerVerificationDocuments).where(eq(sellerVerificationDocuments.requestId, requestId)).orderBy(desc(sellerVerificationDocuments.uploadedAt));
-      }
-      async updateUserVerificationStatus(userId, status, badgeColor) {
-        const updateData = {
-          verificationStatus: status,
-          updatedAt: /* @__PURE__ */ new Date()
-        };
-        if (badgeColor !== void 0) {
-          updateData.badgeColor = badgeColor;
-        }
-        const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning();
-        return updated;
-      }
-      // ============================================================================
-      // Payment Methods
-      // ============================================================================
-      async createTierUpgradePayment(data) {
-        const [payment] = await db.insert(tierUpgradePayments).values(data).returning();
-        return payment;
-      }
-      async getTierUpgradePaymentById(id) {
-        const [payment] = await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.id, id));
-        return payment;
-      }
-      async getTierUpgradePaymentsByUserId(userId) {
-        return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.userId, userId)).orderBy(desc(tierUpgradePayments.createdAt));
-      }
-      async getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId) {
-        return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.upgradeRequestId, upgradeRequestId)).orderBy(desc(tierUpgradePayments.createdAt));
-      }
-      async updateTierUpgradePayment(id, data) {
-        const [payment] = await db.update(tierUpgradePayments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tierUpgradePayments.id, id)).returning();
-        return payment;
-      }
-      async getAllPendingTierUpgradePayments() {
-        return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.status, "paid")).orderBy(desc(tierUpgradePayments.submittedAt));
-      }
-      async createPaymentMethodDetails(data) {
-        const [method] = await db.insert(paymentMethodDetails).values(data).returning();
-        return method;
-      }
-      async getAllPaymentMethodDetails() {
-        return await db.select().from(paymentMethodDetails).where(eq(paymentMethodDetails.isActive, true)).orderBy(paymentMethodDetails.name);
-      }
-      async getPaymentMethodDetailsByMethod(method) {
-        const [paymentMethod] = await db.select().from(paymentMethodDetails).where(and(eq(paymentMethodDetails.method, method), eq(paymentMethodDetails.isActive, true)));
-        return paymentMethod;
-      }
-      async updatePaymentMethodDetails(id, data) {
-        const [method] = await db.update(paymentMethodDetails).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentMethodDetails.id, id)).returning();
-        return method;
-      }
-      // ========================================================================
-      // Buyer Tier Upgrade operations implementation
-      // ========================================================================
-      async createTierUpgradeRequest(requestId, userId, requestedTier) {
-        const [request] = await db.insert(tierUpgradeRequests).values({
-          id: requestId,
-          userId,
-          requestedTier,
-          status: "draft",
-          submittedAt: /* @__PURE__ */ new Date()
-        }).returning();
-        return request;
-      }
-      async submitTierUpgradeRequest(requestId) {
-        const [request] = await db.update(tierUpgradeRequests).set({
-          status: "pending",
-          submittedAt: /* @__PURE__ */ new Date(),
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(tierUpgradeRequests.id, requestId)).returning();
-        return request;
-      }
-      async getTierUpgradeRequestById(id) {
-        const [request] = await db.select({
-          ...tierUpgradeRequests,
-          // all fields from request
-          buyerEmail: users.email,
-          buyerFirstName: users.firstName,
-          buyerLastName: users.lastName
-        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.id, id));
-        return request;
-      }
-      async getTierUpgradeRequestByUserId(userId) {
-        const [request] = await db.select({
-          ...tierUpgradeRequests,
-          buyerEmail: users.email,
-          buyerFirstName: users.firstName,
-          buyerLastName: users.lastName
-        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.userId, userId)).orderBy(desc(tierUpgradeRequests.createdAt)).limit(1);
-        return request;
-      }
-      async getAllTierUpgradeRequests() {
-        return await db.select({
-          id: tierUpgradeRequests.id,
-          userId: tierUpgradeRequests.userId,
-          requestedTier: tierUpgradeRequests.requestedTier,
-          status: tierUpgradeRequests.status,
-          rejectionReason: tierUpgradeRequests.rejectionReason,
-          submittedAt: tierUpgradeRequests.submittedAt,
-          reviewedAt: tierUpgradeRequests.reviewedAt,
-          reviewedBy: tierUpgradeRequests.reviewedBy,
-          documentCount: tierUpgradeRequests.documentCount,
-          createdAt: tierUpgradeRequests.createdAt,
-          updatedAt: tierUpgradeRequests.updatedAt,
-          buyerEmail: users.email,
-          buyerFirstName: users.firstName,
-          buyerLastName: users.lastName
-        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).orderBy(desc(tierUpgradeRequests.submittedAt));
-      }
-      async getPendingTierUpgradeRequests() {
-        return await db.select({
-          id: tierUpgradeRequests.id,
-          userId: tierUpgradeRequests.userId,
-          requestedTier: tierUpgradeRequests.requestedTier,
-          status: tierUpgradeRequests.status,
-          rejectionReason: tierUpgradeRequests.rejectionReason,
-          submittedAt: tierUpgradeRequests.submittedAt,
-          reviewedAt: tierUpgradeRequests.reviewedAt,
-          reviewedBy: tierUpgradeRequests.reviewedBy,
-          documentCount: tierUpgradeRequests.documentCount,
-          createdAt: tierUpgradeRequests.createdAt,
-          updatedAt: tierUpgradeRequests.updatedAt,
-          buyerEmail: users.email,
-          buyerFirstName: users.firstName,
-          buyerLastName: users.lastName
-        }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(or(eq(tierUpgradeRequests.status, "pending"), eq(tierUpgradeRequests.status, "draft"))).orderBy(desc(tierUpgradeRequests.submittedAt));
-      }
-      async approveTierUpgradeRequest(id, reviewerId) {
-        const request = await this.getTierUpgradeRequestById(id);
-        if (!request) throw new Error("Request not found");
-        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
-          status: "approved",
-          reviewedBy: reviewerId,
-          reviewedAt: /* @__PURE__ */ new Date(),
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(tierUpgradeRequests.id, id)).returning();
-        await db.update(users).set({ membershipTier: request.requestedTier }).where(eq(users.id, request.userId));
-        return updatedRequest;
-      }
-      async rejectTierUpgradeRequest(id, reviewerId, reason) {
-        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
-          status: "rejected",
-          rejectionReason: reason,
-          reviewedBy: reviewerId,
-          reviewedAt: /* @__PURE__ */ new Date(),
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(tierUpgradeRequests.id, id)).returning();
-        return updatedRequest;
-      }
-      async revertTierUpgradeRequest(id) {
-        const [updatedRequest] = await db.update(tierUpgradeRequests).set({
-          status: "draft",
-          rejectionReason: null,
-          // Clear rejection reason
-          reviewedBy: null,
-          reviewedAt: null,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(tierUpgradeRequests.id, id)).returning();
-        return updatedRequest;
-      }
-      async createTierUpgradeDocument(data) {
-        const [doc] = await db.insert(tierUpgradeDocuments).values(data).returning();
-        await db.execute(sql2`
-      UPDATE ${tierUpgradeRequests}
-      SET document_count = document_count + 1, updated_at = NOW()
-      WHERE id = ${data.requestId}
-    `);
-        return doc;
-      }
-      async getTierUpgradeDocuments(requestId) {
-        return await db.select().from(tierUpgradeDocuments).where(eq(tierUpgradeDocuments.requestId, requestId)).orderBy(desc(tierUpgradeDocuments.uploadedAt));
-      }
-      async createTierUpgradePayment(data) {
-        const [payment] = await db.insert(tierUpgradePayments).values(data).returning();
-        return payment;
-      }
-      async updateTierUpgradePayment(id, data) {
-        const [updated] = await db.update(tierUpgradePayments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tierUpgradePayments.id, id)).returning();
-        return updated;
-      }
-      async getTierUpgradePaymentByRequestId(requestId) {
-        const [payment] = await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.upgradeRequestId, requestId)).limit(1);
-        return payment;
-      }
-      // Onboarding & Deletion Implementation
-      async completeOnboarding(userId, role) {
-        await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
-        await db.update(userProfiles).set({ onboardingCompleted: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(userProfiles.userId, userId));
-      }
-      async createAccountDeletionRequest(data) {
-        const [request] = await db.insert(accountDeletionRequests).values(data).returning();
-        return request;
-      }
-      async getAccountDeletionRequests() {
-        return await db.select().from(accountDeletionRequests).orderBy(desc(accountDeletionRequests.createdAt));
-      }
-      async updateAccountDeletionRequestStatus(id, status) {
-        const [updated] = await db.update(accountDeletionRequests).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq(accountDeletionRequests.id, id)).returning();
-        return updated;
-      }
-    };
-    storage = new DatabaseStorage();
-  }
-});
-
-// server/clerk.ts
-import { Clerk } from "@clerk/clerk-sdk-node";
-async function checkAdminRole(req, res, next) {
-  try {
-    if (!req.auth?.userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-    const dbUser = await storage.getUserByClerkId(req.auth.userId);
-    if (!dbUser || dbUser.role !== "admin") {
-      return res.status(403).json({ message: "Admin access required" });
-    }
-    req.user = dbUser;
-    next();
-  } catch (error) {
-    console.error("Error checking admin role:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
-var clerk, requireAuth, requireAdmin, requireSeller, requireAdminPermission, getClerkUser;
-var init_clerk = __esm({
-  "server/clerk.ts"() {
-    "use strict";
-    init_storage();
-    console.log("Initializing Clerk with secret key:", process.env.CLERK_SECRET_KEY ? "PRESENT" : "MISSING");
-    clerk = Clerk({
-      secretKey: process.env.CLERK_SECRET_KEY
-    });
-    requireAuth = async (req, res, next) => {
-      const authHeader = req.headers.authorization;
-      console.log("Auth header received:", authHeader ? authHeader.substring(0, 20) + "..." : "NONE");
-      return clerk.expressRequireAuth({
-        onError: (error) => {
-          console.error("Clerk auth error:", error);
-          res.status(401).json({ message: "Unauthorized" });
-        }
-      })(req, res, async () => {
-        console.log("Clerk auth successful, req.auth:", req.auth);
-        if (req.auth?.userId) {
-          req.user = await storage.getUserByClerkId(req.auth.userId);
-        }
-        next();
-      });
-    };
-    requireAdmin = async (req, res, next) => {
-      console.log("requireAdmin: Using Clerk auth");
-      return clerk.expressRequireAuth({
-        onError: (error) => {
-          console.error("requireAdmin: Clerk auth failed:", error);
-          res.status(401).json({ message: "Authentication required" });
-        }
-      })(req, res, async () => {
-        await checkAdminRole(req, res, next);
-      });
-    };
-    requireSeller = async (req, res, next) => {
-      try {
-        if (!req.auth?.userId) {
-          return res.status(401).json({ message: "Unauthorized" });
-        }
-        const dbUser = await storage.getUserByClerkId(req.auth.userId);
-        if (!dbUser || dbUser.role !== "seller") {
-          return res.status(403).json({ message: "Seller access required" });
-        }
-        req.user = dbUser;
-        next();
-      } catch (error) {
-        console.error("Error in requireSeller:", error);
-        res.status(500).json({ message: "Internal server error" });
-      }
-    };
-    requireAdminPermission = (permission) => {
-      return async (req, res, next) => {
-        try {
-          if (!req.auth?.userId) {
-            return res.status(401).json({ message: "Unauthorized" });
-          }
-          let adminPerms = await storage.getAdminPermissions(req.auth.userId);
-          if (!adminPerms) {
-            const dbUser = await storage.getUserByClerkId(req.auth.userId);
-            if (!dbUser || dbUser.role !== "admin") {
-              return res.status(403).json({ message: "Admin access required" });
-            }
-            console.log(`[requireAdminPermission] No permissions in DB for admin user ${req.auth.userId}, granting all permissions as super_admin`);
-            adminPerms = {
-              canManageUsers: true,
-              canManageListings: true,
-              canManageProjects: true,
-              canManageBlog: true,
-              canManageCMS: true,
-              canViewAnalytics: true,
-              canManageMessages: true,
-              canManageVerification: true,
-              canManageSettings: true,
-              canManageAdmins: true,
-              canAccessAuditLogs: true,
-              canManageDocuments: true,
-              canResetPasswords: true,
-              canForceLogout: true,
-              adminRole: "super_admin"
-            };
-          }
-          if (!adminPerms?.[permission]) {
-            return res.status(403).json({ message: `Permission '${permission}' required` });
-          }
-          next();
-        } catch (error) {
-          console.error("Error in requireAdminPermission:", error);
-          res.status(500).json({ message: "Internal server error" });
-        }
-      };
-    };
-    getClerkUser = async (userId) => {
-      console.log("getClerkUser: Fetching user from Clerk:", userId);
-      try {
-        const user = await clerk.users.getUser(userId);
-        console.log("getClerkUser: Clerk user fetch successful:", !!user);
-        return user;
-      } catch (error) {
-        console.error("getClerkUser: Error fetching Clerk user:", error);
-        return null;
-      }
-    };
   }
 });
 
@@ -3232,408 +1363,2103 @@ var init_rbac = __esm({
   }
 });
 
-// server/localAuth.ts
-var syncClerkUser;
-var init_localAuth = __esm({
-  "server/localAuth.ts"() {
-    "use strict";
-    init_clerk();
-    init_storage();
-    init_rbac();
-    syncClerkUser = async (clerkUserId) => {
-      console.log("syncClerkUser: Starting sync for userId:", clerkUserId);
-      try {
-        let dbUser = await storage.getUserByClerkId(clerkUserId);
-        console.log("syncClerkUser: Existing user check result:", dbUser ? "FOUND" : "NOT FOUND");
-        if (!dbUser) {
-          console.log("syncClerkUser: User not found, fetching from Clerk...");
-          const clerkUser = await getClerkUser(clerkUserId);
-          console.log("syncClerkUser: Clerk user fetch result:", clerkUser ? "SUCCESS" : "FAILED");
-          if (!clerkUser) {
-            throw new Error("User not found in Clerk");
-          }
-          const email = clerkUser.emailAddresses[0]?.emailAddress;
-          const firstName = clerkUser.firstName || "";
-          const lastName = clerkUser.lastName || "";
-          console.log("syncClerkUser: Extracted user data:", { email, firstName, lastName });
-          if (!email) {
-            throw new Error("User email not found");
-          }
-          const role = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || "buyer";
-          const adminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
-          console.log("syncClerkUser: User role and adminRole:", { role, adminRole });
-          console.log("syncClerkUser: Creating user in database...");
-          dbUser = await storage.upsertUser({
-            clerkId: clerkUserId,
-            email,
-            firstName,
-            lastName,
-            role
-          });
-          console.log("syncClerkUser: User creation result:", dbUser ? "SUCCESS" : "FAILED", "user:", dbUser);
-          console.log("syncClerkUser: Creating user profile...");
-          await storage.createUserProfile({
-            userId: dbUser.id,
-            profileType: "individual",
-            verified: false
-          });
-          console.log("syncClerkUser: Profile creation completed");
-          if (role === "admin" && adminRole) {
-            console.log("syncClerkUser: Creating admin permissions...");
-            const permissions = ROLE_PERMISSIONS[adminRole] || ROLE_PERMISSIONS.super_admin;
-            await storage.upsertAdminPermissions({
-              adminUserId: dbUser.id,
-              adminRole,
-              ...permissions
-            });
-          }
-        } else {
-          const clerkUser = await getClerkUser(clerkUserId);
-          if (clerkUser) {
-            const currentRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || "buyer";
-            const currentAdminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
-            if (dbUser.role !== currentRole) {
-              dbUser = await storage.updateUserRole(dbUser.id, currentRole);
-              if (currentRole === "admin" && currentAdminRole) {
-                const permissions = ROLE_PERMISSIONS[currentAdminRole] || ROLE_PERMISSIONS.super_admin;
-                await storage.upsertAdminPermissions({
-                  adminUserId: dbUser.id,
-                  adminRole: currentAdminRole,
-                  ...permissions
-                });
-              }
-            }
-          }
-        }
-        console.log("syncClerkUser: Final dbUser:", dbUser);
-        return dbUser;
-      } catch (error) {
-        console.error("Error syncing Clerk user:", error);
-        throw error;
-      }
-    };
-  }
-});
-
-// api/login.ts
-var login_exports = {};
-__export(login_exports, {
-  default: () => handler
-});
-import jwt from "jsonwebtoken";
-import { serialize } from "cookie";
-async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).end("Method Not Allowed");
-  }
-  const { username, password } = req.body || {};
-  const users2 = {
-    admin: { id: "test-admin-123", username: "admin", password: "admin123", role: "admin", email: "admin@fusionmining.com", firstName: "Admin", lastName: "User" },
-    henry: { id: "test-buyer-789", username: "henry", password: "henry123", role: "buyer", email: "henry@fusionmining.com", firstName: "Henry", lastName: "Pass" },
-    ray: { id: "test-seller-456", username: "ray", password: "ray123", role: "seller", email: "ray@fusionmining.com", firstName: "Ray", lastName: "Pass" }
-  };
-  const user = Object.values(users2).find((u) => u.username === username && u.password === password);
-  if (!user) {
-    return res.status(401).json({ message: "Invalid credentials" });
-  }
-  const token = jwt.sign(
-    { sub: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
-    JWT_SECRET,
-    { expiresIn: MAX_AGE }
-  );
-  const cookie = serialize("fm_auth", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE
-  });
-  res.setHeader("Set-Cookie", cookie);
-  res.status(200).json({ success: true, user });
-}
-var JWT_SECRET, MAX_AGE;
-var init_login = __esm({
-  "api/login.ts"() {
-    "use strict";
-    JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
-    MAX_AGE = 60 * 60 * 24 * 7;
-  }
-});
-
-// api/logout.ts
-var logout_exports = {};
-__export(logout_exports, {
-  default: () => handler2
-});
-import { serialize as serialize2 } from "cookie";
-async function handler2(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).end("Method Not Allowed");
-  }
-  const cookie = serialize2("fm_auth", "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
-  res.setHeader("Set-Cookie", cookie);
-  res.status(200).json({ message: "Logout successful" });
-}
-var init_logout = __esm({
-  "api/logout.ts"() {
-    "use strict";
-  }
-});
-
-// api/auth_user.ts
-var auth_user_exports = {};
-__export(auth_user_exports, {
-  default: () => handler3
-});
-import jwt2 from "jsonwebtoken";
-import { parse } from "cookie";
-async function handler3(req, res) {
-  try {
-    console.log("Auth handler called, method:", req.method, "auth:", !!req.auth);
-    if (req.method !== "GET") {
-      res.setHeader("Allow", "GET");
-      return res.status(405).end("Method Not Allowed");
-    }
-    if (req.auth?.userId) {
-      console.log("Auth handler: Clerk userId found:", req.auth.userId);
-      const clerkUserId = req.auth.userId;
-      let dbUser = await storage.getUserByClerkId(clerkUserId);
-      console.log("Auth handler: DB user lookup result:", dbUser ? "FOUND" : "NOT FOUND");
-      console.log("Auth handler: Attempting to sync user from Clerk...");
-      try {
-        await syncClerkUser(clerkUserId);
-        console.log("Auth handler: Sync completed, looking up user again...");
-        dbUser = await storage.getUserByClerkId(clerkUserId);
-      } catch (syncError) {
-        console.error("Auth handler: Error syncing Clerk user:", syncError);
-        if (!dbUser) {
-          return res.status(500).json({ message: "Failed to sync user data" });
-        }
-      }
-      if (!dbUser) {
-        console.log("Auth handler: User not found after sync attempt");
-        return res.status(404).json({ message: "User not found" });
-      }
-      console.log("Auth handler: Returning user data for:", dbUser.email);
-      const profile = await storage.getUserProfile(dbUser.id);
-      const onboardingCompleted = profile?.onboardingCompleted || false;
-      let adminPermissions2 = null;
-      if (dbUser.role === "admin") {
-        try {
-          console.log("[AUTH_USER] User is admin, fetching permissions for:", dbUser.id);
-          adminPermissions2 = await storage.getAdminPermissions(dbUser.id);
-          console.log("[AUTH_USER] Permissions from DB:", JSON.stringify(adminPermissions2, null, 2));
-          if (!adminPermissions2) {
-            console.log("[AUTH_USER] No admin permissions found in DB, providing default super_admin permissions for user:", dbUser.id);
-            adminPermissions2 = {
-              canManageUsers: true,
-              canManageListings: true,
-              canManageProjects: true,
-              canManageBlog: true,
-              canManageCMS: true,
-              canViewAnalytics: true,
-              canManageMessages: true,
-              canManageVerification: true,
-              canManageSettings: true,
-              canManageAdmins: true,
-              canAccessAuditLogs: true,
-              canManageDocuments: true,
-              canResetPasswords: true,
-              canForceLogout: true,
-              adminRole: "super_admin"
-            };
-            console.log("[AUTH_USER] Default permissions set:", JSON.stringify(adminPermissions2, null, 2));
-          } else {
-            console.log("[AUTH_USER] Using permissions from database");
-          }
-        } catch (permError) {
-          console.error("[AUTH_USER] Error fetching admin permissions:", permError);
-          console.log("[AUTH_USER] Providing default super_admin permissions due to error");
-          adminPermissions2 = {
-            canManageUsers: true,
-            canManageListings: true,
-            canManageProjects: true,
-            canManageBlog: true,
-            canManageCMS: true,
-            canViewAnalytics: true,
-            canManageMessages: true,
-            canManageVerification: true,
-            canManageSettings: true,
-            canManageAdmins: true,
-            canAccessAuditLogs: true,
-            canManageDocuments: true,
-            canResetPasswords: true,
-            canForceLogout: true,
-            adminRole: "super_admin"
-          };
-        }
-      }
-      return res.json({
-        ...dbUser,
-        onboardingCompleted,
-        adminPermissions: adminPermissions2
-      });
-    }
-    const cookieHeader = req.headers?.cookie || "";
-    const cookies = parse(cookieHeader || "");
-    const token = cookies["fm_auth"];
-    if (!token) return res.status(401).json({ message: "Unauthorized" });
-    try {
-      const payload = jwt2.verify(token, JWT_SECRET2);
-      const userId = payload.sub;
-      const role = payload.role;
-      let dbUser = null;
-      try {
-        dbUser = await storage.getUser(userId) || await storage.getUserByClerkId(userId);
-      } catch (e) {
-        console.error("Error fetching user from DB:", e);
-      }
-      let adminPermissions2 = null;
-      if (role === "admin") {
-        const adminRole = payload.adminRole || "super_admin";
-        switch (adminRole) {
-          case "super_admin":
-            adminPermissions2 = {
-              canManageUsers: true,
-              canManageListings: true,
-              canManageProjects: true,
-              canManageBlog: true,
-              canManageCMS: true,
-              canViewAnalytics: true,
-              canManageMessages: true,
-              canManageVerification: true,
-              canManageSettings: true,
-              canManageAdmins: true,
-              canAccessAuditLogs: true,
-              canManageDocuments: true,
-              canResetPasswords: true,
-              canForceLogout: true,
-              adminRole: "super_admin"
-            };
-            break;
-          case "verification_admin":
-            adminPermissions2 = {
-              canManageUsers: true,
-              canManageListings: false,
-              canManageProjects: false,
-              canManageBlog: false,
-              canManageCMS: false,
-              canViewAnalytics: false,
-              canManageMessages: true,
-              canManageVerification: true,
-              canManageSettings: false,
-              canManageAdmins: false,
-              canAccessAuditLogs: true,
-              canManageDocuments: true,
-              canResetPasswords: false,
-              canForceLogout: false,
-              adminRole: "verification_admin"
-            };
-            break;
-          case "content_admin":
-            adminPermissions2 = {
-              canManageUsers: false,
-              canManageListings: false,
-              canManageProjects: false,
-              canManageBlog: true,
-              canManageCMS: true,
-              canViewAnalytics: false,
-              canManageMessages: false,
-              canManageVerification: false,
-              canManageSettings: true,
-              canManageAdmins: false,
-              canAccessAuditLogs: false,
-              canManageDocuments: false,
-              canResetPasswords: false,
-              canForceLogout: false,
-              adminRole: "content_admin"
-            };
-            break;
-          case "analytics_admin":
-            adminPermissions2 = {
-              canManageUsers: false,
-              canManageListings: false,
-              canManageProjects: false,
-              canManageBlog: false,
-              canManageCMS: false,
-              canViewAnalytics: true,
-              canManageMessages: false,
-              canManageVerification: false,
-              canManageSettings: false,
-              canManageAdmins: false,
-              canAccessAuditLogs: true,
-              canManageDocuments: false,
-              canResetPasswords: false,
-              canForceLogout: false,
-              adminRole: "analytics_admin"
-            };
-            break;
-          default:
-            adminPermissions2 = {
-              canManageUsers: false,
-              canManageListings: false,
-              canManageProjects: false,
-              canManageBlog: false,
-              canManageCMS: false,
-              canViewAnalytics: false,
-              canManageMessages: false,
-              canManageVerification: false,
-              canManageSettings: false,
-              canManageAdmins: false,
-              canAccessAuditLogs: false,
-              canManageDocuments: false,
-              canResetPasswords: false,
-              canForceLogout: false,
-              adminRole: "super_admin"
-            };
-        }
-      }
-      console.log("[AUTH/USER] Retrieved admin permissions for user:", userId, adminPermissions2 ? "admin" : "non-admin");
-      return res.status(200).json({
-        id: userId,
-        role,
-        email: payload.email,
-        firstName: payload.firstName,
-        lastName: payload.lastName,
-        adminPermissions: adminPermissions2
-      });
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid token" });
-    }
-  } catch (error) {
-    console.error("Auth handler error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-}
-var JWT_SECRET2;
-var init_auth_user = __esm({
-  "api/auth_user.ts"() {
-    "use strict";
-    init_storage();
-    init_localAuth();
-    JWT_SECRET2 = process.env.JWT_SECRET || "dev-secret-change-me";
-  }
-});
-
 // server/index.ts
 import "dotenv/config";
 import path3 from "path";
 import fs3 from "fs";
+import { createRequire } from "module";
 import express2 from "express";
 import cors from "cors";
 
 // server/routes.ts
-init_storage();
-init_localAuth();
-init_db();
-init_schema();
-init_schema();
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { createServer } from "http";
+
+// server/storage.ts
+init_schema();
+init_db();
+import { eq, and, desc, or, sql as sql2, inArray } from "drizzle-orm";
+async function generateUniqueItemId(db2, length = 5) {
+  const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const maxAttempts = 20;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    let id = "";
+    for (let i = 0; i < length; i++) id += CHARS[Math.floor(Math.random() * CHARS.length)];
+    const exists = await db2.select().from(marketplaceListings).where(eq(marketplaceListings.itemId, id)).limit(1);
+    if (exists.length > 0) continue;
+    const exists2 = await db2.select().from(projects).where(eq(projects.itemId, id)).limit(1);
+    if (exists2.length > 0) continue;
+    const exists3 = await db2.select().from(buyerRequests).where(eq(buyerRequests.itemId, id)).limit(1);
+    if (exists3.length > 0) continue;
+    return id;
+  }
+  throw new Error("Failed to generate unique item id");
+}
+var DatabaseStorage = class {
+  // ========================================================================
+  // User operations
+  // ========================================================================
+  async getUser(id) {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+  async getUserById(id) {
+    return this.getUser(id);
+  }
+  async getUserByEmail(email) {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+  async getUserByUsername(username) {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+  async getUserByClerkId(clerkId) {
+    const [user] = await db.select().from(users).where(eq(users.clerkId, clerkId));
+    return user;
+  }
+  async getAdminUser() {
+    const [admin] = await db.select().from(users).where(eq(users.role, "admin")).limit(1);
+    return admin;
+  }
+  async getUsersByRole(role) {
+    return await db.select().from(users).where(eq(users.role, role));
+  }
+  async upsertUser(userData) {
+    if (userData.clerkId) {
+      const existingUsers = await db.select().from(users).where(eq(users.clerkId, userData.clerkId)).limit(1);
+      if (existingUsers.length > 0) {
+        const updateData = {
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          role: userData.role,
+          updatedAt: /* @__PURE__ */ new Date()
+        };
+        if (userData.password) {
+          updateData.password = userData.password;
+        }
+        const [user2] = await db.update(users).set(updateData).where(eq(users.clerkId, userData.clerkId)).returning();
+        return user2;
+      }
+    }
+    if (userData.email) {
+      const existingUsers = await db.select().from(users).where(eq(users.email, userData.email)).limit(1);
+      if (existingUsers.length > 0) {
+        const updateData = {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          updatedAt: /* @__PURE__ */ new Date()
+        };
+        if (userData.clerkId) {
+          updateData.clerkId = userData.clerkId;
+        }
+        if (userData.role) {
+          updateData.role = userData.role;
+        }
+        if (userData.password) {
+          updateData.password = userData.password;
+        }
+        const [user2] = await db.update(users).set(updateData).where(eq(users.email, userData.email)).returning();
+        return user2;
+      }
+    }
+    const [user] = await db.insert(users).values(userData).onConflictDoUpdate({
+      target: users.id,
+      set: {
+        ...userData,
+        updatedAt: /* @__PURE__ */ new Date()
+      }
+    }).returning();
+    return user;
+  }
+  async getAllUsers() {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+  async updateUserRole(id, role) {
+    const [user] = await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, id)).returning();
+    return user;
+  }
+  async deleteUser(id) {
+    await db.delete(users).where(eq(users.id, id));
+  }
+  // ========================================================================
+  // Admin Permissions operations
+  // ========================================================================
+  async getAdminPermissions(adminUserId) {
+    const [row] = await db.select().from(adminPermissions).where(eq(adminPermissions.adminUserId, adminUserId)).limit(1);
+    return row;
+  }
+  async upsertAdminPermissions(data) {
+    const existing = await this.getAdminPermissions(data.adminUserId);
+    if (existing) {
+      const [updated] = await db.update(adminPermissions).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(adminPermissions.adminUserId, data.adminUserId)).returning();
+      return updated;
+    }
+    const [inserted] = await db.insert(adminPermissions).values(data).returning();
+    return inserted;
+  }
+  async updateAdminPermissions(data) {
+    const [updated] = await db.update(adminPermissions).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(adminPermissions.adminUserId, data.adminUserId)).returning();
+    return updated;
+  }
+  // ========================================================================
+  // User Profile operations
+  // ========================================================================
+  async getUserProfile(userId) {
+    const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
+    return profile;
+  }
+  async createUserProfile(profileData) {
+    const [profile] = await db.insert(userProfiles).values(profileData).returning();
+    return profile;
+  }
+  async updateUserProfile(profileData) {
+    const [profile] = await db.update(userProfiles).set({
+      ...profileData,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(userProfiles.userId, profileData.userId)).returning();
+    return profile;
+  }
+  // ========================================================================
+  // Project operations
+  // ========================================================================
+  async createProject(projectData) {
+    const dataToInsert = { ...projectData };
+    if (!dataToInsert.itemId && dataToInsert.status === "active") {
+      dataToInsert.itemId = await generateUniqueItemId(db);
+    }
+    const [project] = await db.insert(projects).values(dataToInsert).returning();
+    return project;
+  }
+  async getProjects() {
+    const results = await db.select({
+      project: projects,
+      owner: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(projects).leftJoin(users, eq(projects.ownerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).orderBy(desc(projects.createdAt));
+    return results.map((r) => ({
+      ...r.project,
+      owner: r.owner ? { ...r.owner, verified: r.profile?.verified ?? false } : null
+    }));
+  }
+  async getProjectById(id) {
+    const results = await db.select({
+      project: projects,
+      owner: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(projects).leftJoin(users, eq(projects.ownerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(projects.id, id));
+    if (results.length === 0) {
+      return void 0;
+    }
+    return {
+      ...results[0].project,
+      owner: results[0].owner ? { ...results[0].owner, verified: results[0].profile?.verified ?? false } : null
+    };
+  }
+  async updateProject(id, data) {
+    const updateData = { ...data, updatedAt: /* @__PURE__ */ new Date() };
+    if (data.status === "active") {
+      const [existing] = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+      if (existing && !existing.itemId) {
+        updateData.itemId = await generateUniqueItemId(db);
+      }
+    }
+    const [project] = await db.update(projects).set(updateData).where(eq(projects.id, id)).returning();
+    return project;
+  }
+  async deleteProject(id) {
+    await db.delete(projects).where(eq(projects.id, id));
+  }
+  async closeProject(id) {
+    const [project] = await db.update(projects).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(projects.id, id)).returning();
+    return project;
+  }
+  async expressProjectInterest(interestData) {
+    const [interest] = await db.insert(expressInterest).values(interestData).returning();
+    return interest;
+  }
+  async getAllExpressedInterests() {
+    const interests = await db.select({
+      id: expressInterest.id,
+      projectId: expressInterest.projectId,
+      listingId: expressInterest.listingId,
+      userId: expressInterest.userId,
+      message: expressInterest.message,
+      createdAt: expressInterest.createdAt,
+      userName: sql2`${users.firstName} || ' ' || ${users.lastName}`.as("userName"),
+      userEmail: users.email,
+      projectName: projects.name,
+      listingTitle: marketplaceListings.title
+    }).from(expressInterest).leftJoin(users, eq(expressInterest.userId, users.id)).leftJoin(projects, eq(expressInterest.projectId, projects.id)).leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id)).orderBy(desc(expressInterest.createdAt));
+    return interests;
+  }
+  // ========================================================================
+  // Marketplace Listing operations
+  // ========================================================================
+  async createMarketplaceListing(listingData) {
+    const [listing] = await db.insert(marketplaceListings).values(listingData).returning();
+    await db.insert(verificationQueue).values({
+      listingId: listing.id
+    });
+    return listing;
+  }
+  async getMarketplaceListings(filters) {
+    let whereConditions;
+    if (filters?.type && filters?.status) {
+      whereConditions = and(
+        eq(marketplaceListings.type, filters.type),
+        eq(marketplaceListings.status, filters.status)
+      );
+    } else if (filters?.type) {
+      whereConditions = eq(marketplaceListings.type, filters.type);
+    } else if (filters?.status) {
+      whereConditions = eq(marketplaceListings.status, filters.status);
+    }
+    let query = db.select({
+      listing: marketplaceListings,
+      seller: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(marketplaceListings).leftJoin(users, eq(marketplaceListings.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId));
+    if (whereConditions) {
+      query = query.where(whereConditions);
+    }
+    const results = await query.orderBy(desc(marketplaceListings.createdAt));
+    return results.map((r) => ({
+      ...r.listing,
+      seller: r.seller ? { ...r.seller, verified: r.profile?.verified ?? false } : null
+    }));
+  }
+  async getMarketplaceListingById(id) {
+    const results = await db.select({
+      listing: marketplaceListings,
+      seller: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(marketplaceListings).leftJoin(users, eq(marketplaceListings.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(marketplaceListings.id, id));
+    if (results.length === 0) {
+      return void 0;
+    }
+    return {
+      ...results[0].listing,
+      seller: results[0].seller ? { ...results[0].seller, verified: results[0].profile?.verified ?? false } : null
+    };
+  }
+  async updateListingStatus(id, status) {
+    const [listing] = await db.update(marketplaceListings).set({
+      status,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(marketplaceListings.id, id)).returning();
+    return listing;
+  }
+  async updateMarketplaceListing(id, data) {
+    const [listing] = await db.update(marketplaceListings).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(marketplaceListings.id, id)).returning();
+    return listing;
+  }
+  async deleteMarketplaceListing(id) {
+    await db.delete(marketplaceListings).where(eq(marketplaceListings.id, id));
+  }
+  async closeMarketplaceListing(id) {
+    const [listing] = await db.update(marketplaceListings).set({ status: "closed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(marketplaceListings.id, id)).returning();
+    return listing;
+  }
+  async getListingsBySellerId(sellerId) {
+    return await db.select().from(marketplaceListings).where(eq(marketplaceListings.sellerId, sellerId)).orderBy(desc(marketplaceListings.createdAt));
+  }
+  // When approving a listing, assign itemId if missing
+  async approveListing(listingId, reviewerId) {
+    const [existing] = await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, listingId)).limit(1);
+    let itemId = existing?.itemId || null;
+    if (!itemId) {
+      itemId = await generateUniqueItemId(db);
+    }
+    await db.update(marketplaceListings).set({
+      status: "approved",
+      itemId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(marketplaceListings.id, listingId));
+    await db.update(verificationQueue).set({
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId
+    }).where(eq(verificationQueue.listingId, listingId));
+  }
+  // ========================================================================
+  // Buyer Request operations
+  // ========================================================================
+  async createBuyerRequest(requestData) {
+    if (!requestData.itemId) {
+      requestData.itemId = await generateUniqueItemId(db);
+    }
+    const [request] = await db.insert(buyerRequests).values({
+      ...requestData,
+      status: "pending",
+      // Always start as pending
+      verified: false
+    }).returning();
+    await db.insert(verificationQueue).values({
+      buyerRequestId: request.id
+    });
+    return request;
+  }
+  async getBuyerRequests() {
+    const results = await db.select({
+      request: buyerRequests,
+      buyer: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(buyerRequests).leftJoin(users, eq(buyerRequests.buyerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).orderBy(desc(buyerRequests.createdAt));
+    return results.map((r) => ({
+      ...r.request,
+      buyer: r.buyer ? { ...r.buyer, verified: r.profile?.verified ?? false } : null
+    }));
+  }
+  async getBuyerRequestById(id) {
+    const [request] = await db.select().from(buyerRequests).where(eq(buyerRequests.id, id));
+    return request;
+  }
+  async updateBuyerRequestStatus(id, status) {
+    const [updated] = await db.update(buyerRequests).set({
+      status,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(buyerRequests.id, id)).returning();
+    return updated;
+  }
+  async rejectBuyerRequest(id, reason) {
+    const [updated] = await db.update(buyerRequests).set({
+      status: "rejected",
+      rejectionReason: reason,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(buyerRequests.id, id)).returning();
+    return updated;
+  }
+  // ========================================================================
+  // Message Thread operations
+  // ========================================================================
+  async createMessageThread(threadData) {
+    const [thread2] = await db.insert(messageThreads).values(threadData).returning();
+    return thread2;
+  }
+  async getThreadById(id) {
+    const [thread2] = await db.select().from(messageThreads).where(eq(messageThreads.id, id));
+    return thread2;
+  }
+  async getThreadWithParticipants(id) {
+    const thread2 = await this.getThreadById(id);
+    if (!thread2) return null;
+    const [listing] = thread2.listingId ? await db.select().from(marketplaceListings).where(eq(marketplaceListings.id, thread2.listingId)).limit(1) : [null];
+    const [project] = thread2.projectId ? await db.select().from(projects).where(eq(projects.id, thread2.projectId)).limit(1) : [null];
+    const buyer = thread2.buyerId ? await this.getUserById(thread2.buyerId) : null;
+    const buyerProfile = thread2.buyerId ? await this.getUserProfile(thread2.buyerId) : null;
+    const seller = thread2.sellerId ? await this.getUserById(thread2.sellerId) : null;
+    const sellerProfile = thread2.sellerId ? await this.getUserProfile(thread2.sellerId) : null;
+    return {
+      thread: thread2,
+      listing: listing || null,
+      project: project || null,
+      buyer: buyer || null,
+      buyerProfile: buyerProfile || null,
+      seller: seller || null,
+      sellerProfile: sellerProfile || null
+    };
+  }
+  async getThreadsByUserId(userId) {
+    return await db.select().from(messageThreads).where(
+      or(
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
+      )
+    ).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async getThreadsByBuyerId(buyerId) {
+    return await db.select().from(messageThreads).where(eq(messageThreads.buyerId, buyerId)).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async getAllMessageThreads() {
+    const results = await db.select({
+      thread: messageThreads,
+      listing: marketplaceListings,
+      project: projects,
+      buyerFirstName: sql2`buyer.first_name`,
+      buyerLastName: sql2`buyer.last_name`,
+      sellerFirstName: sql2`seller.first_name`,
+      sellerLastName: sql2`seller.last_name`
+    }).from(messageThreads).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).leftJoin(
+      sql2`users as buyer`,
+      eq(messageThreads.buyerId, sql2`buyer.id`)
+    ).leftJoin(
+      sql2`users as seller`,
+      eq(messageThreads.sellerId, sql2`seller.id`)
+    ).orderBy(desc(messageThreads.lastMessageAt));
+    return results.map((r) => {
+      const { thread: thread2, listing, project, buyerFirstName, buyerLastName, sellerFirstName, sellerLastName } = r;
+      const thread_without_context = {
+        ...thread2,
+        // Explicitly omit the context field
+        id: thread2.id,
+        title: thread2.title,
+        projectId: thread2.projectId,
+        listingId: thread2.listingId,
+        buyerId: thread2.buyerId,
+        sellerId: thread2.sellerId,
+        status: thread2.status,
+        lastMessageAt: thread2.lastMessageAt,
+        createdAt: thread2.createdAt
+      };
+      return {
+        ...thread_without_context,
+        listing,
+        project,
+        buyerName: buyerFirstName && buyerLastName ? `${buyerFirstName} ${buyerLastName}` : void 0,
+        sellerName: sellerFirstName && sellerLastName ? `${sellerFirstName} ${sellerLastName}` : void 0
+      };
+    });
+  }
+  async getThreadsBySellerId(sellerId) {
+    return await db.select().from(messageThreads).where(eq(messageThreads.sellerId, sellerId)).orderBy(desc(messageThreads.lastMessageAt));
+  }
+  async updateThreadLastMessage(threadId) {
+    await db.update(messageThreads).set({ lastMessageAt: /* @__PURE__ */ new Date() }).where(eq(messageThreads.id, threadId));
+  }
+  async closeThread(threadId) {
+    const [thread2] = await db.update(messageThreads).set({ status: "closed" }).where(eq(messageThreads.id, threadId)).returning();
+    return thread2;
+  }
+  // ========================================================================
+  // Support Ticket Operations (Privacy-Controlled)
+  // ========================================================================
+  /**
+   * Get admin support tickets (ONLY threads marked as admin support).
+   * Privacy: Admins can ONLY see support tickets, never buyer-seller conversations
+   */
+  async getAdminSupportTickets(filters) {
+    let query = db.select().from(messageThreads).where(eq(messageThreads.isAdminSupport, true));
+    if (filters?.status) {
+      query = query.where(eq(messageThreads.ticketStatus, filters.status));
+    }
+    if (filters?.priority) {
+      query = query.where(eq(messageThreads.ticketPriority, filters.priority));
+    }
+    if (filters?.assignedAdminId) {
+      query = query.where(eq(messageThreads.assignedAdminId, filters.assignedAdminId));
+    }
+    return await query.orderBy(desc(messageThreads.lastMessageAt));
+  }
+  /**
+   * Claim a support ticket (assign to an admin).
+   * Changes ticketStatus to 'in_progress'
+   */
+  async claimSupportTicket(ticketId, adminId) {
+    const [thread2] = await db.update(messageThreads).set({
+      assignedAdminId: adminId,
+      ticketStatus: "in_progress"
+    }).where(and(
+      eq(messageThreads.id, ticketId),
+      eq(messageThreads.isAdminSupport, true)
+    )).returning();
+    return thread2;
+  }
+  /**
+   * Resolve a support ticket with optional notes.
+   * Changes ticketStatus to 'resolved'
+   */
+  async resolveSupportTicket(ticketId, notes) {
+    const [thread2] = await db.update(messageThreads).set({
+      ticketStatus: "resolved",
+      resolvedAt: /* @__PURE__ */ new Date()
+    }).where(and(
+      eq(messageThreads.id, ticketId),
+      eq(messageThreads.isAdminSupport, true)
+    )).returning();
+    return thread2;
+  }
+  /**
+   * Create a new support ticket (user-initiated).
+   * User can contact admin about account/verification/payment issues
+   */
+  async createSupportTicket(userId, title, description, priority = "normal") {
+    const [thread2] = await db.insert(messageThreads).values({
+      title,
+      type: "general",
+      createdBy: userId,
+      buyerId: userId,
+      context: "general",
+      status: "open",
+      isAdminSupport: true,
+      ticketStatus: "open",
+      ticketPriority: priority
+    }).returning();
+    return thread2;
+  }
+  /**
+   * Update a support ticket's status.
+   */
+  async updateTicketStatus(ticketId, status) {
+    const [thread2] = await db.update(messageThreads).set({
+      ticketStatus: status
+    }).where(and(
+      eq(messageThreads.id, ticketId),
+      eq(messageThreads.isAdminSupport, true)
+    )).returning();
+    return thread2;
+  }
+  /**
+   * Update a support ticket's priority.
+   */
+  async updateTicketPriority(ticketId, priority) {
+    const [thread2] = await db.update(messageThreads).set({
+      ticketPriority: priority
+    }).where(and(
+      eq(messageThreads.id, ticketId),
+      eq(messageThreads.isAdminSupport, true)
+    )).returning();
+    return thread2;
+  }
+  /**
+   * Update a support ticket's assigned admin.
+   */
+  async updateTicketAssignee(ticketId, adminId) {
+    const [thread2] = await db.update(messageThreads).set({
+      assignedAdminId: adminId
+    }).where(and(
+      eq(messageThreads.id, ticketId),
+      eq(messageThreads.isAdminSupport, true)
+    )).returning();
+    return thread2;
+  }
+  /**
+   * Return analytics summary: user role counts, listing status counts,
+   * and simple weekly activity aggregates (last 4 weeks).
+   */
+  async getAnalyticsSummary() {
+    const allUsers = await db.select().from(users);
+    const allListings = await db.select().from(marketplaceListings);
+    const allMessages = await db.select().from(messages);
+    const usersByRole = {
+      buyers: allUsers.filter((u) => (u.role || "").toLowerCase() === "buyer").length,
+      sellers: allUsers.filter((u) => (u.role || "").toLowerCase() === "seller").length,
+      admins: allUsers.filter((u) => (u.role || "").toLowerCase() === "admin").length
+    };
+    const listingsByStatus = {
+      approved: allListings.filter((l) => (l.status || "").toLowerCase() === "approved").length,
+      pending: allListings.filter((l) => (l.status || "").toLowerCase() === "pending").length,
+      total: allListings.length
+    };
+    const now = /* @__PURE__ */ new Date();
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setHours(0, 0, 0, 0);
+    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay());
+    const weeklyActivity = [];
+    for (let i = 3; i >= 0; i--) {
+      const start = new Date(currentWeekStart);
+      start.setDate(start.getDate() - 7 * i);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 7);
+      const listingsCount = allListings.filter((l) => {
+        const c = l.createdAt ? new Date(l.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+      const messagesCount = allMessages.filter((m) => {
+        const c = m.createdAt ? new Date(m.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+      const usersCount = allUsers.filter((u) => {
+        const c = u.createdAt ? new Date(u.createdAt) : null;
+        return c && c >= start && c < end;
+      }).length;
+      weeklyActivity.push({
+        week: `${start.toISOString().slice(0, 10)}`,
+        listings: listingsCount,
+        messages: messagesCount,
+        users: usersCount
+      });
+    }
+    return {
+      usersByRole,
+      listingsByStatus,
+      weeklyActivity
+    };
+  }
+  // ========================================================================
+  // Message operations
+  // ========================================================================
+  async getMessagesByThreadId(threadId) {
+    return await db.select().from(messages).where(eq(messages.threadId, threadId)).orderBy(messages.createdAt);
+  }
+  async createMessage(messageData) {
+    try {
+      const [message] = await db.insert(messages).values(messageData).returning();
+      return message;
+    } catch (err) {
+      if (err?.cause?.code === "42703" || err?.code === "42703") {
+        const minimalPayload = {
+          senderId: messageData.senderId,
+          receiverId: messageData.receiverId,
+          subject: messageData.subject,
+          content: messageData.content,
+          isAutoRelay: messageData.isAutoRelay ?? false
+        };
+        const [message] = await db.insert(messages).values(minimalPayload).returning();
+        return message;
+      }
+      throw err;
+    }
+  }
+  async getMessageByIdempotencyKey(key) {
+    const [row] = await db.select({ id: messageIdempotency.messageId }).from(messageIdempotency).where(eq(messageIdempotency.key, key)).limit(1);
+    if (!row) return void 0;
+    const messageId = row.id;
+    const [message] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+    return message;
+  }
+  async createMessageWithIdempotency(key, messageData) {
+    if (!key) {
+      return await this.createMessage(messageData);
+    }
+    const existing = await this.getMessageByIdempotencyKey(key);
+    if (existing) return existing;
+    const message = await this.createMessage(messageData);
+    try {
+      await db.insert(messageIdempotency).values({
+        key,
+        messageId: message.id
+      });
+      return message;
+    } catch (err) {
+      if (err?.cause?.code === "23505" || err?.code === "23505") {
+        const mapped = await this.getMessageByIdempotencyKey(key);
+        if (mapped) return mapped;
+      }
+      throw err;
+    }
+  }
+  async getMessagesByUserId(userId) {
+    const threads = await db.select({
+      threadId: messageThreads.id
+    }).from(messageThreads).where(
+      or(
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
+      )
+    );
+    if (threads.length === 0) return [];
+    const threadIds = threads.map((t) => t.threadId);
+    const results = await db.select({
+      // Message fields
+      id: messages.id,
+      threadId: messages.threadId,
+      senderId: messages.senderId,
+      receiverId: messages.receiverId,
+      subject: messages.subject,
+      content: messages.content,
+      read: messages.read,
+      closed: messages.closed,
+      unread: messages.unread,
+      isAutoRelay: messages.isAutoRelay,
+      createdAt: messages.createdAt,
+      // Sender info
+      senderFirstName: users.firstName,
+      senderLastName: users.lastName,
+      // Context info
+      listing: marketplaceListings,
+      project: projects
+    }).from(messages).innerJoin(messageThreads, eq(messages.threadId, messageThreads.id)).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(marketplaceListings, eq(messageThreads.listingId, marketplaceListings.id)).leftJoin(projects, eq(messageThreads.projectId, projects.id)).where(inArray(messages.threadId, threadIds)).orderBy(messages.createdAt);
+    return results.map((result) => ({
+      id: result.id,
+      threadId: result.threadId,
+      senderId: result.senderId,
+      receiverId: result.receiverId,
+      subject: result.subject,
+      content: result.content,
+      read: result.read,
+      closed: result.closed,
+      unread: result.unread,
+      isAutoRelay: result.isAutoRelay,
+      createdAt: result.createdAt,
+      relatedProjectId: result.project?.id || null,
+      relatedListingId: result.listing?.id || null,
+      senderName: result.senderFirstName && result.senderLastName ? `${result.senderFirstName} ${result.senderLastName}` : void 0,
+      context: result.listing ? "marketplace" : result.project ? "project_interest" : "general"
+    }));
+  }
+  async getConversation(user1Id, user2Id) {
+    return await db.select().from(messages).where(
+      or(
+        and(
+          eq(messages.senderId, user1Id),
+          eq(messages.receiverId, user2Id)
+        ),
+        and(
+          eq(messages.senderId, user2Id),
+          eq(messages.receiverId, user1Id)
+        )
+      )
+    ).orderBy(messages.createdAt);
+  }
+  async markMessageAsRead(id) {
+    await db.update(messages).set({ read: true, unread: false }).where(eq(messages.id, id));
+  }
+  // Helper to get a message by id (used by some admin routes)
+  async getMessageById(id) {
+    const [message] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+    return message;
+  }
+  // Return count of unread messages for a given user (receiver)
+  async getUnreadMessagesCount(userId) {
+    const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
+      and(
+        eq(messages.receiverId, userId),
+        eq(messages.unread, true)
+      )
+    );
+    return result[0]?.count || 0;
+  }
+  async closeConversationByMessageId(messageId) {
+    const [main] = await db.select().from(messages).where(eq(messages.id, messageId)).limit(1);
+    if (!main) return;
+    await db.update(messages).set({ closed: true }).where(
+      or(
+        and(eq(messages.senderId, main.senderId), eq(messages.receiverId, main.receiverId)),
+        and(eq(messages.senderId, main.receiverId), eq(messages.receiverId, main.senderId))
+      )
+    );
+  }
+  async checkUserHasContactedAboutProject(userId, projectId) {
+    const result = await db.select().from(messages).where(
+      and(
+        eq(messages.senderId, userId),
+        eq(messages.relatedProjectId, projectId)
+      )
+    ).limit(1);
+    return result.length > 0;
+  }
+  async checkUserHasContactedAboutListing(userId, listingId) {
+    const result = await db.select().from(messages).where(
+      and(
+        eq(messages.senderId, userId),
+        eq(messages.relatedListingId, listingId)
+      )
+    ).limit(1);
+    return result.length > 0;
+  }
+  async getMessageWithSenderDetails(messageId) {
+    const result = await db.select({
+      message: messages,
+      sender: users,
+      senderProfile: userProfiles
+    }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(messages.id, messageId)).limit(1);
+    if (!result[0]) return null;
+    const mainMessage = result[0].message;
+    const conversationMessages = await db.select({
+      message: messages,
+      sender: users,
+      senderProfile: userProfiles
+    }).from(messages).leftJoin(users, eq(messages.senderId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(
+      and(
+        or(
+          and(
+            eq(messages.senderId, mainMessage.senderId),
+            eq(messages.receiverId, mainMessage.receiverId)
+          ),
+          and(
+            eq(messages.senderId, mainMessage.receiverId),
+            eq(messages.receiverId, mainMessage.senderId)
+          )
+        )
+      )
+    ).orderBy(desc(messages.createdAt));
+    const payload = {
+      ...result[0],
+      conversation: conversationMessages
+    };
+    try {
+      const content = mainMessage && (mainMessage.content || "");
+      const m = content.match(/Contact submission from\s+([^<\n]+)\s*<([^>]+)>[\s\S]*?Phone:\s*([^\n\r]*)[\s\S]*?\n\n([\s\S]*?)(?:\n\nView (?:submission|thread):\s*[^\s]+(?:id=|\?threadId=)([a-f0-9\-]+))?/i);
+      if (m) {
+        payload.contactSubmission = {
+          name: (m[1] || "").trim(),
+          email: (m[2] || "").trim(),
+          phone: (m[3] || "").trim(),
+          message: (m[4] || "").trim(),
+          submissionId: m[5] || void 0
+        };
+      }
+    } catch (err) {
+    }
+    return payload;
+  }
+  // ========================================================================
+  // Blog Post operations
+  // ========================================================================
+  async createBlogPost(postData) {
+    const [post] = await db.insert(blogPosts).values(postData).returning();
+    return post;
+  }
+  async getBlogPosts(publishedOnly = true) {
+    let query = db.select().from(blogPosts);
+    if (publishedOnly) {
+      query = query.where(eq(blogPosts.published, true));
+    }
+    return await query.orderBy(desc(blogPosts.createdAt));
+  }
+  async getBlogPostById(id) {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return post;
+  }
+  async getBlogPostBySlug(slug) {
+    const [post] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
+    return post;
+  }
+  async publishBlogPost(id) {
+    const [post] = await db.update(blogPosts).set({
+      published: true,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(blogPosts.id, id)).returning();
+    return post;
+  }
+  async updateBlogPost(id, postData) {
+    const [post] = await db.update(blogPosts).set({
+      ...postData,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(blogPosts.id, id)).returning();
+    return post;
+  }
+  async deleteBlogPost(id) {
+    await db.delete(blogPosts).where(eq(blogPosts.id, id));
+  }
+  // ========================================================================
+  // Contact Submission operations
+  // ========================================================================
+  async createContactSubmission(submissionData) {
+    const [submission] = await db.insert(contactSubmissions).values(submissionData).returning();
+    return submission;
+  }
+  async getContactSubmissions() {
+    return await db.select().from(contactSubmissions).orderBy(desc(contactSubmissions.createdAt));
+  }
+  async updateContactSubmissionStatus(id, status) {
+    const [submission] = await db.update(contactSubmissions).set({ status }).where(eq(contactSubmissions.id, id)).returning();
+    return submission;
+  }
+  // ========================================================================
+  // Contact Settings operations
+  // ========================================================================
+  async getContactSettings() {
+    const settings = await db.select().from(contactSettings).limit(1);
+    if (settings.length === 0) {
+      const [defaultSettings] = await db.insert(contactSettings).values({
+        officeAddress: "Fusion Mining Limited\nCentral Business District\nLusaka, Zambia",
+        phone: "+260 978 838 939",
+        email: "info@fusionmining.com",
+        supportEmail: "support@fusionmining.com",
+        mondayFriday: "8:00 AM - 5:00 PM",
+        saturday: "9:00 AM - 1:00 PM",
+        sunday: "Closed"
+      }).returning();
+      return defaultSettings;
+    }
+    return settings[0];
+  }
+  async updateContactSettings(settingsData) {
+    const existing = await this.getContactSettings();
+    if (!existing) {
+      const [newSettings] = await db.insert(contactSettings).values(settingsData).returning();
+      return newSettings;
+    }
+    const [updated] = await db.update(contactSettings).set({
+      ...settingsData,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(contactSettings.id, existing.id)).returning();
+    return updated;
+  }
+  // ========================================================================
+  // Verification Queue operations
+  // ========================================================================
+  async getPendingListings() {
+    return await db.select().from(marketplaceListings).where(eq(marketplaceListings.status, "pending")).orderBy(desc(marketplaceListings.createdAt));
+  }
+  async rejectListing(listingId, reviewerId) {
+    await db.update(marketplaceListings).set({
+      status: "rejected",
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(marketplaceListings.id, listingId));
+    await db.update(verificationQueue).set({
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId
+    }).where(eq(verificationQueue.listingId, listingId));
+  }
+  async getPendingBuyerRequests() {
+    const results = await db.select({
+      request: buyerRequests,
+      buyer: {
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email
+      },
+      profile: userProfiles
+    }).from(buyerRequests).leftJoin(users, eq(buyerRequests.buyerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(buyerRequests.status, "pending")).orderBy(desc(buyerRequests.createdAt));
+    return results.map((r) => ({
+      ...r.request,
+      buyer: r.buyer ? { ...r.buyer, verified: r.profile?.verified ?? false } : null
+    }));
+  }
+  async approveBuyerRequest(id, reviewerId) {
+    await db.update(buyerRequests).set({
+      status: "active",
+      verified: true,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(buyerRequests.id, id));
+    await db.update(verificationQueue).set({
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId
+    }).where(eq(verificationQueue.buyerRequestId, id));
+  }
+  async rejectBuyerRequest(id, reviewerId) {
+    await db.update(buyerRequests).set({
+      status: "rejected",
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(buyerRequests.id, id));
+    await db.update(verificationQueue).set({
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId
+    }).where(eq(verificationQueue.buyerRequestId, id));
+  }
+  // ========================================================================
+  // Activity Log operations
+  // ========================================================================
+  async createActivityLog(logData) {
+    const [log] = await db.insert(activityLogs).values(logData).returning();
+    return log;
+  }
+  async getActivityLogs(limit = 100) {
+    const results = await db.select({
+      id: activityLogs.id,
+      userId: activityLogs.userId,
+      activityType: activityLogs.activityType,
+      description: activityLogs.description,
+      ipAddress: activityLogs.ipAddress,
+      userAgent: activityLogs.userAgent,
+      metadata: activityLogs.metadata,
+      createdAt: activityLogs.createdAt,
+      user: {
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        profileImageUrl: users.profileImageUrl
+      }
+    }).from(activityLogs).leftJoin(users, eq(activityLogs.userId, users.id)).orderBy(desc(activityLogs.createdAt)).limit(limit);
+    return results.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      activityType: r.activityType,
+      description: r.description,
+      ipAddress: r.ipAddress,
+      userAgent: r.userAgent,
+      metadata: r.metadata,
+      createdAt: r.createdAt,
+      user: r.user?.id ? r.user : null
+    }));
+  }
+  async getUserActivityLogs(userId, limit = 50) {
+    return await db.select().from(activityLogs).where(eq(activityLogs.userId, userId)).orderBy(desc(activityLogs.createdAt)).limit(limit);
+  }
+  // ========================================================================
+  // Notification operations
+  // ========================================================================
+  async createNotification(notificationData) {
+    const [notification] = await db.insert(notifications).values(notificationData).returning();
+    return notification;
+  }
+  async getUserNotifications(userId) {
+    return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(50);
+  }
+  async getUnreadNotificationCount(userId) {
+    const result = await db.select({ count: sql2`count(*)::int` }).from(notifications).where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.read, false)
+      )
+    );
+    return result[0]?.count || 0;
+  }
+  async markNotificationAsRead(id) {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.id, id));
+  }
+  async markAllNotificationsAsRead(userId) {
+    await db.update(notifications).set({ read: true }).where(eq(notifications.userId, userId));
+  }
+  // ========================================================================
+  // Stats operations for dashboard
+  // ========================================================================
+  async getUserListingsCount(userId) {
+    const [listingsResult, rfqResult] = await Promise.all([
+      db.select({ count: sql2`count(*)::int` }).from(marketplaceListings).where(eq(marketplaceListings.sellerId, userId)),
+      db.select({ count: sql2`count(*)::int` }).from(buyerRequests).where(and(
+        eq(buyerRequests.buyerId, userId),
+        inArray(buyerRequests.status, ["active", "pending"])
+      ))
+    ]);
+    const listingsCount = listingsResult[0]?.count || 0;
+    const rfqCount = rfqResult[0]?.count || 0;
+    return listingsCount + rfqCount;
+  }
+  async getUserUnreadMessagesCount(userId) {
+    const threads = await db.select({ id: messageThreads.id }).from(messageThreads).where(
+      or(
+        eq(messageThreads.buyerId, userId),
+        eq(messageThreads.sellerId, userId)
+      )
+    );
+    if (threads.length === 0) return 0;
+    const threadIds = threads.map((t) => t.id);
+    const result = await db.select({ count: sql2`count(*)::int` }).from(messages).where(
+      and(
+        inArray(messages.threadId, threadIds),
+        eq(messages.receiverId, userId),
+        eq(messages.read, false)
+      )
+    );
+    return result[0]?.count || 0;
+  }
+  async getUserInterestsCount(userId) {
+    const result = await db.select({ count: sql2`count(*)::int` }).from(expressInterest).where(eq(expressInterest.userId, userId));
+    return result[0]?.count || 0;
+  }
+  async checkUserHasExpressedInterest(userId, projectId) {
+    const [interest] = await db.select().from(expressInterest).where(
+      and(
+        eq(expressInterest.userId, userId),
+        eq(expressInterest.projectId, projectId)
+      )
+    ).limit(1);
+    return !!interest;
+  }
+  // ========================================================================
+  // Video operations
+  // ========================================================================
+  async createVideo(videoData) {
+    const activeVideosCount = await db.select({ count: sql2`count(*)::int` }).from(videos).where(eq(videos.active, true));
+    const count = activeVideosCount[0]?.count || 0;
+    const shouldActivate = count < 4 && videoData.active !== false;
+    const [video] = await db.insert(videos).values({ ...videoData, active: shouldActivate }).returning();
+    return video;
+  }
+  async getActiveVideos() {
+    return await db.select().from(videos).where(eq(videos.active, true)).orderBy(desc(videos.createdAt)).limit(4);
+  }
+  async getAllVideos() {
+    return await db.select().from(videos).orderBy(desc(videos.createdAt));
+  }
+  async updateVideo(videoData) {
+    const [video] = await db.update(videos).set(videoData).where(eq(videos.id, videoData.id)).returning();
+    return video;
+  }
+  async toggleVideoActive(id) {
+    const [currentVideo] = await db.select().from(videos).where(eq(videos.id, id)).limit(1);
+    if (!currentVideo) {
+      throw new Error("Video not found");
+    }
+    if (!currentVideo.active) {
+      const activeVideosCount = await db.select({ count: sql2`count(*)::int` }).from(videos).where(eq(videos.active, true));
+      const count = activeVideosCount[0]?.count || 0;
+      if (count >= 4) {
+        throw new Error("Maximum of 4 active videos allowed");
+      }
+    }
+    const [video] = await db.update(videos).set({ active: !currentVideo.active }).where(eq(videos.id, id)).returning();
+    return video;
+  }
+  async deleteVideo(id) {
+    await db.delete(videos).where(eq(videos.id, id));
+  }
+  // ========================================================================
+  // Sustainability Content operations
+  // ========================================================================
+  async createSustainabilityContent(content) {
+    const [item] = await db.insert(sustainabilityContent).values(content).returning();
+    return item;
+  }
+  async getSustainabilityContent() {
+    try {
+      return await db.select().from(sustainabilityContent).orderBy(sustainabilityContent.order);
+    } catch (err) {
+      if (err?.code === "42P01") return [];
+      throw err;
+    }
+  }
+  async getSustainabilityContentById(id) {
+    try {
+      const [item] = await db.select().from(sustainabilityContent).where(eq(sustainabilityContent.id, id)).limit(1);
+      return item;
+    } catch (err) {
+      if (err?.code === "42P01") return void 0;
+      throw err;
+    }
+  }
+  async updateSustainabilityContent(id, content) {
+    const [item] = await db.update(sustainabilityContent).set(content).where(eq(sustainabilityContent.id, id)).returning();
+    return item;
+  }
+  async deleteSustainabilityContent(id) {
+    await db.delete(sustainabilityContent).where(eq(sustainabilityContent.id, id));
+  }
+  // ========================================================================
+  // Message Template operations
+  // ========================================================================
+  async createMessageTemplate(templateData) {
+    const [template] = await db.insert(messageTemplates).values(templateData).returning();
+    return template;
+  }
+  async getMessageTemplates(activeOnly = false) {
+    if (activeOnly) {
+      return await db.select().from(messageTemplates).where(eq(messageTemplates.active, true)).orderBy(messageTemplates.type);
+    }
+    return await db.select().from(messageTemplates).orderBy(messageTemplates.type);
+  }
+  async getMessageTemplateByType(type) {
+    const [template] = await db.select().from(messageTemplates).where(and(
+      eq(messageTemplates.type, type),
+      eq(messageTemplates.active, true)
+    )).limit(1);
+    return template;
+  }
+  // ========================================================================
+  // Membership Benefit operations
+  // ========================================================================
+  async createMembershipBenefit(benefitData) {
+    const [benefit] = await db.insert(membershipBenefits).values(benefitData).returning();
+    return benefit;
+  }
+  async getAllMembershipBenefits() {
+    return await db.select().from(membershipBenefits).orderBy(membershipBenefits.visibilityRanking);
+  }
+  async getMembershipBenefitByTier(tier) {
+    const [benefit] = await db.select().from(membershipBenefits).where(eq(membershipBenefits.tier, tier)).limit(1);
+    return benefit;
+  }
+  async initializeMembershipBenefits() {
+    try {
+      const benefits = [
+        {
+          tier: "basic",
+          maxActiveRFQs: 2,
+          canAccessAnalytics: false,
+          canDirectMessage: false,
+          prioritySupport: false,
+          visibilityRanking: 3,
+          monthlyPrice: "0.00"
+        },
+        {
+          tier: "standard",
+          maxActiveRFQs: 10,
+          canAccessAnalytics: true,
+          canDirectMessage: true,
+          prioritySupport: false,
+          visibilityRanking: 2,
+          monthlyPrice: "49.99"
+        },
+        {
+          tier: "premium",
+          maxActiveRFQs: -1,
+          canAccessAnalytics: true,
+          canDirectMessage: true,
+          prioritySupport: true,
+          visibilityRanking: 1,
+          monthlyPrice: "199.99"
+        }
+      ];
+      for (const benefit of benefits) {
+        await db.insert(membershipBenefits).values(benefit).onConflictDoUpdate({
+          target: [membershipBenefits.tier],
+          set: {
+            maxActiveRFQs: benefit.maxActiveRFQs,
+            canAccessAnalytics: benefit.canAccessAnalytics,
+            canDirectMessage: benefit.canDirectMessage,
+            prioritySupport: benefit.prioritySupport,
+            visibilityRanking: benefit.visibilityRanking,
+            monthlyPrice: benefit.monthlyPrice,
+            updatedAt: /* @__PURE__ */ new Date()
+          }
+        });
+      }
+      console.log("\u2713 Membership benefits initialized/synced");
+    } catch (error) {
+      console.error("Failed to initialize membership benefits:", error);
+    }
+  }
+  async updateMembershipBenefit(tier, benefitData) {
+    const [updated] = await db.update(membershipBenefits).set({
+      ...benefitData,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(membershipBenefits.tier, tier)).returning();
+    return updated;
+  }
+  async updateUserMembershipTier(userId, tier) {
+    const [updated] = await db.update(users).set({
+      membershipTier: tier,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+  // ========================================================================
+  // Tier Usage Tracking operations
+  // ========================================================================
+  async getUserTierUsage(userId, month) {
+    const [usage] = await db.select().from(tierUsageTracking).where(and(
+      eq(tierUsageTracking.userId, userId),
+      eq(tierUsageTracking.month, month)
+    )).limit(1);
+    return usage;
+  }
+  async incrementUserRFQCount(userId, month) {
+    const existing = await this.getUserTierUsage(userId, month);
+    if (existing) {
+      await db.update(tierUsageTracking).set({
+        activeRFQsCount: sql2`${tierUsageTracking.activeRFQsCount} + 1`,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(tierUsageTracking.id, existing.id));
+    } else {
+      await db.insert(tierUsageTracking).values({
+        userId,
+        month,
+        activeRFQsCount: 1,
+        messagesCount: 0,
+        analyticsViews: 0
+      });
+    }
+  }
+  async getUserActiveRFQCount(userId) {
+    const result = await db.select({ count: sql2`count(*)::int` }).from(buyerRequests).where(and(
+      eq(buyerRequests.buyerId, userId),
+      inArray(buyerRequests.status, ["active", "pending"])
+    ));
+    return result[0]?.count || 0;
+  }
+  async checkUserCanCreateRFQ(userId) {
+    const user = await this.getUser(userId);
+    if (!user) {
+      return { allowed: false, reason: "User not found" };
+    }
+    const benefit = await this.getMembershipBenefitByTier(user.membershipTier);
+    if (!benefit) {
+      return { allowed: false, reason: "Membership tier not configured" };
+    }
+    if (benefit.maxActiveRFQs === -1) {
+      return { allowed: true, limit: -1 };
+    }
+    const activeCount = await this.getUserActiveRFQCount(userId);
+    if (activeCount >= benefit.maxActiveRFQs) {
+      return {
+        allowed: false,
+        reason: `You have reached your ${user.membershipTier} tier limit of ${benefit.maxActiveRFQs} active RFQ${benefit.maxActiveRFQs > 1 ? "s" : ""}. Upgrade your membership to create more RFQs.`,
+        limit: benefit.maxActiveRFQs,
+        current: activeCount
+      };
+    }
+    return { allowed: true, limit: benefit.maxActiveRFQs, current: activeCount };
+  }
+  // ========================================================================
+  // Platform Settings operations
+  // ========================================================================
+  async getAllPlatformSettings() {
+    try {
+      return await db.select().from(platformSettings).orderBy(desc(platformSettings.updatedAt));
+    } catch (err) {
+      if (err?.code === "42P01") return [];
+      throw err;
+    }
+  }
+  async createPlatformSetting(setting) {
+    try {
+      const [created] = await db.insert(platformSettings).values(setting).returning();
+      return created;
+    } catch (err) {
+      if (err?.code === "42P01") throw new Error("Platform settings table missing");
+      throw err;
+    }
+  }
+  async updatePlatformSetting(setting) {
+    try {
+      const { id, ...updates } = setting;
+      const [updated] = await db.update(platformSettings).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(platformSettings.id, id)).returning();
+      return updated;
+    } catch (err) {
+      if (err?.code === "42P01") throw new Error("Platform settings table missing");
+      throw err;
+    }
+  }
+  async deletePlatformSetting(id) {
+    try {
+      await db.delete(platformSettings).where(eq(platformSettings.id, id));
+    } catch (err) {
+      if (err?.code === "42P01") return;
+      throw err;
+    }
+  }
+  async getPlatformSettingByKey(key) {
+    try {
+      const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, key)).limit(1);
+      return setting;
+    } catch (err) {
+      if (err?.code === "42P01") return void 0;
+      throw err;
+    }
+  }
+  async getPlatformSettingsByCategory(category) {
+    try {
+      return await db.select().from(platformSettings).where(eq(platformSettings.category, category)).orderBy(platformSettings.key);
+    } catch (err) {
+      if (err?.code === "42P01") return [];
+      throw err;
+    }
+  }
+  // ========================================================================
+  // Settings Audit operations
+  // ========================================================================
+  async getSettingsAuditLogs(settingKey, limit = 50) {
+    if (settingKey) {
+      return await db.select().from(settingsAudit2).where(eq(settingsAudit2.settingKey, settingKey)).orderBy(desc(settingsAudit2.changedAt)).limit(limit);
+    }
+    return await db.select().from(settingsAudit2).orderBy(desc(settingsAudit2.changedAt)).limit(limit);
+  }
+  async logSettingChange(audit) {
+    await db.insert(settingsAudit2).values(audit);
+  }
+  // ========================================================================
+  // Email Template operations
+  // ========================================================================
+  async getAllEmailTemplates() {
+    return await db.select().from(emailTemplates).orderBy(desc(emailTemplates.createdAt));
+  }
+  async createEmailTemplate(template) {
+    const [created] = await db.insert(emailTemplates).values(template).returning();
+    return created;
+  }
+  async updateEmailTemplate(template) {
+    const { id, ...updates } = template;
+    const [updated] = await db.update(emailTemplates).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(emailTemplates.id, id)).returning();
+    return updated;
+  }
+  async deleteEmailTemplate(id) {
+    await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+  }
+  // ========================================================================
+  // Login History operations
+  // ========================================================================
+  async getLoginHistory(userId) {
+    if (userId) {
+      return await db.select().from(loginHistory).where(eq(loginHistory.userId, userId)).orderBy(desc(loginHistory.createdAt)).limit(100);
+    }
+    return await db.select().from(loginHistory).orderBy(desc(loginHistory.createdAt)).limit(100);
+  }
+  async logLoginAttempt(data) {
+    await db.insert(loginHistory).values(data);
+  }
+  // ========================================================================
+  // Verification Rule operations
+  // ========================================================================
+  async getAllVerificationRules() {
+    return await db.select().from(verificationRules).orderBy(desc(verificationRules.createdAt));
+  }
+  async createVerificationRule(rule) {
+    const [created] = await db.insert(verificationRules).values(rule).returning();
+    return created;
+  }
+  async updateVerificationRule(rule) {
+    const { id, ...updates } = rule;
+    const [updated] = await db.update(verificationRules).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(verificationRules.id, id)).returning();
+    return updated;
+  }
+  async deleteVerificationRule(id) {
+    await db.delete(verificationRules).where(eq(verificationRules.id, id));
+  }
+  // ========================================================================
+  // Document Template operations
+  // ========================================================================
+  async getAllDocumentTemplates() {
+    return await db.select().from(documentTemplates).orderBy(desc(documentTemplates.createdAt));
+  }
+  async createDocumentTemplate(template) {
+    const [created] = await db.insert(documentTemplates).values(template).returning();
+    return created;
+  }
+  async updateDocumentTemplate(template) {
+    const { id, ...updates } = template;
+    const [updated] = await db.update(documentTemplates).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(documentTemplates.id, id)).returning();
+    return updated;
+  }
+  async deleteDocumentTemplate(id) {
+    await db.delete(documentTemplates).where(eq(documentTemplates.id, id));
+  }
+  // ========================================================================
+  // Admin Audit Log operations
+  // ========================================================================
+  async getAdminAuditLogs(adminId) {
+    const baseQuery = db.select({
+      id: adminAuditLogs.id,
+      adminId: adminAuditLogs.adminId,
+      action: adminAuditLogs.action,
+      targetType: adminAuditLogs.targetType,
+      targetId: adminAuditLogs.targetId,
+      changes: adminAuditLogs.changes,
+      ipAddress: adminAuditLogs.ipAddress,
+      userAgent: adminAuditLogs.userAgent,
+      createdAt: adminAuditLogs.createdAt,
+      admin: {
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        profileImageUrl: users.profileImageUrl
+      }
+    }).from(adminAuditLogs).leftJoin(users, eq(adminAuditLogs.adminId, users.id));
+    if (adminId) {
+      const results2 = await baseQuery.where(eq(adminAuditLogs.adminId, adminId)).orderBy(desc(adminAuditLogs.createdAt)).limit(200);
+      return results2.map((r) => ({
+        id: r.id,
+        adminId: r.adminId,
+        action: r.action,
+        targetType: r.targetType,
+        targetId: r.targetId,
+        changes: r.changes,
+        ipAddress: r.ipAddress,
+        userAgent: r.userAgent,
+        createdAt: r.createdAt,
+        admin: r.admin?.id ? r.admin : null
+      }));
+    }
+    const results = await baseQuery.orderBy(desc(adminAuditLogs.createdAt)).limit(200);
+    return results.map((r) => ({
+      id: r.id,
+      adminId: r.adminId,
+      action: r.action,
+      targetType: r.targetType,
+      targetId: r.targetId,
+      changes: r.changes,
+      ipAddress: r.ipAddress,
+      userAgent: r.userAgent,
+      createdAt: r.createdAt,
+      admin: r.admin?.id ? r.admin : null
+    }));
+  }
+  async logAdminAudit(data) {
+    await db.insert(adminAuditLogs).values(data);
+  }
+  // ========================================================================
+  // Two-Factor Auth operations
+  // ========================================================================
+  async getTwoFactorAuthStatus(userId) {
+    const [twoFA] = await db.select().from(twoFactorAuth).where(eq(twoFactorAuth.userId, userId)).limit(1);
+    return twoFA;
+  }
+  async enableTwoFactorAuth(userId) {
+    const existing = await this.getTwoFactorAuthStatus(userId);
+    if (existing) {
+      await db.update(twoFactorAuth).set({ enabled: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(twoFactorAuth.userId, userId));
+    } else {
+      await db.insert(twoFactorAuth).values({
+        userId,
+        enabled: true,
+        secret: null,
+        backupCodes: []
+      });
+    }
+  }
+  async disableTwoFactorAuth(userId) {
+    await db.update(twoFactorAuth).set({ enabled: false, updatedAt: /* @__PURE__ */ new Date() }).where(eq(twoFactorAuth.userId, userId));
+  }
+  // ========================================================================
+  // User Management (Admin) operations
+  // ========================================================================
+  async updateUserPassword(userId, hashedPassword) {
+    await db.update(users).set({ password: hashedPassword, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+  }
+  async forceUserLogout(userId) {
+    await db.delete(sessions).where(sql2`${sessions.sess}->>'userId' = ${userId}`);
+  }
+  async updateUserInfo(userId, data) {
+    const [updated] = await db.update(users).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+  // ========================================================================
+  // Seller Verification operations
+  // ========================================================================
+  async createVerificationRequest(sellerId) {
+    const existing = await db.select().from(sellerVerificationRequests).where(
+      and(
+        eq(sellerVerificationRequests.sellerId, sellerId),
+        eq(sellerVerificationRequests.status, "pending")
+      )
+    ).limit(1);
+    if (existing.length > 0) {
+      return existing[0];
+    }
+    const [request] = await db.insert(sellerVerificationRequests).values({ sellerId }).returning();
+    return request;
+  }
+  async getVerificationRequestById(id) {
+    const [request] = await db.select().from(sellerVerificationRequests).where(eq(sellerVerificationRequests.id, id)).limit(1);
+    return request;
+  }
+  async getVerificationRequestBySellerId(sellerId) {
+    const [request] = await db.select().from(sellerVerificationRequests).where(eq(sellerVerificationRequests.sellerId, sellerId)).orderBy(desc(sellerVerificationRequests.createdAt)).limit(1);
+    return request;
+  }
+  async getAllPendingVerificationRequests() {
+    const requests = await db.select({
+      id: sellerVerificationRequests.id,
+      status: sellerVerificationRequests.status,
+      rejectionReason: sellerVerificationRequests.rejectionReason,
+      submittedAt: sellerVerificationRequests.submittedAt,
+      reviewedAt: sellerVerificationRequests.reviewedAt,
+      sellerId: users.id,
+      sellerEmail: users.email,
+      sellerFirstName: users.firstName,
+      sellerLastName: users.lastName,
+      sellerCompanyName: userProfiles.companyName
+    }).from(sellerVerificationRequests).leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).where(eq(sellerVerificationRequests.status, "pending")).orderBy(desc(sellerVerificationRequests.submittedAt));
+    return requests;
+  }
+  async getAllVerificationRequests() {
+    const requests = await db.select({
+      id: sellerVerificationRequests.id,
+      status: sellerVerificationRequests.status,
+      rejectionReason: sellerVerificationRequests.rejectionReason,
+      submittedAt: sellerVerificationRequests.submittedAt,
+      reviewedAt: sellerVerificationRequests.reviewedAt,
+      sellerId: users.id,
+      sellerEmail: users.email,
+      sellerFirstName: users.firstName,
+      sellerLastName: users.lastName,
+      sellerCompanyName: userProfiles.companyName
+    }).from(sellerVerificationRequests).leftJoin(users, eq(sellerVerificationRequests.sellerId, users.id)).leftJoin(userProfiles, eq(users.id, userProfiles.userId)).orderBy(desc(sellerVerificationRequests.submittedAt));
+    return requests;
+  }
+  async updateVerificationRequestStatus(id, status) {
+    const [updated] = await db.update(sellerVerificationRequests).set({
+      status,
+      submittedAt: status === "pending" ? /* @__PURE__ */ new Date() : void 0,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(sellerVerificationRequests.id, id)).returning();
+    return updated;
+  }
+  async approveVerificationRequest(id, reviewerId) {
+    const request = await this.getVerificationRequestById(id);
+    if (!request) {
+      throw new Error("Verification request not found");
+    }
+    const seller = await this.getUserById(request.sellerId);
+    if (!seller) {
+      throw new Error("Seller not found");
+    }
+    const badgeColorMap = {
+      basic: "",
+      // No badge for basic tier
+      standard: "blue",
+      premium: "gold"
+    };
+    const badgeColor = badgeColorMap[seller.membershipTier] || "";
+    const [updated] = await db.update(sellerVerificationRequests).set({
+      status: "approved",
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(sellerVerificationRequests.id, id)).returning();
+    await this.updateUserVerificationStatus(request.sellerId, "approved", badgeColor);
+    await this.logAdminAudit({
+      adminId: reviewerId,
+      action: "verification_approved",
+      targetType: "seller_verification_request",
+      targetId: id,
+      changes: { status: "approved", sellerId: request.sellerId }
+    });
+    return updated;
+  }
+  async rejectVerificationRequest(id, reviewerId, reason) {
+    const request = await this.getVerificationRequestById(id);
+    if (!request) {
+      throw new Error("Verification request not found");
+    }
+    const [updated] = await db.update(sellerVerificationRequests).set({
+      status: "rejected",
+      rejectionReason: reason,
+      reviewedAt: /* @__PURE__ */ new Date(),
+      reviewedBy: reviewerId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(sellerVerificationRequests.id, id)).returning();
+    await this.updateUserVerificationStatus(request.sellerId, "rejected");
+    await this.logAdminAudit({
+      adminId: reviewerId,
+      action: "verification_rejected",
+      targetType: "seller_verification_request",
+      targetId: id,
+      changes: { status: "rejected", reason, sellerId: request.sellerId }
+    });
+    return updated;
+  }
+  async createVerificationDocument(data) {
+    const [document] = await db.insert(sellerVerificationDocuments).values(data).returning();
+    return document;
+  }
+  async getDocumentsByRequestId(requestId) {
+    return await db.select().from(sellerVerificationDocuments).where(eq(sellerVerificationDocuments.requestId, requestId)).orderBy(desc(sellerVerificationDocuments.uploadedAt));
+  }
+  async updateUserVerificationStatus(userId, status, badgeColor) {
+    const updateData = {
+      verificationStatus: status,
+      updatedAt: /* @__PURE__ */ new Date()
+    };
+    if (badgeColor !== void 0) {
+      updateData.badgeColor = badgeColor;
+    }
+    const [updated] = await db.update(users).set(updateData).where(eq(users.id, userId)).returning();
+    return updated;
+  }
+  // ============================================================================
+  // Payment Methods
+  // ============================================================================
+  async createTierUpgradePayment(data) {
+    const [payment] = await db.insert(tierUpgradePayments).values(data).returning();
+    return payment;
+  }
+  async getTierUpgradePaymentById(id) {
+    const [payment] = await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.id, id));
+    return payment;
+  }
+  async getTierUpgradePaymentsByUserId(userId) {
+    return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.userId, userId)).orderBy(desc(tierUpgradePayments.createdAt));
+  }
+  async getTierUpgradePaymentsByUpgradeRequestId(upgradeRequestId) {
+    return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.upgradeRequestId, upgradeRequestId)).orderBy(desc(tierUpgradePayments.createdAt));
+  }
+  async updateTierUpgradePayment(id, data) {
+    const [payment] = await db.update(tierUpgradePayments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tierUpgradePayments.id, id)).returning();
+    return payment;
+  }
+  async getAllPendingTierUpgradePayments() {
+    return await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.status, "paid")).orderBy(desc(tierUpgradePayments.submittedAt));
+  }
+  async createPaymentMethodDetails(data) {
+    const [method] = await db.insert(paymentMethodDetails).values(data).returning();
+    return method;
+  }
+  async getAllPaymentMethodDetails() {
+    return await db.select().from(paymentMethodDetails).where(eq(paymentMethodDetails.isActive, true)).orderBy(paymentMethodDetails.name);
+  }
+  async getPaymentMethodDetailsByMethod(method) {
+    const [paymentMethod] = await db.select().from(paymentMethodDetails).where(and(eq(paymentMethodDetails.method, method), eq(paymentMethodDetails.isActive, true)));
+    return paymentMethod;
+  }
+  async updatePaymentMethodDetails(id, data) {
+    const [method] = await db.update(paymentMethodDetails).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentMethodDetails.id, id)).returning();
+    return method;
+  }
+  // ========================================================================
+  // Buyer Tier Upgrade operations implementation
+  // ========================================================================
+  async createTierUpgradeRequest(requestId, userId, requestedTier) {
+    const [request] = await db.insert(tierUpgradeRequests).values({
+      id: requestId,
+      userId,
+      requestedTier,
+      status: "draft",
+      submittedAt: /* @__PURE__ */ new Date()
+    }).returning();
+    return request;
+  }
+  async submitTierUpgradeRequest(requestId) {
+    const [request] = await db.update(tierUpgradeRequests).set({
+      status: "pending",
+      submittedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(tierUpgradeRequests.id, requestId)).returning();
+    return request;
+  }
+  async getTierUpgradeRequestById(id) {
+    const [request] = await db.select({
+      ...tierUpgradeRequests,
+      // all fields from request
+      buyerEmail: users.email,
+      buyerFirstName: users.firstName,
+      buyerLastName: users.lastName
+    }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.id, id));
+    return request;
+  }
+  async getTierUpgradeRequestByUserId(userId) {
+    const [request] = await db.select({
+      ...tierUpgradeRequests,
+      buyerEmail: users.email,
+      buyerFirstName: users.firstName,
+      buyerLastName: users.lastName
+    }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).where(eq(tierUpgradeRequests.userId, userId)).orderBy(desc(tierUpgradeRequests.createdAt)).limit(1);
+    return request;
+  }
+  async getAllTierUpgradeRequests() {
+    return await db.select({
+      id: tierUpgradeRequests.id,
+      userId: tierUpgradeRequests.userId,
+      requestedTier: tierUpgradeRequests.requestedTier,
+      status: tierUpgradeRequests.status,
+      rejectionReason: tierUpgradeRequests.rejectionReason,
+      submittedAt: tierUpgradeRequests.submittedAt,
+      reviewedAt: tierUpgradeRequests.reviewedAt,
+      reviewedBy: tierUpgradeRequests.reviewedBy,
+      documentCount: tierUpgradeRequests.documentCount,
+      createdAt: tierUpgradeRequests.createdAt,
+      updatedAt: tierUpgradeRequests.updatedAt,
+      buyerEmail: users.email,
+      buyerFirstName: users.firstName,
+      buyerLastName: users.lastName,
+      companyName: userProfiles.companyName,
+      phoneNumber: userProfiles.phoneNumber,
+      location: userProfiles.location,
+      paymentAmount: tierUpgradePayments.amount,
+      paymentCurrency: tierUpgradePayments.currency,
+      paymentMethod: tierUpgradePayments.paymentMethod,
+      proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
+      paymentStatus: tierUpgradePayments.status
+    }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId)).leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId)).orderBy(desc(tierUpgradeRequests.submittedAt));
+  }
+  async getPendingTierUpgradeRequests() {
+    return await db.select({
+      id: tierUpgradeRequests.id,
+      userId: tierUpgradeRequests.userId,
+      requestedTier: tierUpgradeRequests.requestedTier,
+      status: tierUpgradeRequests.status,
+      rejectionReason: tierUpgradeRequests.rejectionReason,
+      submittedAt: tierUpgradeRequests.submittedAt,
+      reviewedAt: tierUpgradeRequests.reviewedAt,
+      reviewedBy: tierUpgradeRequests.reviewedBy,
+      documentCount: tierUpgradeRequests.documentCount,
+      createdAt: tierUpgradeRequests.createdAt,
+      updatedAt: tierUpgradeRequests.updatedAt,
+      buyerEmail: users.email,
+      buyerFirstName: users.firstName,
+      buyerLastName: users.lastName,
+      companyName: userProfiles.companyName,
+      phoneNumber: userProfiles.phoneNumber,
+      location: userProfiles.location,
+      paymentAmount: tierUpgradePayments.amount,
+      paymentCurrency: tierUpgradePayments.currency,
+      paymentMethod: tierUpgradePayments.paymentMethod,
+      proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
+      paymentStatus: tierUpgradePayments.status
+    }).from(tierUpgradeRequests).leftJoin(users, eq(tierUpgradeRequests.userId, users.id)).leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId)).leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId)).where(or(eq(tierUpgradeRequests.status, "pending"), eq(tierUpgradeRequests.status, "draft"))).orderBy(desc(tierUpgradeRequests.submittedAt));
+  }
+  async approveTierUpgradeRequest(id, reviewerId) {
+    const request = await this.getTierUpgradeRequestById(id);
+    if (!request) throw new Error("Request not found");
+    const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+      status: "approved",
+      reviewedBy: reviewerId,
+      reviewedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(tierUpgradeRequests.id, id)).returning();
+    await db.update(users).set({ membershipTier: request.requestedTier }).where(eq(users.id, request.userId));
+    return updatedRequest;
+  }
+  async rejectTierUpgradeRequest(id, reviewerId, reason) {
+    const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+      status: "rejected",
+      rejectionReason: reason,
+      reviewedBy: reviewerId,
+      reviewedAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(tierUpgradeRequests.id, id)).returning();
+    return updatedRequest;
+  }
+  async revertTierUpgradeRequest(id) {
+    const [updatedRequest] = await db.update(tierUpgradeRequests).set({
+      status: "draft",
+      rejectionReason: null,
+      // Clear rejection reason
+      reviewedBy: null,
+      reviewedAt: null,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(tierUpgradeRequests.id, id)).returning();
+    return updatedRequest;
+  }
+  async createTierUpgradeDocument(data) {
+    const [doc] = await db.insert(tierUpgradeDocuments).values(data).returning();
+    await db.execute(sql2`
+      UPDATE ${tierUpgradeRequests}
+      SET document_count = document_count + 1, updated_at = NOW()
+      WHERE id = ${data.requestId}
+    `);
+    return doc;
+  }
+  async getTierUpgradeDocuments(requestId) {
+    return await db.select().from(tierUpgradeDocuments).where(eq(tierUpgradeDocuments.requestId, requestId)).orderBy(desc(tierUpgradeDocuments.uploadedAt));
+  }
+  async createTierUpgradePayment(data) {
+    const [payment] = await db.insert(tierUpgradePayments).values(data).returning();
+    return payment;
+  }
+  async updateTierUpgradePayment(id, data) {
+    const [updated] = await db.update(tierUpgradePayments).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(tierUpgradePayments.id, id)).returning();
+    return updated;
+  }
+  async getTierUpgradePaymentByRequestId(requestId) {
+    const [payment] = await db.select().from(tierUpgradePayments).where(eq(tierUpgradePayments.upgradeRequestId, requestId)).limit(1);
+    return payment;
+  }
+  // Onboarding & Deletion Implementation
+  async completeOnboarding(userId, role) {
+    await db.update(users).set({ role, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+    await db.update(userProfiles).set({ onboardingCompleted: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(userProfiles.userId, userId));
+  }
+  async createAccountDeletionRequest(data) {
+    const [request] = await db.insert(accountDeletionRequests).values(data).returning();
+    return request;
+  }
+  async getAccountDeletionRequests() {
+    return await db.select().from(accountDeletionRequests).orderBy(desc(accountDeletionRequests.createdAt));
+  }
+  async updateAccountDeletionRequestStatus(id, status) {
+    const [updated] = await db.update(accountDeletionRequests).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq(accountDeletionRequests.id, id)).returning();
+    return updated;
+  }
+};
+var storage = new DatabaseStorage();
+
+// server/clerk.ts
+import { Clerk } from "@clerk/clerk-sdk-node";
+console.log("Initializing Clerk with secret key:", process.env.CLERK_SECRET_KEY ? "PRESENT" : "MISSING");
+var clerk = Clerk({
+  secretKey: process.env.CLERK_SECRET_KEY
+});
+var requireAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  console.log("requireAuth called for:", req.method, req.path);
+  console.log("Auth header received:", authHeader ? authHeader.substring(0, 20) + "..." : "NONE");
+  return clerk.expressRequireAuth({
+    onError: (error) => {
+      console.error("Clerk auth error:", error);
+      console.error("Request headers:", JSON.stringify(req.headers, null, 2));
+      res.status(401).json({ message: "Unauthorized", error: error.message });
+    }
+  })(req, res, async () => {
+    console.log("Clerk auth successful, req.auth:", req.auth);
+    if (req.auth?.userId) {
+      try {
+        req.user = await storage.getUserByClerkId(req.auth.userId);
+        console.log("Detailed user lookup:", req.user ? `Found user ${req.user.id}` : "User not found in DB");
+      } catch (err) {
+        console.error("Error looking up user in DB:", err);
+      }
+    }
+    next();
+  });
+};
+var requireAdmin = async (req, res, next) => {
+  console.log("requireAdmin: Using Clerk auth for", req.path);
+  return clerk.expressRequireAuth({
+    onError: (error) => {
+      console.error("requireAdmin: Clerk auth failed:", error);
+      res.status(401).json({ message: "Authentication required" });
+    }
+  })(req, res, async () => {
+    await checkAdminRole(req, res, next);
+  });
+};
+async function checkAdminRole(req, res, next) {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const dbUser = await storage.getUserByClerkId(req.auth.userId);
+    if (!dbUser || dbUser.role !== "admin") {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    req.user = dbUser;
+    next();
+  } catch (error) {
+    console.error("Error checking admin role:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+var requireSeller = async (req, res, next) => {
+  try {
+    if (!req.auth?.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const dbUser = await storage.getUserByClerkId(req.auth.userId);
+    if (!dbUser || dbUser.role !== "seller") {
+      return res.status(403).json({ message: "Seller access required" });
+    }
+    req.user = dbUser;
+    next();
+  } catch (error) {
+    console.error("Error in requireSeller:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+var requireAdminPermission = (permission) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.auth?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      let adminPerms = await storage.getAdminPermissions(req.auth.userId);
+      if (!adminPerms) {
+        const dbUser = await storage.getUserByClerkId(req.auth.userId);
+        if (!dbUser || dbUser.role !== "admin") {
+          return res.status(403).json({ message: "Admin access required" });
+        }
+        console.log(`[requireAdminPermission] No permissions in DB for admin user ${req.auth.userId}, granting all permissions as super_admin`);
+        adminPerms = {
+          canManageUsers: true,
+          canManageListings: true,
+          canManageProjects: true,
+          canManageBlog: true,
+          canManageCMS: true,
+          canViewAnalytics: true,
+          canManageMessages: true,
+          canManageVerification: true,
+          canManageSettings: true,
+          canManageAdmins: true,
+          canAccessAuditLogs: true,
+          canManageDocuments: true,
+          canResetPasswords: true,
+          canForceLogout: true,
+          adminRole: "super_admin"
+        };
+      }
+      if (!adminPerms?.[permission]) {
+        return res.status(403).json({ message: `Permission '${permission}' required` });
+      }
+      next();
+    } catch (error) {
+      console.error("Error in requireAdminPermission:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+};
+var getClerkUser = async (userId) => {
+  console.log("getClerkUser: Fetching user from Clerk:", userId);
+  try {
+    const user = await clerk.users.getUser(userId);
+    console.log("getClerkUser: Clerk user fetch successful:", !!user);
+    return user;
+  } catch (error) {
+    console.error("getClerkUser: Error fetching Clerk user:", error);
+    return null;
+  }
+};
+
+// server/localAuth.ts
+init_rbac();
+var syncClerkUser = async (clerkUserId) => {
+  console.log("syncClerkUser: Starting sync for userId:", clerkUserId);
+  try {
+    let dbUser = await storage.getUserByClerkId(clerkUserId);
+    console.log("syncClerkUser: Existing user check result:", dbUser ? "FOUND" : "NOT FOUND");
+    if (!dbUser) {
+      console.log("syncClerkUser: User not found, fetching from Clerk...");
+      const clerkUser = await getClerkUser(clerkUserId);
+      console.log("syncClerkUser: Clerk user fetch result:", clerkUser ? "SUCCESS" : "FAILED");
+      if (!clerkUser) {
+        throw new Error("User not found in Clerk");
+      }
+      const email = clerkUser.emailAddresses[0]?.emailAddress;
+      const firstName = clerkUser.firstName || "";
+      const lastName = clerkUser.lastName || "";
+      console.log("syncClerkUser: Extracted user data:", { email, firstName, lastName });
+      if (!email) {
+        throw new Error("User email not found");
+      }
+      const clerkRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role;
+      const role = clerkRole || "buyer";
+      const adminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
+      console.log("syncClerkUser: User role and adminRole:", { role, adminRole });
+      console.log("syncClerkUser: Creating user in database...");
+      dbUser = await storage.upsertUser({
+        clerkId: clerkUserId,
+        email,
+        firstName,
+        lastName,
+        role
+      });
+      console.log("syncClerkUser: User creation result:", dbUser ? "SUCCESS" : "FAILED", "user:", dbUser);
+      console.log("syncClerkUser: Creating user profile...");
+      await storage.createUserProfile({
+        userId: dbUser.id,
+        profileType: "individual",
+        verified: false,
+        // Force onboarding completed as we are defaulting new users to 'buyer' without manual onboarding step
+        onboardingCompleted: true
+      });
+      console.log("syncClerkUser: Profile creation completed");
+      if (role === "admin" && adminRole) {
+        console.log("syncClerkUser: Creating admin permissions...");
+        const permissions = ROLE_PERMISSIONS[adminRole] || ROLE_PERMISSIONS.super_admin;
+        await storage.upsertAdminPermissions({
+          adminUserId: dbUser.id,
+          adminRole,
+          ...permissions
+        });
+      }
+    } else {
+      const clerkUser = await getClerkUser(clerkUserId);
+      if (clerkUser) {
+        const currentRole = clerkUser.publicMetadata?.role || clerkUser.unsafeMetadata?.role || "buyer";
+        const currentAdminRole = clerkUser.publicMetadata?.adminRole || clerkUser.unsafeMetadata?.adminRole;
+        if (dbUser.role !== currentRole) {
+          dbUser = await storage.updateUserRole(dbUser.id, currentRole);
+          if (currentRole === "admin" && currentAdminRole) {
+            const permissions = ROLE_PERMISSIONS[currentAdminRole] || ROLE_PERMISSIONS.super_admin;
+            await storage.upsertAdminPermissions({
+              adminUserId: dbUser.id,
+              adminRole: currentAdminRole,
+              ...permissions
+            });
+          }
+        }
+      }
+    }
+    console.log("syncClerkUser: Final dbUser:", dbUser);
+    return dbUser;
+  } catch (error) {
+    console.error("Error syncing Clerk user:", error);
+    throw error;
+  }
+};
+
+// server/routes.ts
+init_db();
+init_schema();
+init_schema();
 import { ZodError } from "zod";
 import { eq as eq3 } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -3828,7 +3654,7 @@ function formatZodError(error) {
   return error.errors.map((err) => `${err.path.join(".")}: ${err.message}`).join(", ");
 }
 function getUserId(req) {
-  return req.auth?.userId || req.user?.claims?.sub || req.user?.id || null;
+  return req.user?.id || req.auth?.userId || req.user?.claims?.sub || null;
 }
 var testUsersStore = /* @__PURE__ */ new Map([
   ["test-buyer-789", {
@@ -3895,7 +3721,19 @@ var testUsersStore = /* @__PURE__ */ new Map([
     verificationStatus: "approved"
   }]
 ]);
+async function initializeUserTiersFromApprovedRequests() {
+  try {
+    const approvedRequests = await db.select().from(tierUpgradeRequests).where(eq3(tierUpgradeRequests.status, "approved"));
+    for (const request of approvedRequests) {
+      await db.update(users).set({ membershipTier: request.requestedTier }).where(eq3(users.id, request.userId));
+    }
+  } catch (error) {
+    console.error("Error initializing user tiers from approved requests:", error);
+  }
+}
 async function registerRoutes(app2) {
+  await storage.initializeMembershipBenefits();
+  await initializeUserTiersFromApprovedRequests();
   const isAuthenticated = requireAuth;
   const isSeller = requireSeller;
   const isAdmin = requireAdmin;
@@ -4210,7 +4048,15 @@ ${sellerName}`,
   app2.get("/api/marketplace/buyer-requests", async (req, res) => {
     try {
       const requests = await storage.getBuyerRequests();
-      res.json(requests);
+      const userId = getUserId(req);
+      if (userId) {
+        const userRequests = requests.filter((r) => r.buyerId === userId);
+        const otherActiveRequests = requests.filter((r) => r.buyerId !== userId && r.status === "active");
+        res.json([...userRequests, ...otherActiveRequests]);
+      } else {
+        const activeRequests = requests.filter((r) => r.status === "active");
+        res.json(activeRequests);
+      }
     } catch (error) {
       console.error("Error fetching buyer requests:", error);
       res.status(500).json({ message: "Failed to fetch buyer requests" });
@@ -4233,7 +4079,9 @@ ${sellerName}`,
       if (!tierCheck.allowed) {
         return res.status(403).json({
           message: tierCheck.reason || "You have reached your tier limit for active RFQs",
-          tierLimitReached: true
+          tierLimitReached: true,
+          limit: tierCheck.limit,
+          current: tierCheck.current
         });
       }
       const validatedData = insertBuyerRequestSchema.parse({
@@ -4338,11 +4186,11 @@ ${sellerName}`,
       try {
         await storage.createActivityLog({
           userId: req.user.id,
-          action: "admin_create_listing",
-          entityType: "listing",
-          entityId: listing.id,
-          details: `Admin created listing: ${listing.title}`,
-          metadata: { listingId: listing.id, listingType: listing.type }
+          activityType: "listing_created",
+          description: `Admin created listing: "${listing.title || listing.id}"`,
+          ipAddress: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.headers["x-real-ip"] || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get("user-agent") || null,
+          metadata: { listingId: listing.id, listingType: listing.type, isAdminAction: true }
         });
       } catch (logError) {
         console.error("[ACTIVITY LOG] Failed to log listing creation:", logError);
@@ -5321,6 +5169,15 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       res.status(500).json({ message: "Failed to fetch verification queue" });
     }
   });
+  app2.get("/api/admin/rfq-verification-queue", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const rfqs = await storage.getPendingBuyerRequests();
+      res.json(rfqs);
+    } catch (error) {
+      console.error("Error fetching RFQ verification queue:", error);
+      res.status(500).json({ message: "Failed to fetch RFQ verification queue" });
+    }
+  });
   app2.get("/api/admin/stats", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const allUsers = await storage.getAllUsers();
@@ -5340,12 +5197,13 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       const unreadMessages = allMessages.filter((m) => !m.read).length;
       const allBuyerRequests = await db.select().from(buyerRequests);
       const totalRFQs = allBuyerRequests.length;
+      const pendingRFQsCount = allBuyerRequests.filter((r) => r.status === "pending").length;
       return res.json({
         totalUsers,
         admins,
         sellers,
         buyers,
-        pendingVerifications: pendingListings.length,
+        pendingVerifications: pendingListings.length + pendingRFQsCount,
         totalListings,
         approvedListings,
         totalProjects,
@@ -5402,47 +5260,57 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       res.status(500).json({ message: "Failed to approve listing" });
     }
   });
-  app2.post("/api/admin/reject/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app2.post("/api/admin/rfqs/:id/verify", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const reviewerId = req.user.id;
-      const listingId = req.params.id;
-      const listing = await storage.getMarketplaceListingById(listingId);
-      await storage.rejectListing(listingId, reviewerId);
-      if (listing?.sellerId) {
+      const rfqId = req.params.id;
+      const rfq = await storage.getBuyerRequestById(rfqId);
+      await storage.approveBuyerRequest(rfqId, reviewerId);
+      if (rfq?.buyerId) {
         try {
           await storage.createActivityLog({
-            userId: listing.sellerId,
-            activityType: "listing_rejected",
-            description: `Listing "${listing.title || listingId}" was rejected by admin`,
+            userId: rfq.buyerId,
+            activityType: "profile_updated",
+            // Using as placeholder since we don't have rfq_approved
+            description: `RFQ "${rfq.title || rfqId}" was approved by admin`,
             ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
             userAgent: req.get("user-agent") || null,
-            metadata: { listingId, reviewerId }
+            metadata: { rfqId, reviewerId }
           });
         } catch (logError) {
-          console.error("[ACTIVITY LOG] Failed to log listing rejection:", logError);
+          console.error("[ACTIVITY LOG] Failed to log RFQ approval:", logError);
         }
       }
-      try {
-        await storage.logAdminAudit({
-          adminId: reviewerId,
-          action: "listing_rejected",
-          targetType: "listing",
-          targetId: listingId,
-          changes: {
-            title: listing?.title,
-            type: listing?.type,
-            status: "rejected"
-          },
-          ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
-          userAgent: req.get("user-agent") || null
-        });
-      } catch (auditError) {
-        console.error("[ADMIN AUDIT] Failed to log listing rejection:", auditError);
-      }
-      res.json({ message: "Listing rejected successfully" });
+      res.json({ message: "RFQ approved successfully" });
     } catch (error) {
-      console.error("Error rejecting listing:", error);
-      res.status(500).json({ message: "Failed to reject listing" });
+      console.error("Error approving RFQ:", error);
+      res.status(500).json({ message: "Failed to approve RFQ" });
+    }
+  });
+  app2.post("/api/admin/rfqs/:id/reject", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const reviewerId = req.user.id;
+      const rfqId = req.params.id;
+      const rfq = await storage.getBuyerRequestById(rfqId);
+      await storage.rejectBuyerRequest(rfqId, reviewerId);
+      if (rfq?.buyerId) {
+        try {
+          await storage.createActivityLog({
+            userId: rfq.buyerId,
+            activityType: "profile_updated",
+            description: `RFQ "${rfq.title || rfqId}" was rejected by admin`,
+            ipAddress: req.ip || req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || null,
+            userAgent: req.get("user-agent") || null,
+            metadata: { rfqId, reviewerId }
+          });
+        } catch (logError) {
+          console.error("[ACTIVITY LOG] Failed to log RFQ rejection:", logError);
+        }
+      }
+      res.json({ message: "RFQ rejected successfully" });
+    } catch (error) {
+      console.error("Error rejecting RFQ:", error);
+      res.status(500).json({ message: "Failed to reject RFQ" });
     }
   });
   app2.get("/api/admin/users", isAuthenticated, isAdmin, async (req, res) => {
@@ -5725,10 +5593,8 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       const activityType = req.query.activityType;
       const userId = req.query.userId;
       const logs = await storage.getActivityLogs(limit);
-      let filteredLogs = logs.filter((log) => {
-        return log.user?.role !== "admin";
-      });
-      if (activityType) {
+      let filteredLogs = logs;
+      if (activityType && activityType !== "all") {
         filteredLogs = filteredLogs.filter((log) => log.activityType === activityType);
       }
       if (userId) {
@@ -5738,6 +5604,113 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+  app2.get("/api/admin/settings/platform", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+  app2.get("/api/admin/settings/audit", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const logs = await storage.getSettingsAuditLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching settings audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+  app2.patch("/api/admin/settings/platform/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { value } = req.body;
+      const adminId = req.user.id;
+      const settings = await storage.getAllPlatformSettings();
+      const setting = settings.find((s) => s.id === id);
+      const oldValue = setting?.value;
+      const updated = await storage.updatePlatformSetting({ id, value, updatedBy: adminId });
+      if (setting) {
+        await db.insert(settingsAudit).values({
+          settingKey: setting.key,
+          oldValue,
+          newValue: value,
+          changedBy: adminId
+        });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating platform setting:", error);
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
+  app2.get("/api/admin/system/export", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const allListings = await db.select().from(marketplaceListings);
+      const allUsers = await db.select().from(users);
+      const allRFQs = await db.select().from(buyerRequests);
+      const allSettings = await db.select().from(platformSettings);
+      const allProjects = await db.select().from(projects);
+      const exportData = {
+        exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        version: "1.0",
+        data: {
+          listings: allListings,
+          users: allUsers,
+          rfqs: allRFQs,
+          settings: allSettings,
+          projects: allProjects
+        }
+      };
+      res.json(exportData);
+    } catch (error) {
+      console.error("Error exporting platform data:", error);
+      res.status(500).json({ message: "Failed to export platform data" });
+    }
+  });
+  app2.get("/api/membership-benefits", async (req, res) => {
+    try {
+      const benefits = await storage.getAllMembershipBenefits();
+      res.json(benefits);
+    } catch (error) {
+      console.error("Error fetching membership benefits:", error);
+      res.status(500).json({ message: "Failed to fetch membership benefits" });
+    }
+  });
+  app2.put("/api/admin/membership-benefits/:tier", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { tier } = req.params;
+      const benefitData = req.body;
+      const updated = await storage.updateMembershipBenefit(tier, benefitData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating membership benefit:", error);
+      res.status(500).json({ message: "Failed to update membership benefit" });
+    }
+  });
+  app2.post("/api/admin/settings/seed", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const defaultSettings = [
+        { key: "platform_name", value: "Fusion Mining", category: "general", dataType: "string", description: "Display name of the platform" },
+        { key: "commission_rate", value: "5.0", category: "payment", dataType: "number", description: "Default commission percentage" },
+        { key: "maintenance_mode", value: "false", category: "security", dataType: "boolean", description: "Enable global maintenance mode" },
+        { key: "support_email", value: "support@fusionmining.com", category: "general", dataType: "string", description: "Primary support contact" },
+        { key: "max_active_listings_basic", value: "5", category: "general", dataType: "number", description: "Max listings for basic users" }
+      ];
+      for (const setting of defaultSettings) {
+        const existing = await db.select().from(platformSettings).where(eq3(platformSettings.key, setting.key)).limit(1);
+        if (existing.length === 0) {
+          await db.insert(platformSettings).values(setting);
+        }
+      }
+      await storage.initializeMembershipBenefits();
+      res.json({ message: "Settings and benefits seeded successfully" });
+    } catch (error) {
+      console.error("Error seeding platform data:", error);
+      res.status(500).json({ message: "Failed to seed settings/benefits" });
     }
   });
   app2.get("/api/activity-logs/me", isAuthenticated, async (req, res) => {
@@ -6547,6 +6520,29 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
       if (request.userId !== req.user.id) {
         return res.status(403).json({ message: "Unauthorized - request does not belong to user" });
       }
+      const documents = await storage.getTierUpgradeDocuments(requestId);
+      const mandatoryTypes = [
+        "mineral_trading_permit",
+        "certificate_of_incorporation",
+        "company_profile",
+        "shareholder_list",
+        "tax_certificate"
+      ];
+      const uploadedTypes = new Set(documents.map((d) => d.documentType));
+      const missingTypes = mandatoryTypes.filter((type) => !uploadedTypes.has(type));
+      if (missingTypes.length > 0) {
+        const typeLabels = {
+          mineral_trading_permit: "Mineral Trading Permit",
+          certificate_of_incorporation: "Certificate of Incorporation",
+          company_profile: "Company Profile",
+          shareholder_list: "Shareholder/Director List",
+          tax_certificate: "Tax Certificate"
+        };
+        const missingLabels = missingTypes.map((t) => typeLabels[t] || t).join(", ");
+        return res.status(400).json({
+          message: `Missing mandatory documents: ${missingLabels}. Please upload all required documents before submitting.`
+        });
+      }
       const updated = await storage.submitTierUpgradeRequest(requestId);
       res.json({
         success: true,
@@ -6763,6 +6759,17 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
         return res.status(400).json({ message: "Invalid role" });
       }
       await storage.completeOnboarding(userId, role);
+      if (req.auth?.userId) {
+        try {
+          await clerk.users.updateUserMetadata(req.auth.userId, {
+            publicMetadata: {
+              role
+            }
+          });
+        } catch (clerkError) {
+          console.error("Error updating Clerk metadata:", clerkError);
+        }
+      }
       res.json({ success: true });
     } catch (error) {
       console.error("Error completing onboarding:", error);
@@ -6781,6 +6788,26 @@ View thread: /dashboard/messages?threadId=${thread2.id}`;
     } catch (error) {
       console.error("Error creating deletion request:", error);
       res.status(500).json({ message: "Failed to submit deletion request" });
+    }
+  });
+  app2.post("/api/admin/rfqs/:id/verify", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const updated = await storage.updateBuyerRequestStatus(req.params.id, "active");
+      res.json(updated);
+    } catch (error) {
+      console.error("Error verifying RFQ:", error);
+      res.status(500).json({ message: "Failed to verify RFQ" });
+    }
+  });
+  app2.post("/api/admin/rfqs/:id/reject", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { reason } = req.body;
+      if (!reason) return res.status(400).json({ message: "Rejection reason required" });
+      const updated = await storage.rejectBuyerRequest(req.params.id, reason);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error rejecting RFQ:", error);
+      res.status(500).json({ message: "Failed to reject RFQ" });
     }
   });
   const httpServer = createServer(app2);
@@ -6883,11 +6910,9 @@ function serveStatic(app2) {
 }
 
 // server/index.ts
-init_clerk();
 import pg from "pg";
 
 // api/clerk-webhook.ts
-init_storage();
 import { Webhook } from "svix";
 async function clerkWebhookHandler(req, res) {
   const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
@@ -6920,7 +6945,8 @@ async function clerkWebhookHandler(req, res) {
   if (eventType === "user.created" || eventType === "user.updated") {
     const { id, email_addresses, first_name, last_name, image_url, public_metadata, unsafe_metadata } = evt.data;
     const email = email_addresses?.[0]?.email_address;
-    const role = public_metadata?.role || unsafe_metadata?.role || "buyer";
+    const clerkRole = public_metadata?.role || unsafe_metadata?.role;
+    const role = clerkRole || "buyer";
     try {
       console.log(`Upserting user: ${id} (${email})`);
       const user = await storage.upsertUser({
@@ -6937,7 +6963,8 @@ async function clerkWebhookHandler(req, res) {
         await storage.createUserProfile({
           userId: user.id,
           profileType: "individual",
-          verified: false
+          verified: false,
+          onboardingCompleted: !!clerkRole || role === "admin"
         });
       }
       return res.status(200).json({ message: "User updated in database" });
@@ -6963,9 +6990,285 @@ async function clerkWebhookHandler(req, res) {
   return res.status(200).json({ message: "Webhook received" });
 }
 
+// api/login.ts
+import jwt from "jsonwebtoken";
+import { serialize } from "cookie";
+var JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
+var MAX_AGE = 60 * 60 * 24 * 7;
+async function handler(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Method Not Allowed");
+  }
+  const { username, password } = req.body || {};
+  const users2 = {
+    admin: { id: "test-admin-123", username: "admin", password: "admin123", role: "admin", email: "admin@fusionmining.com", firstName: "Admin", lastName: "User" },
+    henry: { id: "test-buyer-789", username: "henry", password: "henry123", role: "buyer", email: "henry@fusionmining.com", firstName: "Henry", lastName: "Pass" },
+    ray: { id: "test-seller-456", username: "ray", password: "ray123", role: "seller", email: "ray@fusionmining.com", firstName: "Ray", lastName: "Pass" }
+  };
+  const user = Object.values(users2).find((u) => u.username === username && u.password === password);
+  if (!user) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+  const token = jwt.sign(
+    { sub: user.id, role: user.role, email: user.email, firstName: user.firstName, lastName: user.lastName },
+    JWT_SECRET,
+    { expiresIn: MAX_AGE }
+  );
+  const cookie = serialize("fm_auth", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE
+  });
+  res.setHeader("Set-Cookie", cookie);
+  res.status(200).json({ success: true, user });
+}
+
+// api/logout.ts
+import { serialize as serialize2 } from "cookie";
+async function handler2(req, res) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).end("Method Not Allowed");
+  }
+  const cookie = serialize2("fm_auth", "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+  res.setHeader("Set-Cookie", cookie);
+  res.status(200).json({ message: "Logout successful" });
+}
+
+// api/auth_user.ts
+import jwt2 from "jsonwebtoken";
+import { parse } from "cookie";
+var JWT_SECRET2 = process.env.JWT_SECRET || "dev-secret-change-me";
+async function handler3(req, res) {
+  try {
+    console.log("Auth handler called, method:", req.method, "auth:", !!req.auth);
+    if (req.method !== "GET") {
+      res.setHeader("Allow", "GET");
+      return res.status(405).end("Method Not Allowed");
+    }
+    if (req.auth?.userId) {
+      console.log("Auth handler: Clerk userId found:", req.auth.userId);
+      const clerkUserId = req.auth.userId;
+      let dbUser = await storage.getUserByClerkId(clerkUserId);
+      console.log("Auth handler: DB user lookup result:", dbUser ? "FOUND" : "NOT FOUND");
+      console.log("Auth handler: Attempting to sync user from Clerk...");
+      try {
+        await syncClerkUser(clerkUserId);
+        console.log("Auth handler: Sync completed, looking up user again...");
+        dbUser = await storage.getUserByClerkId(clerkUserId);
+      } catch (syncError) {
+        console.error("Auth handler: Error syncing Clerk user:", syncError);
+        if (!dbUser) {
+          return res.status(500).json({ message: "Failed to sync user data" });
+        }
+      }
+      if (!dbUser) {
+        console.log("Auth handler: User not found after sync attempt");
+        return res.status(404).json({ message: "User not found" });
+      }
+      console.log("Auth handler: Returning user data for:", dbUser.email);
+      const profile = await storage.getUserProfile(dbUser.id);
+      const onboardingCompleted = dbUser.role === "admin" || (profile?.onboardingCompleted || false);
+      let adminPermissions2 = null;
+      if (dbUser.role === "admin") {
+        try {
+          console.log("[AUTH_USER] User is admin, fetching permissions for:", dbUser.id);
+          adminPermissions2 = await storage.getAdminPermissions(dbUser.id);
+          console.log("[AUTH_USER] Permissions from DB:", JSON.stringify(adminPermissions2, null, 2));
+          if (!adminPermissions2) {
+            console.log("[AUTH_USER] No admin permissions found in DB, providing default super_admin permissions for user:", dbUser.id);
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: "super_admin"
+            };
+            console.log("[AUTH_USER] Default permissions set:", JSON.stringify(adminPermissions2, null, 2));
+          } else {
+            console.log("[AUTH_USER] Using permissions from database");
+          }
+        } catch (permError) {
+          console.error("[AUTH_USER] Error fetching admin permissions:", permError);
+          console.log("[AUTH_USER] Providing default super_admin permissions due to error");
+          adminPermissions2 = {
+            canManageUsers: true,
+            canManageListings: true,
+            canManageProjects: true,
+            canManageBlog: true,
+            canManageCMS: true,
+            canViewAnalytics: true,
+            canManageMessages: true,
+            canManageVerification: true,
+            canManageSettings: true,
+            canManageAdmins: true,
+            canAccessAuditLogs: true,
+            canManageDocuments: true,
+            canResetPasswords: true,
+            canForceLogout: true,
+            adminRole: "super_admin"
+          };
+        }
+      }
+      return res.json({
+        ...dbUser,
+        onboardingCompleted,
+        adminPermissions: adminPermissions2
+      });
+    }
+    const cookieHeader = req.headers?.cookie || "";
+    const cookies = parse(cookieHeader || "");
+    const token = cookies["fm_auth"];
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+    try {
+      const payload = jwt2.verify(token, JWT_SECRET2);
+      const userId = payload.sub;
+      const role = payload.role;
+      let dbUser = null;
+      try {
+        dbUser = await storage.getUser(userId) || await storage.getUserByClerkId(userId);
+      } catch (e) {
+        console.error("Error fetching user from DB:", e);
+      }
+      let adminPermissions2 = null;
+      if (role === "admin") {
+        const adminRole = payload.adminRole || "super_admin";
+        switch (adminRole) {
+          case "super_admin":
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: true,
+              canManageProjects: true,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: true,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: true,
+              canManageAdmins: true,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: true,
+              canForceLogout: true,
+              adminRole: "super_admin"
+            };
+            break;
+          case "verification_admin":
+            adminPermissions2 = {
+              canManageUsers: true,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: false,
+              canManageMessages: true,
+              canManageVerification: true,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: true,
+              canManageDocuments: true,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "verification_admin"
+            };
+            break;
+          case "content_admin":
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: true,
+              canManageCMS: true,
+              canViewAnalytics: false,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: true,
+              canManageAdmins: false,
+              canAccessAuditLogs: false,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "content_admin"
+            };
+            break;
+          case "analytics_admin":
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: true,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: true,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "analytics_admin"
+            };
+            break;
+          default:
+            adminPermissions2 = {
+              canManageUsers: false,
+              canManageListings: false,
+              canManageProjects: false,
+              canManageBlog: false,
+              canManageCMS: false,
+              canViewAnalytics: false,
+              canManageMessages: false,
+              canManageVerification: false,
+              canManageSettings: false,
+              canManageAdmins: false,
+              canAccessAuditLogs: false,
+              canManageDocuments: false,
+              canResetPasswords: false,
+              canForceLogout: false,
+              adminRole: "super_admin"
+            };
+        }
+      }
+      console.log("[AUTH/USER] Retrieved admin permissions for user:", userId, adminPermissions2 ? "admin" : "non-admin");
+      return res.status(200).json({
+        id: userId,
+        role,
+        email: payload.email,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        adminPermissions: adminPermissions2
+      });
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+  } catch (error) {
+    console.error("Auth handler error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 // server/index.ts
+var require2 = createRequire(import.meta.url);
 if (!process.env.CLERK_SECRET_KEY) {
-  __require("dotenv").config({ path: path3.resolve(__dirname, "..", ".env") });
+  try {
+    require2("dotenv").config({ path: path3.resolve(__dirname, "..", ".env") });
+  } catch (e) {
+    console.warn("Failed to load parent .env file:", e);
+  }
 }
 var app = express2();
 app.post("/api/clerk-webhook", express2.json({
@@ -7017,16 +7320,9 @@ app.use((req, res, next) => {
     console.log("Registering routes...");
     const server = await registerRoutes(app);
     console.log("Routes registered");
-    if (app.get("env") === "development") {
-      console.log("Mounting API handlers for development...");
-      const loginHandler = (await Promise.resolve().then(() => (init_login(), login_exports))).default;
-      const logoutHandler = (await Promise.resolve().then(() => (init_logout(), logout_exports))).default;
-      const authUserHandler = (await Promise.resolve().then(() => (init_auth_user(), auth_user_exports))).default;
-      app.post("/api/login", loginHandler);
-      app.post("/api/logout", logoutHandler);
-      app.get("/api/auth/user", requireAuth, authUserHandler);
-      console.log("API handlers mounted");
-    }
+    app.post("/api/login", handler);
+    app.post("/api/logout", handler2);
+    app.get("/api/auth/user", requireAuth, handler3);
     app.use((err, _req, res, _next) => {
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";

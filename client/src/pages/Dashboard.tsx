@@ -161,7 +161,7 @@ export default function Dashboard() {
                   <div className="text-2xl font-bold">{stats?.listingsCount || 0}</div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {isSeller ? "Active marketplace listings" : "Active buyer requests"}
+                  {isSeller ? "Active & Pending listings" : "Active & Pending requests"}
                 </p>
               </CardContent>
             </Card>

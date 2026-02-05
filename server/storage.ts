@@ -202,6 +202,7 @@ export interface IStorage {
   getBuyerRequests(): Promise<BuyerRequestWithBuyer[]>;
   getBuyerRequestById(id: string): Promise<BuyerRequest | undefined>;
   updateBuyerRequestStatus(id: string, status: string): Promise<BuyerRequest>;
+  rejectBuyerRequest(id: string, reason: string): Promise<BuyerRequest>;
 
   // Message Thread operations
   createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
@@ -949,6 +950,19 @@ export class DatabaseStorage implements IStorage {
       .update(buyerRequests)
       .set({
         status,
+        updatedAt: new Date(),
+      })
+      .where(eq(buyerRequests.id, id))
+      .returning();
+    return updated;
+  }
+
+  async rejectBuyerRequest(id: string, reason: string): Promise<BuyerRequest> {
+    const [updated] = await db
+      .update(buyerRequests)
+      .set({
+        status: 'rejected',
+        rejectionReason: reason,
         updatedAt: new Date(),
       })
       .where(eq(buyerRequests.id, id))
@@ -2001,7 +2015,10 @@ export class DatabaseStorage implements IStorage {
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(buyerRequests)
-        .where(eq(buyerRequests.buyerId, userId))
+        .where(and(
+          eq(buyerRequests.buyerId, userId),
+          inArray(buyerRequests.status, ['active', 'pending'])
+        ))
     ]);
 
     const listingsCount = listingsResult[0]?.count || 0;
@@ -2375,7 +2392,7 @@ export class DatabaseStorage implements IStorage {
       .from(buyerRequests)
       .where(and(
         eq(buyerRequests.buyerId, userId),
-        eq(buyerRequests.status, 'active')
+        inArray(buyerRequests.status, ['active', 'pending'])
       ));
     return result[0]?.count || 0;
   }

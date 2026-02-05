@@ -10,6 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 
 export default function DashboardListings() {
   const { user, isAuthenticated } = useAuth();
@@ -19,7 +22,6 @@ export default function DashboardListings() {
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Seller: my listings; Buyer: my requests (filtered client-side)
   const { data: sellerListings, isLoading: loadingListings, isError: errorListings } = useQuery({
@@ -65,67 +67,139 @@ export default function DashboardListings() {
     },
   });
 
-  const filteredSellerListings = useMemo(() => {
-    if (!sellerListings) return [];
-    let list = sellerListings as any[];
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(l =>
-        (l.title || "").toLowerCase().includes(q) ||
-        (l.location || "").toLowerCase().includes(q) ||
-        (l.description || "").toLowerCase().includes(q)
-      );
+  // Combined filtered list search logic
+  const filteredItems = useMemo(() => {
+    let list: any[] = [];
+    if (isSeller) {
+      if (sellerListings) list = [...sellerListings];
+    } else {
+      if (allBuyerRequests) list = (allBuyerRequests as any[]).filter(r => r.buyerId === userId);
     }
-    if (statusFilter !== "all") {
-      list = list.filter(l => (l.status || "").toLowerCase() === statusFilter);
-    }
-    return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [sellerListings, search, statusFilter]);
 
-  const filteredBuyerRequests = useMemo(() => {
-    if (!allBuyerRequests) return [];
-    let list = (allBuyerRequests as any[]).filter(r => r.buyerId === userId);
     const q = search.trim().toLowerCase();
     if (q) {
-      list = list.filter(r =>
-        (r.title || "").toLowerCase().includes(q) ||
-        (r.location || "").toLowerCase().includes(q) ||
-        (r.description || "").toLowerCase().includes(q) ||
-        (r.mineralType || "").toLowerCase().includes(q)
+      list = list.filter(item =>
+        (item.title || "").toLowerCase().includes(q) ||
+        (item.location || "").toLowerCase().includes(q) ||
+        (item.description || "").toLowerCase().includes(q) ||
+        (item.mineralType || "").toLowerCase().includes(q)
       );
     }
-    if (statusFilter !== "all") {
-      list = list.filter(r => (r.status || "").toLowerCase() === statusFilter);
-    }
+
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [allBuyerRequests, userId, search, statusFilter]);
+  }, [sellerListings, allBuyerRequests, userId, isSeller, search]);
 
   if (!isAuthenticated) return null;
 
+  const isLoading = loadingListings || loadingRequests;
+  const isError = errorListings || errorRequests;
+
+  const renderContent = (statusFilter: string | string[]) => {
+    const items = filteredItems.filter(item => {
+      const status = (item.status || "pending").toLowerCase();
+      if (statusFilter === "all") return true;
+      if (Array.isArray(statusFilter)) {
+        return statusFilter.includes(status);
+      }
+      return status === statusFilter;
+    });
+
+    if (items.length === 0) {
+      return (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>No {isSeller ? "listings" : "requests"} found</CardTitle>
+            <CardDescription>
+              {search
+                ? "Try adjusting your search terms."
+                : `You have no ${Array.isArray(statusFilter) ? statusFilter.join("/") : statusFilter} items.`}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {statusFilter !== "all" && !search ? (
+              <p className="text-sm text-muted-foreground">Check other tabs for your items.</p>
+            ) : (
+              isSeller ? (
+                <Link href="/dashboard/create-listing">
+                  <Button variant="secondary" data-testid="cta-create-listing">Create listing</Button>
+                </Link>
+              ) : (
+                <Link href="/dashboard/create-rfq">
+                  <Button variant="secondary" data-testid="cta-browse-marketplace">Create RFQ</Button>
+                </Link>
+              )
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {items.map((item: any) => (
+          <Card key={item.id}>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitle className="truncate">{item.title}</CardTitle>
+                  <CardDescription className="truncate">{item.location || item.country}</CardDescription>
+                </div>
+                <Badge
+                  variant={
+                    (item.status || "active") === 'rejected' ? 'destructive' :
+                      (item.status || "active") === 'pending' ? 'secondary' :
+                        (item.status || "active") === 'active' || (item.status || "active") === 'approved' ? 'default' : 'outline'
+                  }
+                  className="capitalize shrink-0"
+                >
+                  {(item.status || "active").toLowerCase()}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground line-clamp-3 break-words">{item.description}</p>
+
+              {item.status === 'rejected' && item.rejectionReason && (
+                <div className="mt-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
+                  <span className="font-semibold">Rejection Reason:</span> {item.rejectionReason}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 mt-3 text-xs text-muted-foreground">
+                {item.mineralType && <span>Mineral: {item.mineralType}</span>}
+                {item.quantity && <span>Qty: {item.quantity}</span>}
+                {item.budget && <span>Budget: {item.budget}</span>}
+              </div>
+
+              {item.createdAt && (
+                <p className="text-xs text-muted-foreground mt-3">Created {format(new Date(item.createdAt), "MMM d, yyyy")}</p>
+              )}
+
+              {!isSeller && item.status === "active" && (
+                <div className="mt-4 flex justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => closeRequestMutation.mutate(item.id)}
+                    disabled={closeRequestMutation.isPending}
+                    data-testid={`button-close-request-${item.id}`}
+                  >
+                    {closeRequestMutation.isPending ? "Closing..." : "Close RFQ"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto px-6 py-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">{isSeller ? "My Listings" : "My Requests"}</h1>
-        <div className="flex items-center gap-2">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${isSeller ? "listings" : "requests"}...`}
-            className="border rounded-md px-3 py-2 text-sm bg-background"
-            data-testid="input-dashboard-search"
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border rounded-md px-3 py-2 text-sm bg-background"
-            data-testid="select-dashboard-status"
-          >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-            <option value="closed">Closed</option>
-          </select>
+        <div className="flex items-center gap-2 w-full md:w-auto">
           {isSeller && (
             <Link href="/dashboard/create-listing">
               <Button data-testid="button-create-listing">Create listing</Button>
@@ -139,8 +213,18 @@ export default function DashboardListings() {
         </div>
       </div>
 
-      {/* Loading / Error states */}
-      {(loadingListings || loadingRequests) && (
+      <div className="relative mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search ${isSeller ? "listings" : "requests"}...`}
+          className="pl-9 max-w-md"
+          data-testid="input-dashboard-search"
+        />
+      </div>
+
+      {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Array(4).fill(0).map((_, i) => (
             <Card key={i} className="p-4">
@@ -152,7 +236,7 @@ export default function DashboardListings() {
         </div>
       )}
 
-      {(errorListings || errorRequests) && (
+      {isError && (
         <Card className="border-destructive/50">
           <CardHeader>
             <CardTitle className="text-destructive">Failed to load</CardTitle>
@@ -161,96 +245,46 @@ export default function DashboardListings() {
         </Card>
       )}
 
-      {/* Content */}
-      {!loadingListings && !loadingRequests && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {isSeller
-            ? (filteredSellerListings.length === 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>No listings found</CardTitle>
-                    <CardDescription>You have not created any listings yet.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Link href="/dashboard/create-listing">
-                      <Button variant="secondary" data-testid="cta-create-listing">Create listing</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredSellerListings.map((l: any) => (
-                  <Card key={l.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <CardTitle className="truncate">{l.title}</CardTitle>
-                          <CardDescription className="truncate">{l.location}</CardDescription>
-                        </div>
-                        <Badge variant="outline" className="capitalize">{(l.status || "pending").toLowerCase()}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground line-clamp-3">{l.description}</p>
-                      {l.createdAt && (
-                        <p className="text-xs text-muted-foreground mt-3">Created {format(new Date(l.createdAt), "MMM d, yyyy")}</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ))
-            : (filteredBuyerRequests.length === 0 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>No requests found</CardTitle>
-                    <CardDescription>You have not created any buyer requests yet.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Link href="/marketplace">
-                      <Button variant="secondary" data-testid="cta-browse-marketplace">Browse marketplace</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredBuyerRequests.map((r: any) => (
-                  <Card key={r.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <CardTitle className="truncate">{r.title}</CardTitle>
-                          <CardDescription className="truncate">{r.location || r.country}</CardDescription>
-                        </div>
-                        <Badge variant="outline" className="capitalize">{(r.status || "active").toLowerCase()}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground line-clamp-3">{r.description}</p>
-                      <div className="flex flex-wrap gap-2 mt-3 text-xs text-muted-foreground">
-                        {r.mineralType && <span>Mineral: {r.mineralType}</span>}
-                        {r.quantity && <span>Qty: {r.quantity}</span>}
-                        {r.budget && <span>Budget: {r.budget}</span>}
-                      </div>
-                      {r.createdAt && (
-                        <p className="text-xs text-muted-foreground mt-3">Created {format(new Date(r.createdAt), "MMM d, yyyy")}</p>
-                      )}
-                      {r.status === "active" && (
-                        <div className="mt-4 flex justify-end">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => closeRequestMutation.mutate(r.id)}
-                            disabled={closeRequestMutation.isPending}
-                            data-testid={`button-close-request-${r.id}`}
-                          >
-                            {closeRequestMutation.isPending ? "Closing..." : "Close RFQ"}
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ))
-          }
-        </div>
+      {!isLoading && !isError && (
+        <Tabs defaultValue="active" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 max-w-md">
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="pending">Pending</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="active">
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                {isSeller ? "Your approved and live listings." : "Your active requests visible to sellers."}
+              </p>
+            </div>
+            {renderContent(["active", "approved"])}
+          </TabsContent>
+
+          <TabsContent value="pending">
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Items waiting for admin approval.
+              </p>
+            </div>
+            {renderContent("pending")}
+          </TabsContent>
+
+          <TabsContent value="history">
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground">
+                Closed, rejected, or archived items.
+              </p>
+            </div>
+            {renderContent(["closed", "rejected", "archived", "draft"])}
+          </TabsContent>
+
+          <TabsContent value="all">
+            {renderContent("all")}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

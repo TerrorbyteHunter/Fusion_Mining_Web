@@ -493,6 +493,8 @@ export default function Admin() {
   });
 
   const [rejectionDialog, setRejectionDialog] = useState<{ open: boolean, listingId: string | null }>({ open: false, listingId: null });
+  const [rfqRejectionDialog, setRfqRejectionDialog] = useState<{ open: boolean, rfqId: string | null }>({ open: false, rfqId: null });
+  const [rfqRejectionReason, setRfqRejectionReason] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
 
   // Reject listing mutation
@@ -537,6 +539,8 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/rfq-verification-queue"] });
       queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
+      setRfqRejectionDialog({ open: false, rfqId: null });
+      setRfqRejectionReason("");
       toast({ title: "RFQ Rejected", description: "The RFQ has been rejected." });
     },
     onError: (error: any) => {
@@ -1454,7 +1458,7 @@ export default function Admin() {
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  onClick={() => rejectRFQMutation.mutate({ rfqId: rfq.id, reason: 'Rejected by admin' })}
+                                  onClick={() => setRfqRejectionDialog({ open: true, rfqId: rfq.id })}
                                   disabled={rejectRFQMutation.isPending}
                                   data-testid={`button-reject-rfq-${rfq.id}`}
                                 >
@@ -1690,7 +1694,7 @@ export default function Admin() {
                                 </Button>
                                 <Button
                                   variant="destructive"
-                                  onClick={() => rejectRFQMutation.mutate({ rfqId: rfq.id, reason: 'Rejected by admin' })}
+                                  onClick={() => setRfqRejectionDialog({ open: true, rfqId: rfq.id })}
                                   disabled={rejectRFQMutation.isPending}
                                   data-testid={`button-reject-rfq-${rfq.id}`}
                                 >
@@ -2902,6 +2906,44 @@ export default function Admin() {
                 disabled={rejectMutation.isPending || !rejectionReason.trim()}
               >
                 {rejectMutation.isPending ? "Rejecting..." : "Reject Listing"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* RFQ Rejection Reason Dialog */}
+        <Dialog open={rfqRejectionDialog.open} onOpenChange={(open) => !open && setRfqRejectionDialog({ open: false, rfqId: null })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject RFQ</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting this RFQ. This will be visible to the buyer.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="rfq-rejection-reason" className="mb-2 block">Reason for Rejection</Label>
+              <Textarea
+                id="rfq-rejection-reason"
+                placeholder="e.g. Invalid requirements, spam, duplicate..."
+                value={rfqRejectionReason}
+                onChange={(e) => setRfqRejectionReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRfqRejectionDialog({ open: false, rfqId: null })}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (rfqRejectionDialog.rfqId) {
+                    rejectRFQMutation.mutate({ rfqId: rfqRejectionDialog.rfqId, reason: rfqRejectionReason });
+                  }
+                }}
+                disabled={rejectRFQMutation.isPending || !rfqRejectionReason.trim()}
+              >
+                {rejectRFQMutation.isPending ? "Rejecting..." : "Reject RFQ"}
               </Button>
             </DialogFooter>
           </DialogContent>
