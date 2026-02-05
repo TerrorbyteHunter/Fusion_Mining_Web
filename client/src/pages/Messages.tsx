@@ -75,6 +75,16 @@ export default function Messages() {
     enabled: isAuthenticated,
   });
 
+  // Fetch users list (for admin)
+  const { data: allUsers } = useQuery<User[]>({
+    queryKey: ["/api/admin/users"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/users");
+      return res.json();
+    },
+    enabled: user?.role === "admin",
+  });
+
   // If threadId query param is present, auto-open that thread once threads load
   useEffect(() => {
     if (!threads || threads.length === 0) return;
@@ -92,6 +102,24 @@ export default function Messages() {
       // ignore
     }
   }, [threads]);
+
+  // Handle new message from query params (e.g. from Admin Panel)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rid = params.get('recipientId');
+    const isNew = params.get('new') === 'true';
+    if (rid && isNew && allUsers) {
+      const target = allUsers.find((u: User) => u.id === rid);
+      if (target) {
+        setSelectedRecipient({
+          id: target.id,
+          name: `${target.firstName || ''} ${target.lastName || ''}`.trim(),
+          subject: params.get('subject') || "Direct Message"
+        });
+        setMessageDialogOpen(true);
+      }
+    }
+  }, [allUsers]);
 
   // Fetch all messages for the user (used to compute unread per-thread)
   const { data: allMessages } = useQuery<Message[]>({
@@ -326,7 +354,8 @@ export default function Messages() {
   // When threadMessages load, mark unread messages in that thread as read
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
-    const unreadInThread = threadMessages.filter(m => !m.read && m.receiverId === (user?.id || (user as any)?.claims?.sub));
+    const currentUserId = user?.id || (user as any)?.claims?.sub;
+    const unreadInThread = threadMessages.filter(m => !m.read && m.receiverId === currentUserId);
     if (unreadInThread.length > 0) {
       markAsReadMutation.mutate(unreadInThread.map(m => m.id));
     }
@@ -360,7 +389,7 @@ export default function Messages() {
     const isAdmin = user?.role === 'admin';
 
     let base: (MessageThread & { unreadCount?: number })[] = [];
-    
+
     // PRIVACY CONTROL: Admins ONLY see support tickets
     if (isAdmin) {
       base = processedThreads.filter(t => (t as any).isAdminSupport === true);
@@ -368,12 +397,12 @@ export default function Messages() {
       // Non-admins see normal conversations
       switch (activeTab) {
         case "inbox":
-          base = processedThreads.filter(t => 
+          base = processedThreads.filter(t =>
             (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
           );
           break;
         case "projects":
-          base = processedThreads.filter(t => 
+          base = processedThreads.filter(t =>
             (t as any).context === 'project_interest' || !!t.projectId
           );
           break;
@@ -416,16 +445,6 @@ export default function Messages() {
     }
     return list;
   };
-
-  // Fetch users list (for admin)
-  const { data: allUsers } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/admin/users");
-      return res.json();
-    },
-    enabled: user?.role === "admin",
-  });
 
   // Fetch selected user profile for details modal
   const { data: selectedUserProfile } = useQuery<any>({
@@ -473,7 +492,7 @@ export default function Messages() {
             </div>
           </div>
           <p className="text-muted-foreground mt-2">
-            {user?.role === "admin" 
+            {user?.role === "admin"
               ? "Support tickets from users - Manage and resolve support requests"
               : "Manage your conversations about projects and listings"}
           </p>
@@ -539,8 +558,8 @@ export default function Messages() {
                                 {(thread as any).ticketStatus && (
                                   <Badge variant={
                                     (thread as any).ticketStatus === 'open' ? 'outline' :
-                                    (thread as any).ticketStatus === 'in_progress' ? 'secondary' :
-                                    (thread as any).ticketStatus === 'resolved' ? 'default' : 'secondary'
+                                      (thread as any).ticketStatus === 'in_progress' ? 'secondary' :
+                                        (thread as any).ticketStatus === 'resolved' ? 'default' : 'secondary'
                                   }>
                                     {(thread as any).ticketStatus}
                                   </Badge>
@@ -548,7 +567,7 @@ export default function Messages() {
                                 {(thread as any).ticketPriority && (
                                   <Badge variant={
                                     (thread as any).ticketPriority === 'urgent' ? 'destructive' :
-                                    (thread as any).ticketPriority === 'high' ? 'secondary' : 'outline'
+                                      (thread as any).ticketPriority === 'high' ? 'secondary' : 'outline'
                                   }>
                                     {(thread as any).ticketPriority}
                                   </Badge>
@@ -624,130 +643,130 @@ export default function Messages() {
 
                 {user?.role === "admin" && (
                   <>
-                  <TabsContent value="users">
-                    <Tabs value={usersSubTab} onValueChange={setUsersSubTab} className="w-full">
-                      <TabsList className="flex w-full items-center gap-1 mb-2">
-                        <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
-                        <TabsTrigger value="buyers" data-testid="tab-buyers">Buyers</TabsTrigger>
-                        <TabsTrigger value="admins" data-testid="tab-admins">Admins</TabsTrigger>
-                      </TabsList>
+                    <TabsContent value="users">
+                      <Tabs value={usersSubTab} onValueChange={setUsersSubTab} className="w-full">
+                        <TabsList className="flex w-full items-center gap-1 mb-2">
+                          <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
+                          <TabsTrigger value="buyers" data-testid="tab-buyers">Buyers</TabsTrigger>
+                          <TabsTrigger value="admins" data-testid="tab-admins">Admins</TabsTrigger>
+                        </TabsList>
 
-                      <div className="px-1 pb-2">
-                        <input
-                          type="text"
-                          value={userSearchQuery}
-                          onChange={(e) => setUserSearchQuery(e.target.value)}
-                          placeholder="Search users..."
-                          className="w-full text-sm px-3 py-2 border rounded-md bg-background"
-                          data-testid="input-user-search"
-                        />
-                      </div>
+                        <div className="px-1 pb-2">
+                          <input
+                            type="text"
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            placeholder="Search users..."
+                            className="w-full text-sm px-3 py-2 border rounded-md bg-background"
+                            data-testid="input-user-search"
+                          />
+                        </div>
 
-                      <TabsContent value={usersSubTab} className="space-y-2">
-                        {filteredUsers().map((usr) => (
-                          <Card key={usr.id} className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50" data-testid={`user-${usr.id}`} onClick={() => handleViewUserDetails(usr)}>
-                            <CardHeader className="py-3 px-4">
-                              <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex-shrink-0">
-                                    {usr.role === "seller" && <Users className="h-4 w-4 text-blue-500" />}
-                                    {usr.role === "buyer" && <UserCircle className="h-4 w-4 text-green-500" />}
-                                    {usr.role === "admin" && <ShieldCheck className="h-4 w-4 text-purple-500" />}
+                        <TabsContent value={usersSubTab} className="space-y-2">
+                          {filteredUsers().map((usr) => (
+                            <Card key={usr.id} className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50" data-testid={`user-${usr.id}`} onClick={() => handleViewUserDetails(usr)}>
+                              <CardHeader className="py-3 px-4">
+                                <div className="flex items-center justify-between gap-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex-shrink-0">
+                                      {usr.role === "seller" && <Users className="h-4 w-4 text-blue-500" />}
+                                      {usr.role === "buyer" && <UserCircle className="h-4 w-4 text-green-500" />}
+                                      {usr.role === "admin" && <ShieldCheck className="h-4 w-4 text-purple-500" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="font-medium text-sm truncate block">{usr.firstName} {usr.lastName}</span>
+                                      {usr.email && (
+                                        <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div className="min-w-0">
-                                    <span className="font-medium text-sm truncate block">{usr.firstName} {usr.lastName}</span>
-                                    {usr.email && (
-                                      <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
+                                    {user?.role !== 'buyer' && (
+                                      <Eye className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground" />
                                     )}
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
-                                  {user?.role !== 'buyer' && (
-                                    <Eye className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground" />
-                                  )}
-                                </div>
-                              </div>
-                            </CardHeader>
-                          </Card>
-                        ))}
-                        {filteredUsers().length === 0 && (
-                          <Card className="text-center py-12">
-                            <CardContent>
-                              <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                              <p className="text-muted-foreground">No {usersSubTab} found</p>
-                              <p className="text-sm text-muted-foreground/70 mt-1">Users with {usersSubTab} role will appear here</p>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </TabsContent>
-                    </Tabs>
-                  </TabsContent>
+                              </CardHeader>
+                            </Card>
+                          ))}
+                          {filteredUsers().length === 0 && (
+                            <Card className="text-center py-12">
+                              <CardContent>
+                                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                                <p className="text-muted-foreground">No {usersSubTab} found</p>
+                                <p className="text-sm text-muted-foreground/70 mt-1">Users with {usersSubTab} role will appear here</p>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </TabsContent>
 
-                  <TabsContent value="contact-submissions" className="space-y-2">
-                    {contactSubmissionsLoading ? (
-                      Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                    ) : (!contactSubmissions || contactSubmissions.length === 0) ? (
-                      <Card className="text-center py-8">
-                        <CardContent>
-                          <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No contact submissions found</p>
-                          <p className="text-sm text-muted-foreground mt-1">Contact form submissions will appear here.</p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
-                        {contactSubmissions.map((s: any) => (
-                          <Card key={s.id} className="cursor-pointer transition-all hover:shadow-md">
-                            <CardHeader className="p-4">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="font-semibold text-sm truncate">{s.name}</h3>
-                                    <Badge variant={s.status === 'contacted' ? 'default' : s.status === 'resolved' ? 'secondary' : 'outline'}>
-                                      {s.status}
-                                    </Badge>
+                    <TabsContent value="contact-submissions" className="space-y-2">
+                      {contactSubmissionsLoading ? (
+                        Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
+                      ) : (!contactSubmissions || contactSubmissions.length === 0) ? (
+                        <Card className="text-center py-8">
+                          <CardContent>
+                            <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                            <p className="text-muted-foreground">No contact submissions found</p>
+                            <p className="text-sm text-muted-foreground mt-1">Contact form submissions will appear here.</p>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+                          {contactSubmissions.map((s: any) => (
+                            <Card key={s.id} className="cursor-pointer transition-all hover:shadow-md">
+                              <CardHeader className="p-4">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className="font-semibold text-sm truncate">{s.name}</h3>
+                                      <Badge variant={s.status === 'contacted' ? 'default' : s.status === 'resolved' ? 'secondary' : 'outline'}>
+                                        {s.status}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mb-2">{s.email}</p>
+                                    {s.phone && (
+                                      <p className="text-xs text-muted-foreground mb-2">
+                                        <Phone className="h-3 w-3 inline mr-1" />
+                                        <a href={`tel:${s.phone}`} className="text-primary hover:underline">{s.phone}</a>
+                                      </p>
+                                    )}
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Subject: {s.subject}</p>
+                                    <p className="text-xs text-muted-foreground">{format(new Date(s.createdAt), "MMM d, yyyy HH:mm")}</p>
                                   </div>
-                                  <p className="text-xs text-muted-foreground mb-2">{s.email}</p>
-                                  {s.phone && (
-                                    <p className="text-xs text-muted-foreground mb-2">
-                                      <Phone className="h-3 w-3 inline mr-1" />
-                                      <a href={`tel:${s.phone}`} className="text-primary hover:underline">{s.phone}</a>
-                                    </p>
-                                  )}
-                                  <p className="text-xs font-medium text-muted-foreground mb-1">Subject: {s.subject}</p>
-                                  <p className="text-xs text-muted-foreground">{format(new Date(s.createdAt), "MMM d, yyyy HH:mm")}</p>
+                                  <div className="flex flex-col gap-2 flex-shrink-0">
+                                    <Button
+                                      size="sm"
+                                      variant={s.status === 'contacted' ? 'default' : 'outline'}
+                                      onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'contacted' })}
+                                      disabled={s.status === 'contacted' || updateSubmissionStatusMutation.isPending}
+                                    >
+                                      {s.status === 'contacted' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                                      Mark Contacted
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant={s.status === 'resolved' ? 'secondary' : 'destructive'}
+                                      onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })}
+                                      disabled={s.status === 'resolved' || updateSubmissionStatusMutation.isPending}
+                                    >
+                                      {s.status === 'resolved' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
+                                      Mark Resolved
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="flex flex-col gap-2 flex-shrink-0">
-                                  <Button 
-                                    size="sm" 
-                                    variant={s.status === 'contacted' ? 'default' : 'outline'}
-                                    onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'contacted' })} 
-                                    disabled={s.status === 'contacted' || updateSubmissionStatusMutation.isLoading}
-                                  >
-                                    {s.status === 'contacted' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                                    Mark Contacted
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant={s.status === 'resolved' ? 'secondary' : 'destructive'}
-                                    onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })} 
-                                    disabled={s.status === 'resolved' || updateSubmissionStatusMutation.isLoading}
-                                  >
-                                    {s.status === 'resolved' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                                    Mark Resolved
-                                  </Button>
+                                <div className="mt-3 pt-3 border-t">
+                                  <p className="text-sm whitespace-pre-line">{s.message}</p>
                                 </div>
-                              </div>
-                              <div className="mt-3 pt-3 border-t">
-                                <p className="text-sm whitespace-pre-line">{s.message}</p>
-                              </div>
-                            </CardHeader>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </TabsContent>
+                              </CardHeader>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
                   </>
                 )}
               </Tabs>
@@ -1036,7 +1055,7 @@ export default function Messages() {
               View detailed information about this user
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedUserDetails && (
             <div className="space-y-6">
               {/* User Basic Info */}
@@ -1051,7 +1070,7 @@ export default function Messages() {
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-semibold">{selectedUserDetails.firstName} {selectedUserDetails.lastName}</h3>
-                    <VerificationBadge 
+                    <VerificationBadge
                       verificationStatus={selectedUserDetails.verificationStatus}
                       badgeColor={selectedUserDetails.badgeColor as 'bronze' | 'silver' | 'gold' | null}
                       size="sm"
@@ -1170,7 +1189,7 @@ export default function Messages() {
           </div>
           <div className="mt-4 flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setOpenContactAdminDialog(false)}>Cancel</Button>
-            <Button disabled={!contactAdminMessage.trim() || contactAdminMutation.isLoading} onClick={() => {
+            <Button disabled={!contactAdminMessage.trim() || contactAdminMutation.isPending} onClick={() => {
               const payload = {
                 name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || undefined,
                 email: user?.email,
@@ -1178,7 +1197,7 @@ export default function Messages() {
                 message: contactAdminMessage,
               };
               contactAdminMutation.mutate(payload);
-            }}>{contactAdminMutation.isLoading ? 'Sending...' : 'Send'}</Button>
+            }}>{contactAdminMutation.isPending ? 'Sending...' : 'Send'}</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -54,6 +54,7 @@ import {
   type MarketplaceListingWithSeller,
   type InsertMarketplaceListing,
   type BuyerRequest,
+  type BuyerRequestWithBuyer,
   type InsertBuyerRequest,
   type MessageThread,
   type InsertMessageThread,
@@ -198,7 +199,7 @@ export interface IStorage {
 
   // Buyer Request operations
   createBuyerRequest(request: InsertBuyerRequest): Promise<BuyerRequest>;
-  getBuyerRequests(): Promise<BuyerRequest[]>;
+  getBuyerRequests(): Promise<BuyerRequestWithBuyer[]>;
   getBuyerRequestById(id: string): Promise<BuyerRequest | undefined>;
   updateBuyerRequestStatus(id: string, status: string): Promise<BuyerRequest>;
 
@@ -246,6 +247,9 @@ export interface IStorage {
   getPendingListings(): Promise<MarketplaceListing[]>;
   approveListing(listingId: string, reviewerId: string): Promise<void>;
   rejectListing(listingId: string, reviewerId: string): Promise<void>;
+  getPendingBuyerRequests(): Promise<BuyerRequestWithBuyer[]>;
+  approveBuyerRequest(id: string, reviewerId: string): Promise<void>;
+  rejectBuyerRequest(id: string, reviewerId: string): Promise<void>;
 
   // Activity Log operations
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
@@ -894,16 +898,42 @@ export class DatabaseStorage implements IStorage {
 
     const [request] = await db
       .insert(buyerRequests)
-      .values(requestData)
+      .values({
+        ...requestData,
+        status: 'pending', // Always start as pending
+        verified: false,
+      })
       .returning();
+
+    // Create verification queue entry
+    await db.insert(verificationQueue).values({
+      buyerRequestId: request.id,
+    });
+
     return request;
   }
 
-  async getBuyerRequests(): Promise<BuyerRequest[]> {
-    return await db
-      .select()
+  async getBuyerRequests(): Promise<BuyerRequestWithBuyer[]> {
+    const results = await db
+      .select({
+        request: buyerRequests,
+        buyer: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+        profile: userProfiles,
+      })
       .from(buyerRequests)
+      .leftJoin(users, eq(buyerRequests.buyerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .orderBy(desc(buyerRequests.createdAt));
+
+    return results.map(r => ({
+      ...r.request,
+      buyer: r.buyer ? { ...r.buyer, verified: r.profile?.verified ?? false } : null,
+    }));
   }
 
   async getBuyerRequestById(id: string): Promise<BuyerRequest | undefined> {
@@ -1788,6 +1818,69 @@ export class DatabaseStorage implements IStorage {
         reviewedBy: reviewerId,
       })
       .where(eq(verificationQueue.listingId, listingId));
+  }
+
+  async getPendingBuyerRequests(): Promise<BuyerRequestWithBuyer[]> {
+    const results = await db
+      .select({
+        request: buyerRequests,
+        buyer: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+        profile: userProfiles,
+      })
+      .from(buyerRequests)
+      .leftJoin(users, eq(buyerRequests.buyerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+      .where(eq(buyerRequests.status, 'pending'))
+      .orderBy(desc(buyerRequests.createdAt));
+
+    return results.map(r => ({
+      ...r.request,
+      buyer: r.buyer ? { ...r.buyer, verified: r.profile?.verified ?? false } : null,
+    }));
+  }
+
+  async approveBuyerRequest(id: string, reviewerId: string): Promise<void> {
+    await db
+      .update(buyerRequests)
+      .set({
+        status: 'active',
+        verified: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(buyerRequests.id, id));
+
+    // Update verification queue
+    await db
+      .update(verificationQueue)
+      .set({
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId,
+      })
+      .where(eq(verificationQueue.buyerRequestId, id));
+  }
+
+  async rejectBuyerRequest(id: string, reviewerId: string): Promise<void> {
+    await db
+      .update(buyerRequests)
+      .set({
+        status: 'rejected',
+        updatedAt: new Date(),
+      })
+      .where(eq(buyerRequests.id, id));
+
+    // Update verification queue
+    await db
+      .update(verificationQueue)
+      .set({
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId,
+      })
+      .where(eq(verificationQueue.buyerRequestId, id));
   }
 
   // ========================================================================

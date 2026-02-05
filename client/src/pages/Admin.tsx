@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { StatusBadge } from "@/components/StatusBadge";
+import { cn } from "@/lib/utils";
 import {
   Table,
   TableBody,
@@ -38,11 +39,11 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
-import type { MarketplaceListing, User, Message, Project, BuyerRequest } from "@shared/schema";
+import type { MarketplaceListing, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
 import {
   ShieldCheck, Users, Package, MessageSquare, Activity,
   Edit, Trash, Plus, Search, CheckCircle, XCircle,
-  MapPin, Award, RefreshCw
+  MapPin, Award, RefreshCw, TrendingUp
 } from "lucide-react";
 import Messages from "./Messages";
 import { format } from "date-fns";
@@ -102,8 +103,8 @@ export default function Admin() {
     canForceLogout: false,
   });
   const [userRoleTab, setUserRoleTab] = useState<'buyer' | 'seller' | 'admin'>('buyer');
-  const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
-  const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project'>('all');
+  const [listingTypeTab, setListingTypeTab] = useState<'all' | 'mineral' | 'partnership' | 'project' | 'rfqs'>('all');
+  const [verificationQueueTab, setVerificationQueueTab] = useState<'all' | 'mineral' | 'partnership' | 'project' | 'rfqs'>('all');
 
   // Mobile sidebar state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -125,6 +126,8 @@ export default function Admin() {
   const [userSearch, setUserSearch] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [listingStatusFilter, setListingStatusFilter] = useState<string>("all");
+  const [rfqSearch, setRfqSearch] = useState("");
+  const [rfqStatusFilter, setRfqStatusFilter] = useState<string>("all");
   const [editingListing, setEditingListing] = useState<MarketplaceListing | null>(null);
   const [createUserOpen, setCreateUserOpen] = useState(false);
   const [createListingOpen, setCreateListingOpen] = useState(false);
@@ -347,13 +350,23 @@ export default function Admin() {
     }
   }, [isAuthenticated, authLoading, isAdmin, toast]);
 
-  // Fetch verification queue
+  // Fetch verification queue (listings)
   const { data: verificationQueue, isLoading: loadingQueue } = useQuery<MarketplaceListing[]>({
     queryKey: ["/api/admin/verification-queue"],
     enabled: !!isAdmin && (activeTab === "verification" || activeTab === "overview"),
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/verification-queue");
       return (await res.json()) as MarketplaceListing[];
+    },
+  });
+
+  // Fetch RFQ verification queue
+  const { data: rfqVerificationQueue, isLoading: loadingRFQQueue } = useQuery<BuyerRequestWithBuyer[]>({
+    queryKey: ["/api/admin/rfq-verification-queue"],
+    enabled: !!isAdmin && (activeTab === "verification" || activeTab === "overview"),
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/rfq-verification-queue");
+      return (await res.json()) as BuyerRequestWithBuyer[];
     },
   });
 
@@ -449,9 +462,13 @@ export default function Admin() {
   });
 
   // Fetch buyer requests
-  const { data: buyerRequests } = useQuery<BuyerRequest[]>({
+  const { data: buyerRequests, isLoading: loadingRFQs } = useQuery<BuyerRequestWithBuyer[]>({
     queryKey: ["/api/marketplace/buyer-requests"],
-    enabled: !!isAdmin && activeTab === "overview",
+    enabled: !!isAdmin && (activeTab === "overview" || activeTab === "listings"),
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/marketplace/buyer-requests");
+      return (await res.json()) as BuyerRequestWithBuyer[];
+    },
   });
 
   // Fetch consolidated admin stats (server-side counts) to avoid relying on multiple conditional queries
@@ -494,6 +511,36 @@ export default function Admin() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to reject listing", variant: "destructive" });
+    },
+  });
+
+  // Approve RFQ mutation
+  const approveRFQMutation = useMutation({
+    mutationFn: async (rfqId: string) => {
+      return await apiRequest("POST", `/api/admin/rfqs/${rfqId}/verify`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rfq-verification-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
+      toast({ title: "RFQ Approved", description: "The RFQ has been verified and is now live." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to approve RFQ", variant: "destructive" });
+    },
+  });
+
+  // Reject RFQ mutation
+  const rejectRFQMutation = useMutation({
+    mutationFn: async ({ rfqId, reason }: { rfqId: string, reason: string }) => {
+      return await apiRequest("POST", `/api/admin/rfqs/${rfqId}/reject`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/rfq-verification-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/buyer-requests"] });
+      toast({ title: "RFQ Rejected", description: "The RFQ has been rejected." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reject RFQ", variant: "destructive" });
     },
   });
 
@@ -645,6 +692,20 @@ export default function Admin() {
     },
   });
 
+  // Deduplicate listings to prevent duplicate key warnings - defined before early return to satisfy hook rules
+  const deduplicatedListings = useMemo(() => {
+    if (!allListings) return [];
+    const seen = new Set<string>();
+    return allListings.filter((listing) => {
+      if (seen.has(listing.id)) {
+        console.warn(`Duplicate listing found with ID: ${listing.id}`);
+        return false;
+      }
+      seen.add(listing.id);
+      return true;
+    });
+  }, [allListings]);
+
   if (authLoading || !isAuthenticated || !isAdmin) {
     return null;
   }
@@ -678,19 +739,6 @@ export default function Admin() {
     );
   }) || [];
 
-  // Deduplicate listings to prevent duplicate key warnings
-  const deduplicatedListings = useMemo(() => {
-    if (!allListings) return [];
-    const seen = new Set<string>();
-    return allListings.filter((listing) => {
-      if (seen.has(listing.id)) {
-        console.warn(`Duplicate listing found with ID: ${listing.id}`);
-        return false;
-      }
-      seen.add(listing.id);
-      return true;
-    });
-  }, [allListings]);
 
   const filteredListings = deduplicatedListings.filter((l) => {
     if (listingStatusFilter !== "all" && l.status !== listingStatusFilter) return false;
@@ -739,55 +787,78 @@ export default function Admin() {
           {activeTab === "overview" && (
             <div className="p-4 md:p-6 space-y-4 md:space-y-6">
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card className="hover:shadow-lg transition-shadow">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-white to-blue-50/30">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-bold text-blue-900 uppercase tracking-wider">Total Users</CardTitle>
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Users className="h-4 w-4 text-blue-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats.admins} admins, {stats.sellers} sellers, {stats.buyers} buyers
+                    <div className="text-3xl font-extrabold text-blue-950">{stats.totalUsers}</div>
+                    <p className="text-[10px] font-medium text-blue-600 mt-1 uppercase tracking-tight">
+                      {stats.admins} Admins • {stats.sellers} Sellers • {stats.buyers} Buyers
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
+                <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-amber-500 bg-gradient-to-br from-white to-amber-50/30">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Listings</CardTitle>
-                    <Package className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-bold text-amber-900 uppercase tracking-wider">Total Listings</CardTitle>
+                    <div className="p-2 bg-amber-100 rounded-lg">
+                      <Package className="h-4 w-4 text-amber-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalListings}</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats.approvedListings} approved, {stats.pendingVerifications} pending
+                    <div className="text-3xl font-extrabold text-amber-950">{stats.totalListings}</div>
+                    <p className="text-[10px] font-medium text-amber-600 mt-1 uppercase tracking-tight">
+                      {stats.approvedListings} Approved • {stats.pendingVerifications} Pending
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
+                <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500 bg-gradient-to-br from-white to-purple-50/30">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Projects</CardTitle>
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-bold text-purple-900 uppercase tracking-wider">Total RFQs</CardTitle>
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <TrendingUp className="h-4 w-4 text-purple-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalProjects}</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats.activeProjects} active
+                    <div className="text-3xl font-extrabold text-purple-950">{stats.totalRFQs}</div>
+                    <p className="text-[10px] font-medium text-purple-600 mt-1 uppercase tracking-tight">
+                      Active Buyer Requests
                     </p>
                   </CardContent>
                 </Card>
 
-                <Card className="hover:shadow-lg transition-shadow">
+                <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-emerald-500 bg-gradient-to-br from-white to-emerald-50/30">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Messages</CardTitle>
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-bold text-emerald-900 uppercase tracking-wider">Projects</CardTitle>
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <MapPin className="h-4 w-4 text-emerald-600" />
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalMessages}</div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {stats.unreadMessages} unread
+                    <div className="text-3xl font-extrabold text-emerald-950">{stats.totalProjects}</div>
+                    <p className="text-[10px] font-medium text-emerald-600 mt-1 uppercase tracking-tight">
+                      {stats.activeProjects} Active Projects
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-rose-500 bg-gradient-to-br from-white to-rose-50/30">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-bold text-rose-900 uppercase tracking-wider">Messages</CardTitle>
+                    <div className="p-2 bg-rose-100 rounded-lg">
+                      <MessageSquare className="h-4 w-4 text-rose-600" />
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-extrabold text-rose-950">{stats.totalMessages}</div>
+                    <p className="text-[10px] font-medium text-rose-600 mt-1 uppercase tracking-tight">
+                      {stats.unreadMessages} Unread Messages
                     </p>
                   </CardContent>
                 </Card>
@@ -862,18 +933,22 @@ export default function Admin() {
                   <CardDescription>Common admin tasks</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Button onClick={() => setActiveTab("verification")} className="w-full justify-start">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Button onClick={() => setActiveTab("verification")} className="w-full justify-start bg-amber-600 hover:bg-amber-700">
                       <ShieldCheck className="mr-2 h-4 w-4" />
                       Review Pending ({stats.pendingVerifications})
                     </Button>
-                    <Button onClick={() => setActiveTab("users")} variant="outline" className="w-full justify-start">
+                    <Button onClick={() => setActiveTab("users")} variant="outline" className="w-full justify-start border-blue-200 hover:bg-blue-50 text-blue-700">
                       <Users className="mr-2 h-4 w-4" />
                       Manage Users
                     </Button>
-                    <Button onClick={() => setActiveTab("listings")} variant="outline" className="w-full justify-start">
+                    <Button onClick={() => setActiveTab("listings")} variant="outline" className="w-full justify-start border-amber-200 hover:bg-amber-50 text-amber-700">
                       <Package className="mr-2 h-4 w-4" />
                       Manage Listings
+                    </Button>
+                    <Button onClick={() => { setActiveTab("listings"); setListingTypeTab("rfqs"); }} variant="outline" className="w-full justify-start border-purple-200 hover:bg-purple-50 text-purple-700">
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      Manage RFQs
                     </Button>
                   </div>
                 </CardContent>
@@ -1069,11 +1144,12 @@ export default function Admin() {
 
               {/* Listing Type Tabs */}
               <Tabs value={listingTypeTab} onValueChange={(v) => setListingTypeTab(v as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsList className="grid w-full grid-cols-5 mb-6">
                   <TabsTrigger value="all" data-testid="tab-all-listings">All Listings</TabsTrigger>
                   <TabsTrigger value="mineral" data-testid="tab-mineral-listings">Minerals</TabsTrigger>
                   <TabsTrigger value="partnership" data-testid="tab-partnership-listings">Partnerships</TabsTrigger>
                   <TabsTrigger value="project" data-testid="tab-project-listings">Projects</TabsTrigger>
+                  <TabsTrigger value="rfqs" data-testid="tab-rfq-listings" className="text-purple-600 font-bold border-purple-100 hover:bg-purple-50">Buyer RFQs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="all">
@@ -1135,6 +1211,158 @@ export default function Admin() {
                     loading={loadingListings}
                   />
                 </TabsContent>
+
+                <TabsContent value="rfqs">
+                  <div className="space-y-6">
+                    {/* RFQ Specific Search and Filters */}
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          placeholder="Search RFQs by title, category, or description..."
+                          value={rfqSearch}
+                          onChange={(e) => setRfqSearch(e.target.value)}
+                          className="pl-10 border-slate-200 focus:border-purple-400 focus:ring-purple-400"
+                        />
+                      </div>
+                      <Select value={rfqStatusFilter} onValueChange={setRfqStatusFilter}>
+                        <SelectTrigger className="w-full md:w-[200px] border-slate-200">
+                          <SelectValue placeholder="Filter by status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Statuses</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {loadingRFQs ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {[1, 2, 3].map((i) => (
+                          <Card key={i} className="animate-pulse">
+                            <CardHeader className="h-32 bg-slate-100 rounded-t-lg" />
+                            <CardContent className="space-y-2 pt-4">
+                              <div className="h-4 bg-slate-100 rounded w-3/4" />
+                              <div className="h-3 bg-slate-100 rounded w-1/2" />
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {buyerRequests
+                          ?.filter((rfq) => {
+                            if (rfqStatusFilter !== "all" && rfq.status !== rfqStatusFilter) return false;
+                            if (!rfqSearch) return true;
+                            const search = rfqSearch.toLowerCase();
+                            return (
+                              rfq.title.toLowerCase().includes(search) ||
+                              rfq.description.toLowerCase().includes(search) ||
+                              rfq.mainCategory?.toLowerCase().includes(search) ||
+                              rfq.specificType?.toLowerCase().includes(search)
+                            );
+                          })
+                          .map((rfq) => (
+                            <Card key={rfq.id} className="hover:shadow-md transition-all duration-200 border-slate-200 group">
+                              <CardHeader className="pb-2">
+                                <div className="flex justify-between items-center mb-2">
+                                  <div className="flex items-center gap-3">
+                                    <Badge variant={rfq.status === 'active' ? 'default' : 'secondary'} className={cn(
+                                      "h-5 text-[10px] font-bold px-2",
+                                      rfq.status === 'active' ? "bg-emerald-500 hover:bg-emerald-600" : "bg-slate-200 text-slate-700"
+                                    )}>
+                                      {rfq.status.toUpperCase()}
+                                    </Badge>
+
+                                    {rfq.buyer && (
+                                      <div className="flex items-center gap-2 text-[11px] text-slate-500 border-l pl-3 border-slate-200 min-w-0">
+                                        <Users className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                                        <span className="font-bold text-slate-900 truncate max-w-[120px]">
+                                          {`${rfq.buyer.firstName || ''} ${rfq.buyer.lastName || ''}`.trim() || 'Anonymous'}
+                                        </span>
+                                        <span className="text-slate-400 hidden sm:inline truncate max-w-[180px]">
+                                          {rfq.buyer.email}
+                                        </span>
+                                        {rfq.buyer.verified && (
+                                          <ShieldCheck className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {rfq.verified && (
+                                    <Badge className="bg-indigo-100 text-indigo-700 border-indigo-200 h-5 text-[10px]">
+                                      <ShieldCheck className="h-3 w-3 mr-1" />
+                                      Verified RFQ
+                                    </Badge>
+                                  )}
+                                </div>
+                                <CardTitle className="text-lg font-bold group-hover:text-purple-600 transition-colors line-clamp-1">{rfq.title}</CardTitle>
+                                <CardDescription className="line-clamp-2 min-h-[40px]">{rfq.description}</CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-3 pt-0">
+                                <div className="grid grid-cols-2 gap-x-4 gap-y-2 pt-2 border-t border-slate-100">
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Category</p>
+                                    <p className="text-xs font-semibold text-slate-700 capitalize truncate">
+                                      {rfq.mainCategory?.replace(/_/g, ' ') || 'General'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Budget</p>
+                                    <p className="text-xs font-semibold text-purple-600 truncate">
+                                      {rfq.budget || 'Open'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Quantity</p>
+                                    <p className="text-xs font-semibold text-slate-700 truncate">
+                                      {rfq.quantity || 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[10px] uppercase font-bold text-slate-400">Location</p>
+                                    <p className="text-xs font-semibold text-slate-700 line-clamp-1">
+                                      {rfq.location || 'Anywhere'}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="pt-2 flex items-center justify-between border-t border-slate-50">
+                                  <span className="text-[10px] text-slate-400 font-medium">
+                                    Created: {format(new Date(rfq.createdAt), "MMM d, yyyy")}
+                                  </span>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                      onClick={() => navigate(`/marketplace?tab=requests&search=${encodeURIComponent(rfq.title)}`)}
+                                    >
+                                      View
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="h-8 text-xs text-rose-600 border-rose-100 hover:bg-rose-50 hover:text-rose-700">
+                                      Close
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                      </div>
+                    )}
+
+                    {buyerRequests && buyerRequests.length === 0 && !loadingRFQs && (
+                      <div className="py-20 text-center">
+                        <div className="bg-slate-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                          <TrendingUp className="h-10 w-10 text-slate-300" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">No RFQs found</h3>
+                        <p className="text-slate-500 max-w-sm mx-auto">There are currently no buyer requests matching your criteria.</p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
               </Tabs>
             </div>
           )}
@@ -1144,20 +1372,21 @@ export default function Admin() {
             <div className="p-6 space-y-6">
               <div>
                 <h2 className="text-2xl font-bold">Verification Queue</h2>
-                <p className="text-muted-foreground">{pendingListings.length} listings pending approval</p>
+                <p className="text-muted-foreground">{(pendingListings.length + (rfqVerificationQueue?.length || 0))} items pending approval</p>
               </div>
 
               {/* Verification Queue Type Tabs */}
               <Tabs value={verificationQueueTab} onValueChange={(v) => setVerificationQueueTab(v as any)} className="w-full">
-                <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsList className="grid w-full grid-cols-5 mb-6">
                   <TabsTrigger value="all" data-testid="tab-all-verification">All Pending</TabsTrigger>
                   <TabsTrigger value="mineral" data-testid="tab-mineral-verification">Minerals</TabsTrigger>
                   <TabsTrigger value="partnership" data-testid="tab-partnership-verification">Partnerships</TabsTrigger>
                   <TabsTrigger value="project" data-testid="tab-project-verification">Projects</TabsTrigger>
+                  <TabsTrigger value="rfqs" data-testid="tab-rfq-verification">RFQs</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="all">
-                  {loadingQueue ? (
+                  {loadingQueue || loadingRFQQueue ? (
                     <div className="space-y-4">
                       {[1, 2, 3].map((i) => (
                         <Card key={i}>
@@ -1168,16 +1397,17 @@ export default function Admin() {
                         </Card>
                       ))}
                     </div>
-                  ) : pendingListings.length === 0 ? (
+                  ) : (pendingListings.length === 0 && (!rfqVerificationQueue || rfqVerificationQueue.length === 0)) ? (
                     <Card>
                       <CardContent className="py-12 text-center">
                         <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                        <p className="text-lg font-semibold">No pending listings</p>
-                        <p className="text-muted-foreground">All listings have been reviewed</p>
+                        <p className="text-lg font-semibold">No pending items</p>
+                        <p className="text-muted-foreground">All items have been reviewed</p>
                       </CardContent>
                     </Card>
                   ) : (
                     <div className="space-y-4">
+                      {/* Pending Listings */}
                       {pendingListings.map((l) => (
                         <VerificationCard
                           key={l.id}
@@ -1186,6 +1416,113 @@ export default function Admin() {
                           onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
+                      ))}
+
+                      {/* Pending RFQs */}
+                      {rfqVerificationQueue && rfqVerificationQueue.map((rfq) => (
+                        <Card key={rfq.id}>
+                          <CardHeader className="pb-3 px-6 pt-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CardTitle className="text-lg">{rfq.title}</CardTitle>
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">RFQ</Badge>
+                                </div>
+                                <CardDescription className="flex items-center gap-2 mt-1">
+                                  {rfq.buyer ? (
+                                    <div className="flex items-center gap-2 bg-purple-50 px-2 py-0.5 rounded text-[11px] border border-purple-100">
+                                      <Users className="h-3 w-3 text-purple-600" />
+                                      <span className="font-semibold text-purple-700">
+                                        {rfq.buyer.firstName} {rfq.buyer.lastName}
+                                      </span>
+                                      <span className="text-purple-400">({rfq.buyer.email})</span>
+                                      {rfq.buyer.verified && <ShieldCheck className="h-3 w-3 text-emerald-500" />}
+                                    </div>
+                                  ) : (
+                                    <span>Submitted by User ID: {rfq.buyerId}</span>
+                                  )}
+                                </CardDescription>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => approveRFQMutation.mutate(rfq.id)}
+                                  disabled={approveRFQMutation.isPending}
+                                  data-testid={`button-approve-rfq-${rfq.id}`}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => rejectRFQMutation.mutate({ rfqId: rfq.id, reason: 'Rejected by admin' })}
+                                  disabled={rejectRFQMutation.isPending}
+                                  data-testid={`button-reject-rfq-${rfq.id}`}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="px-6 pb-6 border-t pt-4">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Description:</p>
+                                <p className="text-sm">{rfq.description}</p>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t">
+                                {rfq.mainCategory && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Category</p>
+                                    <p className="text-sm font-semibold capitalize">{rfq.mainCategory.replace(/_/g, ' ')}</p>
+                                  </div>
+                                )}
+                                {rfq.specificType && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Type</p>
+                                    <p className="text-sm font-semibold">{rfq.specificType}</p>
+                                  </div>
+                                )}
+                                {rfq.mineralType && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Mineral</p>
+                                    <p className="text-sm font-semibold">{rfq.mineralType}</p>
+                                  </div>
+                                )}
+                                {rfq.quantity && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Quantity</p>
+                                    <p className="text-sm font-semibold">{rfq.quantity}</p>
+                                  </div>
+                                )}
+                                {rfq.budget && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Budget</p>
+                                    <p className="text-sm font-semibold">{rfq.budget}</p>
+                                  </div>
+                                )}
+                                {rfq.location && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Location</p>
+                                    <p className="text-sm font-semibold">{rfq.location}</p>
+                                  </div>
+                                )}
+                                {rfq.country && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Country</p>
+                                    <p className="text-sm font-semibold">{rfq.country}</p>
+                                  </div>
+                                )}
+                                {rfq.createdAt && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Submitted</p>
+                                    <p className="text-sm font-semibold">{format(new Date(rfq.createdAt), "MMM d, yyyy")}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   )}
@@ -1291,6 +1628,137 @@ export default function Admin() {
                           onReject={() => setRejectionDialog({ open: true, listingId: l.id })}
                           loading={approveMutation.isPending || rejectMutation.isPending}
                         />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="rfqs">
+                  {loadingRFQQueue ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i}>
+                          <CardHeader>
+                            <Skeleton className="h-6 w-3/4" />
+                            <Skeleton className="h-4 w-1/2 mt-2" />
+                          </CardHeader>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : !rfqVerificationQueue || rfqVerificationQueue.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <CheckCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-lg font-semibold">No pending RFQs</p>
+                        <p className="text-muted-foreground">All RFQ requests have been reviewed</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {rfqVerificationQueue.map((rfq) => (
+                        <Card key={rfq.id}>
+                          <CardHeader className="pb-3 px-6 pt-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CardTitle className="text-lg">{rfq.title}</CardTitle>
+                                  <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">RFQ</Badge>
+                                </div>
+                                <CardDescription className="flex items-center gap-2 mt-1">
+                                  {rfq.buyer ? (
+                                    <div className="flex items-center gap-2 bg-purple-50 px-2 py-0.5 rounded text-[11px] border border-purple-100">
+                                      <Users className="h-3 w-3 text-purple-600" />
+                                      <span className="font-semibold text-purple-700">
+                                        {rfq.buyer.firstName} {rfq.buyer.lastName}
+                                      </span>
+                                      <span className="text-purple-400">({rfq.buyer.email})</span>
+                                      {rfq.buyer.verified && <ShieldCheck className="h-3 w-3 text-emerald-500" />}
+                                    </div>
+                                  ) : (
+                                    <span>Submitted by User ID: {rfq.buyerId}</span>
+                                  )}
+                                </CardDescription>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => approveRFQMutation.mutate(rfq.id)}
+                                  disabled={approveRFQMutation.isPending}
+                                  data-testid={`button-approve-rfq-${rfq.id}`}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => rejectRFQMutation.mutate({ rfqId: rfq.id, reason: 'Rejected by admin' })}
+                                  disabled={rejectRFQMutation.isPending}
+                                  data-testid={`button-reject-rfq-${rfq.id}`}
+                                >
+                                  <XCircle className="mr-2 h-4 w-4" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="px-6 pb-6 border-t pt-4">
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Description:</p>
+                                <p className="text-sm">{rfq.description}</p>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2 border-t">
+                                {rfq.mainCategory && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Category</p>
+                                    <p className="text-sm font-semibold capitalize">{rfq.mainCategory.replace(/_/g, ' ')}</p>
+                                  </div>
+                                )}
+                                {rfq.specificType && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Type</p>
+                                    <p className="text-sm font-semibold">{rfq.specificType}</p>
+                                  </div>
+                                )}
+                                {rfq.mineralType && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Mineral</p>
+                                    <p className="text-sm font-semibold">{rfq.mineralType}</p>
+                                  </div>
+                                )}
+                                {rfq.quantity && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Quantity</p>
+                                    <p className="text-sm font-semibold">{rfq.quantity}</p>
+                                  </div>
+                                )}
+                                {rfq.budget && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Budget</p>
+                                    <p className="text-sm font-semibold">{rfq.budget}</p>
+                                  </div>
+                                )}
+                                {rfq.location && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Location</p>
+                                    <p className="text-sm font-semibold">{rfq.location}</p>
+                                  </div>
+                                )}
+                                {rfq.country && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Country</p>
+                                    <p className="text-sm font-semibold">{rfq.country}</p>
+                                  </div>
+                                )}
+                                {rfq.createdAt && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mb-1">Submitted</p>
+                                    <p className="text-sm font-semibold">{format(new Date(rfq.createdAt), "MMM d, yyyy")}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   )}
@@ -2142,7 +2610,6 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Settings Tab */}
           {activeTab === "settings" && adminPermissions?.canManageSettings && (
             <div className="p-6 space-y-6">
               <div>

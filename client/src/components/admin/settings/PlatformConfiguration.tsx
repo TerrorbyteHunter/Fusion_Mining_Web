@@ -12,8 +12,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sliders, Award, Percent, Palette, Plus, Check, X, Save, ChevronDown, Clock, Edit2 } from "lucide-react";
+import { Sliders, Award, Percent, Save, ChevronDown, Clock, Edit2, Database } from "lucide-react";
 import type { PlatformSetting, MembershipBenefit, SettingsAudit } from "@shared/schema";
+import { cn } from "@/lib/utils";
 
 export function PlatformConfiguration() {
   const { toast } = useToast();
@@ -28,7 +29,7 @@ export function PlatformConfiguration() {
     visibilityRanking: 3,
   });
 
-  const { data: platformSettings, refetch: refetchSettings } = useQuery<PlatformSetting[]>({
+  const { data: platformSettings } = useQuery<PlatformSetting[]>({
     queryKey: ["/api/admin/settings/platform"],
   });
 
@@ -37,7 +38,7 @@ export function PlatformConfiguration() {
     enabled: showAuditLogs,
   });
 
-  const { data: benefits, refetch: refetchBenefits } = useQuery<MembershipBenefit[]>({
+  const { data: benefits } = useQuery<MembershipBenefit[]>({
     queryKey: ["/api/membership-benefits"],
   });
 
@@ -53,6 +54,17 @@ export function PlatformConfiguration() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update setting", variant: "destructive" });
+    },
+  });
+
+  const seedSettingsMutation = useMutation({
+    mutationFn: async () => apiRequest("POST", "/api/admin/settings/seed"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/settings/platform"] });
+      toast({ title: "Success", description: "Default settings seeded" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to seed settings", variant: "destructive" });
     },
   });
 
@@ -97,14 +109,22 @@ export function PlatformConfiguration() {
     if (!setting) return;
 
     // Numeric and boolean settings cannot be empty
-    if ((setting.dataType === 'number' || setting.dataType === 'boolean') && editingValue.trim() === '') {
-      toast({ title: "Validation Error", description: `${setting.dataType === 'number' ? 'Number' : 'Boolean'} settings cannot be empty`, variant: "destructive" });
+    if (((setting.dataType as string) === 'number' || (setting.dataType as string) === 'boolean') && editingValue.trim() === '') {
+      toast({
+        title: "Validation Error",
+        description: `${setting.dataType === 'number' ? 'Number' : 'Boolean'} settings cannot be empty`,
+        variant: "destructive"
+      });
       return;
     }
 
-    // Validate number format
+    // Number validation
     if (setting.dataType === 'number' && isNaN(Number(editingValue))) {
-      toast({ title: "Validation Error", description: "Value must be a valid number", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Value must be a valid number",
+        variant: "destructive"
+      });
       return;
     }
 
@@ -142,33 +162,9 @@ export function PlatformConfiguration() {
       );
     }
 
-    if (setting.dataType === 'boolean') {
-      return (
-        <div className="flex items-center gap-2">
-          <Switch
-            checked={editingValue === 'true'}
-            onCheckedChange={(checked) => setEditingValue(checked ? 'true' : 'false')}
-            data-testid={`switch-${setting.key}`}
-          />
-          <Button
-            size="sm"
-            onClick={() => handleSaveSetting(setting.id)}
-            disabled={updateSettingMutation.isPending}
-            data-testid={`button-save-${setting.key}`}
-          >
-            <Save className="h-3 w-3 mr-1" />
-            Save
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleCancelEdit}>
-            Cancel
-          </Button>
-        </div>
-      );
-    }
-
     // Real-time validation
     const isEmpty = editingValue.trim() === '';
-    const isNumericOrBoolean = setting.dataType === 'number' || setting.dataType === 'boolean';
+    const isNumericOrBoolean = (setting.dataType as string) === 'number' || (setting.dataType as string) === 'boolean';
     const isInvalidNumber = setting.dataType === 'number' && !isEmpty && isNaN(Number(editingValue));
     const hasValidationError = (isNumericOrBoolean && isEmpty) || isInvalidNumber;
 
@@ -210,7 +206,7 @@ export function PlatformConfiguration() {
   };
 
   // Filter settings by category
-  const filteredSettings = platformSettings?.filter(setting => 
+  const filteredSettings = platformSettings?.filter(setting =>
     categoryFilter === 'all' || setting.category === categoryFilter
   );
 
@@ -225,6 +221,26 @@ export function PlatformConfiguration() {
             <div className="flex items-center gap-2">
               <Sliders className="h-5 w-5" />
               <CardTitle>Platform Settings</CardTitle>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAuditLogs(!showAuditLogs)}
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                {showAuditLogs ? "Hide Audit Logs" : "Show Audit Logs"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                onClick={() => seedSettingsMutation.mutate()}
+                disabled={seedSettingsMutation.isPending}
+              >
+                <Database className={cn("h-4 w-4 mr-2", seedSettingsMutation.isPending && "animate-spin")} />
+                Seed Defaults
+              </Button>
             </div>
           </div>
           <CardDescription>Configure platform-wide settings with inline editing</CardDescription>
@@ -310,10 +326,10 @@ export function PlatformConfiguration() {
                         <TableBody>
                           {auditLogs.map((log) => (
                             <TableRow key={log.id}>
-                              <TableCell className="font-mono text-sm">{log.settingKey}</TableCell>
-                              <TableCell className="text-muted-foreground">{log.oldValue}</TableCell>
-                              <TableCell className="font-medium">{log.newValue}</TableCell>
-                              <TableCell className="text-sm">
+                              <TableCell className="font-mono text-xs">{log.settingKey}</TableCell>
+                              <TableCell className="text-xs">{log.oldValue}</TableCell>
+                              <TableCell className="text-xs">{log.newValue}</TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
                                 {new Date(log.changedAt).toLocaleString()}
                               </TableCell>
                             </TableRow>
@@ -322,15 +338,21 @@ export function PlatformConfiguration() {
                       </Table>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">No changes recorded yet</p>
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      No audit logs found
+                    </div>
                   )}
                 </CollapsibleContent>
               </Collapsible>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground mb-4">No platform settings configured</p>
-              <p className="text-xs text-muted-foreground">Click "Seed Settings" to populate default configuration</p>
+            <div className="text-center py-12">
+              <Database className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No Platform Settings</h3>
+              <p className="text-muted-foreground mb-6">Initialize your platform with default settings.</p>
+              <Button onClick={() => seedSettingsMutation.mutate()} disabled={seedSettingsMutation.isPending}>
+                Seed Default Settings
+              </Button>
             </div>
           )}
         </CardContent>
@@ -338,111 +360,91 @@ export function PlatformConfiguration() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="h-5 w-5" />
-              <CardTitle>Membership Tiers</CardTitle>
-            </div>
+          <div className="flex items-center gap-2">
+            <Award className="h-5 w-5" />
+            <CardTitle>Membership Benefits</CardTitle>
           </div>
-          <CardDescription>Configure pricing and features for each membership tier</CardDescription>
+          <CardDescription>Control feature limits for different user tiers</CardDescription>
         </CardHeader>
         <CardContent>
-          {benefits && benefits.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-3">
-              {benefits.map((benefit) => (
-                <Card key={benefit.tier} data-testid={`card-tier-${benefit.tier}`}>
-                  <CardHeader>
-                    <CardTitle className="capitalize flex items-center justify-between">
-                      <span className="text-lg">{benefit.tier}</span>
-                      <Badge variant={benefit.tier === 'premium' ? 'default' : 'secondary'} className="text-base px-3">
-                        ${benefit.monthlyPrice}/mo
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {editingBenefit === benefit.tier ? (
-                      <div className="space-y-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor={`max-rfqs-${benefit.tier}`}>Max Active RFQs</Label>
-                          <Input
-                            id={`max-rfqs-${benefit.tier}`}
-                            type="number"
-                            value={benefitForm.maxActiveRFQs}
-                            onChange={(e) => setbenefitForm({ ...benefitForm, maxActiveRFQs: parseInt(e.target.value) })}
-                            data-testid={`input-max-rfqs-${benefit.tier}`}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor={`price-${benefit.tier}`}>Monthly Price ($)</Label>
-                          <Input
-                            id={`price-${benefit.tier}`}
-                            value={benefitForm.monthlyPrice}
-                            onChange={(e) => setbenefitForm({ ...benefitForm, monthlyPrice: e.target.value })}
-                            data-testid={`input-price-${benefit.tier}`}
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button onClick={handleSaveBenefit} disabled={updateBenefitMutation.isPending} data-testid={`button-save-${benefit.tier}`}>
-                            Save
-                          </Button>
-                          <Button variant="outline" onClick={() => setEditingBenefit(null)}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Max Listings</span>
-                            <Badge variant="outline">
-                              {benefit.maxActiveRFQs === -1 ? 'Unlimited' : benefit.maxActiveRFQs}
-                            </Badge>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Analytics</span>
-                            {benefit.canAccessAnalytics ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <X className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Direct Messaging</span>
-                            {benefit.canDirectMessage ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <X className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Priority Support</span>
-                            {benefit.prioritySupport ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <X className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm text-muted-foreground">Search Ranking</span>
-                            <Badge variant="outline">Rank {benefit.visibilityRanking}</Badge>
-                          </div>
-                        </div>
-                        <Button className="w-full" variant="outline" onClick={() => handleEditBenefit(benefit.tier)} data-testid={`button-edit-${benefit.tier}`}>
-                          Edit Tier
-                        </Button>
-                      </div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {['basic', 'standard', 'premium'].map((tier) => {
+              const benefit = benefits?.find((b) => b.tier === tier);
+              const isEditing = editingBenefit === tier;
+
+              return (
+                <div key={tier} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Badge variant={tier === 'gold' ? 'default' : 'outline'} className="capitalize">
+                      {tier}
+                    </Badge>
+                    {!isEditing && (
+                      <Button variant="ghost" size="sm" onClick={() => handleEditBenefit(tier)}>
+                        Edit
+                      </Button>
                     )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground mb-4">No membership tiers configured</p>
-              <p className="text-xs text-muted-foreground">Click "Seed Tiers" to populate default membership tiers (Basic, Standard, Premium)</p>
-            </div>
-          )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Max Active RFQs</Label>
+                      {isEditing ? (
+                        <Input
+                          type="number"
+                          value={benefitForm.maxActiveRFQs}
+                          onChange={(e) => setbenefitForm({ ...benefitForm, maxActiveRFQs: parseInt(e.target.value) })}
+                        />
+                      ) : (
+                        <p className="font-medium">{benefit?.maxActiveRFQs || 0}</p>
+                      )}
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Monthly Price</Label>
+                      {isEditing ? (
+                        <Input
+                          value={benefitForm.monthlyPrice}
+                          onChange={(e) => setbenefitForm({ ...benefitForm, monthlyPrice: e.target.value })}
+                        />
+                      ) : (
+                        <p className="font-medium">${benefit?.monthlyPrice || '0.00'}</p>
+                      )}
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-xs text-muted-foreground">Visibility Ranking</Label>
+                      {isEditing ? (
+                        <Select
+                          value={benefitForm.visibilityRanking.toString()}
+                          onValueChange={(val) => setbenefitForm({ ...benefitForm, visibilityRanking: parseInt(val) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 (Highest)</SelectItem>
+                            <SelectItem value="2">2</SelectItem>
+                            <SelectItem value="3">3 (Normal)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="font-medium">Level {benefit?.visibilityRanking || 3}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditing && (
+                    <div className="flex gap-2 pt-2">
+                      <Button size="sm" className="flex-1" onClick={handleSaveBenefit} disabled={updateBenefitMutation.isPending}>
+                        Save
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingBenefit(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 
@@ -450,44 +452,18 @@ export function PlatformConfiguration() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Percent className="h-5 w-5" />
-            <CardTitle>Commission Rates</CardTitle>
+            <CardTitle>Commission Structure</CardTitle>
           </div>
-          <CardDescription>Platform commission on transactions</CardDescription>
+          <CardDescription>Default transactional fees and rates</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              <div>
-                <p className="font-medium">Standard Commission</p>
-                <p className="text-sm text-muted-foreground">Applied to all marketplace transactions</p>
-              </div>
-              <Badge variant="outline" className="text-lg px-3">5%</Badge>
+          <div className="flex items-center justify-between p-4 bg-muted rounded-md">
+            <div className="space-y-1">
+              <p className="font-medium">Standard Marketplace Commission</p>
+              <p className="text-sm text-muted-foreground italic">Applied to all successful project closures</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Palette className="h-5 w-5" />
-            <CardTitle>Platform Branding</CardTitle>
-          </div>
-          <CardDescription>Company name, logo, and visual identity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Company Name</Label>
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
-                <span className="font-medium">Fusion Mining Limited</span>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Platform Tagline</Label>
-              <div className="flex items-center justify-between p-3 bg-muted rounded-md">
-                <span className="text-muted-foreground">B2B Mining Marketplace & Investment Platform</span>
-              </div>
+            <div className="text-2xl font-bold text-purple-600">
+              {platformSettings?.find(s => s.key === 'commission_rate')?.value || '0.0'}%
             </div>
           </div>
         </CardContent>

@@ -10,7 +10,7 @@ import { getClerkUser, clerk } from "./clerk";
 import { ROLE_PERMISSIONS } from "./rbac";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, marketplaceListings, projects, messages, buyerRequests, expressInterest, messageThreads, notifications, blogPosts, contactSubmissions, contactSettings, activityLogs } from "@shared/schema";
+import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, marketplaceListings, projects, messages, buyerRequests, expressInterest, messageThreads, notifications, blogPosts, contactSubmissions, contactSettings, activityLogs, platformSettings, membershipBenefits } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import { eq, desc, and, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
@@ -690,10 +690,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/marketplace/buyer-requests', async (req, res) => {
+  app.get('/api/marketplace/buyer-requests', async (req: any, res) => {
     try {
       const requests = await storage.getBuyerRequests();
-      res.json(requests);
+
+      // Check if user is authenticated
+      const userId = getUserId(req);
+
+      if (userId) {
+        // Authenticated users can see all their own requests (including pending)
+        // and all active requests from others
+        const userRequests = requests.filter(r => r.buyerId === userId);
+        const otherActiveRequests = requests.filter(r => r.buyerId !== userId && r.status === 'active');
+        res.json([...userRequests, ...otherActiveRequests]);
+      } else {
+        // Public view: only show active requests
+        const activeRequests = requests.filter(r => r.status === 'active');
+        res.json(activeRequests);
+      }
     } catch (error) {
       console.error("Error fetching buyer requests:", error);
       res.status(500).json({ message: "Failed to fetch buyer requests" });
@@ -850,11 +864,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         await storage.createActivityLog({
           userId: req.user!.id,
-          action: 'admin_create_listing',
-          entityType: 'listing',
-          entityId: listing.id,
-          details: `Admin created listing: ${listing.title}`,
-          metadata: { listingId: listing.id, listingType: listing.type },
+          activityType: 'listing_created',
+          description: `Admin created listing: "${listing.title || listing.id}"`,
+          ipAddress: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || (req.headers['x-real-ip'] as string) || req.ip || req.socket.remoteAddress || null,
+          userAgent: req.get('user-agent') || null,
+          metadata: { listingId: listing.id, listingType: listing.type, isAdminAction: true },
         });
       } catch (logError) {
         console.error('[ACTIVITY LOG] Failed to log listing creation:', logError);
@@ -2082,6 +2096,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/admin/rfq-verification-queue', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const rfqs = await storage.getPendingBuyerRequests();
+      res.json(rfqs);
+    } catch (error) {
+      console.error("Error fetching RFQ verification queue:", error);
+      res.status(500).json({ message: "Failed to fetch RFQ verification queue" });
+    }
+  });
+
   // Consolidated admin statistics used by the Admin overview dashboard
   app.get('/api/admin/stats', isAuthenticated, isAdmin, async (req, res) => {
     try {
@@ -2181,52 +2205,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/admin/reject/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+
+
+  app.post('/api/admin/rfqs/:id/verify', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const reviewerId = req.user.id;
-      const listingId = req.params.id;
-      const listing = await storage.getMarketplaceListingById(listingId);
-      await storage.rejectListing(listingId, reviewerId);
+      const rfqId = req.params.id;
+      const rfq = await storage.getBuyerRequestById(rfqId);
+      await storage.approveBuyerRequest(rfqId, reviewerId);
 
-      // Log activity for seller
-      if (listing?.sellerId) {
+      // Log activity for buyer
+      if (rfq?.buyerId) {
         try {
           await storage.createActivityLog({
-            userId: listing.sellerId,
-            activityType: 'listing_rejected',
-            description: `Listing "${listing.title || listingId}" was rejected by admin`,
+            userId: rfq.buyerId,
+            activityType: 'profile_updated', // Using as placeholder since we don't have rfq_approved
+            description: `RFQ "${rfq.title || rfqId}" was approved by admin`,
             ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
             userAgent: req.get('user-agent') || null,
-            metadata: { listingId, reviewerId },
+            metadata: { rfqId, reviewerId },
           });
         } catch (logError) {
-          console.error('[ACTIVITY LOG] Failed to log listing rejection:', logError);
+          console.error('[ACTIVITY LOG] Failed to log RFQ approval:', logError);
         }
       }
 
-      // Log admin audit trail
-      try {
-        await storage.logAdminAudit({
-          adminId: reviewerId,
-          action: 'listing_rejected',
-          targetType: 'listing',
-          targetId: listingId,
-          changes: {
-            title: listing?.title,
-            type: listing?.type,
-            status: 'rejected'
-          },
-          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
-          userAgent: req.get('user-agent') || null,
-        });
-      } catch (auditError) {
-        console.error('[ADMIN AUDIT] Failed to log listing rejection:', auditError);
+      res.json({ message: "RFQ approved successfully" });
+    } catch (error) {
+      console.error("Error approving RFQ:", error);
+      res.status(500).json({ message: "Failed to approve RFQ" });
+    }
+  });
+
+  app.post('/api/admin/rfqs/:id/reject', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const reviewerId = req.user.id;
+      const rfqId = req.params.id;
+      const rfq = await storage.getBuyerRequestById(rfqId);
+      await storage.rejectBuyerRequest(rfqId, reviewerId);
+
+      // Log activity for buyer
+      if (rfq?.buyerId) {
+        try {
+          await storage.createActivityLog({
+            userId: rfq.buyerId,
+            activityType: 'profile_updated',
+            description: `RFQ "${rfq.title || rfqId}" was rejected by admin`,
+            ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+            userAgent: req.get('user-agent') || null,
+            metadata: { rfqId, reviewerId },
+          });
+        } catch (logError) {
+          console.error('[ACTIVITY LOG] Failed to log RFQ rejection:', logError);
+        }
       }
 
-      res.json({ message: "Listing rejected successfully" });
+      res.json({ message: "RFQ rejected successfully" });
     } catch (error) {
-      console.error("Error rejecting listing:", error);
-      res.status(500).json({ message: "Failed to reject listing" });
+      console.error("Error rejecting RFQ:", error);
+      res.status(500).json({ message: "Failed to reject RFQ" });
     }
   });
 
@@ -2590,14 +2627,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.query.userId as string | undefined;
       const logs = await storage.getActivityLogs(limit);
 
-      // Filter out admin activities - only show buyer and seller activities
-      let filteredLogs = logs.filter(log => {
-        // Exclude logs where user is an admin
-        return log.user?.role !== 'admin';
-      });
+      let filteredLogs = logs;
 
       // Filter by activity type if provided
-      if (activityType) {
+      if (activityType && activityType !== 'all') {
         filteredLogs = filteredLogs.filter(log => log.activityType === activityType);
       }
       if (userId) {
@@ -2608,6 +2641,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching activity logs:", error);
       res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  // Platform Settings Management
+  app.get('/api/admin/settings/platform', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllPlatformSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching platform settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.get('/api/admin/settings/audit', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const logs = await storage.getSettingsAuditLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching settings audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
+  app.patch('/api/admin/settings/platform/:id', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { value } = req.body;
+      const adminId = (req.user as any).id;
+
+      // Get old value for audit
+      const settings = await storage.getAllPlatformSettings();
+      const setting = settings.find(s => s.id === id);
+      const oldValue = setting?.value;
+
+      const updated = await storage.updatePlatformSetting({ id, value, updatedBy: adminId });
+
+      // Create audit log
+      if (setting) {
+        await db.insert(settingsAudit).values({
+          settingKey: setting.key,
+          oldValue,
+          newValue: value,
+          changedBy: adminId,
+        });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating platform setting:", error);
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
+
+  // Full Platform Data Export
+  app.get('/api/admin/system/export', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const allListings = await db.select().from(marketplaceListings);
+      const allUsers = await db.select().from(users);
+      const allRFQs = await db.select().from(buyerRequests);
+      const allSettings = await db.select().from(platformSettings);
+      const allProjects = await db.select().from(projects);
+
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        version: "1.0",
+        data: {
+          listings: allListings,
+          users: allUsers,
+          rfqs: allRFQs,
+          settings: allSettings,
+          projects: allProjects
+        }
+      };
+
+      res.json(exportData);
+    } catch (error) {
+      console.error("Error exporting platform data:", error);
+      res.status(500).json({ message: "Failed to export platform data" });
+    }
+  });
+
+
+  // Membership Benefits Routes
+  app.get('/api/membership-benefits', async (req, res) => {
+    try {
+      const benefits = await storage.getAllMembershipBenefits();
+      res.json(benefits);
+    } catch (error) {
+      console.error("Error fetching membership benefits:", error);
+      res.status(500).json({ message: "Failed to fetch membership benefits" });
+    }
+  });
+
+  app.put('/api/admin/membership-benefits/:tier', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { tier } = req.params;
+      const benefitData = req.body;
+      const updated = await storage.updateMembershipBenefit(tier, benefitData);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating membership benefit:", error);
+      res.status(500).json({ message: "Failed to update membership benefit" });
+    }
+  });
+
+  app.post('/api/admin/settings/seed', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Seed Platform Settings
+      const defaultSettings = [
+        { key: 'platform_name', value: 'Fusion Mining', category: 'general', dataType: 'string', description: 'Display name of the platform' },
+        { key: 'commission_rate', value: '5.0', category: 'payment', dataType: 'number', description: 'Default commission percentage' },
+        { key: 'maintenance_mode', value: 'false', category: 'security', dataType: 'boolean', description: 'Enable global maintenance mode' },
+        { key: 'support_email', value: 'support@fusionmining.com', category: 'general', dataType: 'string', description: 'Primary support contact' },
+        { key: 'max_active_listings_basic', value: '5', category: 'general', dataType: 'number', description: 'Max listings for basic users' },
+      ];
+
+      for (const setting of defaultSettings) {
+        const existing = await db.select().from(platformSettings).where(eq(platformSettings.key, setting.key)).limit(1);
+        if (existing.length === 0) {
+          // @ts-ignore
+          await db.insert(platformSettings).values(setting);
+        }
+      }
+
+      // Initialize Membership Benefits
+      await storage.initializeMembershipBenefits();
+
+      res.json({ message: "Settings and benefits seeded successfully" });
+    } catch (error) {
+      console.error("Error seeding platform data:", error);
+      res.status(500).json({ message: "Failed to seed settings/benefits" });
     }
   });
 

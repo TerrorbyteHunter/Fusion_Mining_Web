@@ -205,36 +205,53 @@ export function AdminSidebar({
 
   // Shared sidebar content component
   const SidebarContent = () => (
-    <>
+    <div className="flex flex-col h-full bg-[#0f172a] text-slate-300">
       {/* User Info */}
-      <div className="p-4 md:p-6 border-b bg-gradient-to-r from-destructive/10 to-primary/10">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10 md:h-12 md:w-12 border-2 border-primary">
-            <AvatarImage src={user?.profileImageUrl || undefined} />
-            <AvatarFallback className="bg-destructive text-destructive-foreground">
-              {getUserInitials()}
-            </AvatarFallback>
-          </Avatar>
+      <div className="p-6 border-b border-slate-800 bg-gradient-to-br from-indigo-950/50 to-slate-900/50">
+        <div className="flex items-center gap-4">
+          <div className="relative group">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full blur opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+            <Avatar className="h-12 w-12 border border-slate-700 relative bg-slate-900">
+              <AvatarImage src={user?.profileImageUrl || undefined} />
+              <AvatarFallback className="bg-indigo-600 text-white font-bold">
+                {getUserInitials()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold truncate text-sm" data-testid="admin-username">
+            <p className="font-bold truncate text-slate-100 text-sm tracking-tight" data-testid="admin-username">
               {user?.firstName || user?.email || "Admin"}
             </p>
-            <Badge
-              variant={effectiveAdminRole ? ADMIN_ROLE_LABELS[effectiveAdminRole]?.variant : "destructive"}
-              className="text-xs mt-1"
-              data-testid="badge-admin-role"
-            >
-              {effectiveAdminRole ? ADMIN_ROLE_LABELS[effectiveAdminRole]?.label : "Administrator"}
-            </Badge>
+            <div className="mt-1">
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[10px] px-2 py-0 h-4 border-indigo-500/30 bg-indigo-500/10 text-indigo-400 font-medium",
+                  effectiveAdminRole === "super_admin" && "border-rose-500/30 bg-rose-500/10 text-rose-400"
+                )}
+                data-testid="badge-admin-role"
+              >
+                {effectiveAdminRole ? ADMIN_ROLE_LABELS[effectiveAdminRole]?.label : "Administrator"}
+              </Badge>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Navigation Menu */}
-      <nav className="flex-1 p-3 md:p-4 overflow-y-auto">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 mb-2">Main Menu</p>
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
+            const itemColorClass =
+              item.tab === 'overview' ? 'text-blue-400' :
+                item.tab === 'users' ? 'text-green-400' :
+                  item.tab === 'listings' ? 'text-amber-400' :
+                    item.tab === 'rfqs' ? 'text-purple-400' :
+                      item.tab === 'messages' ? 'text-pink-400' :
+                        item.tab === 'verification' ? 'text-cyan-400' :
+                          'text-indigo-400';
 
             // For tab-based items
             if (item.tab) {
@@ -250,12 +267,13 @@ export function AdminSidebar({
                     <Button
                       variant="ghost"
                       className={cn(
-                        "w-full justify-start gap-3 text-sm"
+                        "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
+                        isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600" : "hover:translate-x-1"
                       )}
                       onClick={handleLinkClick}
                       data-testid={item.testId}
                     >
-                      <Icon className="h-4 w-4 flex-shrink-0" />
+                      <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
                       <span className="truncate">{item.label}</span>
                     </Button>
                   </Link>
@@ -266,15 +284,15 @@ export function AdminSidebar({
               return (
                 <Button
                   key={item.tab}
-                  variant={isActive ? "secondary" : "ghost"}
+                  variant="ghost"
                   className={cn(
-                    "w-full justify-start gap-3 text-sm",
-                    isActive && "bg-primary/10 text-primary font-semibold"
+                    "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
+                    isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600 shadow-sm" : "hover:translate-x-1"
                   )}
                   onClick={() => handleTabClick(item)}
                   data-testid={item.testId}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
                   <span className="truncate">{item.label}</span>
                 </Button>
               );
@@ -286,15 +304,15 @@ export function AdminSidebar({
               return (
                 <Link key={item.href} href={item.href}>
                   <Button
-                    variant={isActive ? "secondary" : "ghost"}
+                    variant="ghost"
                     className={cn(
-                      "w-full justify-start gap-3 text-sm",
-                      isActive && "bg-primary/10 text-primary font-semibold"
+                      "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
+                      isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600 shadow-sm" : "hover:translate-x-1"
                     )}
                     onClick={handleLinkClick}
                     data-testid={item.testId}
                   >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
                     <span className="truncate">{item.label}</span>
                   </Button>
                 </Link>
@@ -307,28 +325,31 @@ export function AdminSidebar({
       </nav>
 
       {/* Footer Info */}
-      <div className="p-3 md:p-4 border-t bg-accent/10">
-        <p className="text-xs text-muted-foreground text-center">
-          Fusion Mining Limited
-        </p>
-        <p className="text-xs text-muted-foreground text-center mt-1">
-          Admin Panel v1.0
-        </p>
+      <div className="p-6 border-t border-slate-800 bg-slate-900/30">
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by</div>
+          <div className="text-sm font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+            Fusion Mining
+          </div>
+          <p className="text-[10px] text-slate-600 mt-2 font-medium">
+            Admin Panel v1.2
+          </p>
+        </div>
       </div>
-    </>
+    </div>
   );
 
   return (
     <>
       {/* Mobile Sheet Menu */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0 flex flex-col pt-0">
+        <SheetContent side="left" className="w-72 p-0 flex flex-col pt-0 border-r-slate-800">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 bg-card border-r min-h-screen sticky top-0 h-screen flex-col">
+      <aside className="hidden md:flex w-64 border-r border-slate-800 min-h-screen sticky top-0 h-screen flex-col shadow-xl z-20">
         <SidebarContent />
       </aside>
     </>
@@ -342,7 +363,7 @@ export function AdminMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
       variant="outline"
       size="icon"
       onClick={onOpen}
-      className="md:hidden"
+      className="md:hidden border-slate-200 hover:bg-slate-50"
       data-testid="button-admin-mobile-menu"
     >
       <Menu className="h-5 w-5" />

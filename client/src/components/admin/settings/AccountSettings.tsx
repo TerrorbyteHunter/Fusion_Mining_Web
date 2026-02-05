@@ -10,11 +10,13 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, Lock, History, Shield } from "lucide-react";
+import { User, Lock, History, Shield, Palette, Sun, Moon } from "lucide-react";
 import type { LoginHistory, TwoFactorAuth } from "@shared/schema";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export function AccountSettings() {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -140,6 +142,35 @@ export function AccountSettings() {
           >
             Change Password
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            <CardTitle>Interface Settings</CardTitle>
+          </div>
+          <CardDescription>Customize your platform experience</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Dark Mode</p>
+              <p className="text-sm text-muted-foreground">
+                Switch between light and dark themes
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Sun className="h-4 w-4 text-muted-foreground" />
+              <Switch
+                checked={theme === 'dark'}
+                onCheckedChange={toggleTheme}
+                data-testid="switch-theme"
+              />
+              <Moon className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
         </CardContent>
       </Card>
 

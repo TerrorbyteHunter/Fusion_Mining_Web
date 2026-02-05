@@ -205,7 +205,7 @@ export const buyerRequests = pgTable("buyer_requests", {
   verified: boolean("verified").notNull().default(false), // Admin verification badge
   expiryDate: timestamp("expiry_date"), // When the RFQ expires
 
-  status: varchar("status").notNull().default('active'), // active, closed
+  status: varchar("status").notNull().default('pending'), // pending, active, rejected, closed
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -357,7 +357,8 @@ export const sustainabilityContent = pgTable("sustainability_content", {
 // ============================================================================
 export const verificationQueue = pgTable("verification_queue", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  listingId: varchar("listing_id").notNull().references(() => marketplaceListings.id, { onDelete: 'cascade' }).unique(),
+  listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
+  buyerRequestId: varchar("buyer_request_id").references(() => buyerRequests.id, { onDelete: 'cascade' }),
   submittedAt: timestamp("submitted_at").defaultNow().notNull(),
   reviewedAt: timestamp("reviewed_at"),
   reviewedBy: varchar("reviewed_by").references(() => users.id),
@@ -986,6 +987,16 @@ export const insertBuyerRequestSchema = createInsertSchema(buyerRequests).omit({
 });
 export type InsertBuyerRequest = z.infer<typeof insertBuyerRequestSchema>;
 export type BuyerRequest = typeof buyerRequests.$inferSelect;
+
+export type BuyerRequestWithBuyer = BuyerRequest & {
+  buyer: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    verified: boolean;
+  } | null;
+};
 
 // Message Thread schemas
 export const insertMessageThreadSchema = createInsertSchema(messageThreads).omit({

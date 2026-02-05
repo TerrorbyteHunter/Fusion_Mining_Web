@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Shield, Sliders, Mail, FileText } from "lucide-react";
+import { Settings, Shield, Sliders, Mail, FileText, Terminal } from "lucide-react";
 import { AccountSettings } from "@/components/admin/settings/AccountSettings";
 import { AdminControls } from "@/components/admin/settings/AdminControls";
 import { PlatformConfiguration } from "@/components/admin/settings/PlatformConfiguration";
 import { CommunicationSettings } from "@/components/admin/settings/CommunicationSettings";
 import { LegalCompliance } from "@/components/admin/settings/LegalCompliance";
+import { SystemSettings } from "@/components/admin/settings/SystemSettings";
 import { AdminSidebar } from "@/components/AdminSidebar";
 
 export default function AdminSettings() {
@@ -29,23 +30,23 @@ export default function AdminSettings() {
               <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="account" className="flex items-center gap-2" data-testid="tab-account">
                   <Settings className="h-4 w-4" />
-                  <span className="hidden sm:inline">Account</span>
+                  <span className="hidden sm:inline">User</span>
                 </TabsTrigger>
                 <TabsTrigger value="admin" className="flex items-center gap-2" data-testid="tab-admin">
                   <Shield className="h-4 w-4" />
-                  <span className="hidden sm:inline">Admin</span>
+                  <span className="hidden sm:inline">Staff</span>
                 </TabsTrigger>
                 <TabsTrigger value="platform" className="flex items-center gap-2" data-testid="tab-platform">
                   <Sliders className="h-4 w-4" />
-                  <span className="hidden sm:inline">Platform</span>
+                  <span className="hidden sm:inline">Marketplace</span>
                 </TabsTrigger>
-                <TabsTrigger value="communication" className="flex items-center gap-2" data-testid="tab-communication">
-                  <Mail className="h-4 w-4" />
-                  <span className="hidden sm:inline">Email</span>
+                <TabsTrigger value="system" className="flex items-center gap-2" data-testid="tab-system">
+                  <Terminal className="h-4 w-4" />
+                  <span className="hidden sm:inline">System</span>
                 </TabsTrigger>
-                <TabsTrigger value="legal" className="flex items-center gap-2" data-testid="tab-legal">
+                <TabsTrigger value="compliance" className="flex items-center gap-2" data-testid="tab-compliance">
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Legal</span>
+                  <span className="hidden sm:inline">Legal & Comms</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -61,12 +62,15 @@ export default function AdminSettings() {
                 <PlatformConfiguration />
               </TabsContent>
 
-              <TabsContent value="communication">
-                <CommunicationSettings />
+              <TabsContent value="system">
+                <SystemSettings />
               </TabsContent>
 
-              <TabsContent value="legal">
-                <LegalCompliance />
+              <TabsContent value="compliance">
+                <div className="space-y-6">
+                  <CommunicationSettings />
+                  <LegalCompliance />
+                </div>
               </TabsContent>
             </Tabs>
           </div>
