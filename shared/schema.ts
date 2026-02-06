@@ -93,7 +93,6 @@ export const userProfiles = pgTable("user_profiles", {
   bio: text("bio"),
   interests: text("interests").array(),
   verified: boolean("verified").notNull().default(false),
-  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

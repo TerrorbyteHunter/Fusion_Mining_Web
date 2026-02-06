@@ -44,6 +44,7 @@ import { SupportChatWidget } from "@/components/SupportChatWidget";
 import Onboarding from "@/pages/Onboarding";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
+import AccountTypeSelector from "./components/AccountTypeSelector";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -117,6 +118,7 @@ function Router() {
 
             {/* Onboarding */}
             <Route path="/onboarding" component={Onboarding} />
+            <Route path="/select-account-type" component={AccountTypeSelector} />
 
             {/* 404 */}
             <Route component={NotFound} />

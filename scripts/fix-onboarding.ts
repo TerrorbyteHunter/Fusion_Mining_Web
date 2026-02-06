@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import { db } from '../server/db';
 import { users, userProfiles } from '../shared/schema';
-import { eq, isNull, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 async function fixExistingUsers() {
-    console.log('Starting comprehensive onboarding fix...');
+    console.log('Starting comprehensive user profile fix...');
 
     try {
         // 1. Get all users
@@ -22,22 +22,14 @@ async function fixExistingUsers() {
                 .limit(1);
 
             if (!profile) {
-                // Create profile and mark as onboarded
+                // Create profile
                 console.log(`Creating missing profile for user ${user.id} (${user.email})...`);
                 await db.insert(userProfiles).values({
                     userId: user.id,
                     profileType: 'individual',
                     verified: false,
-                    onboardingCompleted: true,
                 });
                 profilesCreated++;
-            } else if (!profile.onboardingCompleted) {
-                // Update profile to mark as onboarded
-                console.log(`Marking existing profile for user ${user.id} as onboarded...`);
-                await db.update(userProfiles)
-                    .set({ onboardingCompleted: true, updatedAt: new Date() })
-                    .where(eq(userProfiles.userId, user.id));
-                profilesUpdated++;
             }
         }
 
