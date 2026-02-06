@@ -1,21 +1,23 @@
-﻿// API routes for Fusion Mining Limited platform
+﻿// ...existing code...
+// API routes for Fusion Mining Limited platform
 import type { Express } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, updateBuyerRequestFieldsAndResubmit } from "./storage";
 import { requireAuth, requireAdmin, requireSeller, requireAdminPermission, syncClerkUser } from "./localAuth";
 import { getClerkUser, clerk } from "./clerk";
 import { ROLE_PERMISSIONS } from "./rbac";
 import { ZodError } from "zod";
 import { db } from "./db";
-import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, marketplaceListings, projects, messages, buyerRequests, expressInterest, messageThreads, notifications, blogPosts, contactSubmissions, contactSettings, activityLogs, platformSettings, membershipBenefits } from "@shared/schema";
+import { users, userProfiles, adminAuditLogs, tierUpgradeRequests, tierUpgradePayments, paymentMethodDetails, marketplaceListings, projects, messages, buyerRequests, expressInterest, messageThreads, notifications, blogPosts, contactSubmissions, contactSettings, activityLogs, platformSettings, membershipBenefits, settingsAudit } from "@shared/schema";
 import { sql } from "drizzle-orm";
 import { eq, desc, and, or, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import {
   insertUserProfileSchema,
+  insertSustainabilityContentSchema,
   updateUserProfileSchema,
   insertProjectSchema,
   insertExpressInterestSchema,
@@ -42,8 +44,6 @@ import {
   insertTierUpgradePaymentSchema,
   updateTierUpgradePaymentSchema,
   insertPaymentMethodDetailsSchema,
-  insertNotificationSchema,
-  insertActivityLogSchema,
 } from "@shared/schema";
 import { type TierUpgradeRequest } from "@shared/schema";
 import { askSupportBot, type ChatHistoryItem } from "./ai/gemini";
@@ -324,6 +324,7 @@ async function requireAnalyticsAccess(req: any, res: any, next: any) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+
   // Initialize/Sync membership benefits on startup (ensures tiers exist in DB)
   await storage.initializeMembershipBenefits();
 
@@ -334,6 +335,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const isAuthenticated = requireAuth;
   const isSeller = requireSeller;
   const isAdmin = requireAdmin;
+
+  // PATCH: Buyer can edit and resubmit a rejected RFQ
+  app.patch('/api/marketplace/buyer-requests/:id/resubmit', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const rfqId = req.params.id;
+      const { title, description, quantity, budget, location, expiryDate } = req.body;
+      const rfq = await storage.getBuyerRequestById(rfqId);
+      if (!rfq) return res.status(404).json({ message: 'RFQ not found' });
+      if (rfq.buyerId !== userId) return res.status(403).json({ message: 'Not authorized' });
+      if (rfq.status !== 'rejected') return res.status(400).json({ message: 'Only rejected RFQs can be resubmitted' });
+      // Update fields and reset status
+      const updated = await updateBuyerRequestFieldsAndResubmit(rfqId, {
+        title, description, quantity, budget, location, expiryDate
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error('[BuyerRequestsAPI] Error resubmitting RFQ:', error);
+      res.status(500).json({ message: 'Failed to resubmit RFQ' });
+    }
+  });
   app.get('/api/projects', async (req: any, res) => {
     try {
       const projects = await storage.getProjects();
@@ -690,14 +712,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/marketplace/buyer-requests', async (req: any, res) => {
+  app.get('/api/marketplace/buyer-requests', isAuthenticated, async (req: any, res) => {
     try {
-      const requests = await storage.getBuyerRequests();
-
-      // Check if user is authenticated
+      const { from, to } = req.query;
+      let requests = await storage.getBuyerRequests();
       const userId = getUserId(req);
-
       if (userId) {
+        // Filter by date range if provided
+        if (from || to) {
+          const fromDate = from ? new Date(from as string) : null;
+          const toDate = to ? new Date(to as string) : null;
+          requests = requests.filter(r => {
+            const created = new Date(r.createdAt);
+            if (fromDate && created < fromDate) return false;
+            if (toDate && created > toDate) return false;
+            return true;
+          });
+        }
         // Authenticated users can see all their own requests (including pending)
         // and all active requests from others
         const userRequests = requests.filter(r => r.buyerId === userId);
@@ -709,7 +740,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.json(activeRequests);
       }
     } catch (error) {
-      console.error("Error fetching buyer requests:", error);
+      console.error('[BuyerRequestsAPI] Error:', error);
       res.status(500).json({ message: "Failed to fetch buyer requests" });
     }
   });
@@ -1936,11 +1967,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertContactSubmissionSchema.parse(req.body);
       const submission = await storage.createContactSubmission(validatedData);
+      let thread: any = null;
 
       // Also create an internal support thread so admins see the submission in Messages
       try {
         const adminUser = await storage.getAdminUser();
-        let thread: any = null;
         if (adminUser) {
           // If the requester is authenticated, create a thread owned by them so
           // the conversation appears in their Messages view. Otherwise create
@@ -2242,8 +2273,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const reviewerId = req.user.id;
       const rfqId = req.params.id;
+      const { reason } = req.body;
+      if (!reason) {
+        return res.status(400).json({ message: "Rejection reason is required" });
+      }
       const rfq = await storage.getBuyerRequestById(rfqId);
-      await storage.rejectBuyerRequest(rfqId, reviewerId);
+      await storage.rejectBuyerRequest(rfqId, reason);
 
       // Log activity for buyer
       if (rfq?.buyerId) {
@@ -2251,10 +2286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           await storage.createActivityLog({
             userId: rfq.buyerId,
             activityType: 'profile_updated',
-            description: `RFQ "${rfq.title || rfqId}" was rejected by admin`,
+            description: `RFQ "${rfq.title || rfqId}" was rejected by admin. Reason: ${reason}`,
             ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
             userAgent: req.get('user-agent') || null,
-            metadata: { rfqId, reviewerId },
+            metadata: { rfqId, reviewerId, reason },
           });
         } catch (logError) {
           console.error('[ACTIVITY LOG] Failed to log RFQ rejection:', logError);
@@ -3572,6 +3607,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // Profile Management
+  // ========================================================================
+
+  app.get('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const profile = await storage.getUserProfile(req.user.id);
+      // Return null instead of 404 if not found, to allow form to initialize empty
+      res.json(profile || null);
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      res.status(500).json({ message: "Failed to fetch profile" });
+    }
+  });
+
+  app.post('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const existing = await storage.getUserProfile(req.user.id);
+      if (existing) {
+        return res.status(400).json({ message: "Profile already exists, use PATCH" });
+      }
+
+      const validatedData = insertUserProfileSchema.parse({ ...req.body, userId: req.user.id });
+      const profile = await storage.createUserProfile(validatedData);
+      res.json(profile);
+    } catch (err: any) {
+      console.error("Error creating profile:", err);
+      res.status(400).json({ message: err.message || "Invalid data" });
+    }
+  });
+
+  app.patch('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const existing = await storage.getUserProfile(req.user.id);
+      if (!existing) {
+        // Create it if it doesn't exist (UPSERT behavior logic)
+        const validatedData = insertUserProfileSchema.parse({ ...req.body, userId: req.user.id });
+        const profile = await storage.createUserProfile(validatedData);
+        return res.json(profile);
+      }
+
+      const data = { ...req.body, userId: req.user.id, updatedAt: new Date() };
+      const profile = await storage.updateUserProfile(data);
+      res.json(profile);
+    } catch (err: any) {
+      console.error("Error updating profile:", err);
+      res.status(500).json({ message: err.message || "Failed to update profile" });
+    }
+  });
+
+  // ========================================================================
+  // File Uploads: Profile Images
+  // ========================================================================
+  const profileUploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "profiles");
+  fs.mkdirSync(profileUploadsRoot, { recursive: true });
+
+  const profileStorageEngine = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, profileUploadsRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const profileUpload = multer({
+    storage: profileStorageEngine,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB for profile images
+    fileFilter: (_req, file, cb) => {
+      if (file.mimetype.startsWith("image/")) {
+        return cb(null, true);
+      }
+      return cb(new Error("Unsupported file type. Please upload an image."));
+    },
+  });
+
+  app.post('/api/users/profile-image', isAuthenticated, profileUpload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const relativePath = `/attached_assets/files/uploads/profiles/${req.file.filename}`;
+
+      // Update user record
+      await db.update(users)
+        .set({ profileImageUrl: relativePath, updatedAt: new Date() })
+        .where(eq(users.id, req.user.id));
+
+      res.json({
+        url: relativePath,
+        message: "Profile image updated successfully"
+      });
+    } catch (error: any) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ message: error.message || "Failed to upload profile image" });
+    }
+  });
+
+  // ========================================================================
   // File Uploads: Verification Documents
   // ========================================================================
   const verificationUploadsRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "verification");
@@ -4131,3 +4265,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   return httpServer;
 }
+

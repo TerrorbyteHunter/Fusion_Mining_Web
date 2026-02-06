@@ -1,0 +1,36 @@
+﻿server/clerk.ts(4,34): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/clerk.ts(159,63): error TS2731: Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.
+server/db.ts(4,25): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/rbac.ts(3,57): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/rbac.ts(98,40): error TS2731: Implicit conversion of a 'symbol' to a 'string' will fail at runtime. Consider wrapping this expression in 'String(...)'.
+server/rbac.ts(198,3): error TS2322: Type 'string | number | symbol' is not assignable to type 'string'.
+  Type 'number' is not assignable to type 'string'.
+server/routes.ts(4,8): error TS1259: Module '"C:/Users/Hunter/Desktop/VSCFusion2/node_modules/@types/multer/index"' can only be default-imported using the 'esModuleInterop' flag
+server/routes.ts(5,8): error TS1259: Module '"path"' can only be default-imported using the 'esModuleInterop' flag
+server/routes.ts(6,8): error TS1192: Module '"fs"' has no default export.
+server/routes.ts(14,321): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/routes.ts(17,8): error TS1192: Module '"C:/Users/Hunter/Desktop/VSCFusion2/node_modules/@types/bcrypt/index"' has no default export.
+server/routes.ts(46,8): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/routes.ts(47,41): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/routes.ts(325,23): error TS2323: Cannot redeclare exported variable 'registerRoutes'.
+server/routes.ts(884,50): error TS2339: Property 'id' does not exist on type 'User'.
+server/routes.ts(896,29): error TS2339: Property 'id' does not exist on type 'User'.
+server/routes.ts(1431,36): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+server/routes.ts(1924,29): error TS2304: Cannot find name 'insertSustainabilityContentSchema'.
+server/routes.ts(1939,29): error TS2304: Cannot find name 'insertSustainabilityContentSchema'.
+server/routes.ts(2054,19): error TS2304: Cannot find name 'thread'.
+server/routes.ts(2054,60): error TS2304: Cannot find name 'thread'.
+server/routes.ts(2718,25): error TS2304: Cannot find name 'settingsAudit'.
+server/routes.ts(3611,48): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', or 'nodenext'.
+server/routes.ts(4169,10): error TS2323: Cannot redeclare exported variable 'registerRoutes'.
+server/routes.ts(4169,10): error TS2484: Export declaration conflicts with exported declaration of 'registerRoutes'.
+server/storage.ts(129,8): error TS2307: Cannot find module '@shared/schema' or its corresponding type declarations.
+server/storage.ts(972,9): error TS2393: Duplicate function implementation.
+server/storage.ts(1141,21): error TS2339: Property 'where' does not exist on type 'Omit<PgSelectBase<any, any, "single", any, false, "where", any[], any>, "where">'.
+server/storage.ts(1144,21): error TS2339: Property 'where' does not exist on type 'Omit<PgSelectBase<any, any, "single", any, false, "where", any[], any>, "where">'.
+server/storage.ts(1147,21): error TS2339: Property 'where' does not exist on type 'Omit<PgSelectBase<any, any, "single", any, false, "where", any[], any>, "where">'.
+server/storage.ts(1893,9): error TS2393: Duplicate function implementation.
+server/storage.ts(3001,9): error TS2393: Duplicate function implementation.
+server/storage.ts(3033,9): error TS2393: Duplicate function implementation.
+server/storage.ts(3290,9): error TS2393: Duplicate function implementation.
+server/storage.ts(3298,9): error TS2393: Duplicate function implementation.

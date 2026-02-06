@@ -187,6 +187,7 @@ export const buyerRequests = pgTable("buyer_requests", {
   status: varchar("status").notNull().default('active'),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  rejectionReason: text("rejection_reason"),
 });
 
 // ============================================================================

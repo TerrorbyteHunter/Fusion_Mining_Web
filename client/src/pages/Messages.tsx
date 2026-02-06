@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,12 +12,17 @@ import { VerificationBadge } from "@/components/VerificationBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone, MapPin, Building2, Copy, Eye, MessageCircle, CheckCircle } from "lucide-react";
+import {
+  MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone,
+  MapPin, Building2, Copy, Eye, MessageCircle, CheckCircle, Paperclip, MoreVertical,
+  Search, ArrowLeft
+} from "lucide-react";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import type { MessageThread, Message, User } from "@shared/schema";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Messages() {
   const { user, isAuthenticated } = useAuth();
@@ -38,10 +43,19 @@ export default function Messages() {
   } | null>(null);
   const [userDetailsDialogOpen, setUserDetailsDialogOpen] = useState(false);
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
-  // Contact Admin dialog state (visible to buyers and sellers)
   const [openContactAdminDialog, setOpenContactAdminDialog] = useState(false);
   const [contactAdminSubject, setContactAdminSubject] = useState("");
   const [contactAdminMessage, setContactAdminMessage] = useState("");
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [selectedThread, messageContent]); // Also scroll when thread changes
 
   const renderMessageContent = (content: string) => {
     const attachmentMatch = content.match(/Attachment:\s*(.+?)\s*-\s*(https?:\/\/\S+|\S+)/i);
@@ -52,10 +66,13 @@ export default function Messages() {
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="text-primary underline break-all"
+          className="text-primary underline break-all font-medium hover:text-primary/80"
           data-testid="attachment-link"
         >
-          {filename || 'Attachment'}
+          <span className="flex items-center gap-1">
+            <Paperclip className="w-3 h-3" />
+            {filename || 'Attachment'}
+          </span>
         </a>
       );
     }
@@ -95,15 +112,12 @@ export default function Messages() {
       const found = threads.find(t => t.id === tid);
       if (found) {
         setSelectedThread(found as any);
-        // ensure the main panel shows the thread
         setActiveTab(found.projectId ? 'projects' : 'inbox');
       }
-    } catch (err) {
-      // ignore
-    }
+    } catch (err) { }
   }, [threads]);
 
-  // Handle new message from query params (e.g. from Admin Panel)
+  // Handle new message from query params
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const rid = params.get('recipientId');
@@ -121,7 +135,7 @@ export default function Messages() {
     }
   }, [allUsers]);
 
-  // Fetch all messages for the user (used to compute unread per-thread)
+  // Fetch all messages for the user
   const { data: allMessages } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
     queryFn: async () => {
@@ -142,7 +156,14 @@ export default function Messages() {
     enabled: !!selectedThread,
   });
 
-  // Fetch selected thread details (buyer/seller profiles) so we can show header quick info
+  useEffect(() => {
+    if (threadMessages) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [threadMessages]);
+
+
+  // Fetch selected thread details
   const { data: threadDetails } = useQuery<any>({
     queryKey: selectedThread ? ["/api/threads", selectedThread.id, "details"] : ["/api/threads", "none", "details"],
     queryFn: async () => {
@@ -153,19 +174,17 @@ export default function Messages() {
     enabled: !!selectedThread,
   });
 
-  // derive the other participant (the sender from current user's perspective)
+  // derive the other participant
   const otherParticipant = (() => {
     if (!threadDetails || !selectedThread) return null;
     const meId = user?.id || (user as any)?.claims?.sub;
     if (!meId) return null;
-    // if I'm the buyer, show seller info; otherwise show buyer info
     if (selectedThread.buyerId === meId) {
       return { user: threadDetails.seller, profile: threadDetails.sellerProfile };
     }
     return { user: threadDetails.buyer, profile: threadDetails.buyerProfile };
   })();
 
-  // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ threadId, content }: { threadId: string; content: string }) => {
       return await apiRequest("POST", `/api/threads/${threadId}/messages`, { content });
@@ -209,15 +228,10 @@ export default function Messages() {
     }
   });
 
-  // Mutation to mark messages as read
   const markAsReadMutation = useMutation({
     mutationFn: async (messageIds: string[]) => {
       const resp = await apiRequest("POST", "/api/messages/mark-read", { messageIds });
-      try {
-        return await resp.json();
-      } catch {
-        return null;
-      }
+      try { return await resp.json(); } catch { return null; }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
@@ -228,7 +242,7 @@ export default function Messages() {
     },
   });
 
-  // Mutation to update ticket status
+  // Ticket Mutations...
   const updateTicketStatusMutation = useMutation({
     mutationFn: async ({ threadId, status }: { threadId: string; status: string }) => {
       const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-status`, { status });
@@ -236,24 +250,11 @@ export default function Messages() {
     },
     onSuccess: () => {
       refetchThreads();
-      if (selectedThread) {
-        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
-      }
-      toast({
-        title: "Success",
-        description: "Ticket status updated",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket status",
-        variant: "destructive",
-      });
-    },
+      if (selectedThread) queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      toast({ title: "Success", description: "Ticket status updated" });
+    }
   });
 
-  // Mutation to update ticket priority
   const updateTicketPriorityMutation = useMutation({
     mutationFn: async ({ threadId, priority }: { threadId: string; priority: string }) => {
       const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-priority`, { priority });
@@ -261,24 +262,11 @@ export default function Messages() {
     },
     onSuccess: () => {
       refetchThreads();
-      if (selectedThread) {
-        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
-      }
-      toast({
-        title: "Success",
-        description: "Ticket priority updated",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket priority",
-        variant: "destructive",
-      });
-    },
+      if (selectedThread) queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      toast({ title: "Success", description: "Ticket priority updated" });
+    }
   });
 
-  // Mutation to update ticket assignee
   const updateTicketAssigneeMutation = useMutation({
     mutationFn: async ({ threadId, assignedAdminId }: { threadId: string; assignedAdminId: string | null }) => {
       const resp = await apiRequest("PATCH", `/api/threads/${threadId}/ticket-assign`, { assignedAdminId });
@@ -286,40 +274,22 @@ export default function Messages() {
     },
     onSuccess: () => {
       refetchThreads();
-      if (selectedThread) {
-        queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
-      }
-      toast({
-        title: "Success",
-        description: "Ticket assignee updated",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update ticket assignee",
-        variant: "destructive",
-      });
-    },
+      if (selectedThread) queryClient.invalidateQueries({ queryKey: ["/api/threads", selectedThread.id, "details"] });
+      toast({ title: "Success", description: "Ticket assignee updated" });
+    }
   });
 
-  // Mutation to contact admin
   const contactAdminMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return await apiRequest("POST", "/api/contact", payload);
-    },
+    mutationFn: async (payload: any) => { return await apiRequest("POST", "/api/contact", payload); },
     onSuccess: () => {
       setOpenContactAdminDialog(false);
       setContactAdminSubject("");
       setContactAdminMessage("");
       toast({ title: "Message sent", description: "Administrators will respond soon." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
-    },
+    onError: () => { toast({ title: "Error", description: "Failed to send message.", variant: "destructive" }); },
   });
 
-  // Fetch contact submissions (admin only)
   const { data: contactSubmissions, isLoading: contactSubmissionsLoading, refetch: refetchContactSubmissions } = useQuery<any[]>({
     queryKey: ['/api/contact/submissions'],
     queryFn: async () => {
@@ -329,29 +299,15 @@ export default function Messages() {
     enabled: user?.role === "admin" && isAuthenticated,
   });
 
-  // Mutation to update contact submission status
   const updateSubmissionStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const resp = await apiRequest("PATCH", `/api/contact/submissions/${id}`, { status });
       return resp.json();
     },
-    onSuccess: () => {
-      refetchContactSubmissions();
-      toast({
-        title: "Success",
-        description: "Submission status updated",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update submission status",
-        variant: "destructive",
-      });
-    },
+    onSuccess: () => { refetchContactSubmissions(); toast({ title: "Success", description: "Submission status updated" }); }
   });
 
-  // When threadMessages load, mark unread messages in that thread as read
+  // Mark Read Effect
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
     const currentUserId = user?.id || (user as any)?.claims?.sub;
@@ -361,14 +317,11 @@ export default function Messages() {
     }
   }, [threadMessages, isAuthenticated, user]);
 
-  // If the current user is a buyer, ensure the Sellers tab is not active
   useEffect(() => {
-    if (user?.role === 'buyer' && activeTab === 'sellers') {
-      setActiveTab('inbox');
-    }
+    if (user?.role === 'buyer' && activeTab === 'sellers') setActiveTab('inbox');
   }, [user?.role, activeTab]);
 
-  // Compute unread count per thread and total
+  // Derived State
   const processedThreads = useMemo(() => {
     if (!threads) return [] as (MessageThread & { unreadCount?: number })[];
     const currentUserId = user?.id || (user as any)?.claims?.sub;
@@ -382,39 +335,28 @@ export default function Messages() {
     return (allMessages || []).filter(m => !m.read && m.receiverId === (user?.id || (user as any)?.claims?.sub)).length;
   }, [allMessages, user]);
 
-  // Filter functions
+  // Filtering
   const filteredThreads = () => {
     if (!processedThreads) return [] as any[];
     const currentUserId = user?.id || (user as any)?.claims?.sub;
     const isAdmin = user?.role === 'admin';
-
     let base: (MessageThread & { unreadCount?: number })[] = [];
 
-    // PRIVACY CONTROL: Admins ONLY see support tickets
     if (isAdmin) {
       base = processedThreads.filter(t => (t as any).isAdminSupport === true);
     } else {
-      // Non-admins see normal conversations
       switch (activeTab) {
         case "inbox":
-          base = processedThreads.filter(t =>
-            (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)
-          );
-          break;
+          base = processedThreads.filter(t => (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)); break;
         case "projects":
-          base = processedThreads.filter(t =>
-            (t as any).context === 'project_interest' || !!t.projectId
-          );
-          break;
+          base = processedThreads.filter(t => (t as any).context === 'project_interest' || !!t.projectId); break;
         case "sellers":
           base = processedThreads.filter(t => {
             if (t.sellerId === currentUserId) return true;
             if (t.buyerId === currentUserId && !!t.sellerId) return true;
             return false;
-          });
-          break;
-        default:
-          base = processedThreads;
+          }); break;
+        default: base = processedThreads;
       }
     }
 
@@ -426,7 +368,6 @@ export default function Messages() {
         return title.includes(q) || contextTags.includes(q);
       });
     }
-
     return base.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
   };
 
@@ -446,7 +387,6 @@ export default function Messages() {
     return list;
   };
 
-  // Fetch selected user profile for details modal
   const { data: selectedUserProfile } = useQuery<any>({
     queryKey: ["/api/user-profiles", selectedUserDetails?.id],
     queryFn: async () => {
@@ -462,743 +402,361 @@ export default function Messages() {
     setUserDetailsDialogOpen(true);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <p>Please log in to view messages</p>
-      </div>
-    );
-  }
+  if (!isAuthenticated) return null;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      {/* Header */}
-      <section className="py-8 border-b bg-gradient-to-b from-primary/5 to-background">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <MessageSquare className="h-8 w-8 text-primary" />
-              <h1 className="text-3xl font-bold font-display" data-testid="text-page-title">
-                {user?.role === "admin" ? "Support Center" : "Messages"}
-              </h1>
-              <div className="ml-4 text-sm text-muted-foreground">{totalUnread} unread</div>
+      {/* Premium Header */}
+      <section className="py-8 border-b bg-gradient-to-r from-background via-muted/30 to-background relative overflow-hidden flex-none">
+        <div className="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                <MessageSquare className="h-8 w-8" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold font-display tracking-tight text-foreground">
+                    {user?.role === "admin" ? "Support Center" : "Messages"}
+                  </h1>
+                  {totalUnread > 0 && (
+                    <Badge variant="default" className="bg-blue-600 hover:bg-blue-700 h-6 px-2">
+                      {totalUnread} new
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-muted-foreground text-lg mt-1">
+                  {user?.role === "admin"
+                    ? "Manage support tickets and user communications."
+                    : "Manage your conversations and inquiries."}
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {user?.role !== 'admin' && (
-                <Button size="sm" variant="secondary" onClick={() => setOpenContactAdminDialog(true)} data-testid="button-contact-admin-messages">
-                  Contact Admin
-                </Button>
-              )}
-            </div>
+            {user?.role !== 'admin' && (
+              <Button onClick={() => setOpenContactAdminDialog(true)} className="shadow-lg shadow-primary/20">
+                <ShieldCheck className="w-4 h-4 mr-2" />
+                Contact Support
+              </Button>
+            )}
           </div>
-          <p className="text-muted-foreground mt-2">
-            {user?.role === "admin"
-              ? "Support tickets from users - Manage and resolve support requests"
-              : "Manage your conversations about projects and listings"}
-          </p>
         </div>
       </section>
 
       {/* Main Content */}
-      <section className="flex-1 py-8 flex min-h-0">
-        <div className="container mx-auto px-4 flex-1 min-h-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 h-full">
-            {/* Sidebar - Threads List */}
-            <div className="lg:col-span-4 space-y-4 overflow-auto min-h-0">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="flex w-full items-center gap-1" data-testid="tabs-messages">
-                  {user?.role !== "admin" && (
-                    <>
-                      <TabsTrigger value="inbox" data-testid="tab-inbox">Inbox</TabsTrigger>
-                      <TabsTrigger value="projects" data-testid="tab-projects">Projects Interest</TabsTrigger>
-                      <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
-                    </>
-                  )}
-                  {user?.role === "admin" && (
-                    <TabsTrigger value="sellers" data-testid="tab-support-tickets">Support Tickets</TabsTrigger>
-                  )}
-                  {user?.role === "admin" && (
-                    <TabsTrigger value="contact-submissions" data-testid="tab-contact-submissions">Contact Submissions</TabsTrigger>
-                  )}
-                  {user?.role === "admin" && (<TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>)}
-                </TabsList>
-
+      <section className="flex-1 py-6 flex min-h-0">
+        <div className="container mx-auto px-6 flex-1 min-h-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[800px] lg:h-[calc(100vh-250px)] max-h-[1000px]">
+            {/* Sidebar */}
+            <div className="lg:col-span-4 flex flex-col min-h-0 bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
+              <div className="p-4 border-b bg-muted/20">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="flex w-full overflow-x-auto pb-0.5 no-scrollbar justify-start gap-1">
+                    {user?.role !== "admin" ? (
+                      <>
+                        <TabsTrigger value="inbox" className="flex-1">Inbox</TabsTrigger>
+                        <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
+                        <TabsTrigger value="sellers" className="flex-1">{user?.role === 'buyer' ? 'Sellers' : 'Buyers'}</TabsTrigger>
+                      </>
+                    ) : (
+                      <>
+                        <TabsTrigger value="sellers" className="flex-1">Tickets</TabsTrigger>
+                        <TabsTrigger value="contact-submissions" className="flex-1">Forms</TabsTrigger>
+                        <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
+                      </>
+                    )}
+                  </TabsList>
+                </Tabs>
                 {activeTab !== "users" && activeTab !== "contact-submissions" && (
-                  <div className="px-1 pb-2">
-                    <input
-                      type="text"
+                  <div className="mt-4 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
                       value={threadSearchQuery}
                       onChange={(e) => setThreadSearchQuery(e.target.value)}
                       placeholder="Search conversations..."
-                      className="w-full text-sm px-3 py-2 border rounded-md bg-background"
-                      data-testid="input-thread-search"
+                      className="pl-9 h-9"
                     />
                   </div>
                 )}
+              </div>
 
-                {user?.role !== "buyer" && (
-                  <TabsContent value="sellers" className="space-y-2">
-                    {threadsLoading ? (
-                      Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                    ) : filteredThreads().length > 0 ? (
-                      filteredThreads().map((thread: MessageThread & { unreadCount?: number }) => (
-                        <Card key={thread.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""} ${(thread.unreadCount || 0) > 0 ? "bg-primary/5" : ""}`} onClick={() => setSelectedThread(thread)} data-testid={`thread-${thread.id}`}>
-                          <CardHeader className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
-                                  {(thread.unreadCount || 0) > 0 && (
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">{thread.unreadCount || 0}</span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {(thread as any).ticketStatus && (
-                                  <Badge variant={
-                                    (thread as any).ticketStatus === 'open' ? 'outline' :
-                                      (thread as any).ticketStatus === 'in_progress' ? 'secondary' :
-                                        (thread as any).ticketStatus === 'resolved' ? 'default' : 'secondary'
-                                  }>
-                                    {(thread as any).ticketStatus}
-                                  </Badge>
-                                )}
-                                {(thread as any).ticketPriority && (
-                                  <Badge variant={
-                                    (thread as any).ticketPriority === 'urgent' ? 'destructive' :
-                                      (thread as any).ticketPriority === 'high' ? 'secondary' : 'outline'
-                                  }>
-                                    {(thread as any).ticketPriority}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </CardHeader>
-                        </Card>
-                      ))
-                    ) : (
-                      <Card className="text-center py-8">
-                        <CardContent>
-                          <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                          <p className="text-muted-foreground">No support tickets</p>
-                          <p className="text-sm text-muted-foreground mt-1">Support tickets will appear here when users contact support.</p>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-                )}
-
-                <TabsContent value="inbox" className="mt-4 space-y-2">
-                  {threadsLoading ? (
-                    Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                  ) : filteredThreads().length > 0 ? (
-                    filteredThreads().map((thread: any) => (
-                      <Card key={thread.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""} ${(thread.unreadCount || 0) > 0 ? "bg-primary/5" : ""}`} onClick={() => setSelectedThread(thread)} data-testid={`thread-${thread.id}`}>
-                        <CardHeader className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
-                                {(thread.unreadCount || 0) > 0 && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500 text-white">{thread.unreadCount || 0}</span>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {thread.projectId && (<Badge variant="secondary" className="ml-2">Project</Badge>)}
-                              {thread.listingId && (<Badge variant="outline" className="ml-2">Listing</Badge>)}
-                            </div>
-                          </div>
-                        </CardHeader>
-                      </Card>
-                    ))
-                  ) : (
-                    <Card className="text-center py-8"><CardContent><MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" /><p className="text-muted-foreground">No messages yet</p></CardContent></Card>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="projects" className="mt-4 space-y-2">
-                  {threadsLoading ? (
-                    Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                  ) : processedThreads.filter((t: any) => t.projectId).length ? (
-                    processedThreads.filter((t: any) => t.projectId).map((thread: any) => (
-                      <Card key={thread.id} className={`cursor-pointer transition-all hover:shadow-md ${selectedThread?.id === thread.id ? "ring-2 ring-primary" : ""}`} onClick={() => setSelectedThread(thread)} data-testid={`thread-${thread.id}`}>
-                        <CardHeader className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-sm truncate">{thread.title}</h3>
-                              <p className="text-xs text-muted-foreground mt-1">{format(new Date(thread.lastMessageAt), "MMM d, yyyy HH:mm")}</p>
-                            </div>
-                            <Badge variant="secondary" className="ml-2">Project</Badge>
-                          </div>
-                        </CardHeader>
-                      </Card>
-                    ))
-                  ) : (
-                    <Card className="text-center py-8"><CardContent><Briefcase className="h-12 w-12 mx-auto text-muted-foreground mb-2" /><p className="text-muted-foreground">No project inquiries yet</p></CardContent></Card>
-                  )}
-                </TabsContent>
-
-                {user?.role === "admin" && (
+              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                {/* List Rendering Logic */}
+                {user?.role === "admin" && activeTab === "users" ? (
                   <>
-                    <TabsContent value="users">
+                    {/* User Search & List */}
+                    <div className="px-2 pb-2">
                       <Tabs value={usersSubTab} onValueChange={setUsersSubTab} className="w-full">
-                        <TabsList className="flex w-full items-center gap-1 mb-2">
-                          <TabsTrigger value="sellers" data-testid="tab-sellers">Sellers</TabsTrigger>
-                          <TabsTrigger value="buyers" data-testid="tab-buyers">Buyers</TabsTrigger>
-                          <TabsTrigger value="admins" data-testid="tab-admins">Admins</TabsTrigger>
+                        <TabsList className="w-full grid grid-cols-3 h-8 mb-2">
+                          <TabsTrigger value="sellers" className="text-xs">Sellers</TabsTrigger>
+                          <TabsTrigger value="buyers" className="text-xs">Buyers</TabsTrigger>
+                          <TabsTrigger value="admins" className="text-xs">Admins</TabsTrigger>
                         </TabsList>
-
-                        <div className="px-1 pb-2">
-                          <input
-                            type="text"
-                            value={userSearchQuery}
-                            onChange={(e) => setUserSearchQuery(e.target.value)}
-                            placeholder="Search users..."
-                            className="w-full text-sm px-3 py-2 border rounded-md bg-background"
-                            data-testid="input-user-search"
-                          />
-                        </div>
-
-                        <TabsContent value={usersSubTab} className="space-y-2">
-                          {filteredUsers().map((usr) => (
-                            <Card key={usr.id} className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50" data-testid={`user-${usr.id}`} onClick={() => handleViewUserDetails(usr)}>
-                              <CardHeader className="py-3 px-4">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex-shrink-0">
-                                      {usr.role === "seller" && <Users className="h-4 w-4 text-blue-500" />}
-                                      {usr.role === "buyer" && <UserCircle className="h-4 w-4 text-green-500" />}
-                                      {usr.role === "admin" && <ShieldCheck className="h-4 w-4 text-purple-500" />}
-                                    </div>
-                                    <div className="min-w-0">
-                                      <span className="font-medium text-sm truncate block">{usr.firstName} {usr.lastName}</span>
-                                      {usr.email && (
-                                        <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="outline" className="capitalize flex-shrink-0">{usr.role}</Badge>
-                                    {user?.role !== 'buyer' && (
-                                      <Eye className="h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground" />
-                                    )}
-                                  </div>
-                                </div>
-                              </CardHeader>
-                            </Card>
-                          ))}
-                          {filteredUsers().length === 0 && (
-                            <Card className="text-center py-12">
-                              <CardContent>
-                                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                                <p className="text-muted-foreground">No {usersSubTab} found</p>
-                                <p className="text-sm text-muted-foreground/70 mt-1">Users with {usersSubTab} role will appear here</p>
-                              </CardContent>
-                            </Card>
-                          )}
-                        </TabsContent>
                       </Tabs>
-                    </TabsContent>
-
-                    <TabsContent value="contact-submissions" className="space-y-2">
-                      {contactSubmissionsLoading ? (
-                        Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-24 w-full rounded-lg" />))
-                      ) : (!contactSubmissions || contactSubmissions.length === 0) ? (
-                        <Card className="text-center py-8">
-                          <CardContent>
-                            <Mail className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                            <p className="text-muted-foreground">No contact submissions found</p>
-                            <p className="text-sm text-muted-foreground mt-1">Contact form submissions will appear here.</p>
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
-                          {contactSubmissions.map((s: any) => (
-                            <Card key={s.id} className="cursor-pointer transition-all hover:shadow-md">
-                              <CardHeader className="p-4">
-                                <div className="flex items-start justify-between gap-4">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h3 className="font-semibold text-sm truncate">{s.name}</h3>
-                                      <Badge variant={s.status === 'contacted' ? 'default' : s.status === 'resolved' ? 'secondary' : 'outline'}>
-                                        {s.status}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mb-2">{s.email}</p>
-                                    {s.phone && (
-                                      <p className="text-xs text-muted-foreground mb-2">
-                                        <Phone className="h-3 w-3 inline mr-1" />
-                                        <a href={`tel:${s.phone}`} className="text-primary hover:underline">{s.phone}</a>
-                                      </p>
-                                    )}
-                                    <p className="text-xs font-medium text-muted-foreground mb-1">Subject: {s.subject}</p>
-                                    <p className="text-xs text-muted-foreground">{format(new Date(s.createdAt), "MMM d, yyyy HH:mm")}</p>
-                                  </div>
-                                  <div className="flex flex-col gap-2 flex-shrink-0">
-                                    <Button
-                                      size="sm"
-                                      variant={s.status === 'contacted' ? 'default' : 'outline'}
-                                      onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'contacted' })}
-                                      disabled={s.status === 'contacted' || updateSubmissionStatusMutation.isPending}
-                                    >
-                                      {s.status === 'contacted' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                                      Mark Contacted
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant={s.status === 'resolved' ? 'secondary' : 'destructive'}
-                                      onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })}
-                                      disabled={s.status === 'resolved' || updateSubmissionStatusMutation.isPending}
-                                    >
-                                      {s.status === 'resolved' ? <CheckCircle className="h-3 w-3 mr-1" /> : null}
-                                      Mark Resolved
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="mt-3 pt-3 border-t">
-                                  <p className="text-sm whitespace-pre-line">{s.message}</p>
-                                </div>
-                              </CardHeader>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-                  </>
-                )}
-              </Tabs>
-            </div>
-
-            {/* Main Panel - Thread Messages */}
-            <div className="lg:col-span-8 flex flex-col min-h-0">
-              {selectedThread ? (
-                <Card className="h-full flex flex-col">
-                  <CardHeader className="border-b">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-start gap-3">
-                          <Avatar>
-                            {otherParticipant?.profile?.profileImageUrl || otherParticipant?.user?.profileImageUrl ? (
-                              <AvatarImage src={otherParticipant?.profile?.profileImageUrl || otherParticipant?.user?.profileImageUrl} alt={otherParticipant?.user?.firstName || 'User'} />
-                            ) : (
-                              <AvatarFallback>{(otherParticipant?.user?.firstName || otherParticipant?.user?.email || 'U').charAt(0)}</AvatarFallback>
-                            )}
+                      <Input
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        placeholder="Search users..."
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    {filteredUsers().map(usr => (
+                      <div key={usr.id} onClick={() => handleViewUserDetails(usr)} className="p-3 hover:bg-muted/50 rounded-lg cursor-pointer border border-transparent hover:border-border transition-all">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarFallback>{(usr.firstName?.[0] || 'U')}</AvatarFallback>
                           </Avatar>
-
                           <div className="min-w-0">
-                            <div className="flex items-center mb-4">
-                              <CardTitle className="text-lg truncate flex-1">{selectedThread.title}</CardTitle>
-                              <div className="flex justify-end ml-8">
-                                {otherParticipant?.user && user?.role !== 'buyer' && (
-                                  <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => {
-                                      setMessageDialogOpen(true);
-                                      setSelectedRecipient({
-                                        id: otherParticipant.user.id,
-                                        name: `${otherParticipant.user.firstName || ''} ${otherParticipant.user.lastName || ''}`.trim(),
-                                        subject: selectedThread?.title,
-                                        context: selectedThread?.listingId ? 'Listing Inquiry' : 'Project Interest'
-                                      });
-                                    }}
-                                  >
-                                    <MessageCircle className="h-4 w-4 mr-2" />
-                                    Inquire
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-
-                            <p className="text-sm text-muted-foreground mb-3 truncate">{selectedThread.status === "open" ? "Active conversation" : "Closed"}</p>
-
-                            {/* Support Ticket Controls (Admin Only) */}
-                            {user?.role === 'admin' && (selectedThread as any).isAdminSupport && (
-                              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
-                                <div className="space-y-3">
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                      <label className="text-xs font-semibold text-foreground mb-1 block">Status</label>
-                                      <Select
-                                        value={(selectedThread as any).ticketStatus || 'open'}
-                                        onValueChange={(newStatus) => {
-                                          updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: newStatus });
-                                        }}
-                                      >
-                                        <SelectTrigger className="h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="open">Open</SelectItem>
-                                          <SelectItem value="in_progress">In Progress</SelectItem>
-                                          <SelectItem value="waiting_user">Waiting User</SelectItem>
-                                          <SelectItem value="resolved">Resolved</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div>
-                                      <label className="text-xs font-semibold text-foreground mb-1 block">Priority</label>
-                                      <Select
-                                        value={(selectedThread as any).ticketPriority || 'normal'}
-                                        onValueChange={(newPriority) => {
-                                          updateTicketPriorityMutation.mutate({ threadId: selectedThread.id, priority: newPriority });
-                                        }}
-                                      >
-                                        <SelectTrigger className="h-8 text-xs">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="low">Low</SelectItem>
-                                          <SelectItem value="normal">Normal</SelectItem>
-                                          <SelectItem value="high">High</SelectItem>
-                                          <SelectItem value="urgent">Urgent</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-                                  {(selectedThread as any).ticketStatus !== 'resolved' && (
-                                    <Button
-                                      size="sm"
-                                      className="w-full h-8 text-xs"
-                                      onClick={() => {
-                                        updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: 'resolved' });
-                                      }}
-                                      disabled={updateTicketStatusMutation.isPending}
-                                    >
-                                      <CheckCircle className="h-3 w-3 mr-2" />
-                                      Mark as Resolved
-                                    </Button>
-                                  )}
-                                  {(selectedThread as any).ticketStatus === 'resolved' && (
-                                    <div className="text-xs text-green-600 dark:text-green-400 font-medium text-center">
-                                      ✓ Ticket Resolved
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Quick sender details (email / phone / company / location / role) */}
-                            {otherParticipant && otherParticipant.user && (
-                              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                {otherParticipant.user.email && (
-                                  <div className="flex items-center gap-2">
-                                    <Mail className="h-4 w-4 flex-shrink-0" />
-                                    <a className="truncate hover:underline" href={`mailto:${otherParticipant.user.email}`}>{otherParticipant.user.email}</a>
-                                  </div>
-                                )}
-
-                                {otherParticipant.profile?.phoneNumber && (
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 flex-shrink-0" />
-                                    <span>{otherParticipant.profile.phoneNumber}</span>
-                                  </div>
-                                )}
-
-                                {otherParticipant.profile?.companyName && (
-                                  <div className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4 flex-shrink-0" />
-                                    <span className="truncate">{otherParticipant.profile.companyName}</span>
-                                  </div>
-                                )}
-
-                                {otherParticipant.profile?.location && (
-                                  <div className="flex items-center gap-2">
-                                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                                    <span>{otherParticipant.profile.location}</span>
-                                  </div>
-                                )}
-
-                                {otherParticipant.user?.role && (
-                                  <div className="flex items-center gap-2">
-                                    <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-muted">
-                                      {otherParticipant.user.role}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                            <p className="font-medium text-sm truncate">{usr.firstName} {usr.lastName}</p>
+                            <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
                           </div>
                         </div>
-
                       </div>
-                      <div className="flex items-center gap-2">
-                        {/* Action buttons: mailto, copy email, view profile */}
-                        {otherParticipant?.user?.email && (
-                          <a href={`mailto:${otherParticipant.user.email}`}>
-                            <Button size="icon" variant="ghost" aria-label="Email">
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                          </a>
-                        )}
-
-                        {otherParticipant?.user?.email && (
-                          <Button size="icon" variant="ghost" onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(otherParticipant.user.email);
-                              toast({ title: 'Copied', description: 'Email copied to clipboard' });
-                            } catch (err) {
-                              toast({ title: 'Error', description: 'Failed to copy email', variant: 'destructive' });
-                            }
-                          }} aria-label="Copy email">
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        )}
-
-                        {otherParticipant?.user?.id && (
-                          <Button size="icon" variant="ghost" onClick={() => window.open(`/profile/${otherParticipant.user.id}`, '_blank')} aria-label="View profile">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        )}
-
-                        <Button variant="ghost" size="sm" onClick={() => setSelectedThread(null)} data-testid="button-close-thread"><X className="h-4 w-4" /></Button>
+                    ))}
+                  </>
+                ) : user?.role === "admin" && activeTab === "contact-submissions" ? (
+                  // Contact Submissions
+                  contactSubmissions?.map((s: any) => (
+                    <div key={s.id} className="p-3 bg-card border rounded-lg space-y-2 hover:shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-semibold text-sm">{s.name}</h4>
+                        <Badge variant="outline" className="text-[10px] h-5">{s.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{s.subject}</p>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })}>
+                          Resolve
+                        </Button>
                       </div>
                     </div>
-                  </CardHeader>
+                  ))
+                ) : (
+                  // Message Threads
+                  filteredThreads().map((thread: any) => (
+                    <div
+                      key={thread.id}
+                      onClick={() => setSelectedThread(thread)}
+                      className={`p-3 rounded-lg cursor-pointer border transition-all ${selectedThread?.id === thread.id ? 'bg-primary/5 border-primary/50 shadow-sm' : 'hover:bg-muted/50 border-transparent hover:border-border'}`}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <h4 className={`text-sm font-medium truncate flex-1 ${selectedThread?.id === thread.id ? 'text-primary' : ''}`}>
+                          {thread.title}
+                        </h4>
+                        {(thread.unreadCount || 0) > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-blue-500 ml-2 mt-1.5" />
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center text-xs text-muted-foreground">
+                        <span>{format(new Date(thread.lastMessageAt), 'MMM d, HH:mm')}</span>
+                        {(thread as any).ticketStatus && (
+                          <Badge variant="outline" className="text-[10px] h-4 px-1">{(thread as any).ticketStatus}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+                {filteredThreads().length === 0 && user?.role !== 'admin' && (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No messages found
+                  </div>
+                )}
+              </div>
+            </div>
 
-                  {/* Messages */}
-                  <CardContent className="flex-1 overflow-auto p-6 space-y-4">
+            {/* Chat Area */}
+            <div className="lg:col-span-8 flex flex-col min-h-0 bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden relative">
+              {selectedThread ? (
+                <>
+                  {/* Chat Header */}
+                  <div className="p-4 border-b flex items-center justify-between bg-muted/10 backdrop-blur-sm">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10 border-2 border-background shadow-sm">
+                        <AvatarImage src={otherParticipant?.profile?.profileImageUrl || otherParticipant?.user?.profileImageUrl} />
+                        <AvatarFallback className="bg-primary/10 text-primary">
+                          {(otherParticipant?.user?.firstName?.[0] || 'U')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold text-sm">
+                          {otherParticipant?.user?.firstName || 'User'} {otherParticipant?.user?.lastName || ''}
+                        </h3>
+                        <p className="text-xs text-muted-foreground truncate max-w-[200px] md:max-w-md">
+                          {selectedThread.title}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Admin Controls */}
+                      {user?.role === 'admin' && (
+                        <Select
+                          value={(selectedThread as any).ticketStatus || 'open'}
+                          onValueChange={(val) => updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: val })}
+                        >
+                          <SelectTrigger className="h-8 w-[100px] text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Messages List */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
                     {messagesLoading ? (
-                      Array(3).fill(0).map((_, i) => (<Skeleton key={i} className="h-20 w-full" />))
-                    ) : threadMessages && threadMessages.length > 0 ? (
-                      threadMessages.map((msg: Message) => {
-                        const isFromMe = msg.senderId === user?.id;
+                      <div className="space-y-4">
+                        <Skeleton className="h-12 w-2/3 rounded-lg" />
+                        <Skeleton className="h-12 w-1/2 ml-auto rounded-lg" />
+                        <Skeleton className="h-20 w-3/4 rounded-lg" />
+                      </div>
+                    ) : (
+                      threadMessages?.map((msg, i) => {
+                        const isMe = msg.senderId === user?.id || (user as any)?.claims?.sub === msg.senderId;
                         return (
-                          <div key={msg.id} className={`flex ${isFromMe ? "justify-end" : "justify-start"}`} data-testid={`message-${msg.id}`}>
-                            <div className={`max-w-[80%] rounded-lg p-4 ${isFromMe ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                              <p className="text-sm">{renderMessageContent(msg.content)}</p>
-                              <p className={`text-xs mt-2 ${isFromMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{format(new Date(msg.createdAt), "MMM d, HH:mm")}</p>
+                          <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] lg:max-w-[70%] rounded-2xl p-3 shadow-sm ${isMe
+                                ? 'bg-primary text-primary-foreground rounded-br-none'
+                                : 'bg-white dark:bg-card border rounded-bl-none'
+                              }`}>
+                              <p className="text-sm leading-relaxed">
+                                {renderMessageContent(msg.content)}
+                              </p>
+                              <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                {format(new Date(msg.createdAt), "HH:mm")}
+                              </p>
                             </div>
                           </div>
                         );
                       })
-                    ) : (
-                      <div className="text-center py-12">
-                        <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">No messages in this thread</p>
-                      </div>
                     )}
-                  </CardContent>
+                    <div ref={messagesEndRef} />
+                  </div>
 
-                  {/* Message Input */}
-                  <div className="border-t p-4">
-                    <div className="flex gap-2">
-                      <Textarea placeholder="Type your message..." value={messageContent} onChange={(e) => setMessageContent(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }} className="flex-1 resize-none" rows={3} data-testid="input-message" />
-                      <Button onClick={handleSendMessage} disabled={!messageContent.trim() || sendMessageMutation.isPending} data-testid="button-send-message"><Send className="h-4 w-4" /></Button>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3">
+                  {/* Input Area */}
+                  <div className="p-4 border-t bg-background/80 backdrop-blur-sm">
+                    <div className="flex gap-3">
+                      <Button
+                        variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-full"
+                        onClick={() => document.getElementById('message-attachment')?.click()}
+                      >
+                        <Paperclip className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                       <input
                         type="file"
-                        onChange={(e) => setAttachmentFile(e.target.files?.[0] || null)}
-                        data-testid="input-attachment"
+                        id="message-attachment"
+                        className="hidden"
+                        onChange={(e) => { e.target.files?.[0] && uploadAttachmentMutation.mutate(e.target.files[0]); }}
+                      />
+                      <Textarea
+                        value={messageContent}
+                        onChange={(e) => setMessageContent(e.target.value)}
+                        placeholder="Type your message..."
+                        className="min-h-[40px] max-h-[120px] py-2 resize-none rounded-2xl"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage();
+                          }
+                        }}
                       />
                       <Button
-                        variant="outline"
-                        onClick={() => attachmentFile && uploadAttachmentMutation.mutate(attachmentFile)}
-                        disabled={!attachmentFile || uploadAttachmentMutation.isPending || !selectedThread}
-                        data-testid="button-upload-attachment"
+                        onClick={handleSendMessage}
+                        disabled={!messageContent.trim()}
+                        className="h-10 w-10 shrink-0 rounded-full shadow-md"
                       >
-                        {uploadAttachmentMutation.isPending ? "Uploading..." : "Attach file"}
+                        <Send className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                </Card>
+                </>
               ) : (
-                <Card className="h-full flex items-center justify-center">
-                  <CardContent className="text-center py-12">
-                    {activeTab === "contact-submissions" ? (
-                      <>
-                        <Mail className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Contact Submissions</h3>
-                        <p className="text-muted-foreground">View and manage contact form submissions from the sidebar</p>
-                      </>
-                    ) : (
-                      <>
-                        <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">No thread selected</h3>
-                        <p className="text-muted-foreground">Select a conversation from the list to view messages</p>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
+                  <div className="p-4 rounded-full bg-muted/30 mb-4">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
+                  </div>
+                  <h3 className="text-lg font-medium text-foreground">Select a conversation</h3>
+                  <p className="text-center max-w-sm mt-2">
+                    Choose a thread from the list to view messages or start a new conversation.
+                  </p>
+                </div>
               )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Message Dialog */}
-      {selectedRecipient && (
-        <MessageDialog
-          open={messageDialogOpen}
-          onOpenChange={(open) => {
-            setMessageDialogOpen(open);
-            if (!open) setSelectedRecipient(null);
-          }}
-          recipientId={selectedRecipient.id}
-          recipientName={selectedRecipient.name}
-          defaultSubject={selectedRecipient.subject}
-          listingTitle={selectedRecipient.context}
-        />
-      )}
+      {/* Dialogs */}
+      <MessageDialog
+        open={messageDialogOpen}
+        onOpenChange={setMessageDialogOpen}
+        recipient={selectedRecipient}
+      />
 
-      {/* User Details Dialog */}
+      <Dialog open={openContactAdminDialog} onOpenChange={setOpenContactAdminDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contact Support</DialogTitle>
+            <DialogDescription>Send a message to our support team.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Subject</label>
+              <Input value={contactAdminSubject} onChange={(e) => setContactAdminSubject(e.target.value)} placeholder="How can we help?" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Message</label>
+              <Textarea value={contactAdminMessage} onChange={(e) => setContactAdminMessage(e.target.value)} placeholder="Describe your issue..." className="min-h-[100px]" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenContactAdminDialog(false)}>Cancel</Button>
+            <Button onClick={() => contactAdminMutation.mutate({ subject: contactAdminSubject, message: contactAdminMessage, name: user?.firstName || 'User', email: user?.email })}>Send Message</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={userDetailsDialogOpen} onOpenChange={setUserDetailsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
-            <DialogDescription>
-              View detailed information about this user
-            </DialogDescription>
           </DialogHeader>
-
-          {selectedUserDetails && (
-            <div className="space-y-6">
-              {/* User Basic Info */}
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16">
-                  {selectedUserDetails.profileImageUrl ? (
-                    <AvatarImage src={selectedUserDetails.profileImageUrl} alt={selectedUserDetails.firstName || 'User'} />
-                  ) : (
-                    <AvatarFallback className="text-2xl">{(selectedUserDetails.firstName || selectedUserDetails.email || 'U').charAt(0)}</AvatarFallback>
-                  )}
+          {selectedUserProfile && (
+            <div className="space-y-6 pt-4">
+              <div className="flex flex-col items-center">
+                <Avatar className="h-24 w-24 mb-4">
+                  <AvatarImage src={selectedUserProfile.profileImageUrl} />
+                  <AvatarFallback className="text-2xl">{selectedUserDetails?.firstName?.[0]}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-lg font-semibold">{selectedUserDetails.firstName} {selectedUserDetails.lastName}</h3>
-                    <VerificationBadge
-                      verificationStatus={selectedUserDetails.verificationStatus}
-                      badgeColor={selectedUserDetails.badgeColor as 'bronze' | 'silver' | 'gold' | null}
-                      size="sm"
-                      showIcon={true}
-                    />
-                  </div>
-                  <Badge variant="outline" className="capitalize mt-1">{selectedUserDetails.role}</Badge>
-                </div>
+                <h3 className="text-xl font-bold">{selectedUserDetails?.firstName} {selectedUserDetails?.lastName}</h3>
+                <Badge variant="secondary" className="mt-2 capitalize">{selectedUserDetails?.role}</Badge>
               </div>
-
-              {/* Contact Information */}
               <div className="space-y-3">
-                <h4 className="font-semibold text-sm text-muted-foreground">Contact Information</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedUserDetails.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <a href={`mailto:${selectedUserDetails.email}`} className="text-sm hover:underline truncate">{selectedUserDetails.email}</a>
-                    </div>
-                  )}
-                  {selectedUserProfile?.phoneNumber && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{selectedUserProfile.phoneNumber}</span>
-                    </div>
-                  )}
-                  {selectedUserProfile?.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{selectedUserProfile.location}</span>
-                    </div>
-                  )}
-                  {selectedUserProfile?.companyName && (
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{selectedUserProfile.companyName}</span>
-                    </div>
-                  )}
+                <div className="flex items-center gap-3 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{selectedUserDetails?.email}</span>
                 </div>
-              </div>
-
-              {/* Profile Information */}
-              {selectedUserProfile && (
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm text-muted-foreground">Profile Information</h4>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Profile Type:</span>
-                      <p className="font-medium capitalize">{selectedUserProfile.profileType || 'Not specified'}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Verified:</span>
-                      <p className="font-medium">{selectedUserProfile.verified ? 'Yes' : 'No'}</p>
-                    </div>
-                    {selectedUserProfile.interests && selectedUserProfile.interests.length > 0 && (
-                      <div className="col-span-2">
-                        <span className="text-muted-foreground">Interests:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {selectedUserProfile.interests.map((interest: string, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">{interest}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {selectedUserProfile.bio && (
-                      <div className="col-span-2">
-                        <span className="text-muted-foreground">Bio:</span>
-                        <p className="mt-1 text-sm">{selectedUserProfile.bio}</p>
-                      </div>
-                    )}
+                {selectedUserProfile.companyName && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedUserProfile.companyName}</span>
                   </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t">
-                <Button variant="outline" className="flex-1" onClick={() => {
-                  setMessageDialogOpen(true);
-                  setSelectedRecipient({
-                    id: selectedUserDetails.id,
-                    name: `${selectedUserDetails.firstName || ''} ${selectedUserDetails.lastName || ''}`.trim(),
-                  });
-                  setUserDetailsDialogOpen(false);
-                }} data-testid="button-message-user">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-                {selectedUserDetails.email && (
-                  <Button variant="outline" onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(selectedUserDetails.email!);
-                      toast({ title: 'Copied', description: 'Email copied to clipboard' });
-                    } catch (err) {
-                      toast({ title: 'Error', description: 'Failed to copy email', variant: 'destructive' });
-                    }
-                  }} data-testid="button-copy-email">
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Email
-                  </Button>
+                )}
+                {selectedUserProfile.phoneNumber && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedUserProfile.phoneNumber}</span>
+                  </div>
                 )}
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Contact Admin Dialog */}
-      <Dialog open={openContactAdminDialog} onOpenChange={setOpenContactAdminDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Contact Admin</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Subject" value={contactAdminSubject} onChange={(e) => setContactAdminSubject(e.target.value)} />
-            <Textarea placeholder="Message" value={contactAdminMessage} onChange={(e) => setContactAdminMessage(e.target.value)} className="min-h-32" />
-          </div>
-          <div className="mt-4 flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => setOpenContactAdminDialog(false)}>Cancel</Button>
-            <Button disabled={!contactAdminMessage.trim() || contactAdminMutation.isPending} onClick={() => {
-              const payload = {
-                name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || undefined,
-                email: user?.email,
-                subject: contactAdminSubject || 'Message from Messages',
-                message: contactAdminMessage,
-              };
-              contactAdminMutation.mutate(payload);
-            }}>{contactAdminMutation.isPending ? 'Sending...' : 'Send'}</Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>

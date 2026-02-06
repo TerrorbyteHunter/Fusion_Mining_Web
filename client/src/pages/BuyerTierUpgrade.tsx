@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -19,6 +18,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Link } from "wouter";
+import { motion } from "framer-motion";
 import {
   Clock,
   Upload,
@@ -38,6 +39,7 @@ import {
   Users,
   Receipt,
   Download,
+  ArrowLeft
 } from "lucide-react";
 
 type DocumentType =
@@ -134,8 +136,6 @@ export default function BuyerTierUpgrade() {
   const { data: paymentMethods } = useQuery<PaymentMethod[]>({
     queryKey: ['/api/payment-methods'],
   });
-
-
 
   // Fetch upgrade history
   const { data: upgradeHistory } = useQuery<TierUpgradeRequest[]>({
@@ -325,10 +325,19 @@ export default function BuyerTierUpgrade() {
     },
   });
 
-
-
   const handleRemoveDocument = (id: string) => {
     setPendingDocuments(pendingDocuments.filter(doc => doc.id !== id));
+  };
+
+  const documentTypeLabels: Record<DocumentType, string> = {
+    mineral_trading_permit: 'Mineral Trading Permit',
+    certificate_of_incorporation: 'Certificate of Incorporation',
+    company_profile: 'Company Profile',
+    shareholder_list: 'Shareholder/Director List',
+    tax_certificate: 'Tax Certificate',
+    relevant_documents: 'Other Relevant Documents',
+    letter_of_authorization: 'Letter of Authorization',
+    director_id: 'Director ID',
   };
 
   const handleSubmitUpgrade = async () => {
@@ -368,6 +377,7 @@ export default function BuyerTierUpgrade() {
         title: "Error",
         description: "No upgrade request found. Please try again.",
         variant: "destructive",
+
       });
       return;
     }
@@ -417,27 +427,16 @@ export default function BuyerTierUpgrade() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-600">Approved</Badge>;
+        return <Badge className="bg-green-600 hover:bg-green-700">Approved</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Rejected</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-600">Pending Review</Badge>;
+        return <Badge className="bg-yellow-600 hover:bg-yellow-700">Pending Review</Badge>;
       case 'draft':
         return <Badge variant="secondary">In Progress</Badge>;
       default:
         return <Badge variant="secondary">No Active Request</Badge>;
     }
-  };
-
-  const documentTypeLabels: Record<DocumentType, string> = {
-    mineral_trading_permit: 'Mineral Trading Permit',
-    certificate_of_incorporation: 'Certificate of Incorporation',
-    company_profile: 'Company Profile',
-    shareholder_list: 'Shareholder/Director List',
-    tax_certificate: 'Tax Certificate',
-    relevant_documents: 'Other Relevant Documents',
-    letter_of_authorization: 'Letter of Authorization',
-    director_id: 'Director ID',
   };
 
   if (isLoading) {
@@ -452,223 +451,291 @@ export default function BuyerTierUpgrade() {
   const currentTier = user?.membershipTier || 'basic';
   const selectedTierInfo = membershipTiers.find(t => t.tier === (selectedTier || upgradeRequest?.requestedTier));
 
+  // Animation variants
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
+
   return (
-    <div className="container mx-auto px-6 py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2" data-testid="text-page-title">
-            Upgrade Your Membership
-          </h1>
-          <p className="text-muted-foreground">
-            Unlock premium features and grow your business with an upgraded membership tier
-          </p>
-        </div>
-
-        {/* Current Status */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <TrendingUp className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-base">Upgrade Status</CardTitle>
-                  <CardDescription className="text-xs">
-                    Your current membership and upgrade progress
-                  </CardDescription>
-                </div>
-              </div>
-              {upgradeRequest ? getStatusBadge(upgradeRequest.status) : <Badge variant="secondary">No Active Request</Badge>}
+    <div className="flex flex-col min-h-screen bg-background pb-12">
+      {/* Premium Header */}
+      <section className="py-8 border-b bg-gradient-to-r from-background via-muted/30 to-background relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10">
+          <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+            <Link href="/dashboard" className="hover:text-primary transition-colors flex items-center gap-1">
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Link>
+          </div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col md:flex-row md:items-start md:justify-between gap-4"
+          >
+            <div>
+              <h1 className="text-3xl font-bold font-display tracking-tight text-foreground mb-2" data-testid="text-page-title">
+                Membership Tiers
+              </h1>
+              <p className="text-muted-foreground max-w-xl text-lg">
+                Unlock exclusive trading capabilities, market insights, and priority verification
+              </p>
             </div>
-          </CardHeader>
-          {upgradeRequest && (
-            <CardContent>
-              <div className="space-y-4">
-                <Alert>
-                  <Clock className="h-4 w-4" />
-                  <AlertTitle>
-                    {upgradeRequest.status === 'draft' && 'Uploading Documents'}
-                    {upgradeRequest.status === 'pending' && 'Under Review'}
-                    {upgradeRequest.status === 'approved' && 'Upgrade Approved'}
-                    {upgradeRequest.status === 'rejected' && 'Upgrade Rejected'}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {upgradeRequest.status === 'draft' && `You have a ${upgradeRequest.requestedTier} tier upgrade request in progress. Upload all required documents and click Submit when ready.`}
-                    {upgradeRequest.status === 'pending' && `Your upgrade request for ${upgradeRequest.requestedTier} tier is being reviewed by our team. This typically takes 1-2 business days.`}
-                    {upgradeRequest.status === 'approved' && `Congratulations! Your upgrade to ${upgradeRequest.requestedTier} tier has been approved.`}
-                    {upgradeRequest.status === 'rejected' && upgradeRequest.rejectionReason && upgradeRequest.rejectionReason}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            </CardContent>
-          )}
-        </Card>
+            {currentTier !== 'premium' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="hidden md:block"
+              >
+                <Badge variant="outline" className="px-4 py-1.5 text-sm bg-primary/5 border-primary/20 text-primary uppercase tracking-wider font-semibold">
+                  Current Plan: <span className="font-bold ml-1 capitalize">{currentTier}</span>
+                </Badge>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
+      </section>
 
-        {/* Membership Tiers */}
-        <h2 className="text-2xl font-bold mb-6">Choose Your Tier</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="container mx-auto px-6 py-12">
+        {/* Status Alert/Card */}
+        {upgradeRequest && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-12"
+          >
+            <Card className="border-primary/20 bg-primary/5 overflow-hidden relative shadow-md">
+              <div className="absolute top-0 right-0 p-3 opacity-5 pointer-events-none">
+                <TrendingUp className="h-32 w-32 text-primary rotate-12" />
+              </div>
+              <CardContent className="p-6 md:p-8">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold">Upgrade Request Status</h3>
+                      {getStatusBadge(upgradeRequest.status)}
+                    </div>
+                    <p className="text-muted-foreground max-w-2xl text-base">
+                      {upgradeRequest.status === 'draft' && `You have a draft application for ${upgradeRequest.requestedTier} tier. Please complete the document submission.`}
+                      {upgradeRequest.status === 'pending' && `Your application for ${upgradeRequest.requestedTier} tier is under review by our team.`}
+                      {upgradeRequest.status === 'approved' && `Congratulations! Your upgrade to ${upgradeRequest.requestedTier} has been approved.`}
+                      {upgradeRequest.status === 'rejected' && `Application rejected. Reason: ${upgradeRequest.rejectionReason}`}
+                    </p>
+                  </div>
+
+                  {upgradeRequest.status === 'draft' && (
+                    <Button onClick={handleResume} size="lg" className="shadow-lg font-semibold px-8">
+                      Resume Application
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Tiers Grid */}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16"
+        >
           {membershipTiers.map((tierInfo) => {
             const Icon = tierInfo.icon;
             const isCurrent = currentTier === tierInfo.tier;
             const isSelected = selectedTier === tierInfo.tier || upgradeRequest?.requestedTier === tierInfo.tier;
+            const isPopular = tierInfo.tier === 'standard';
+            const isPremium = tierInfo.tier === 'premium';
+
+            // Determination of header styling
+            let headerBg = "bg-muted/30";
+            let borderColor = "border-border";
+            let shadowClass = "shadow-sm hover:shadow-md";
+
+            if (isPremium) {
+              headerBg = "bg-gradient-to-br from-amber-500/10 to-transparent";
+              borderColor = "border-amber-500/30";
+              shadowClass = "shadow-xl shadow-amber-500/5 hover:shadow-amber-500/10";
+            } else if (isPopular) {
+              headerBg = "bg-gradient-to-br from-blue-500/10 to-transparent";
+              borderColor = "border-blue-500/30";
+              shadowClass = "shadow-lg shadow-blue-500/5 hover:shadow-blue-500/10 scale-[1.02] z-10";
+            }
 
             return (
-              <Card
-                key={tierInfo.tier}
-                className={`relative transition-all ${isSelected ? 'ring-2 ring-primary shadow-lg' : ''} ${isCurrent ? 'opacity-50 cursor-not-allowed' : 'hover-elevate cursor-pointer'}`}
-                onClick={() => {
-                  // Allow selection if no request, or if request is approved/rejected (can upgrade again)
-                  const canSelect = !isCurrent && (!upgradeRequest || upgradeRequest.status === 'approved' || upgradeRequest.status === 'rejected');
-                  if (canSelect) {
-                    setSelectedTier(tierInfo.tier);
-                  }
-                }}
-                data-testid={`card-tier-${tierInfo.tier}`}
-              >
-                {isCurrent && (
-                  <div className="absolute top-4 right-4">
-                    <Badge variant="secondary">Current</Badge>
-                  </div>
-                )}
-                <CardHeader>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-lg ${tierInfo.color} bg-opacity-10`}>
-                      <Icon className={`h-6 w-6 ${tierInfo.color.replace('bg-', 'text-')}`} />
+              <motion.div variants={item} key={tierInfo.tier} className="h-full flex">
+                <Card
+                  className={`relative overflow-hidden transition-all duration-300 w-full flex flex-col ${borderColor} ${shadowClass} ${isCurrent ? 'bg-muted/5' : 'bg-card'}`}
+                >
+                  {isPopular && !isCurrent && (
+                    <div className="absolute top-0 right-0 z-20">
+                      <div className="text-[10px] font-bold bg-blue-600 text-white px-3 py-1 rounded-bl-xl shadow-sm tracking-wider uppercase">
+                        Most Popular
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle>{tierInfo.name}</CardTitle>
-                      <CardDescription className="text-lg font-bold">{tierInfo.price}</CardDescription>
+                  )}
+                  {isCurrent && (
+                    <div className="absolute top-0 right-0 z-20">
+                      <div className="text-[10px] font-bold bg-slate-200 text-slate-600 px-3 py-1 rounded-bl-xl tracking-wider uppercase">
+                        Current Plan
+                      </div>
                     </div>
+                  )}
+
+                  <div className={`p-6 md:p-8 ${headerBg} border-b ${borderColor}/50`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 shadow-sm ${isPremium ? 'bg-amber-100/80 text-amber-600' : isPopular ? 'bg-blue-100/80 text-blue-600' : 'bg-white text-slate-600'}`}>
+                      <Icon className="h-7 w-7" />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-2">{tierInfo.name}</h3>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold tracking-tight">{tierInfo.price.split('/')[0]}</span>
+                      {tierInfo.price.includes('/') && <span className="text-muted-foreground font-medium">/{tierInfo.price.split('/')[1]}</span>}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-4 leading-relaxed line-clamp-2 min-h-[40px]">
+                      {isPremium ? 'For enterprise-scale trading operations requiring dedicated support.' : isPopular ? 'Advanced tools for growing businesses and active traders.' : 'Essential features to get started.'}
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {tierInfo.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+
+                  <CardContent className="p-6 md:p-8 flex-1 flex flex-col">
+                    <div className="space-y-4 flex-1 mb-8">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Includes:</p>
+                      {tierInfo.features.map((feature, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 ${isPremium ? 'bg-amber-100 text-amber-600' : isPopular ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                            <Check className="h-3 w-3" />
+                          </div>
+                          <span className="text-sm text-foreground/80 leading-tight">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      onClick={() => {
+                        const canUpgrade = !isCurrent && (!upgradeRequest || upgradeRequest.status === 'approved' || upgradeRequest.status === 'rejected');
+                        if (canUpgrade) {
+                          setSelectedTier(tierInfo.tier);
+                          setModalOpen(true);
+                          if (upgradeRequest?.requestedTier === tierInfo.tier && upgradeRequest.status === 'draft') {
+                            handleResume();
+                          }
+                        }
+                      }}
+                      disabled={isCurrent || (!!upgradeRequest && upgradeRequest.status !== 'approved' && upgradeRequest.status !== 'rejected' && upgradeRequest.requestedTier !== tierInfo.tier)}
+                      variant={isCurrent ? "outline" : "default"}
+                      className={`w-full h-12 text-base font-semibold transition-all ${isPremium ? 'bg-amber-600 hover:bg-amber-700 hover:shadow-lg hover:shadow-amber-500/20' : isPopular ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-500/20' : ''}`}
+                    >
+                      {isCurrent ? 'Current Plan' : upgradeRequest?.requestedTier === tierInfo.tier && upgradeRequest.status === 'draft' ? 'Resume Application' : `Get ${tierInfo.name}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
-        {/* Request Upgrade Button */}
-        {(!upgradeRequest || upgradeRequest.status === 'approved' || upgradeRequest.status === 'rejected') && selectedTier && selectedTier !== currentTier && (
-          <div className="mb-8">
-            <Button
-              onClick={() => setModalOpen(true)}
-              size="lg"
-              className="w-full md:w-auto"
-              data-testid="button-request-upgrade"
-            >
-              Request Upgrade to {selectedTierInfo?.name}
-            </Button>
-          </div>
-        )}
-
-        {/* Resume Upgrade Button */}
-        {upgradeRequest && upgradeRequest.status === 'draft' && (
-          <div className="mb-8">
-            <Button
-              onClick={handleResume}
-              size="lg"
-              className="w-full md:w-auto"
-              data-testid="button-resume-upgrade"
-            >
-              Resume {membershipTiers.find(t => t.tier === upgradeRequest.requestedTier)?.name} Upgrade
-            </Button>
-          </div>
-        )}
-
-        {/* Request History Table */}
+        {/* History Section */}
         {upgradeHistory && upgradeHistory.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-bold mb-4">Application History</h2>
-            <Card>
-              <CardContent className="p-0">
-                <div className="relative w-full overflow-auto">
-                  <table className="w-full caption-bottom text-sm">
-                    <thead className="[&_tr]:border-b">
-                      <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Date</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Tier</th>
-                        <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
-                        <th className="h-12 px-4 text-right align-middle font-medium text-muted-foreground">Last Update</th>
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-xl font-bold mb-4 px-1">Application History</h2>
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border/50 text-left">
+                      <th className="p-4 font-medium text-muted-foreground">Date</th>
+                      <th className="p-4 font-medium text-muted-foreground">Tier</th>
+                      <th className="p-4 font-medium text-muted-foreground">Status</th>
+                      <th className="p-4 font-medium text-muted-foreground text-right">Last Update</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {upgradeHistory.map((req) => (
+                      <tr key={req.id} className="border-b border-border/50 last:border-0 hover:bg-muted/5 transition-colors">
+                        <td className="p-4 font-medium">{new Date(req.submittedAt || (req as any).createdAt || new Date()).toLocaleDateString()}</td>
+                        <td className="p-4 capitalize">{req.requestedTier}</td>
+                        <td className="p-4">{getStatusBadge(req.status)}</td>
+                        <td className="p-4 text-right text-muted-foreground">{new Date((req as any).updatedAt || (req as any).createdAt || new Date()).toLocaleDateString()}</td>
                       </tr>
-                    </thead>
-                    <tbody className="[&_tr:last-child]:border-0">
-                      {upgradeHistory.map((req) => (
-                        <tr key={req.id} className="border-b transition-colors hover:bg-muted/50">
-                          <td className="p-4 align-middle">{new Date(req.submittedAt || (req as any).createdAt).toLocaleDateString()}</td>
-                          <td className="p-4 align-middle capitalize">{req.requestedTier}</td>
-                          <td className="p-4 align-middle">{getStatusBadge(req.status)}</td>
-                          <td className="p-4 align-middle text-right">{new Date((req as any).updatedAt || (req as any).createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Card>
           </div>
         )}
+      </div>
 
-        {/* Upgrade Modal */}
-        <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0 overflow-hidden">
+
+          {/* Header */}
+          <div className="p-6 border-b bg-muted/30">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-2xl">
                 {currentStep === 'documents' && `Upgrade to ${selectedTierInfo?.name}`}
                 {currentStep === 'payment' && 'Select Payment Method'}
                 {currentStep === 'proof' && 'Upload Proof of Payment'}
               </DialogTitle>
-              <DialogDescription>
-                {currentStep === 'documents' && 'Upload your business verification documents to complete your upgrade request'}
-                {currentStep === 'payment' && 'Choose your preferred payment method for the tier upgrade'}
-                {currentStep === 'proof' && 'Upload proof of payment to complete your request'}
+              <DialogDescription className="text-base mt-2">
+                {currentStep === 'documents' && 'Complete your business verification to unlock this tier.'}
+                {currentStep === 'payment' && 'Secure payment processing via our supported gateways.'}
+                {currentStep === 'proof' && 'Upload your payment receipt for final validation.'}
               </DialogDescription>
             </DialogHeader>
 
-            {/* Step Indicator */}
-            <div className="flex items-center justify-center space-x-4 mb-6">
-              <div className={`flex items-center ${currentStep === 'documents' ? 'text-primary' : currentStep === 'payment' || currentStep === 'proof' ? 'text-green-600' : 'text-muted-foreground'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'documents' ? 'bg-primary text-primary-foreground' : currentStep === 'payment' || currentStep === 'proof' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
-                  1
-                </div>
-                <span className="ml-2 text-sm">Documents</span>
-              </div>
-              <div className={`w-8 h-0.5 ${currentStep === 'payment' || currentStep === 'proof' ? 'bg-green-600' : 'bg-muted'}`} />
-              <div className={`flex items-center ${currentStep === 'payment' ? 'text-primary' : currentStep === 'proof' ? 'text-green-600' : 'text-muted-foreground'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'payment' ? 'bg-primary text-primary-foreground' : currentStep === 'proof' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
-                  2
-                </div>
-                <span className="ml-2 text-sm">Payment</span>
-              </div>
-              <div className={`w-8 h-0.5 ${currentStep === 'proof' ? 'bg-green-600' : 'bg-muted'}`} />
-              <div className={`flex items-center ${currentStep === 'proof' ? 'text-primary' : 'text-muted-foreground'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep === 'proof' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                  3
-                </div>
-                <span className="ml-2 text-sm">Proof</span>
+            {/* Stepper */}
+            <div className="mt-8 relative">
+              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-muted -translate-y-1/2 rounded-full" />
+              <div
+                className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 rounded-full transition-all duration-500"
+                style={{ width: currentStep === 'payment' ? '50%' : currentStep === 'proof' ? '100%' : '0%' }}
+              />
+              <div className="relative flex justify-between">
+                {['Documents', 'Payment', 'Proof'].map((step, idx) => {
+                  const isActive = (currentStep === 'documents' && idx === 0) || (currentStep === 'payment' && idx <= 1) || (currentStep === 'proof' && idx <= 2);
+                  const isCompleted = (currentStep === 'payment' && idx === 0) || (currentStep === 'proof' && idx <= 1);
+
+                  return (
+                    <div key={step} className="flex flex-col items-center gap-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${isActive ? (isCompleted ? 'bg-primary border-primary text-white' : 'bg-background border-primary text-primary') : 'bg-background border-muted text-muted-foreground'}`}>
+                        {isCompleted ? <Check className="h-4 w-4" /> : idx + 1}
+                      </div>
+                      <span className={`text-xs font-semibold ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>{step}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
+          </div>
 
+          <div className="p-6 md:p-8 bg-background">
             <div className="space-y-6">
               {/* Tier Summary */}
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <p className="text-sm font-medium mb-2">Selected Tier: <span className="text-primary">{selectedTierInfo?.name}</span></p>
-                <p className="text-xs text-muted-foreground">{selectedTierInfo?.price}</p>
+              <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Selected Plan</p>
+                  <p className="text-lg font-bold text-foreground">{selectedTierInfo?.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-muted-foreground">Price</p>
+                  <p className="text-lg font-bold text-primary">{selectedTierInfo?.price}</p>
+                </div>
               </div>
 
-              {/* Documents Step */}
+              {/* Documents content */}
               {currentStep === 'documents' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="grid grid-cols-1 gap-4">
                     {[
                       { type: 'mineral_trading_permit' as DocumentType, label: 'Mineral Trading Permit', icon: ShieldCheck, description: 'Valid permit issued by the Ministry of Mines' },
@@ -685,32 +752,30 @@ export default function BuyerTierUpgrade() {
                       return (
                         <div
                           key={req.type}
-                          className={`group relative p-4 rounded-xl border transition-all duration-300 ${isHandled ? 'bg-emerald-50/30 border-emerald-200' : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm'
-                            }`}
+                          className={`group relative p-4 rounded-xl border transition-all duration-300 ${isHandled ? 'bg-emerald-50/50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/50' : 'bg-card border-border hover:border-primary/50 hover:bg-muted/20'}`}
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex gap-4">
-                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm ${isHandled ? 'bg-emerald-500 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'
-                                }`}>
+                              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm transition-colors ${isHandled ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400' : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'}`}>
                                 <Icon className="h-5 w-5" />
                               </div>
                               <div className="space-y-0.5">
-                                <h4 className={`text-sm font-bold ${isHandled ? 'text-emerald-900' : 'text-slate-800'}`}>
+                                <h4 className={`text-sm font-bold ${isHandled ? 'text-emerald-900 dark:text-emerald-300' : 'text-foreground'}`}>
                                   {req.label}
                                 </h4>
-                                <p className="text-[11px] text-slate-500 max-w-[280px]">
+                                <p className="text-xs text-muted-foreground max-w-[280px]">
                                   {req.description}
                                 </p>
                                 {(pendingFile || uploadedFile) && (
-                                  <div className="flex items-center gap-1.5 mt-2 px-2 py-1 bg-white/60 border border-emerald-100 rounded-md w-fit">
-                                    <FileText className="h-3 w-3 text-emerald-600" />
-                                    <span className="text-[10px] font-medium text-emerald-700 truncate max-w-[150px]">
+                                  <div className="flex items-center gap-2 mt-2 px-2 py-1 bg-white/80 dark:bg-background border border-emerald-100 dark:border-emerald-900 rounded-md w-fit shadow-sm">
+                                    <FileText className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                                    <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-300 truncate max-w-[150px]">
                                       {pendingFile?.file.name || uploadedFile?.fileName}
                                     </span>
                                     {pendingFile && (
                                       <button
                                         onClick={() => handleRemoveDocument(pendingFile.id)}
-                                        className="ml-1 p-0.5 hover:bg-rose-100 rounded-full text-rose-500 transition-colors"
+                                        className="ml-1 p-0.5 hover:bg-rose-100 dark:hover:bg-rose-900/20 rounded-full text-rose-500 transition-colors"
                                       >
                                         <X className="h-3 w-3" />
                                       </button>
@@ -719,18 +784,14 @@ export default function BuyerTierUpgrade() {
                                 )}
                               </div>
                             </div>
-
                             <div className="flex flex-col items-end gap-2 shrink-0">
                               {isHandled ? (
-                                <Badge variant="outline" className="bg-emerald-100/50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
+                                <Badge variant="outline" className="bg-emerald-100/50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900 text-[10px] font-bold">
                                   <Check className="h-3 w-3 mr-1" /> READY
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="bg-slate-50 text-slate-400 border-slate-200 text-[10px] font-bold tracking-tighter">
-                                  MISSING
-                                </Badge>
+                                <div className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded text-[10px] font-bold uppercase">Required</div>
                               )}
-
                               <div className="relative">
                                 <input
                                   type="file"
@@ -745,7 +806,6 @@ export default function BuyerTierUpgrade() {
                                         documentType: req.type,
                                         id: Math.random().toString(36).substr(2, 9),
                                       };
-                                      // Replace existing pending for this type if any, or add new
                                       setPendingDocuments(prev => [
                                         ...prev.filter(d => d.documentType !== req.type),
                                         newDoc
@@ -756,10 +816,7 @@ export default function BuyerTierUpgrade() {
                                 <Button
                                   variant={isHandled ? "ghost" : "outline"}
                                   size="sm"
-                                  className={`h-8 text-xs font-bold ${isHandled
-                                    ? 'text-indigo-600 hover:bg-indigo-50/50'
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 border-none shadow-sm'
-                                    }`}
+                                  className={`h-8 text-xs font-bold ${isHandled ? 'text-primary hover:bg-primary/10' : 'border-primary/20 text-primary hover:bg-primary hover:text-white'}`}
                                   onClick={() => setActiveUpload({ type: req.type, label: req.label })}
                                 >
                                   {isHandled ? 'Change' : 'Upload'}
@@ -768,15 +825,15 @@ export default function BuyerTierUpgrade() {
                             </div>
                           </div>
                         </div>
-                      );
+                      )
                     })}
 
                     {/* Other Documents Section */}
-                    <div className="mt-2 p-4 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/30">
+                    <div className="mt-2 p-4 rounded-xl border border-dashed border-border bg-muted/10 hover:bg-muted/20 transition-colors">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Other Relevant Documents</h4>
-                          <p className="text-[10px] text-slate-400">Additional proof of business capacity or certifications</p>
+                          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Additional Documents</h4>
+                          <p className="text-[10px] text-muted-foreground/80">Any other files relevant to your application</p>
                         </div>
                         <input
                           type="file"
@@ -797,65 +854,54 @@ export default function BuyerTierUpgrade() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 text-[10px] font-bold text-indigo-600 hover:bg-indigo-100"
+                          className="h-7 text-[10px] font-bold text-primary hover:bg-primary/10"
                           onClick={() => document.getElementById('file-relevant')?.click()}
                         >
-                          <Check className="h-3 w-3 mr-1" /> Add More
+                          <Check className="h-3 w-3 mr-1" /> Add Files
                         </Button>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
                         {pendingDocuments.filter(d => d.documentType === 'relevant_documents').map(doc => (
-                          <div key={doc.id} className="flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm">
-                            <FileText className="h-3 w-3 text-slate-400" />
-                            <span className="text-[10px] font-medium text-slate-600 truncate max-w-[100px]">{doc.file.name}</span>
+                          <div key={doc.id} className="flex items-center gap-1.5 px-2 py-1 bg-background border border-border rounded-lg shadow-sm">
+                            <FileText className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-[10px] font-medium text-foreground truncate max-w-[100px]">{doc.file.name}</span>
                             <button onClick={() => handleRemoveDocument(doc.id)} className="text-rose-400 hover:text-rose-600">
                               <X className="h-3 w-3" />
                             </button>
                           </div>
                         ))}
                       </div>
-                      {upgradeRequest?.documents?.filter(d => d.documentType === 'relevant_documents').map(doc => (
-                        <div key={doc.id} className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 border border-emerald-100 rounded-lg shadow-sm">
-                          <Check className="h-3 w-3 text-emerald-500" />
-                          <span className="text-[10px] font-medium text-emerald-700 truncate max-w-[100px]">{doc.fileName}</span>
-                        </div>
-                      ))}
                     </div>
+
                   </div>
                 </div>
               )}
 
-              {/* Payment Method Selection Step */}
+              {/* Payment Step */}
               {currentStep === 'payment' && (
-                <div className="space-y-4">
-                  <Alert>
-                    <CreditCard className="h-4 w-4" />
-                    <AlertTitle>Payment Required</AlertTitle>
-                    <AlertDescription>
-                      Please select your preferred payment method to complete the upgrade to {selectedTierInfo?.name}.
-                    </AlertDescription>
-                  </Alert>
-
+                <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="space-y-3">
-                    <Label className="text-sm font-medium">Available Payment Methods</Label>
+                    <Label className="text-sm font-medium">Select Payment Method</Label>
                     <div className="grid gap-3">
                       {paymentMethods?.map((method) => (
                         <div
                           key={method.id}
-                          className={`border rounded-lg p-4 cursor-pointer transition-colors ${selectedPaymentMethod === method.method
-                            ? 'border-primary bg-primary/5'
-                            : 'border-muted hover:border-primary/50'
+                          className={`border rounded-xl p-4 cursor-pointer transition-all ${selectedPaymentMethod === method.method
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-border hover:border-primary/50 hover:bg-muted/10'
                             }`}
                           onClick={() => setSelectedPaymentMethod(method.method)}
                         >
-                          <div className="flex items-center gap-3">
-                            {method.method === 'bank_transfer' && <Banknote className="h-5 w-5 text-blue-600" />}
-                            {method.method === 'airtel_money' && <Smartphone className="h-5 w-5 text-green-600" />}
-                            {method.method === 'wechat_alipay' && <CreditCard className="h-5 w-5 text-purple-600" />}
+                          <div className="flex items-center gap-4">
+                            <div className={`p-2 rounded-lg ${selectedPaymentMethod === method.method ? 'bg-background shadow-sm' : 'bg-muted'}`}>
+                              {method.method === 'bank_transfer' && <Banknote className="h-6 w-6 text-blue-600" />}
+                              {method.method === 'airtel_money' && <Smartphone className="h-6 w-6 text-green-600" />}
+                              {method.method === 'wechat_alipay' && <CreditCard className="h-6 w-6 text-purple-600" />}
+                            </div>
                             <div className="flex-1">
-                              <p className="font-medium">{method.name}</p>
-                              <p className="text-sm text-muted-foreground">{method.description}</p>
+                              <p className="font-bold text-sm">{method.name}</p>
+                              <p className="text-xs text-muted-foreground">{method.description}</p>
                             </div>
                             {selectedPaymentMethod === method.method && (
                               <Check className="h-5 w-5 text-primary" />
@@ -866,218 +912,128 @@ export default function BuyerTierUpgrade() {
                     </div>
                   </div>
 
+                  {/* Method Details + QR Codes */}
                   {selectedPaymentMethod && (
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="text-sm font-medium mb-2">Payment Instructions</p>
-                      <p className="text-xs text-muted-foreground whitespace-pre-line">
+                    <div className="bg-muted/30 p-5 rounded-xl border border-border/50 animate-in fade-in zoom-in-95">
+                      <p className="text-sm font-medium mb-3">Payment Instructions</p>
+                      <div className="prose prose-sm text-xs text-muted-foreground bg-background p-4 rounded-lg border border-border">
                         {paymentMethods?.find(m => m.method === selectedPaymentMethod)?.instructions}
-                      </p>
+                      </div>
 
-                      {/* QR Code display for WeChat/Alipay */}
+                      {/* QR Codes */}
                       {selectedPaymentMethod === 'wechat_alipay' && (
-                        <div className="mt-4 space-y-4">
-                          <p className="text-sm font-medium">Scan QR Codes:</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode && (
-                              <div className="text-center">
-                                <p className="text-xs font-medium mb-2">WeChat Pay</p>
-                                <img
-                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode}
-                                  alt="WeChat Pay QR Code"
-                                  className="max-w-32 max-h-32 mx-auto border rounded"
-                                />
-                              </div>
-                            )}
-                            {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode && (
-                              <div className="text-center">
-                                <p className="text-xs font-medium mb-2">Alipay</p>
-                                <img
-                                  src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode}
-                                  alt="Alipay QR Code"
-                                  className="max-w-32 max-h-32 mx-auto border rounded"
-                                />
-                              </div>
-                            )}
-                          </div>
+                        <div className="mt-4 grid grid-cols-2 gap-4">
+                          {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode && (
+                            <div className="text-center bg-white p-3 rounded-lg border shadow-sm">
+                              <p className="text-xs font-bold mb-2 text-[#07C160]">WeChat Pay</p>
+                              <img src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.wechatQrCode} className="mx-auto rounded" alt="WeChat QR" />
+                            </div>
+                          )}
+                          {paymentMethods?.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode && (
+                            <div className="text-center bg-white p-3 rounded-lg border shadow-sm">
+                              <p className="text-xs font-bold mb-2 text-[#1677FF]">Alipay</p>
+                              <img src={paymentMethods.find(m => m.method === 'wechat_alipay')?.accountDetails?.alipayQrCode} className="mx-auto rounded" alt="Alipay QR" />
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      <div className="mt-3 space-y-1">
-                        <p className="text-sm font-medium text-primary">
-                          Amount: ${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'} USD
-                        </p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <div className="text-xs text-blue-800">
-                              <p className="font-medium mb-1">Currency Conversion Required</p>
-                              <p>Please check today's exchange rate on Google and pay the equivalent amount in your local currency. The payment amount should match the current USD value at today's market rate.</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                        <div className="flex items-start gap-2">
-                          <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                          <div className="text-xs text-amber-800">
-                            <p className="font-medium mb-1">Important:</p>
-                            <p>After completing your payment, please take a screenshot of the payment confirmation/receipt. You will need to upload this screenshot in the next step to complete your tier upgrade request.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Proof of Payment Upload Step */}
-              {currentStep === 'proof' && (
-                <div className="space-y-4">
-                  <Alert>
-                    <Upload className="h-4 w-4" />
-                    <AlertTitle>Upload Proof of Payment</AlertTitle>
-                    <AlertDescription>
-                      Please upload a screenshot or receipt of your payment to complete your upgrade request.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                    <div className="flex items-start gap-2">
-                      <Check className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-xs text-blue-800">
-                        <p className="font-medium mb-1">Upload the screenshot you took:</p>
-                        <p>Upload the payment confirmation screenshot you took after completing your payment. This helps us verify your transaction quickly.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Summary */}
-                  {createdPayment && (
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="text-sm font-medium mb-2">Payment Summary</p>
-                      <div className="space-y-1 text-sm">
-                        <p><span className="font-medium">Method:</span> {createdPayment.paymentMethodDetails?.name}</p>
-                        <p><span className="font-medium">Amount:</span> ${createdPayment.amountUSD} USD</p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-3">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                            <div className="text-xs text-blue-800">
-                              <p className="font-medium mb-1">Currency Conversion Required</p>
-                              <p>You should have paid the equivalent amount in your local currency based on today's Google exchange rate for ${createdPayment.amountUSD} USD.</p>
-                            </div>
-                          </div>
+                      {/* Conversion Notice */}
+                      <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex gap-3 text-blue-700 dark:text-blue-300">
+                        <AlertCircle className="h-5 w-5 shrink-0" />
+                        <div className="text-xs">
+                          <p className="font-bold mb-1">Currency Conversion Required</p>
+                          <p>Please pay the equivalent of <span className="font-bold">${selectedTierInfo?.tier === 'standard' ? '50' : selectedTierInfo?.tier === 'premium' ? '200' : '0'} USD</span> in your local currency at today's rate.</p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="proof-upload" className="text-sm">Select Proof File</Label>
-                      <Input
-                        id="proof-upload"
-                        type="file"
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        onChange={(e) => setProofOfPaymentFile(e.target.files?.[0] || null)}
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Accepted formats: JPG, PNG, PDF (Max 10MB)
-                      </p>
-                    </div>
+                </div>
+              )}
 
-                    {proofOfPaymentFile && (
-                      <div className="bg-muted/50 p-3 rounded-lg">
-                        <p className="text-sm font-medium">Selected file: {proofOfPaymentFile.name}</p>
-                      </div>
-                    )}
+              {/* Proof Step */}
+              {currentStep === 'proof' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="border border-dashed border-border rounded-xl p-8 text-center bg-muted/10">
+                    <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="font-bold text-lg mb-2">Upload Proof of Payment</h3>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">Please upload a clear screenshot or photo of your payment receipt.</p>
+
+                    <Input
+                      id="proof-upload"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={(e) => setProofOfPaymentFile(e.target.files?.[0] || null)}
+                      className="max-w-xs mx-auto"
+                    />
                   </div>
+                  {proofOfPaymentFile && (
+                    <div className="flex items-center gap-3 p-3 bg-primary/10 text-primary border border-primary/20 rounded-lg justify-center">
+                      <FileText className="h-4 w-4" />
+                      <span className="font-medium text-sm">{proofOfPaymentFile.name}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-
-            <DialogFooter className="gap-3 pt-4 border-t">
-              {currentStep === 'documents' && (
-                <>
-                  <Button
-                    onClick={() => {
-                      setModalOpen(false);
-                      setPendingDocuments([]);
-                      setSelectedFiles([]);
-                      setCurrentStep('documents');
-                    }}
-                    variant="outline"
-                    data-testid="button-cancel-upgrade"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSubmitUpgrade}
-                    disabled={submitting || pendingDocuments.length === 0}
-                    data-testid="button-submit-upgrade-modal"
-                  >
-                    {submitting ? 'Submitting...' : 'Continue to Payment'}
-                  </Button>
-                </>
-              )}
-
-              {currentStep === 'payment' && (
-                <>
-                  <Button
-                    onClick={() => setCurrentStep('documents')}
-                    variant="outline"
-                  >
-                    Back to Documents
-                  </Button>
-                  <Button
-                    onClick={handleSelectPaymentMethod}
-                    disabled={!selectedPaymentMethod || createPaymentMutation.isPending}
-                  >
-                    {createPaymentMutation.isPending ? 'Creating Payment...' : 'Continue to Proof'}
-                  </Button>
-                </>
-              )}
-
-              {currentStep === 'proof' && (
-                <>
-                  <Button
-                    onClick={() => setCurrentStep('payment')}
-                    variant="outline"
-                  >
-                    Back to Payment
-                  </Button>
-                  <Button
-                    onClick={handleUploadProof}
-                    disabled={!proofOfPaymentFile || uploadProofMutation.isPending}
-                  >
-                    {uploadProofMutation.isPending ? 'Uploading...' : 'Complete Upgrade'}
-                  </Button>
-                </>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Dedicated Upload Dialog for each document type */}
-      <Dialog open={!!activeUpload} onOpenChange={(open) => !open && setActiveUpload(null)}>
-        <DialogContent className="sm:max-w-md bg-white border-0 shadow-2xl p-0 overflow-hidden">
-          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 text-white text-center">
-            <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4">
-              {activeUpload?.type === 'mineral_trading_permit' && <ShieldCheck className="h-8 w-8" />}
-              {activeUpload?.type === 'certificate_of_incorporation' && <FileText className="h-8 w-8" />}
-              {activeUpload?.type === 'company_profile' && <Building2 className="h-8 w-8" />}
-              {activeUpload?.type === 'shareholder_list' && <Users className="h-8 w-8" />}
-              {activeUpload?.type === 'tax_certificate' && <Receipt className="h-8 w-8" />}
-              {activeUpload?.type === 'relevant_documents' && <Upload className="h-8 w-8" />}
-            </div>
-            <h3 className="text-xl font-bold">{activeUpload?.label}</h3>
-            <p className="text-indigo-100 text-sm mt-1">Upload your official document for verification</p>
           </div>
 
+          <DialogFooter className="p-6 bg-muted/30 border-t flex justify-between gap-3">
+            {currentStep === 'documents' && (
+              <>
+                <Button
+                  onClick={() => {
+                    setModalOpen(false);
+                    setPendingDocuments([]);
+                    setCurrentStep('documents');
+                  }}
+                  variant="ghost"
+                  data-testid="button-cancel-upgrade"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSubmitUpgrade}
+                  disabled={submitting || pendingDocuments.length === 0}
+                  data-testid="button-submit-upgrade-modal"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[140px]"
+                >
+                  {submitting ? 'Submitting...' : 'Continue to Payment'}
+                </Button>
+              </>
+            )}
+            {currentStep === 'payment' && (
+              <>
+                <Button onClick={() => setCurrentStep('documents')} variant="outline">Back</Button>
+                <Button onClick={handleSelectPaymentMethod} disabled={!selectedPaymentMethod || createPaymentMutation.isPending} className="min-w-[140px]">
+                  {createPaymentMutation.isPending ? 'Processing...' : 'Continue to Proof'}
+                </Button>
+              </>
+            )}
+            {currentStep === 'proof' && (
+              <>
+                <Button onClick={() => setCurrentStep('payment')} variant="outline">Back</Button>
+                <Button onClick={handleUploadProof} disabled={!proofOfPaymentFile || uploadProofMutation.isPending} className="min-w-[140px]">
+                  {uploadProofMutation.isPending ? 'Uploading...' : 'Submit Request'}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!activeUpload} onOpenChange={(open) => !open && setActiveUpload(null)}>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border-0 shadow-2xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-indigo-600 to-blue-700 p-6 text-white text-center">
+            <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4">
+              <Upload className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-bold">{activeUpload?.label}</h3>
+          </div>
           <div className="p-6">
             <div
-              className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center transition-all hover:border-indigo-400 hover:bg-indigo-50/30 group cursor-pointer"
+              className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 cursor-pointer transition-colors"
               onClick={() => document.getElementById('dialog-file-input')?.click()}
             >
               <input
@@ -1100,26 +1056,13 @@ export default function BuyerTierUpgrade() {
                     setActiveUpload(null);
                     toast({
                       title: "Document Added",
-                      description: `${activeUpload.label} has been staged for upload.`,
+                      description: `${activeUpload.label} has been staged.`,
                     });
                   }
                 }}
               />
-              <div className="inline-flex items-center justify-center p-4 bg-slate-50 rounded-full text-slate-400 group-hover:text-indigo-500 group-hover:bg-indigo-100 transition-colors mb-4">
-                <Upload className="h-6 w-6" />
-              </div>
-              <p className="text-sm font-bold text-slate-600">Click to select or drag and drop</p>
-              <p className="text-xs text-slate-400 mt-2">PDF, JPG, PNG or DOC (Max 20MB)</p>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-3">
-              <Button
-                variant="outline"
-                className="w-full border-slate-200 text-slate-600 hover:bg-slate-50 font-bold"
-                onClick={() => setActiveUpload(null)}
-              >
-                Cancel
-              </Button>
+              <Upload className="h-8 w-8 mx-auto text-indigo-400 mb-2" />
+              <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Click to Upload</p>
             </div>
           </div>
         </DialogContent>

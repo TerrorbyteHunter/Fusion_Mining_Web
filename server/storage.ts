@@ -1,3 +1,15 @@
+// ...existing code...
+
+// Update fields and resubmit a rejected RFQ
+export async function updateBuyerRequestFieldsAndResubmit(id: string, fields: Partial<{ title: string; description: string; quantity: string; budget: string; location: string; expiryDate: string; }>): Promise<BuyerRequest> {
+  const updateData: any = { ...fields, status: 'pending', rejectionReason: null, updatedAt: new Date() };
+  const [updated] = await db
+    .update(buyerRequests)
+    .set(updateData)
+    .where(eq(buyerRequests.id, id))
+    .returning();
+  return updated;
+}
 // Database storage implementation with complete CRUD operations
 import {
   users,
@@ -250,7 +262,7 @@ export interface IStorage {
   rejectListing(listingId: string, reviewerId: string): Promise<void>;
   getPendingBuyerRequests(): Promise<BuyerRequestWithBuyer[]>;
   approveBuyerRequest(id: string, reviewerId: string): Promise<void>;
-  rejectBuyerRequest(id: string, reviewerId: string): Promise<void>;
+  rejectBuyerRequestVerification(id: string, reviewerId: string): Promise<void>;
 
   // Activity Log operations
   createActivityLog(log: InsertActivityLog): Promise<ActivityLog>;
@@ -1878,7 +1890,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(verificationQueue.buyerRequestId, id));
   }
 
-  async rejectBuyerRequest(id: string, reviewerId: string): Promise<void> {
+  async rejectBuyerRequestVerification(id: string, reviewerId: string): Promise<void> {
     await db
       .update(buyerRequests)
       .set({
@@ -3275,22 +3287,6 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(tierUpgradeDocuments.uploadedAt));
   }
 
-  async createTierUpgradePayment(data: any): Promise<any> {
-    const [payment] = await db
-      .insert(tierUpgradePayments)
-      .values(data)
-      .returning();
-    return payment;
-  }
-
-  async updateTierUpgradePayment(id: string, data: any): Promise<any> {
-    const [updated] = await db
-      .update(tierUpgradePayments)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(tierUpgradePayments.id, id))
-      .returning();
-    return updated;
-  }
 
   async getTierUpgradePaymentByRequestId(requestId: string): Promise<any | undefined> {
     const [payment] = await db

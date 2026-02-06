@@ -5,6 +5,7 @@ import Messages from "./Messages";
 import CreateListing from "./CreateListing";
 import CreateBuyerRequest from "./CreateBuyerRequest";
 import DashboardListings from "./DashboardListings";
+import EditBuyerRequest from "./EditBuyerRequest";
 import ProfileManagement from "./ProfileManagement";
 import SellerVerification from "./SellerVerification";
 import BuyerTierUpgrade from "./BuyerTierUpgrade";
@@ -35,6 +36,7 @@ export default function DashboardLayout() {
             <Route path="/dashboard/create-rfq" component={CreateBuyerRequest} />
             <Route path="/dashboard/listings" component={DashboardListings} />
             <Route path="/dashboard/requests" component={DashboardListings} />
+            <Route path="/dashboard/edit-rfq/:id" component={EditBuyerRequest} />
             <Route path="/dashboard/profile" component={ProfileManagement} />
             <Route path="/dashboard/verification" component={SellerVerification} />
             <Route path="/dashboard/upgrade-tier" component={BuyerTierUpgrade} />

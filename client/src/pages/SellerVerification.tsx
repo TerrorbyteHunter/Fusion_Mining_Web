@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -223,30 +224,45 @@ export default function SellerVerification() {
   const progressPercent = Math.round((uploadedCount / totalMandatory) * 100);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
-      <div className="container mx-auto px-6 py-12 max-w-5xl">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">
-              Seller Verification
-            </h1>
-            <p className="text-slate-500 max-w-md">
-              Complete your business profile to build trust and unlock premium marketplace features.
-            </p>
+    <div className="min-h-screen bg-slate-50/50">
+      {/* Premium Header */}
+      <section className="py-10 border-b bg-gradient-to-r from-white via-indigo-50/30 to-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.5))] pointer-events-none" />
+        <div className="container mx-auto px-6 relative z-10 max-w-5xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-4xl font-bold font-display tracking-tight text-slate-900 mb-2">
+                Seller Verification
+              </h1>
+              <p className="text-slate-500 text-lg max-w-xl leading-relaxed">
+                Complete your business profile to build trust and unlock premium marketplace features.
+              </p>
+            </motion.div>
+
+            {request && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-4 bg-white/80 backdrop-blur-sm p-2 pr-4 rounded-full shadow-sm border border-slate-200/60"
+              >
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-50 to-slate-100 flex items-center justify-center border border-white shadow-inner">
+                  <Shield className="h-5 w-5 text-indigo-600" />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Account Level</p>
+                  {getStatusBadge(request.status)}
+                </div>
+              </motion.div>
+            )}
           </div>
-          {request && (
-            <div className="flex items-center gap-4 bg-white p-2 pr-4 rounded-full shadow-sm border border-slate-100">
-              <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400 leading-none mb-1">Account Level</p>
-                {getStatusBadge(request.status)}
-              </div>
-            </div>
-          )}
         </div>
+      </section>
+
+      <div className="container mx-auto px-6 py-12 max-w-5xl">
 
         {!request ? (
           <Card className="border-none shadow-xl shadow-slate-200/60 overflow-hidden rounded-3xl">
@@ -258,9 +274,9 @@ export default function SellerVerification() {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 rounded-2xl backdrop-blur-md mb-6 border border-white/20">
                   <ShieldCheck className="h-8 w-8 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold mb-4">Start Your Verification</h2>
-                <p className="text-indigo-100 text-lg mb-8">
-                  Get the "Verified Seller" badge, increase your listing visibility, and gain access to high-value RFQs.
+                <h2 className="text-4xl font-bold mb-4 font-display tracking-tight">Start Your Verification</h2>
+                <p className="text-indigo-100 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">
+                  Get the "Verified Seller" badge, increase your listing visibility by 3x, and gain access to high-value RFQs from top-tier buyers.
                 </p>
                 <Button
                   size="lg"
@@ -285,7 +301,7 @@ export default function SellerVerification() {
                   </div>
                   <div>
                     <h3 className="font-bold text-emerald-900 text-lg">You're Verified!</h3>
-                    <p className="text-emerald-700/80 text-sm">Your business has been successfully verified. You now have full access to all seller features.</p>
+                    <p className="text-emerald-800 text-sm mt-1">Your business has been successfully verified. You now have full access to all seller features and premium RFQs.</p>
                   </div>
                 </div>
               )}
@@ -297,7 +313,7 @@ export default function SellerVerification() {
                   </div>
                   <div>
                     <h3 className="font-bold text-amber-900 text-lg">Verification Under Review</h3>
-                    <p className="text-amber-700/80 text-sm">We're reviewing your documents. You'll receive a notification once the process is complete.</p>
+                    <p className="text-amber-800 text-sm mt-1">We're reviewing your documents. You'll receive a notification once the process is complete.</p>
                   </div>
                 </div>
               )}
@@ -320,9 +336,12 @@ export default function SellerVerification() {
               {/* Document Checklist */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-slate-800">Required Documents</h3>
-                  <div className="text-sm font-medium text-slate-500">
-                    {uploadedCount} of {totalMandatory} completed
+                  <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-indigo-600" />
+                    Verification Requirements
+                  </h3>
+                  <div className="text-sm font-medium px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full">
+                    {uploadedCount} / {totalMandatory} Completed
                   </div>
                 </div>
 
@@ -334,30 +353,32 @@ export default function SellerVerification() {
                     const canUpload = request.status === 'draft' || request.status === 'rejected';
 
                     return (
-                      <div
+                      <motion.div
                         key={req.type}
+                        whileHover={{ y: -2 }}
                         className={`group relative p-5 rounded-2xl border transition-all duration-300 ${isHandled
-                          ? 'bg-emerald-50/20 border-emerald-200 hover:border-emerald-300'
-                          : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md shadow-sm'
+                          ? 'bg-gradient-to-br from-white to-emerald-50/30 border-emerald-200/60 shadow-sm'
+                          : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-900/5'
                           }`}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex gap-4">
                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${isHandled
-                              ? 'bg-emerald-500 text-white'
+                              ? 'bg-emerald-500 text-white shadow-emerald-200'
                               : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'
                               }`}>
                               <Icon className="h-6 w-6" />
                             </div>
                             <div className="space-y-1">
-                              <h4 className={`text-base font-bold ${isHandled ? 'text-emerald-900' : 'text-slate-800'}`}>
+                              <h4 className={`text-base font-bold flex items-center gap-2 ${isHandled ? 'text-emerald-900' : 'text-slate-800'}`}>
                                 {documentTypeLabels[req.type]}
+                                {isHandled && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                               </h4>
                               <p className="text-xs text-slate-500 leading-relaxed max-w-[400px]">
                                 {documentDescriptions[req.type]}
                               </p>
                               {uploadedDoc && (
-                                <div className="flex items-center gap-2 mt-3 px-3 py-1.5 bg-white border border-emerald-100 rounded-xl w-fit shadow-sm">
+                                <div className="flex items-center gap-2 mt-3 px-3 py-1.5 bg-white/80 backdrop-blur-sm border border-emerald-100 rounded-xl w-fit shadow-sm">
                                   <FileText className="h-3.5 w-3.5 text-emerald-600" />
                                   <span className="text-[11px] font-bold text-emerald-700 truncate max-w-[200px]">
                                     {uploadedDoc.fileName}
@@ -372,13 +393,12 @@ export default function SellerVerification() {
 
                           <div className="flex flex-col items-end gap-3 shrink-0">
                             {isHandled ? (
-                              <div className="flex items-center gap-1 text-emerald-600">
-                                <Check className="h-4 w-4" />
+                              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/50 text-emerald-700 border border-emerald-100">
                                 <span className="text-[10px] font-bold uppercase tracking-wider">Ready</span>
                               </div>
                             ) : (
-                              <div className="text-slate-300">
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Missing</span>
+                              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-400">
+                                <span className="text-[10px] font-bold uppercase tracking-wider">To Do</span>
                               </div>
                             )}
 
@@ -386,9 +406,9 @@ export default function SellerVerification() {
                               <Button
                                 variant={isHandled ? "outline" : "default"}
                                 size="sm"
-                                className={`h-9 px-4 rounded-xl font-bold text-xs transition-all ${isHandled
+                                className={`h-9 px-5 rounded-xl font-bold text-xs transition-all ${isHandled
                                   ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200'
+                                  : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200 group-hover:shadow-indigo-300'
                                   }`}
                                 onClick={() => setActiveUpload({ type: req.type, label: documentTypeLabels[req.type] })}
                               >
@@ -398,7 +418,7 @@ export default function SellerVerification() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
 
