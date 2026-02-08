@@ -677,10 +677,10 @@ export default function BuyerTierUpgrade() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0 gap-0 overflow-hidden">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
 
           {/* Header */}
-          <div className="p-6 border-b bg-muted/30">
+          <div className="p-6 border-b bg-muted/30 flex-none bg-background">
             <DialogHeader>
               <DialogTitle className="text-2xl">
                 {currentStep === 'documents' && `Upgrade to ${selectedTierInfo?.name}`}
@@ -719,7 +719,7 @@ export default function BuyerTierUpgrade() {
             </div>
           </div>
 
-          <div className="p-6 md:p-8 bg-background">
+          <div className="p-6 md:p-8 bg-background flex-1 overflow-y-auto">
             <div className="space-y-6">
               {/* Tier Summary */}
               <div className="bg-muted/30 p-4 rounded-xl border border-border/50 flex items-center justify-between">
@@ -979,7 +979,7 @@ export default function BuyerTierUpgrade() {
             </div>
           </div>
 
-          <DialogFooter className="p-6 bg-muted/30 border-t flex justify-between gap-3">
+          <DialogFooter className="p-6 bg-muted/30 border-t flex-none flex justify-between gap-3">
             {currentStep === 'documents' && (
               <>
                 <Button
@@ -1029,7 +1029,7 @@ export default function BuyerTierUpgrade() {
             <div className="mx-auto w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm mb-4">
               <Upload className="h-8 w-8" />
             </div>
-            <h3 className="text-xl font-bold">{activeUpload?.label}</h3>
+            <DialogTitle className="text-xl font-bold">{activeUpload?.label}</DialogTitle>
           </div>
           <div className="p-6">
             <div

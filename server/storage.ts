@@ -179,6 +179,8 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   updateUserRole(id: string, role: string): Promise<User>;
   deleteUser(id: string): Promise<void>;
+  updateUserMembershipTier(id: string, tier: string): Promise<User>;
+  updateUser(id: string, data: Partial<User>): Promise<User>;
   // Admin permissions
   getAdminPermissions(adminUserId: string): Promise<AdminPermissions | undefined>;
   upsertAdminPermissions(data: InsertAdminPermissions): Promise<AdminPermissions>;
@@ -544,6 +546,24 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUser(id: string): Promise<void> {
     await db.delete(users).where(eq(users.id, id));
+  }
+
+  async updateUserMembershipTier(id: string, tier: string): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ membershipTier: tier as any, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  async updateUser(id: string, data: Partial<User>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
   }
 
   // ========================================================================

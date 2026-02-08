@@ -17,6 +17,7 @@ import {
   Shield,
   TrendingUp,
   Menu,
+  UserX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -139,6 +140,13 @@ export function AdminSidebar({
       icon: TrendingUp,
       href: "/admin/buyer-upgrades",
       testId: "admin-sidebar-buyer-upgrades",
+      permission: 'canManageUsers'
+    },
+    {
+      label: "Account Deletions",
+      icon: UserX,
+      tab: "account-deletions",
+      testId: "admin-sidebar-account-deletions",
       permission: 'canManageUsers'
     },
     {

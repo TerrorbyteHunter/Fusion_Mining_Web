@@ -60,6 +60,8 @@ function getUserId(req: any): string | null {
 }
 
 // ========================================================================
+import { registerBuyerTierRoutes } from "./routes/buyer-tier";
+
 // Buyer Tier Upgrade Routes
 // ========================================================================
 
@@ -2259,6 +2261,261 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to reject RFQ" });
     }
   });
+
+  // ========================================================================
+  // User Management Routes
+  // ========================================================================
+
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/role', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { role } = req.body;
+      const updatedUser = await storage.updateUserRole(req.params.id, role);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.post('/api/admin/users/:id/tier', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { tier } = req.body;
+      const updatedUser = await storage.updateUserMembershipTier(req.params.id, tier);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user tier:", error);
+      res.status(500).json({ message: "Failed to update user tier" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/info', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { firstName, lastName, email, username, phoneNumber, companyName } = req.body;
+
+      // Update core user fields
+      const updatedUser = await storage.updateUser(req.params.id, {
+        firstName,
+        lastName,
+        email,
+        username
+      });
+
+      // Update profile fields if provided
+      if (phoneNumber || companyName) {
+        const profile = await storage.getUserProfile(req.params.id);
+        if (!profile) {
+          await storage.createUserProfile({
+            userId: req.params.id,
+            phoneNumber,
+            companyName,
+            bio: null,
+            location: null,
+            website: null,
+            linkedin: null
+          });
+        } else {
+          await storage.updateUserProfile({
+            userId: req.params.id,
+            phoneNumber,
+            companyName
+          });
+        }
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating user info:", error);
+      res.status(500).json({ message: "Failed to update user info" });
+    }
+  });
+
+  // ========================================================================
+  // Account Deletion Management Routes
+  // ========================================================================
+
+  // Get all account deletion requests
+  app.get('/api/admin/account-deletion-requests', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const requests = await storage.getAccountDeletionRequests();
+
+      // Enrich with user information
+      const enrichedRequests = await Promise.all(
+        requests.map(async (request) => {
+          const user = await storage.getUserById(request.userId);
+          return {
+            ...request,
+            user: user ? {
+              id: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role,
+              membershipTier: user.membershipTier,
+            } : null,
+          };
+        })
+      );
+
+      res.json(enrichedRequests);
+    } catch (error) {
+      console.error("Error fetching account deletion requests:", error);
+      res.status(500).json({ message: "Failed to fetch account deletion requests" });
+    }
+  });
+
+  // Process (approve) an account deletion request
+  app.post('/api/admin/account-deletion-requests/:id/process', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const requestId = req.params.id;
+      const adminId = req.user.id;
+
+      // Get the deletion request
+      const requests = await storage.getAccountDeletionRequests();
+      const deletionRequest = requests.find(r => r.id === requestId);
+
+      if (!deletionRequest) {
+        return res.status(404).json({ message: "Deletion request not found" });
+      }
+
+      if (deletionRequest.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending requests can be processed" });
+      }
+
+      // Update request status to processed
+      await storage.updateAccountDeletionRequestStatus(requestId, 'processed');
+
+      // Delete the user account
+      await storage.deleteUser(deletionRequest.userId);
+
+      // Log admin action
+      try {
+        await storage.logAdminAudit({
+          adminId,
+          action: 'account_deleted',
+          targetType: 'user',
+          targetId: deletionRequest.userId,
+          changes: {
+            reason: deletionRequest.reason,
+            requestId: requestId,
+          },
+          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+          userAgent: req.get('user-agent') || null,
+        });
+      } catch (auditError) {
+        console.error('[ADMIN AUDIT] Failed to log account deletion:', auditError);
+      }
+
+      res.json({ message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("Error processing account deletion:", error);
+      res.status(500).json({ message: "Failed to process account deletion" });
+    }
+  });
+
+  // Cancel an account deletion request
+  app.post('/api/admin/account-deletion-requests/:id/cancel', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const requestId = req.params.id;
+      const adminId = req.user.id;
+
+      // Get the deletion request
+      const requests = await storage.getAccountDeletionRequests();
+      const deletionRequest = requests.find(r => r.id === requestId);
+
+      if (!deletionRequest) {
+        return res.status(404).json({ message: "Deletion request not found" });
+      }
+
+      if (deletionRequest.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending requests can be cancelled" });
+      }
+
+      // Update request status to cancelled
+      await storage.updateAccountDeletionRequestStatus(requestId, 'cancelled');
+
+      // Log admin action
+      try {
+        await storage.logAdminAudit({
+          adminId,
+          action: 'account_deletion_cancelled',
+          targetType: 'user',
+          targetId: deletionRequest.userId,
+          changes: {
+            requestId: requestId,
+          },
+          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+          userAgent: req.get('user-agent') || null,
+        });
+      } catch (auditError) {
+        console.error('[ADMIN AUDIT] Failed to log account deletion cancellation:', auditError);
+      }
+
+      res.json({ message: "Deletion request cancelled successfully" });
+    } catch (error) {
+      console.error("Error cancelling deletion request:", error);
+      res.status(500).json({ message: "Failed to cancel deletion request" });
+    }
+  });
+
+  // Admin endpoint to directly delete a user (from Users tab)
+  app.delete('/api/admin/users/:userId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.params.userId;
+      const adminId = req.user.id;
+
+      // Get user info before deletion for audit log
+      const user = await storage.getUserById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Prevent deleting yourself
+      if (userId === adminId) {
+        return res.status(400).json({ message: "You cannot delete your own account" });
+      }
+
+      // Delete the user
+      await storage.deleteUser(userId);
+
+      // Log admin action
+      try {
+        await storage.logAdminAudit({
+          adminId,
+          action: 'user_deleted',
+          targetType: 'user',
+          targetId: userId,
+          changes: {
+            email: user.email,
+            role: user.role,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          },
+          ipAddress: req.ip || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() || null,
+          userAgent: req.get('user-agent') || null,
+        });
+      } catch (auditError) {
+        console.error('[ADMIN AUDIT] Failed to log user deletion:', auditError);
+      }
+
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  // Register Buyer Tier Upgrade Routes
+  registerBuyerTierRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

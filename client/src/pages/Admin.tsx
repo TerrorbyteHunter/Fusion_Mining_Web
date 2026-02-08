@@ -42,8 +42,8 @@ import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar"
 import type { MarketplaceListing, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
 import {
   ShieldCheck, Users, Package, MessageSquare, Activity,
-  Edit, Trash, Plus, Search, CheckCircle, XCircle,
-  MapPin, Award, RefreshCw, TrendingUp
+  Edit, Trash, Trash2, Plus, Search, CheckCircle, XCircle,
+  MapPin, Award, RefreshCw, TrendingUp, UserX
 } from "lucide-react";
 import Messages from "./Messages";
 import { format } from "date-fns";
@@ -693,6 +693,45 @@ export default function Admin() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete listing.", variant: "destructive" });
+    },
+  });
+
+  // Account Deletion Requests query
+  const { data: accountDeletionRequests, isLoading: loadingDeletionRequests } = useQuery<any[]>({
+    queryKey: ["/api/admin/account-deletion-requests"],
+    enabled: !!isAdmin && activeTab === "account-deletions",
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/account-deletion-requests");
+      return (await res.json()) as any[];
+    },
+  });
+
+  // Process (approve) account deletion mutation
+  const processAccountDeletionMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      return await apiRequest("POST", `/api/admin/account-deletion-requests/${requestId}/process`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-deletion-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({ title: "Account deleted", description: "The user account has been deleted successfully." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete account", variant: "destructive" });
+    },
+  });
+
+  // Cancel account deletion mutation
+  const cancelAccountDeletionMutation = useMutation({
+    mutationFn: async (requestId: string) => {
+      return await apiRequest("POST", `/api/admin/account-deletion-requests/${requestId}/cancel`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/account-deletion-requests"] });
+      toast({ title: "Request cancelled", description: "The deletion request has been cancelled." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to cancel request", variant: "destructive" });
     },
   });
 
@@ -2640,6 +2679,131 @@ export default function Admin() {
             </div>
           )}
         </div>
+
+        {/* Account Deletions Tab */}
+        {activeTab === "account-deletions" && adminPermissions?.canManageUsers && (
+          <div className="p-6 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold">Account Deletion Requests</h2>
+              <p className="text-muted-foreground">Review and process user account deletion requests</p>
+            </div>
+
+            {loadingDeletionRequests ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading deletion requests...</p>
+                </div>
+              </div>
+            ) : !accountDeletionRequests || accountDeletionRequests.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <UserX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No account deletion requests found</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Requested</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {accountDeletionRequests.map((request: any) => (
+                      <TableRow key={request.id}>
+                        <TableCell>
+                          <div className="font-medium">
+                            {request.user?.firstName || request.user?.lastName
+                              ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim()
+                              : 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>{request.user?.email || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={request.user?.role === 'admin' ? 'destructive' : 'default'}>
+                            {request.user?.role || 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {request.user?.membershipTier || 'basic'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs truncate text-sm text-muted-foreground">
+                            {request.reason || 'No reason provided'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {format(new Date(request.createdAt), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              request.status === 'pending'
+                                ? 'default'
+                                : request.status === 'processed'
+                                  ? 'secondary'
+                                  : 'outline'
+                            }
+                          >
+                            {request.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {request.status === 'pending' && (
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  if (confirm(`Are you sure you want to delete the account for ${request.user?.email}? This action cannot be undone.`)) {
+                                    processAccountDeletionMutation.mutate(request.id);
+                                  }
+                                }}
+                                disabled={processAccountDeletionMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete Account
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  if (confirm(`Cancel deletion request for ${request.user?.email}?`)) {
+                                    cancelAccountDeletionMutation.mutate(request.id);
+                                  }
+                                }}
+                                disabled={cancelAccountDeletionMutation.isPending}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
+                          {request.status !== 'pending' && (
+                            <span className="text-sm text-muted-foreground">
+                              {request.status === 'processed' ? 'Deleted' : 'Cancelled'}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Dialogs */}
         {/* Create User Dialog */}
