@@ -1,10 +1,9 @@
-
 import { Express } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { storage } from "../storage";
-import { requireAuth } from "../localAuth";
+import { requireAuth, requireAdmin } from "../localAuth";
 import { db } from "../db";
 import { tierUpgradeRequests, tierUpgradePayments, tierUpgradeDocuments } from "@shared/schema";
 import { eq, desc } from "drizzle-orm";
@@ -232,6 +231,90 @@ export function registerBuyerTierRoutes(app: Express) {
         } catch (error) {
             console.error("Error submitting request:", error);
             res.status(500).json({ message: "Failed to submit request" });
+        }
+    });
+    // Admin Routes
+
+    // Get pending requests
+    app.get('/api/admin/buyer-upgrades/pending', requireAuth, requireAdmin, async (req, res) => {
+        try {
+            const requests = await storage.getPendingTierUpgradeRequests();
+            res.json(requests);
+        } catch (error) {
+            console.error("Error fetching pending upgrade requests:", error);
+            res.status(500).json({ message: "Failed to fetch pending requests" });
+        }
+    });
+
+    // Get all requests
+    app.get('/api/admin/buyer-upgrades', requireAuth, requireAdmin, async (req, res) => {
+        try {
+            const requests = await storage.getAllTierUpgradeRequests();
+            res.json(requests);
+        } catch (error) {
+            console.error("Error fetching all upgrade requests:", error);
+            res.status(500).json({ message: "Failed to fetch requests" });
+        }
+    });
+
+    // Get documents for a request
+    app.get('/api/admin/buyer-upgrades/documents/:requestId', requireAuth, requireAdmin, async (req, res) => {
+        try {
+            const { requestId } = req.params;
+            const documents = await storage.getTierUpgradeDocuments(requestId);
+            res.json(documents);
+        } catch (error) {
+            console.error("Error fetching upgrade documents:", error);
+            res.status(500).json({ message: "Failed to fetch documents" });
+        }
+    });
+
+    // Approve request
+    app.post('/api/admin/buyer-upgrades/approve/:id', requireAuth, requireAdmin, async (req: any, res) => {
+        try {
+            const { id } = req.params;
+            const reviewerId = getUserId(req);
+
+            if (!reviewerId) return res.status(401).json({ message: "Unauthorized" });
+
+            const result = await storage.approveTierUpgradeRequest(id, reviewerId);
+            res.json(result);
+        } catch (error) {
+            console.error("Error approving upgrade request:", error);
+            res.status(500).json({ message: "Failed to approve request" });
+        }
+    });
+
+    // Reject request
+    app.post('/api/admin/buyer-upgrades/reject/:id', requireAuth, requireAdmin, async (req: any, res) => {
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+            const reviewerId = getUserId(req);
+
+            if (!reviewerId) return res.status(401).json({ message: "Unauthorized" });
+            if (!reason) return res.status(400).json({ message: "Rejection reason is required" });
+
+            const result = await storage.rejectTierUpgradeRequest(id, reviewerId, reason);
+            res.json(result);
+        } catch (error) {
+            console.error("Error rejecting upgrade request:", error);
+            res.status(500).json({ message: "Failed to reject request" });
+        }
+    });
+
+    // Revert request
+    app.post('/api/admin/buyer-upgrades/revert/:id', requireAuth, requireAdmin, async (req: any, res) => {
+        try {
+            const { id } = req.params;
+            // Revert sets it back to draft/pending, no reviewer needed technically but good to log? 
+            // storage.revertTierUpgradeRequest just updates status.
+
+            const result = await storage.revertTierUpgradeRequest(id);
+            res.json(result);
+        } catch (error) {
+            console.error("Error reverting upgrade request:", error);
+            res.status(500).json({ message: "Failed to revert request" });
         }
     });
 }
