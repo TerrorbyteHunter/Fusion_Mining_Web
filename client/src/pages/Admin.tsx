@@ -39,11 +39,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
-import type { MarketplaceListing, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
+import type { MarketplaceListing, MarketplaceListingWithSeller, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
+import { ImageDisplay } from "@/components/ImageDisplay";
+import { VerificationBadge } from "@/components/VerificationBadge";
 import {
   ShieldCheck, Users, Package, MessageSquare, Activity,
   Edit, Trash, Trash2, Plus, Search, CheckCircle, XCircle,
-  MapPin, Award, RefreshCw, TrendingUp, UserX
+  MapPin, Award, RefreshCw, TrendingUp, UserX, Info, Phone, Mail, Building
 } from "lucide-react";
 import Messages from "./Messages";
 import { format } from "date-fns";
@@ -351,12 +353,12 @@ export default function Admin() {
   }, [isAuthenticated, authLoading, isAdmin, toast]);
 
   // Fetch verification queue (listings)
-  const { data: verificationQueue, isLoading: loadingQueue } = useQuery<MarketplaceListing[]>({
+  const { data: verificationQueue, isLoading: loadingQueue } = useQuery<MarketplaceListingWithSeller[]>({
     queryKey: ["/api/admin/verification-queue"],
     enabled: !!isAdmin && (activeTab === "verification" || activeTab === "overview"),
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/verification-queue");
-      return (await res.json()) as MarketplaceListing[];
+      return (await res.json()) as MarketplaceListingWithSeller[];
     },
   });
 
@@ -2678,132 +2680,136 @@ export default function Admin() {
               </Card>
             </div>
           )}
-        </div>
 
-        {/* Account Deletions Tab */}
-        {activeTab === "account-deletions" && adminPermissions?.canManageUsers && (
-          <div className="p-6 space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold">Account Deletion Requests</h2>
-              <p className="text-muted-foreground">Review and process user account deletion requests</p>
-            </div>
-
-            {loadingDeletionRequests ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Loading deletion requests...</p>
-                </div>
+          {/* Account Deletions Tab */}
+          {activeTab === "account-deletions" && adminPermissions?.canManageUsers && (
+            <div className="p-6 space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold">Account Deletion Requests</h2>
+                <p className="text-muted-foreground">Review and process user account deletion requests</p>
               </div>
-            ) : !accountDeletionRequests || accountDeletionRequests.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <UserX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No account deletion requests found</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Tier</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Requested</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {accountDeletionRequests.map((request: any) => (
-                      <TableRow key={request.id}>
-                        <TableCell>
-                          <div className="font-medium">
-                            {request.user?.firstName || request.user?.lastName
-                              ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim()
-                              : 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{request.user?.email || 'N/A'}</TableCell>
-                        <TableCell>
-                          <Badge variant={request.user?.role === 'admin' ? 'destructive' : 'default'}>
-                            {request.user?.role || 'N/A'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {request.user?.membershipTier || 'basic'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-xs truncate text-sm text-muted-foreground">
-                            {request.reason || 'No reason provided'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(request.createdAt), 'MMM d, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              request.status === 'pending'
-                                ? 'default'
-                                : request.status === 'processed'
-                                  ? 'secondary'
-                                  : 'outline'
-                            }
-                          >
-                            {request.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {request.status === 'pending' && (
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  if (confirm(`Are you sure you want to delete the account for ${request.user?.email}? This action cannot be undone.`)) {
-                                    processAccountDeletionMutation.mutate(request.id);
-                                  }
-                                }}
-                                disabled={processAccountDeletionMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete Account
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  if (confirm(`Cancel deletion request for ${request.user?.email}?`)) {
-                                    cancelAccountDeletionMutation.mutate(request.id);
-                                  }
-                                }}
-                                disabled={cancelAccountDeletionMutation.isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Cancel
-                              </Button>
-                            </div>
-                          )}
-                          {request.status !== 'pending' && (
-                            <span className="text-sm text-muted-foreground">
-                              {request.status === 'processed' ? 'Deleted' : 'Cancelled'}
-                            </span>
-                          )}
-                        </TableCell>
+
+              {loadingDeletionRequests ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading deletion requests...</p>
+                  </div>
+                </div>
+              ) : !accountDeletionRequests || accountDeletionRequests.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <UserX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No account deletion requests found</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Tier</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Requested</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Card>
-            )}
-          </div>
-        )}
+                    </TableHeader>
+                    <TableBody>
+                      {accountDeletionRequests.map((request: any) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div className="font-medium">
+                              {request.user?.firstName || request.user?.lastName
+                                ? `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim()
+                                : 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{request.user?.email || 'N/A'}</TableCell>
+                          <TableCell>
+                            <Badge variant={request.user?.role === 'admin' ? 'destructive' : 'default'}>
+                              {request.user?.role || 'N/A'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {request.user?.membershipTier || 'basic'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-xs truncate text-sm text-muted-foreground">
+                              {request.reason || 'No reason provided'}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {format(new Date(request.createdAt), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                request.status === 'pending'
+                                  ? 'outline'
+                                  : request.status === 'processed'
+                                    ? 'default'
+                                    : 'secondary'
+                              }
+                              className={cn(
+                                request.status === 'pending' && "bg-amber-100 text-amber-700 border-amber-200",
+                                request.status === 'processed' && "bg-green-100 text-green-700 border-green-200"
+                              )}
+                            >
+                              {request.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {request.status === 'pending' && (
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete user ${request.user?.email}? This action is permanent.`)) {
+                                      processAccountDeletionMutation.mutate(request.id);
+                                    }
+                                  }}
+                                  disabled={processAccountDeletionMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Delete Account
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (confirm(`Cancel deletion request for ${request.user?.email}?`)) {
+                                      cancelAccountDeletionMutation.mutate(request.id);
+                                    }
+                                  }}
+                                  disabled={cancelAccountDeletionMutation.isPending}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            )}
+                            {request.status !== 'pending' && (
+                              <span className="text-sm text-muted-foreground">
+                                {request.status === 'processed' ? 'Deleted' : 'Cancelled'}
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Dialogs */}
         {/* Create User Dialog */}
@@ -3536,95 +3542,161 @@ function VerificationCard({
   onReject,
   loading
 }: {
-  listing: MarketplaceListing;
+  listing: MarketplaceListingWithSeller;
   onApprove: () => void;
   onReject: () => void;
   loading?: boolean;
 }) {
   return (
-    <Card data-testid={`card-verification-${listing.id}`}>
-      <CardHeader>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <CardTitle className="text-lg">{listing.title}</CardTitle>
-              <Badge variant={listing.type === 'mineral' ? 'default' : 'secondary'}>
-                {listing.type}
-              </Badge>
-            </div>
-            <CardDescription className="text-xs text-muted-foreground">
-              Submitted {format(new Date(listing.createdAt), "MMM d, yyyy 'at' h:mm a")}
-            </CardDescription>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={onApprove}
-              disabled={loading}
-              data-testid={`button-approve-${listing.id}`}
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Approve
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onReject}
-              disabled={loading}
-              data-testid={`button-reject-${listing.id}`}
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Reject
-            </Button>
-          </div>
+    <Card data-testid={`card-verification-${listing.id}`} className="overflow-hidden">
+      <div className="flex flex-col md:flex-row">
+        {/* Listing Image */}
+        <div className="w-full md:w-64 h-48 md:h-auto">
+          <ImageDisplay
+            imageUrl={listing.imageUrl}
+            alt={listing.title}
+            className="h-full w-full object-cover"
+          />
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Description:</p>
-            <p className="text-sm">{listing.description}</p>
-          </div>
 
-          {listing.type === 'mineral' && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
-              {listing.mineralType && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Mineral</p>
-                  <p className="text-sm font-medium">{listing.mineralType}</p>
+        <div className="flex-1 flex flex-col">
+          <CardHeader className="pb-2">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <CardTitle className="text-xl">{listing.title}</CardTitle>
+                  <Badge variant={listing.type === 'mineral' ? 'default' : 'secondary'}>
+                    {listing.type}
+                  </Badge>
                 </div>
-              )}
-              {listing.grade && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Grade</p>
-                  <p className="text-sm font-medium">{listing.grade}</p>
-                </div>
-              )}
-              {listing.quantity && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Quantity</p>
-                  <p className="text-sm font-medium">{listing.quantity}</p>
-                </div>
-              )}
-              {listing.price && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Price</p>
-                  <p className="text-sm font-medium">{listing.price}</p>
-                </div>
-              )}
+                <CardDescription className="text-sm">
+                  Submitted {format(new Date(listing.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={onApprove}
+                  disabled={loading}
+                  data-testid={`button-approve-${listing.id}`}
+                  size="sm"
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Approve
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={onReject}
+                  disabled={loading}
+                  data-testid={`button-reject-${listing.id}`}
+                  size="sm"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Reject
+                </Button>
+              </div>
             </div>
-          )}
+          </CardHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t">
-            <div>
-              <p className="text-xs text-muted-foreground">Location</p>
-              <p className="text-sm font-medium">{listing.location}</p>
+          <CardContent className="py-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Listing Details</p>
+                  <p className="text-sm line-clamp-3">{listing.description}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  {listing.mineralType && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Mineral</p>
+                      <p className="font-medium">{listing.mineralType}</p>
+                    </div>
+                  )}
+                  {listing.grade && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Grade</p>
+                      <p className="font-medium">{listing.grade}</p>
+                    </div>
+                  )}
+                  {listing.quantity && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Quantity</p>
+                      <p className="font-medium">{listing.quantity}</p>
+                    </div>
+                  )}
+                  {listing.price && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Price</p>
+                      <p className="font-medium">{listing.price}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Location</p>
+                    <p className="font-medium">{listing.location}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-muted/50 p-3 rounded-lg border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Seller Information</p>
+                {listing.seller ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-chart-1/10 flex items-center justify-center">
+                        <Users className="h-4 w-4 text-chart-1" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{listing.seller.firstName} {listing.seller.lastName}</p>
+                        <div className="flex items-center gap-1">
+                          <VerificationBadge
+                            verificationStatus={listing.seller.verificationStatus}
+                            badgeColor={listing.seller.badgeColor}
+                            size="sm"
+                          />
+                          {!listing.seller.verificationStatus || listing.seller.verificationStatus === 'not_requested' ? (
+                            <Badge variant="outline" className="text-[10px] h-4">Unverified</Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1 border-t mt-2">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Mail className="h-3 w-3 text-muted-foreground" />
+                        <span>{listing.seller.email}</span>
+                      </div>
+                      {listing.profile?.companyName && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Building className="h-3 w-3 text-muted-foreground" />
+                          <span>{listing.profile.companyName}</span>
+                        </div>
+                      )}
+                      {listing.profile?.phoneNumber && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Phone className="h-3 w-3 text-muted-foreground" />
+                          <span>{listing.profile.phoneNumber}</span>
+                        </div>
+                      )}
+                      {listing.profile?.location && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <MapPin className="h-3 w-3 text-muted-foreground" />
+                          <span>Business: {listing.profile.location}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-xs font-mono">
+                        <Info className="h-3 w-3 text-muted-foreground" />
+                        <span>ID: {listing.sellerId}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Seller information unavailable</p>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Seller ID</p>
-              <p className="text-sm font-mono text-xs">{listing.sellerId}</p>
-            </div>
-          </div>
+          </CardContent>
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 }

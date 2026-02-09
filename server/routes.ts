@@ -1531,6 +1531,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // File Uploads: Profile Images
+  // ========================================================================
+  const profileImagesRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "profiles");
+  if (!fs.existsSync(profileImagesRoot)) {
+    fs.mkdirSync(profileImagesRoot, { recursive: true });
+  }
+
+  const profileImageStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, profileImagesRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `profile-${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const profileImageUpload = multer({
+    storage: profileImageStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Only image files are allowed"));
+    },
+  });
+
+  app.post('/api/users/profile-image', isAuthenticated, profileImageUpload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image uploaded" });
+      }
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+      const relativePath = `/attached_assets/files/uploads/profiles/${req.file.filename}`;
+
+      // Update user in database
+      await storage.updateUser(userId, { profileImageUrl: relativePath });
+
+      res.json({
+        url: relativePath,
+        message: "Profile image updated successfully"
+      });
+    } catch (error: any) {
+      console.error("Error uploading profile image:", error);
+      res.status(500).json({ message: error.message || "Failed to upload image" });
+    }
+  });
+
+  // ========================================================================
   // Message Routes
   // ========================================================================
   app.get('/api/messages', isAuthenticated, async (req: any, res) => {

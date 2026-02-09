@@ -803,6 +803,8 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
+          verificationStatus: users.verificationStatus,
+          badgeColor: users.badgeColor,
         },
         profile: userProfiles,
       })
@@ -818,7 +820,11 @@ export class DatabaseStorage implements IStorage {
 
     return results.map(r => ({
       ...r.listing,
-      seller: r.seller ? { ...r.seller, verified: r.profile?.verified ?? false } : null,
+      seller: r.seller ? {
+        ...r.seller,
+        verified: (r.seller as any).verificationStatus === 'approved' || (r.profile?.verified ?? false)
+      } : null,
+      profile: r.profile,
     }));
   }
 
@@ -831,6 +837,8 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
+          verificationStatus: users.verificationStatus,
+          badgeColor: users.badgeColor,
         },
         profile: userProfiles,
       })
@@ -845,7 +853,11 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...results[0].listing,
-      seller: results[0].seller ? { ...results[0].seller, verified: results[0].profile?.verified ?? false } : null,
+      seller: results[0].seller ? {
+        ...results[0].seller,
+        verified: (results[0].seller as any).verificationStatus === 'approved' || (results[0].profile?.verified ?? false)
+      } : null,
+      profile: results[0].profile,
     };
   }
 
@@ -1837,12 +1849,34 @@ export class DatabaseStorage implements IStorage {
   // ========================================================================
   // Verification Queue operations
   // ========================================================================
-  async getPendingListings(): Promise<MarketplaceListing[]> {
-    return await db
-      .select()
+  async getPendingListings(): Promise<MarketplaceListingWithSeller[]> {
+    const results = await db
+      .select({
+        listing: marketplaceListings,
+        seller: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          verificationStatus: users.verificationStatus,
+          badgeColor: users.badgeColor,
+        },
+        profile: userProfiles,
+      })
       .from(marketplaceListings)
+      .leftJoin(users, eq(marketplaceListings.sellerId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(eq(marketplaceListings.status, 'pending'))
       .orderBy(desc(marketplaceListings.createdAt));
+
+    return results.map(r => ({
+      ...r.listing,
+      seller: r.seller ? {
+        ...r.seller,
+        verified: r.seller.verificationStatus === 'approved' || (r.profile?.verified ?? false)
+      } : null,
+      profile: r.profile,
+    }));
   }
 
 

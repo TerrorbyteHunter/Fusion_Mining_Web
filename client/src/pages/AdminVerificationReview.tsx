@@ -58,6 +58,7 @@ export default function AdminVerificationReview() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   // Fetch all verification requests
   const { data: allRequests, isLoading: allLoading } = useQuery<VerificationRequest[]>({
@@ -123,11 +124,13 @@ export default function AdminVerificationReview() {
 
   const handleApprove = (request: VerificationRequest) => {
     setSelectedRequest(request);
+    setIsRejecting(false);
     setReviewDialogOpen(true);
   };
 
   const handleReject = (request: VerificationRequest) => {
     setSelectedRequest(request);
+    setIsRejecting(true);
     setReviewDialogOpen(true);
   };
 
@@ -271,185 +274,209 @@ export default function AdminVerificationReview() {
               </p>
             </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList>
-            <TabsTrigger value="pending" data-testid="tab-pending">
-              Pending ({pendingRequests?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="all" data-testid="tab-all">
-              All Requests
-            </TabsTrigger>
-          </TabsList>
+            {/* Tabs */}
+            <Tabs defaultValue="pending" className="w-full">
+              <TabsList>
+                <TabsTrigger value="pending" data-testid="tab-pending">
+                  Pending ({pendingRequests?.length || 0})
+                </TabsTrigger>
+                <TabsTrigger value="all" data-testid="tab-all">
+                  All Requests
+                </TabsTrigger>
+              </TabsList>
 
-          <TabsContent value="pending" className="space-y-4 mt-6">
-            {pendingLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
-              </div>
-            ) : pendingRequests && pendingRequests.length > 0 ? (
-              <div className="space-y-4">
-                {pendingRequests.map((request) => renderRequestCard(request, true))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Pending Requests</h3>
-                  <p className="text-muted-foreground text-sm">
-                    All verification requests have been reviewed
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-4 mt-6">
-            {allLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-48 w-full" />
-                <Skeleton className="h-48 w-full" />
-              </div>
-            ) : allRequests && allRequests.length > 0 ? (
-              <div className="space-y-4">
-                {allRequests.map((request) => renderRequestCard(request, request.status === 'pending'))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Requests Found</h3>
-                  <p className="text-muted-foreground text-sm">
-                    No verification requests have been submitted yet
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* Review Dialog */}
-        <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Review Verification Request</DialogTitle>
-              <DialogDescription>
-                {selectedRequest && (
-                  <>
-                    {selectedRequest.sellerFirstName} {selectedRequest.sellerLastName} (
-                    {selectedRequest.sellerEmail})
-                  </>
-                )}
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="rejection-reason">Rejection Reason (optional for approve)</Label>
-                <Textarea
-                  id="rejection-reason"
-                  placeholder="Enter reason for rejection..."
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  rows={4}
-                  data-testid="input-rejection-reason"
-                />
-              </div>
-            </div>
-
-            <DialogFooter className="gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setReviewDialogOpen(false);
-                  setRejectionReason("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={confirmApprove}
-                disabled={approveMutation.isPending}
-                data-testid="button-confirm-approve"
-              >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Approve
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={confirmReject}
-                disabled={rejectMutation.isPending || !rejectionReason.trim()}
-                data-testid="button-confirm-reject"
-              >
-                <XCircle className="h-4 w-4 mr-2" />
-                Reject
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Documents Dialog */}
-        <Dialog open={documentsDialogOpen} onOpenChange={setDocumentsDialogOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Verification Documents</DialogTitle>
-              <DialogDescription>Documents submitted for verification</DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {documentsLoading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ) : documents && documents.length > 0 ? (
-                documents.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between gap-4 flex-wrap p-3 rounded-md border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">{doc.fileName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {doc.documentType.replace(/_/g, ' ')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(doc.uploadedAt).toLocaleDateString()}
+              <TabsContent value="pending" className="space-y-4 mt-6">
+                {pendingLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                  </div>
+                ) : pendingRequests && pendingRequests.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingRequests.map((request) => renderRequestCard(request, true))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No Pending Requests</h3>
+                      <p className="text-muted-foreground text-sm">
+                        All verification requests have been reviewed
                       </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.open(doc.filePath, '_blank')}
-                        data-testid={`button-view-file-${doc.id}`}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="all" className="space-y-4 mt-6">
+                {allLoading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-48 w-full" />
+                    <Skeleton className="h-48 w-full" />
+                  </div>
+                ) : allRequests && allRequests.length > 0 ? (
+                  <div className="space-y-4">
+                    {allRequests.map((request) => renderRequestCard(request, request.status === 'pending'))}
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">No Requests Found</h3>
+                      <p className="text-muted-foreground text-sm">
+                        No verification requests have been submitted yet
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+            </Tabs>
+
+            {/* Review Dialog */}
+            <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{isRejecting ? "Reject Verification Request" : "Approve Verification Request"}</DialogTitle>
+                  <DialogDescription>
+                    {selectedRequest ? (
+                      <>
+                        Confirm review for <strong>{selectedRequest.sellerFirstName} {selectedRequest.sellerLastName}</strong> (
+                        {selectedRequest.sellerEmail})
+                      </>
+                    ) : "Confirm verification request review."}
+                  </DialogDescription>
+                </DialogHeader>
+
+                {isRejecting ? (
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="rejection-reason" className="text-sm font-semibold mb-2 block">
+                        Rejection Reason
+                      </Label>
+                      <Textarea
+                        id="rejection-reason"
+                        placeholder="Please explain why the request is being rejected..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={4}
+                        className="resize-none"
+                        data-testid="input-rejection-reason"
+                      />
+                      <p className="text-xs text-muted-foreground mt-2">
+                        This reason will be shared with the seller.
+                      </p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8">
-                  <FileText className="h-12 w-12 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">No documents uploaded</p>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <div className="py-6 flex flex-col items-center text-center space-y-3">
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Ready to approve?</p>
+                      <p className="text-sm text-muted-foreground">
+                        The seller will be notified of their new verified status.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDocumentsDialogOpen(false)}>
-                Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setReviewDialogOpen(false);
+                      setRejectionReason("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  {isRejecting ? (
+                    <Button
+                      variant="destructive"
+                      onClick={confirmReject}
+                      disabled={rejectMutation.isPending || !rejectionReason.trim()}
+                      data-testid="button-confirm-reject"
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {rejectMutation.isPending ? "Rejecting..." : "Reject Request"}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="default"
+                      onClick={confirmApprove}
+                      disabled={approveMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      data-testid="button-confirm-approve"
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      {approveMutation.isPending ? "Approving..." : "Approve Verification"}
+                    </Button>
+                  )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            {/* Documents Dialog */}
+            <Dialog open={documentsDialogOpen} onOpenChange={setDocumentsDialogOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Verification Documents</DialogTitle>
+                  <DialogDescription>Documents submitted for verification</DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {documentsLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-16 w-full" />
+                      <Skeleton className="h-16 w-full" />
+                    </div>
+                  ) : documents && documents.length > 0 ? (
+                    documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between gap-4 flex-wrap p-3 rounded-md border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">{doc.fileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {doc.documentType.replace(/_/g, ' ')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(doc.uploadedAt).toLocaleDateString()}
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(doc.filePath, '_blank')}
+                            data-testid={`button-view-file-${doc.id}`}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-8">
+                      <FileText className="h-12 w-12 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">No documents uploaded</p>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDocumentsDialogOpen(false)}>
+                    Close
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>

@@ -976,6 +976,7 @@ export type MarketplaceListingWithSeller = MarketplaceListing & {
     verificationStatus: 'not_requested' | 'pending' | 'approved' | 'rejected' | null;
     badgeColor: 'bronze' | 'silver' | 'gold' | null;
   } | null;
+  profile?: UserProfile | null;
 };
 
 // Buyer Request schemas

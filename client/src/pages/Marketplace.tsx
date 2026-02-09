@@ -16,10 +16,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceListingWithSeller, BuyerRequest } from "@shared/schema";
 import { MAIN_CATEGORIES, getSubcategoriesForMain } from "@shared/categories";
-import { 
-  Search, 
-  MapPin, 
-  Package, 
+import {
+  Search,
+  MapPin,
+  Package,
   Users,
   Plus,
   Gem,
@@ -55,44 +55,44 @@ function getEquipmentImage(listing: MarketplaceListingWithSeller): string {
   if (!listing.mainCategory) {
     return catalogueImg;
   }
-  
+
   const title = (listing.title || '').toLowerCase();
   const specificType = (listing.specificType || '').toLowerCase();
   const toolSubcategory = (listing.toolSubcategory || '').toLowerCase();
   const serviceSubcategory = (listing.serviceSubcategory || '').toLowerCase();
-  
+
   // Check for drilling-related
   if (title.includes('drill') || specificType.includes('drill') || toolSubcategory.includes('drilling')) {
     return drillingImg;
   }
-  
+
   // Check for blasting-related
   if (title.includes('blast') || specificType.includes('blast') || serviceSubcategory.includes('blasting')) {
     return blastingImg;
   }
-  
+
   // Check for shipping/freight-related
-  if (title.includes('freight') || title.includes('shipping') || title.includes('transport') || 
-      serviceSubcategory.includes('freight') || serviceSubcategory.includes('supply_chain')) {
+  if (title.includes('freight') || title.includes('shipping') || title.includes('transport') ||
+    serviceSubcategory.includes('freight') || serviceSubcategory.includes('supply_chain')) {
     return shippingImg;
   }
-  
+
   // Check for feasibility/consulting
   if (title.includes('feasibility') || title.includes('consult') || title.includes('advisory') ||
-      serviceSubcategory.includes('consulting') || serviceSubcategory.includes('advisory')) {
+    serviceSubcategory.includes('consulting') || serviceSubcategory.includes('advisory')) {
     return feasibilityImg;
   }
-  
+
   // Equipment fallbacks
   if (listing.mainCategory === 'mining_tools' || listing.mainCategory === 'mining_ppe') {
     return equipmentImg;
   }
-  
+
   // Services fallback
   if (listing.mainCategory === 'mining_services') {
     return equipment2Img;
   }
-  
+
   return catalogueImg;
 }
 
@@ -100,7 +100,7 @@ export default function Marketplace() {
   const { isAuthenticated, isSeller } = useAuth();
   const { toast } = useToast();
   const [location] = useLocation();
-  
+
   const [activeTab, setActiveTab] = useState("minerals");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMainCategory, setSelectedMainCategory] = useState<string>("minerals");
@@ -121,7 +121,7 @@ export default function Marketplace() {
     const searchParams = new URLSearchParams(location.split('?')[1] || '');
     const category = searchParams.get('category');
     const tab = searchParams.get('tab');
-    
+
     if (tab) {
       setActiveTab(tab);
       // Sync filters when tab changes from URL
@@ -152,7 +152,7 @@ export default function Marketplace() {
   const handleContactSeller = (listing: MarketplaceListingWithSeller) => {
     // Use seller ID if available, otherwise fall back to admin
     const recipientId = listing.sellerId || listing.seller?.id;
-    const recipientName = listing.seller 
+    const recipientName = listing.seller
       ? `${listing.seller.firstName || ''} ${listing.seller.lastName || ''}`.trim() || 'Seller'
       : adminContact?.name || 'Administrator';
     const recipientEmail = listing.seller?.email || adminContact?.email;
@@ -203,7 +203,7 @@ export default function Marketplace() {
 
     const checkContactStatus = async () => {
       const contacted = new Set<string>();
-      
+
       for (const listing of listings) {
         try {
           const response = await fetch(
@@ -220,7 +220,7 @@ export default function Marketplace() {
           // Silently fail - don't disrupt UX
         }
       }
-      
+
       setContactedListings(contacted);
     };
 
@@ -228,7 +228,7 @@ export default function Marketplace() {
   }, [listings, isAuthenticated]);
 
   // Get subcategories for current main category
-  const availableSubcategories = selectedMainCategory !== "all" 
+  const availableSubcategories = selectedMainCategory !== "all"
     ? getSubcategoriesForMain(selectedMainCategory)
     : {};
 
@@ -242,7 +242,7 @@ export default function Marketplace() {
         matchesMainCategory = listing.mainCategory === selectedMainCategory;
       }
     }
-    
+
     // Subcategory filter should only check the relevant field based on main category
     let matchesSubcategory = true;
     if (selectedSubcategory !== "all") {
@@ -254,15 +254,15 @@ export default function Marketplace() {
         matchesSubcategory = listing.serviceSubcategory === selectedSubcategory;
       } else {
         // When main category is "all", match any subcategory
-        matchesSubcategory = 
+        matchesSubcategory =
           listing.mineralSubcategory === selectedSubcategory ||
           listing.toolSubcategory === selectedSubcategory ||
           listing.serviceSubcategory === selectedSubcategory ||
           listing.ppeSubcategory === selectedSubcategory;
       }
     }
-    
-    const matchesSearch = !searchQuery || 
+
+    const matchesSearch = !searchQuery ||
       listing.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -272,12 +272,12 @@ export default function Marketplace() {
 
   const filteredRequests = buyerRequests?.filter((request) => {
     const matchesMainCategory = selectedMainCategory === "all" || request.mainCategory === selectedMainCategory;
-    const matchesSubcategory = selectedSubcategory === "all" || 
+    const matchesSubcategory = selectedSubcategory === "all" ||
       request.mineralSubcategory === selectedSubcategory ||
       request.toolSubcategory === selectedSubcategory ||
       request.serviceSubcategory === selectedSubcategory ||
       request.ppeSubcategory === selectedSubcategory;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       request.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -368,8 +368,8 @@ export default function Marketplace() {
               </div>
               <div>
                 <Label htmlFor="subcategory">Subcategory</Label>
-                <Select 
-                  value={selectedSubcategory} 
+                <Select
+                  value={selectedSubcategory}
                   onValueChange={setSelectedSubcategory}
                   disabled={selectedMainCategory === "all"}
                 >
@@ -403,18 +403,18 @@ export default function Marketplace() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-listing-${listing.id}`}>
-                      <ImageDisplay 
+                      <ImageDisplay
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
                         fallbackImage={
                           listing.mineralType
                             ? (function getMineralImage(mineral: string) {
-                                const m = mineral.toLowerCase();
-                                if (m.includes('copper')) return copper2Img;
-                                if (m.includes('gold')) return gold2Img;
-                                if (m.includes('emerald') || m.includes('green')) return green2Img;
-                                return catalogueImg;
-                              })(listing.mineralType)
+                              const m = mineral.toLowerCase();
+                              if (m.includes('copper')) return copper2Img;
+                              if (m.includes('gold')) return gold2Img;
+                              if (m.includes('emerald') || m.includes('green')) return green2Img;
+                              return catalogueImg;
+                            })(listing.mineralType)
                             : catalogueImg
                         }
                       />
@@ -434,7 +434,7 @@ export default function Marketplace() {
                         {listing.seller && (
                           <div className="flex items-center gap-2 mt-2 flex-wrap" data-testid={`text-seller-${listing.id}`}>
                             <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
-                            <VerificationBadge 
+                            <VerificationBadge
                               verificationStatus={listing.seller.verificationStatus}
                               badgeColor={listing.seller.badgeColor}
                               size="sm"
@@ -479,9 +479,9 @@ export default function Marketplace() {
                             <Badge variant="secondary" className="w-full justify-center py-2" data-testid={`badge-contacted-${listing.id}`}>
                               Already Contacted
                             </Badge>
-                            <Button 
+                            <Button
                               variant="outline"
-                              className="w-full" 
+                              className="w-full"
                               data-testid={`button-contact-seller-${listing.id}`}
                               onClick={() => handleContactSeller(listing)}
                               disabled={loadingAdminContact}
@@ -498,8 +498,8 @@ export default function Marketplace() {
                             </Button>
                           </div>
                         ) : (
-                          <Button 
-                            className="w-full" 
+                          <Button
+                            className="w-full"
                             data-testid={`button-contact-seller-${listing.id}`}
                             onClick={() => handleContactSeller(listing)}
                             disabled={loadingAdminContact}
@@ -587,8 +587,8 @@ export default function Marketplace() {
                             <span>{request.location}</span>
                           </div>
                         )}
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           data-testid={`button-respond-${request.id}`}
                           onClick={() => handleRespondToRequest(request)}
                         >
@@ -628,7 +628,7 @@ export default function Marketplace() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-equipment-${listing.id}`}>
-                      <ImageDisplay 
+                      <ImageDisplay
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
                         fallbackImage={getEquipmentImage(listing)}
@@ -647,11 +647,14 @@ export default function Marketplace() {
                           {listing.description}
                         </CardDescription>
                         {listing.seller && (
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-equipment-${listing.id}`}>
-                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
-                            {listing.seller.verified && (
-                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-equipment-${listing.id}`} />
-                            )}
+                          <div className="flex items-center gap-2 mt-2" data-testid={`text-seller-equipment-${listing.id}`}>
+                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
+                            <VerificationBadge
+                              verificationStatus={listing.seller.verificationStatus}
+                              badgeColor={listing.seller.badgeColor}
+                              size="sm"
+                              showIcon={true}
+                            />
                           </div>
                         )}
                       </CardHeader>
@@ -680,8 +683,8 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           data-testid={`button-contact-seller-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
                           disabled={loadingAdminContact}
@@ -729,7 +732,7 @@ export default function Marketplace() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-service-${listing.id}`}>
-                      <ImageDisplay 
+                      <ImageDisplay
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
                         fallbackImage={getEquipmentImage(listing)}
@@ -748,11 +751,14 @@ export default function Marketplace() {
                           {listing.description}
                         </CardDescription>
                         {listing.seller && (
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-service-${listing.id}`}>
-                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
-                            {listing.seller.verified && (
-                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-service-${listing.id}`} />
-                            )}
+                          <div className="flex items-center gap-2 mt-2" data-testid={`text-seller-service-${listing.id}`}>
+                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
+                            <VerificationBadge
+                              verificationStatus={listing.seller.verificationStatus}
+                              badgeColor={listing.seller.badgeColor}
+                              size="sm"
+                              showIcon={true}
+                            />
                           </div>
                         )}
                       </CardHeader>
@@ -775,8 +781,8 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           data-testid={`button-contact-seller-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
                           disabled={loadingAdminContact}
@@ -824,7 +830,7 @@ export default function Marketplace() {
                   {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
                       <CardHeader>
-                          <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
                             <CardTitle className="text-xl">{listing.title}</CardTitle>
                             {listing.itemId && (
@@ -850,8 +856,8 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           data-testid={`button-learn-partnership-${listing.id}`}
                           onClick={() => handleContactSeller(listing)}
                         >
