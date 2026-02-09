@@ -148,11 +148,7 @@ export default function SellerVerification() {
       formData.append('requestId', request.id);
       formData.append('documentType', type);
 
-      const response = await fetch('/api/verification/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
+      const response = await apiRequest('POST', '/api/verification/upload', formData);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

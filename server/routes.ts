@@ -61,6 +61,7 @@ function getUserId(req: any): string | null {
 
 // ========================================================================
 import { registerBuyerTierRoutes } from "./routes/buyer-tier";
+import { registerVerificationRoutes } from "./routes/verification";
 
 // Buyer Tier Upgrade Routes
 // ========================================================================
@@ -2567,6 +2568,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register Buyer Tier Upgrade Routes
   registerBuyerTierRoutes(app);
+
+  // Register Seller Verification Routes
+  registerVerificationRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;
