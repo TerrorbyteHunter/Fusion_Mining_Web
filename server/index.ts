@@ -104,6 +104,9 @@ app.use((req, res, next) => {
     app.post('/api/logout', logoutHandler);
     app.get('/api/auth/user', requireAuth, authUserHandler);
 
+    // Serve uploaded files (documents, payment proofs, etc.)
+    app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
     // In development, setup Vite
 
     // Central error handler: respond and log, but don't rethrow here to avoid crashing the process

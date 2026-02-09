@@ -1479,6 +1479,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // File Uploads: Listing Images
+  // ========================================================================
+  const listingImagesRoot = path.resolve(import.meta.dirname, "..", "attached_assets", "files", "uploads", "listings");
+  fs.mkdirSync(listingImagesRoot, { recursive: true });
+
+  const listingImageStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, listingImagesRoot),
+    filename: (_req, file, cb) => {
+      const timestamp = Date.now();
+      const sanitizedOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+      cb(null, `${timestamp}-${sanitizedOriginal}`);
+    },
+  });
+
+  const listingImageUpload = multer({
+    storage: listingImageStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/gif",
+        "image/webp",
+      ];
+      if (allowed.includes(file.mimetype)) {
+        return cb(null, true);
+      }
+      return cb(new Error("Only image files are allowed (PNG, JPEG, GIF, WebP)"));
+    },
+  });
+
+  app.post('/api/uploads/listings', isAuthenticated, listingImageUpload.single('image'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No image uploaded" });
+      }
+      const relativePath = `/attached_assets/files/uploads/listings/${req.file.filename}`;
+      res.json({
+        filename: req.file.originalname,
+        url: relativePath,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error: any) {
+      console.error("Error uploading listing image:", error);
+      res.status(500).json({ message: error.message || "Failed to upload image" });
+    }
+  });
+
+  // ========================================================================
   // Message Routes
   // ========================================================================
   app.get('/api/messages', isAuthenticated, async (req: any, res) => {

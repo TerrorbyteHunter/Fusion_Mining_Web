@@ -122,7 +122,7 @@ export function registerBuyerTierRoutes(app: Express) {
                 requestId,
                 documentType,
                 fileName: file.originalname,
-                fileUrl: `/uploads/${file.filename}`,
+                filePath: `/uploads/${file.filename}`,
                 fileSize: file.size,
                 mimeType: file.mimetype,
                 uploadedAt: new Date(),

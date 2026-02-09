@@ -414,8 +414,7 @@ export default function CreateListing() {
                     onChange={(value) =>
                       setListingForm({ ...listingForm, imageUrl: value })
                     }
-                    label="Listing Image"
-                    placeholder="https://example.com/listing-image.jpg"
+                    label=""
                     testId="input-image-url"
                   />
                 </div>

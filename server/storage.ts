@@ -3161,7 +3161,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllTierUpgradeRequests(): Promise<any[]> {
-    return await db
+    // Fetch requests with user and profile data
+    const requestsWithUsers = await db
       .select({
         id: tierUpgradeRequests.id,
         userId: tierUpgradeRequests.userId,
@@ -3180,21 +3181,50 @@ export class DatabaseStorage implements IStorage {
         companyName: userProfiles.companyName,
         phoneNumber: userProfiles.phoneNumber,
         location: userProfiles.location,
-        paymentAmount: tierUpgradePayments.amount,
-        paymentCurrency: tierUpgradePayments.currency,
-        paymentMethod: tierUpgradePayments.paymentMethod,
-        proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
-        paymentStatus: tierUpgradePayments.status,
       })
       .from(tierUpgradeRequests)
       .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
       .leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId))
-      .leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId))
       .orderBy(desc(tierUpgradeRequests.submittedAt));
+
+    // Fetch all payments
+    const allPayments = await db
+      .select()
+      .from(tierUpgradePayments);
+
+    // Create a map of requestId -> payment for quick lookup
+    const paymentMap = new Map();
+    allPayments.forEach(payment => {
+      // Store the most recent payment for each request (or the one with proof)
+      const existing = paymentMap.get(payment.upgradeRequestId);
+      if (!existing || payment.proofOfPaymentUrl || payment.status === 'paid' || payment.status === 'verified') {
+        paymentMap.set(payment.upgradeRequestId, payment);
+      }
+    });
+
+    // Combine the data
+    const results = requestsWithUsers.map(req => {
+      const payment = paymentMap.get(req.id);
+      return {
+        ...req,
+        paymentAmount: payment?.amount || null,
+        paymentCurrency: payment?.currency || null,
+        paymentMethod: payment?.paymentMethod || null,
+        proofOfPaymentUrl: payment?.proofOfPaymentUrl || null,
+        paymentStatus: payment?.status || null,
+      };
+    });
+
+    console.log(`[getAllTierUpgradeRequests] Found ${results.length} requests`);
+    if (results.length > 0) {
+      console.log(`[getAllTierUpgradeRequests] First request: id=${results[0].id}, docCount=${results[0].documentCount}, proofUrl=${results[0].proofOfPaymentUrl}`);
+    }
+    return results;
   }
 
   async getPendingTierUpgradeRequests(): Promise<any[]> {
-    return await db
+    // Fetch pending/draft requests with user and profile data
+    const requestsWithUsers = await db
       .select({
         id: tierUpgradeRequests.id,
         userId: tierUpgradeRequests.userId,
@@ -3213,18 +3243,46 @@ export class DatabaseStorage implements IStorage {
         companyName: userProfiles.companyName,
         phoneNumber: userProfiles.phoneNumber,
         location: userProfiles.location,
-        paymentAmount: tierUpgradePayments.amount,
-        paymentCurrency: tierUpgradePayments.currency,
-        paymentMethod: tierUpgradePayments.paymentMethod,
-        proofOfPaymentUrl: tierUpgradePayments.proofOfPaymentUrl,
-        paymentStatus: tierUpgradePayments.status,
       })
       .from(tierUpgradeRequests)
       .leftJoin(users, eq(tierUpgradeRequests.userId, users.id))
       .leftJoin(userProfiles, eq(tierUpgradeRequests.userId, userProfiles.userId))
-      .leftJoin(tierUpgradePayments, eq(tierUpgradeRequests.id, tierUpgradePayments.upgradeRequestId))
       .where(or(eq(tierUpgradeRequests.status, 'pending'), eq(tierUpgradeRequests.status, 'draft')))
       .orderBy(desc(tierUpgradeRequests.submittedAt));
+
+    // Fetch all payments
+    const allPayments = await db
+      .select()
+      .from(tierUpgradePayments);
+
+    // Create a map of requestId -> payment for quick lookup
+    const paymentMap = new Map();
+    allPayments.forEach(payment => {
+      // Store the most recent payment for each request (or the one with proof)
+      const existing = paymentMap.get(payment.upgradeRequestId);
+      if (!existing || payment.proofOfPaymentUrl || payment.status === 'paid' || payment.status === 'verified') {
+        paymentMap.set(payment.upgradeRequestId, payment);
+      }
+    });
+
+    // Combine the data
+    const results = requestsWithUsers.map(req => {
+      const payment = paymentMap.get(req.id);
+      return {
+        ...req,
+        paymentAmount: payment?.amount || null,
+        paymentCurrency: payment?.currency || null,
+        paymentMethod: payment?.paymentMethod || null,
+        proofOfPaymentUrl: payment?.proofOfPaymentUrl || null,
+        paymentStatus: payment?.status || null,
+      };
+    });
+
+    console.log(`[getPendingTierUpgradeRequests] Found ${results.length} requests`);
+    if (results.length > 0) {
+      console.log(`[getPendingTierUpgradeRequests] First request: id=${results[0].id}, docCount=${results[0].documentCount}, proofUrl=${results[0].proofOfPaymentUrl}`);
+    }
+    return results;
   }
 
   async approveTierUpgradeRequest(id: string, reviewerId: string): Promise<any> {

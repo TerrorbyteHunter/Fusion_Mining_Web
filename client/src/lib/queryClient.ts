@@ -34,8 +34,15 @@ export async function apiRequest(
   const apiBase = (import.meta as any).env?.VITE_API_BASE_URL as string | undefined;
   const normalizedBase = apiBase ? apiBase.replace(/\/+$/, "") : "";
   const fullUrl = /^https?:\/\//i.test(url) ? url : `${normalizedBase}${url}`;
+
+  // Check if data is FormData (for file uploads)
+  const isFormData = data instanceof FormData;
+
   const baseHeaders: Record<string, string> = {};
-  if (data) baseHeaders["Content-Type"] = "application/json";
+  // Don't set Content-Type for FormData - browser will set it with boundary
+  if (data && !isFormData) {
+    baseHeaders["Content-Type"] = "application/json";
+  }
   const headers = { ...baseHeaders, ...(extraHeaders || {}) };
 
   // Get Clerk token if available
@@ -55,7 +62,8 @@ export async function apiRequest(
   const res = await fetch(fullUrl, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    // Don't stringify FormData - send it directly
+    body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
     credentials: "include",
   });
 
