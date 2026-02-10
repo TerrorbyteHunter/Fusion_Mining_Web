@@ -13,13 +13,13 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithOwner } from "@shared/schema";
-import { 
-  MapPin, 
-  FileText, 
-  Search, 
+import {
+  MapPin,
+  FileText,
+  Search,
   Heart,
   MessageCircle,
-  CheckCircle2
+  BadgeCheck
 } from "lucide-react";
 import { ZambiaMap } from "@/components/ZambiaMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
@@ -50,7 +50,7 @@ export default function Projects() {
   const [openProjectDialog, setOpenProjectDialog] = useState<string | null>(null);
   const [projectMessage, setProjectMessage] = useState<string>("");
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  
+
   // Suppress unused variable warnings - dialog functionality planned for future use
   void openProjectDialog;
   void projectMessage;
@@ -65,7 +65,7 @@ export default function Projects() {
   useEffect(() => {
     const checkInterests = async () => {
       if (!isAuthenticated || !projects) return;
-      
+
       const interests = new Set<string>();
       for (const project of projects) {
         try {
@@ -82,7 +82,7 @@ export default function Projects() {
       }
       setExpressedInterests(interests);
     };
-    
+
     checkInterests();
   }, [projects, isAuthenticated]);
 
@@ -197,7 +197,7 @@ export default function Projects() {
       setIsSendingMessage(false);
     }
   };
-  
+
   // Suppress unused function warning - will be connected to dialog UI in future update
   void sendProjectMessage;
 
@@ -205,7 +205,7 @@ export default function Projects() {
   const filteredProjects = projects?.filter((project) => {
     const matchesRegion = selectedRegion === "all" || project.location === selectedRegion;
     const matchesMineral = selectedMineral === "all" || project.minerals.includes(selectedMineral);
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       project.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesRegion && matchesMineral && matchesSearch;
@@ -234,8 +234,8 @@ export default function Projects() {
             <h2 className="text-2xl font-bold mb-2">Interactive Zambia Map</h2>
             <p className="text-muted-foreground">Click on regions to filter projects</p>
           </div>
-          <ZambiaMap 
-            onRegionClick={(region) => setSelectedRegion(region)} 
+          <ZambiaMap
+            onRegionClick={(region) => setSelectedRegion(region)}
             selectedRegion={selectedRegion === "all" ? undefined : selectedRegion}
           />
         </div>
@@ -312,19 +312,19 @@ export default function Projects() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProjects.map((project) => (
                 <Card key={project.id} className="hover-elevate transition-all" data-testid={`card-project-${project.id}`}>
-                  <ImageDisplay 
+                  <ImageDisplay
                     imageUrl={project.imageUrl}
                     alt={project.name}
                     // use a contextual fallback image from attached_assets
                     fallbackImage={
                       project.minerals && project.minerals.length > 0
                         ? (function getMineralImage(mineral: string) {
-                            const m = mineral.toLowerCase();
-                            if (m.includes('copper')) return copper1Img;
-                            if (m.includes('gold')) return gold1Img;
-                            if (m.includes('emerald') || m.includes('green')) return green1Img;
-                            return catalogueImg;
-                          })(project.minerals[0])
+                          const m = mineral.toLowerCase();
+                          if (m.includes('copper')) return copper1Img;
+                          if (m.includes('gold')) return gold1Img;
+                          if (m.includes('emerald') || m.includes('green')) return green1Img;
+                          return catalogueImg;
+                        })(project.minerals[0])
                         : catalogueImg
                     }
                   />
@@ -346,8 +346,8 @@ export default function Projects() {
                     {project.owner && (
                       <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-owner-${project.id}`}>
                         <span>{project.owner.firstName} {project.owner.lastName}</span>
-                        {project.owner.verified && (
-                          <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-${project.id}`} />
+                        {project.owner?.verified && (
+                          <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-500/10 flex-shrink-0" data-testid={`badge-verified-${project.id}`} />
                         )}
                       </div>
                     )}
@@ -371,7 +371,7 @@ export default function Projects() {
                       ))}
                     </div>
                     <div className="flex gap-2">
-                      <Button 
+                      <Button
                         className="flex-1"
                         onClick={() => handleExpressInterest(project.id)}
                         disabled={expressInterestMutation.isPending || expressedInterests.has(project.id)}
@@ -381,7 +381,7 @@ export default function Projects() {
                         <Heart className={`mr-2 h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current' : ''}`} />
                         {expressedInterests.has(project.id) ? 'Interested' : 'Interest'}
                       </Button>
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => handleContactSeller(project.id)}
                         disabled={contactSellerMutation.isPending}
@@ -395,7 +395,7 @@ export default function Projects() {
               ))}
             </div>
           ) : (
-                <Card className="text-center py-12">
+            <Card className="text-center py-12">
               <CardContent>
                 <img src={catalogueImg} className="h-24 w-24 mx-auto mb-4 object-cover rounded" alt="no-projects" />
                 <h3 className="text-xl font-semibold mb-2">No Projects Found</h3>
@@ -405,7 +405,7 @@ export default function Projects() {
                     : "Check back soon for new opportunities"}
                 </p>
                 {(searchQuery || selectedRegion !== "all" || selectedMineral !== "all") && (
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => {
                       setSearchQuery("");

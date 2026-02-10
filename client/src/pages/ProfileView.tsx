@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Mail, Phone, Building2, MapPin } from 'lucide-react';
+import { Mail, Phone, Building2, MapPin, BadgeCheck } from 'lucide-react';
 
 export default function ProfileView() {
   const params = useParams() as Record<string, string>;
@@ -46,7 +46,12 @@ export default function ProfileView() {
             )}
           </Avatar>
           <div>
-            <CardTitle>{user.firstName} {user.lastName}</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle>{user.firstName} {user.lastName}</CardTitle>
+              {user.verificationStatus === 'approved' && (
+                <BadgeCheck className="w-5 h-5 text-blue-500 fill-blue-500/10 shrink-0" />
+              )}
+            </div>
             <p className="text-sm text-muted-foreground">{user.role}</p>
           </div>
         </CardHeader>

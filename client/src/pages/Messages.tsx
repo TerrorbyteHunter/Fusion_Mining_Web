@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone,
   MapPin, Building2, Copy, Eye, MessageCircle, CheckCircle, Paperclip, MoreVertical,
-  Search, ArrowLeft
+  Search, ArrowLeft, BadgeCheck, Package
 } from "lucide-react";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -61,22 +61,64 @@ export default function Messages() {
     const attachmentMatch = content.match(/Attachment:\s*(.+?)\s*-\s*(https?:\/\/\S+|\S+)/i);
     if (attachmentMatch) {
       const [, filename, url] = attachmentMatch;
+      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(url) || url.includes('/attached_assets/files/uploads/');
+
       return (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary underline break-all font-medium hover:text-primary/80"
-          data-testid="attachment-link"
-        >
-          <span className="flex items-center gap-1">
-            <Paperclip className="w-3 h-3" />
-            {filename || 'Attachment'}
-          </span>
-        </a>
+        <div className="space-y-2 max-w-sm">
+          {isImage ? (
+            <div className="rounded-lg overflow-hidden border border-border shadow-sm bg-muted/20">
+              <img
+                src={url}
+                alt={filename}
+                className="max-h-64 h-auto w-full object-contain cursor-pointer transition-transform hover:scale-[1.02]"
+                onClick={() => window.open(url, '_blank')}
+              />
+              <div className="p-2 bg-background/80 flex items-center justify-between gap-2 border-t">
+                <span className="text-[10px] text-muted-foreground truncate flex-1">{filename}</span>
+                <a href={url} target="_blank" rel="noreferrer" className="text-primary p-1 hover:bg-muted rounded transition-colors">
+                  <Eye className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 p-3 bg-muted/40 hover:bg-muted/60 border border-border rounded-xl transition-all group"
+              data-testid="attachment-link"
+            >
+              <div className="p-2 bg-background rounded-lg border border-border group-hover:border-primary/30 transition-colors">
+                <Paperclip className="w-4 h-4 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold truncate text-foreground leading-tight">{filename || 'Attachment'}</p>
+                <p className="text-[10px] text-muted-foreground">Click to download</p>
+              </div>
+            </a>
+          )}
+        </div>
       );
     }
-    return <span className="whitespace-pre-wrap break-words">{content}</span>;
+    return <span className="whitespace-pre-wrap break-words leading-relaxed">{content}</span>;
+  };
+
+  // Group messages by date
+  const groupMessagesByDate = (messages: Message[]) => {
+    const groups: { [date: string]: Message[] } = {};
+    messages.forEach(msg => {
+      const date = format(new Date(msg.createdAt), 'yyyy-MM-dd');
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+    });
+    return groups;
+  };
+
+  const getDayLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (format(new Date(), 'yyyy-MM-dd') === dateStr) return 'Today';
+    if (format(new Date(Date.now() - 86400000), 'yyyy-MM-dd') === dateStr) return 'Yesterday';
+    return format(date, 'MMMM do, yyyy');
   };
 
   // Fetch threads
@@ -507,7 +549,12 @@ export default function Messages() {
                             <AvatarFallback>{(usr.firstName?.[0] || 'U')}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="font-medium text-sm truncate">{usr.firstName} {usr.lastName}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-sm truncate">{usr.firstName} {usr.lastName}</p>
+                              {usr.verificationStatus === 'approved' && (
+                                <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0" />
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
                           </div>
                         </div>
@@ -536,22 +583,44 @@ export default function Messages() {
                     <div
                       key={thread.id}
                       onClick={() => setSelectedThread(thread)}
-                      className={`p-3 rounded-lg cursor-pointer border transition-all ${selectedThread?.id === thread.id ? 'bg-primary/5 border-primary/50 shadow-sm' : 'hover:bg-muted/50 border-transparent hover:border-border'}`}
+                      className={`p-4 rounded-xl cursor-pointer border transition-all duration-200 group relative ${selectedThread?.id === thread.id
+                        ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm'
+                        : 'hover:bg-muted/50 border-transparent hover:border-border'
+                        }`}
                     >
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className={`text-sm font-medium truncate flex-1 ${selectedThread?.id === thread.id ? 'text-primary' : ''}`}>
-                          {thread.title}
-                        </h4>
-                        {(thread.unreadCount || 0) > 0 && (
-                          <span className="w-2 h-2 rounded-full bg-blue-500 ml-2 mt-1.5" />
-                        )}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border border-border/50">
+                          <AvatarFallback className={selectedThread?.id === thread.id ? 'bg-blue-200 text-blue-700' : 'bg-muted text-muted-foreground'}>
+                            {thread.title?.[0] || 'T'}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start mb-0.5">
+                            <h4 className={`text-sm font-semibold truncate ${selectedThread?.id === thread.id ? 'text-blue-700 dark:text-blue-400' : 'text-foreground'}`}>
+                              {thread.title}
+                            </h4>
+                            <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2 mt-0.5">
+                              {format(new Date(thread.lastMessageAt), 'MMM d')}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground truncate leading-relaxed">
+                              {thread.context === 'marketplace' ? 'Marketplace Inquiry' : thread.context === 'project_interest' ? 'Project Interest' : 'Direct Message'}
+                            </p>
+                            {(thread.unreadCount || 0) > 0 && (
+                              <Badge className="h-4 min-w-[16px] px-1 bg-blue-600 text-[9px] flex items-center justify-center rounded-full animate-pulse">
+                                {thread.unreadCount}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center text-xs text-muted-foreground">
-                        <span>{format(new Date(thread.lastMessageAt), 'MMM d, HH:mm')}</span>
-                        {(thread as any).ticketStatus && (
-                          <Badge variant="outline" className="text-[10px] h-4 px-1">{(thread as any).ticketStatus}</Badge>
-                        )}
-                      </div>
+
+                      {selectedThread?.id === thread.id && (
+                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                      )}
                     </div>
                   ))
                 )}
@@ -577,9 +646,14 @@ export default function Messages() {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h3 className="font-semibold text-sm">
-                          {otherParticipant?.user?.firstName || 'User'} {otherParticipant?.user?.lastName || ''}
-                        </h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-semibold text-sm">
+                            {otherParticipant?.user?.firstName || 'User'} {otherParticipant?.user?.lastName || ''}
+                          </h3>
+                          {otherParticipant?.user?.verificationStatus === 'approved' && (
+                            <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10 shrink-0" />
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground truncate max-w-[200px] md:max-w-md">
                           {selectedThread.title}
                         </p>
@@ -588,53 +662,100 @@ export default function Messages() {
                     <div className="flex items-center gap-2">
                       {/* Admin Controls */}
                       {user?.role === 'admin' && (
-                        <Select
-                          value={(selectedThread as any).ticketStatus || 'open'}
-                          onValueChange={(val) => updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: val })}
-                        >
-                          <SelectTrigger className="h-8 w-[100px] text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="open">Open</SelectItem>
-                            <SelectItem value="in_progress">In Progress</SelectItem>
-                            <SelectItem value="resolved">Resolved</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2 mr-2 border-r pr-2 border-border/50">
+                          <Select
+                            value={(selectedThread as any).ticketStatus || 'open'}
+                            onValueChange={(val) => updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: val })}
+                          >
+                            <SelectTrigger className="h-8 w-[110px] text-[10px] font-bold uppercase tracking-wider bg-primary/5 border-primary/20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="open">Open</SelectItem>
+                              <SelectItem value="in_progress">In Progress</SelectItem>
+                              <SelectItem value="resolved">Resolved</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       )}
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50 rounded-full">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
 
+                  {/* Thread Info Banner (Optional/Contextual) */}
+                  {(selectedThread.listingId || selectedThread.projectId) && (
+                    <div className="px-4 py-2 bg-blue-50/50 dark:bg-blue-900/10 border-b border-blue-100/50 dark:border-blue-800/20 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 bg-blue-100/50 dark:bg-blue-800/30 rounded-md">
+                          {selectedThread.projectId ? <Briefcase className="w-3 h-3 text-blue-600" /> : <Package className="w-3 h-3 text-blue-600" />}
+                        </div>
+                        <span className="text-[11px] font-medium text-blue-800 dark:text-blue-300 truncate max-w-[250px]">
+                          {selectedThread.projectId ? "Inquiry for Project" : "Inquiry for Marketplace Listing"}
+                        </span>
+                      </div>
+                      {selectedThread.listingId && (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] text-blue-700 hover:text-blue-800 hover:bg-blue-100/50 font-bold" onClick={() => window.location.href = `/marketplace?search=${encodeURIComponent(selectedThread.title)}`}>
+                          View Item
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Messages List */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/10">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 dark:bg-slate-900/10 scrollbar-thin scrollbar-thumb-border">
                     {messagesLoading ? (
-                      <div className="space-y-4">
-                        <Skeleton className="h-12 w-2/3 rounded-lg" />
-                        <Skeleton className="h-12 w-1/2 ml-auto rounded-lg" />
-                        <Skeleton className="h-20 w-3/4 rounded-lg" />
+                      <div className="space-y-6">
+                        <Skeleton className="h-10 w-[40%] rounded-2xl" />
+                        <Skeleton className="h-16 w-[60%] ml-auto rounded-2xl" />
+                        <Skeleton className="h-12 w-[50%] rounded-2xl" />
                       </div>
                     ) : (
-                      threadMessages?.map((msg, i) => {
-                        const isMe = msg.senderId === user?.id || (user as any)?.claims?.sub === msg.senderId;
-                        return (
-                          <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[80%] lg:max-w-[70%] rounded-2xl p-3 shadow-sm ${isMe
-                                ? 'bg-primary text-primary-foreground rounded-br-none'
-                                : 'bg-white dark:bg-card border rounded-bl-none'
-                              }`}>
-                              <p className="text-sm leading-relaxed">
-                                {renderMessageContent(msg.content)}
-                              </p>
-                              <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                {format(new Date(msg.createdAt), "HH:mm")}
-                              </p>
-                            </div>
+                      Object.entries(groupMessagesByDate(threadMessages || [])).map(([date, msgs]) => (
+                        <div key={date} className="space-y-4">
+                          <div className="flex justify-center my-6">
+                            <span className="px-3 py-1 rounded-full bg-background border text-[10px] font-bold uppercase tracking-widest text-muted-foreground shadow-sm">
+                              {getDayLabel(date)}
+                            </span>
                           </div>
-                        );
-                      })
+                          {msgs.map((msg, i) => {
+                            const isMe = msg.senderId === user?.id || (user as any)?.claims?.sub === msg.senderId;
+                            return (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                key={msg.id}
+                                className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                              >
+                                <div className={`group relative max-w-[85%] lg:max-w-[75%] rounded-2xl px-4 py-3 transition-all duration-200 ${isMe
+                                  ? 'bg-blue-600 dark:bg-blue-500 text-white rounded-tr-sm shadow-md shadow-blue-500/10'
+                                  : 'bg-white dark:bg-slate-800 border border-border shadow-sm rounded-tl-sm'
+                                  }`}>
+                                  <div className="text-[13px] leading-relaxed">
+                                    {renderMessageContent(msg.content)}
+                                  </div>
+                                  <div className={`flex items-center justify-end gap-1.5 mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity ${isMe ? 'text-blue-50' : 'text-muted-foreground'}`}>
+                                    <span className="text-[9px] font-medium tracking-tighter">
+                                      {format(new Date(msg.createdAt), "HH:mm")}
+                                    </span>
+                                    {isMe && (
+                                      <div className="flex">
+                                        <CheckCircle className={`w-2.5 h-2.5 ${msg.read ? 'text-blue-100 fill-blue-100/20' : 'text-blue-50'}`} />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Pointer accent for bubbles */}
+                                  <div className={`absolute top-0 w-2 h-2 ${isMe ? '-right-1.5' : '-left-1.5'}`}>
+                                    {/* Abstract corner indicator using SVG or CSS - keeping it simple with rounded corners above */}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      ))
                     )}
                     <div ref={messagesEndRef} />
                   </div>
@@ -678,22 +799,36 @@ export default function Messages() {
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-                  <div className="p-4 rounded-full bg-muted/30 mb-4">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground/50" />
-                  </div>
-                  <h3 className="text-lg font-medium text-foreground">Select a conversation</h3>
-                  <p className="text-center max-w-sm mt-2">
-                    Choose a thread from the list to view messages or start a new conversation.
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="p-8 rounded-full bg-gradient-to-br from-muted/50 to-muted/10 mb-6 border border-border/40 shadow-inner"
+                  >
+                    <MessageSquare className="h-16 w-16 text-primary/20" />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold text-foreground">Select a conversation</h3>
+                  <p className="text-center max-w-sm mt-3 text-muted-foreground leading-relaxed">
+                    Select a thread from your inbox to view the history and continue your conversation.
                   </p>
+                  <div className="grid grid-cols-2 gap-3 mt-8">
+                    <div className="p-4 rounded-xl border bg-muted/20 flex flex-col items-center gap-2 text-center">
+                      <ShieldCheck className="w-5 h-5 text-blue-500" />
+                      <span className="text-xs font-semibold">Secure Encryption</span>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-muted/20 flex flex-col items-center gap-2 text-center">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span className="text-xs font-semibold">Verified Users</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
-      </section>
+      </section >
 
       {/* Dialogs */}
-      <MessageDialog
+      < MessageDialog
         open={messageDialogOpen}
         onOpenChange={setMessageDialogOpen}
         recipient={selectedRecipient}
@@ -759,6 +894,6 @@ export default function Messages() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }

@@ -25,7 +25,8 @@ import {
   Gem,
   Wrench,
   Briefcase,
-  CheckCircle2,
+  ShieldCheck,
+  BadgeCheck,
 } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
@@ -184,6 +185,43 @@ export default function Marketplace() {
       listingTitle: request.title,
     });
     setMessageDialogOpen(true);
+  };
+
+  // Helper for rendering verification badges for seller
+  const renderVerificationBadges = (listing: MarketplaceListingWithSeller) => {
+    const sellerName = listing.profile?.companyName ||
+      (listing.seller ? `${listing.seller.firstName || ''} ${listing.seller.lastName || ''}`.trim() : 'Unknown Seller');
+
+    return (
+      <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+        {/* Seller Info & Verification - Shows individual seller verification status next to name */}
+        {listing.seller && (
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-col">
+              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Posted by</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-700 font-bold">{sellerName}</span>
+                {listing.seller.verificationStatus === 'approved' && (
+                  <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10 shrink-0" />
+                )}
+                {listing.seller.verificationStatus === 'approved' ? (
+                  <VerificationBadge
+                    verificationStatus={listing.seller.verificationStatus}
+                    badgeColor={listing.seller.badgeColor}
+                    size="sm"
+                    showIcon={true}
+                  />
+                ) : (
+                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-slate-400 border-slate-200 bg-slate-50 font-medium">
+                    Unverified
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
 
@@ -431,17 +469,7 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
-                        {listing.seller && (
-                          <div className="flex items-center gap-2 mt-2 flex-wrap" data-testid={`text-seller-${listing.id}`}>
-                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
-                            <VerificationBadge
-                              verificationStatus={listing.seller.verificationStatus}
-                              badgeColor={listing.seller.badgeColor}
-                              size="sm"
-                              showIcon={true}
-                            />
-                          </div>
-                        )}
+                        {renderVerificationBadges(listing)}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -556,7 +584,14 @@ export default function Marketplace() {
                               <Badge variant="secondary" className="uppercase text-xs">{request.itemId}</Badge>
                             )}
                           </div>
-                          <Badge variant="secondary">{request.status}</Badge>
+                          {request.status === 'approved' ? (
+                            <Badge className="bg-emerald-600 text-white border-emerald-500 h-5 text-[10px] w-fit font-bold">
+                              <BadgeCheck className="h-3 w-3 mr-1" />
+                              Verified Ad
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="capitalize">{request.status}</Badge>
+                          )}
                         </div>
                         <CardDescription className="line-clamp-2">
                           {request.description}
@@ -646,17 +681,7 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
-                        {listing.seller && (
-                          <div className="flex items-center gap-2 mt-2" data-testid={`text-seller-equipment-${listing.id}`}>
-                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
-                            <VerificationBadge
-                              verificationStatus={listing.seller.verificationStatus}
-                              badgeColor={listing.seller.badgeColor}
-                              size="sm"
-                              showIcon={true}
-                            />
-                          </div>
-                        )}
+                        {renderVerificationBadges(listing)}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -750,17 +775,7 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
-                        {listing.seller && (
-                          <div className="flex items-center gap-2 mt-2" data-testid={`text-seller-service-${listing.id}`}>
-                            <span className="text-sm text-muted-foreground">{listing.seller.firstName} {listing.seller.lastName}</span>
-                            <VerificationBadge
-                              verificationStatus={listing.seller.verificationStatus}
-                              badgeColor={listing.seller.badgeColor}
-                              size="sm"
-                              showIcon={true}
-                            />
-                          </div>
-                        )}
+                        {renderVerificationBadges(listing)}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -842,14 +857,7 @@ export default function Marketplace() {
                         <CardDescription className="line-clamp-3">
                           {listing.description}
                         </CardDescription>
-                        {listing.seller && (
-                          <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-seller-partnership-${listing.id}`}>
-                            <span>{listing.seller.firstName} {listing.seller.lastName}</span>
-                            {listing.seller.verified && (
-                              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" data-testid={`badge-verified-partnership-${listing.id}`} />
-                            )}
-                          </div>
-                        )}
+                        {renderVerificationBadges(listing)}
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

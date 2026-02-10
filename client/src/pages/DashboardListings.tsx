@@ -81,6 +81,32 @@ export default function DashboardListings() {
     },
   });
 
+  const closeListingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/marketplace/listings/${id}/close`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to close listing");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Listing closed",
+        description: "Your listing has been marked as closed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/marketplace/listings"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to close listing",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Combined filtered list search logic
   const filteredItems = useMemo(() => {
     let list: any[] = [];
@@ -206,8 +232,8 @@ export default function DashboardListings() {
                   <div className="flex justify-between items-start gap-4">
                     {/* Icon Box */}
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${item.status === 'active' || item.status === 'approved'
-                        ? 'bg-emerald-500 text-white shadow-emerald-200'
-                        : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'
+                      ? 'bg-emerald-500 text-white shadow-emerald-200'
+                      : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600'
                       }`}>
                       {isSeller ? <Package className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
                     </div>
@@ -284,17 +310,19 @@ export default function DashboardListings() {
                   )}
                 </CardContent>
 
-                {!isSeller && item.status === "active" && (
+                {(isSeller ? item.status === "approved" || item.status === "active" : item.status === "active") && (
                   <CardFooter className="pt-0 pb-4">
                     <Button
                       variant="ghost"
                       size="sm"
                       className="w-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-                      onClick={() => closeRequestMutation.mutate(item.id)}
-                      disabled={closeRequestMutation.isPending}
-                      data-testid={`button-close-request-${item.id}`}
+                      onClick={() => isSeller ? closeListingMutation.mutate(item.id) : closeRequestMutation.mutate(item.id)}
+                      disabled={isSeller ? closeListingMutation.isPending : closeRequestMutation.isPending}
+                      data-testid={`button-close-${isSeller ? 'listing' : 'request'}-${item.id}`}
                     >
-                      {closeRequestMutation.isPending ? "Closing..." : "Close RFQ"}
+                      {isSeller
+                        ? (closeListingMutation.isPending ? "Closing..." : "Close Listing")
+                        : (closeRequestMutation.isPending ? "Closing..." : "Close RFQ")}
                     </Button>
                   </CardFooter>
                 )}
