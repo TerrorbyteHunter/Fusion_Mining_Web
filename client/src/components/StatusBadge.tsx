@@ -1,6 +1,5 @@
-// Status badge component with semantic colors
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
+import { BadgeCheck, Clock, XCircle, AlertCircle, CheckCircle } from "lucide-react";
 
 interface StatusBadgeProps {
   status: string;
@@ -16,7 +15,7 @@ const statusConfig: Record<string, { label: string; icon: React.ReactNode; class
   },
   approved: {
     label: "Verified Ad",
-    icon: <CheckCircle className="w-3 h-3" />,
+    icon: <BadgeCheck className="w-3 h-3" />,
     className: "bg-emerald-600 text-white border-emerald-500"
   },
   rejected: {

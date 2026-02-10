@@ -584,7 +584,7 @@ export default function Marketplace() {
                               <Badge variant="secondary" className="uppercase text-xs">{request.itemId}</Badge>
                             )}
                           </div>
-                          {request.status === 'approved' ? (
+                          {request.status === 'approved' || request.status === 'active' ? (
                             <Badge className="bg-emerald-600 text-white border-emerald-500 h-5 text-[10px] w-fit font-bold">
                               <BadgeCheck className="h-3 w-3 mr-1" />
                               Verified Ad

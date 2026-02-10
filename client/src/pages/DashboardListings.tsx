@@ -22,6 +22,7 @@ import {
   ArrowRight,
   Plus,
   Filter,
+  BadgeCheck,
   CheckCircle2,
   XCircle,
   Archive,
@@ -436,7 +437,7 @@ export default function DashboardListings() {
           <Tabs defaultValue="active" className="w-full">
             <TabsList className="mb-8 p-1 bg-muted/40 border border-border/40 inline-flex w-auto h-auto rounded-lg">
               <TabsTrigger value="active" className="px-4 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
-                <CheckCircle2 className="w-4 h-4 mr-2" /> Active
+                <BadgeCheck className="w-4 h-4 mr-2" /> Active
               </TabsTrigger>
               <TabsTrigger value="pending" className="px-4 py-2 rounded-md data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">
                 <Clock className="w-4 h-4 mr-2" /> Pending
