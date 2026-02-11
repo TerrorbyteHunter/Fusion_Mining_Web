@@ -15,7 +15,8 @@ import {
   ShieldCheck,
   CheckCircle,
   Menu,
-  Crown
+  Crown,
+  Heart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -61,18 +62,34 @@ export function DashboardSidebar({
   };
 
   const menuItems = [
-    {
-      label: "Dashboard",
-      icon: LayoutDashboard,
-      href: "/dashboard",
-      testId: "sidebar-dashboard"
-    },
+    ...(!isAdmin
+      ? [
+        {
+          label: "Dashboard",
+          icon: LayoutDashboard,
+          href: "/dashboard",
+          testId: "sidebar-dashboard"
+        }
+      ]
+      : []),
     {
       label: "Messages",
       icon: MessageSquare,
-      href: "/dashboard/messages",
-      testId: "sidebar-messages"
+      href: isAdmin ? "/admin/messages" : "/dashboard/messages",
+      testId: "sidebar-messages",
+      // Hide messages from dashboard sidebar for admins if we want them to use admin messages
+      hidden: isAdmin
     },
+    ...(!isAdmin
+      ? [
+        {
+          label: "Saved Items",
+          icon: Heart,
+          href: "/dashboard/interests",
+          testId: "sidebar-interests"
+        }
+      ]
+      : []),
     ...(user?.permissions?.adminRole === 'super_admin'
       ? [
         {
@@ -84,7 +101,7 @@ export function DashboardSidebar({
         }
       ]
       : []),
-    ...(isSeller
+    ...(isSeller && !isAdmin
       ? [
         {
           label: "My Listings",
@@ -93,15 +110,18 @@ export function DashboardSidebar({
           testId: "sidebar-listings"
         }
       ]
-      : [
+      : []),
+    ...(!isSeller && !isAdmin
+      ? [
         {
           label: "My Requests",
           icon: ListOrdered,
           href: "/dashboard/requests",
           testId: "sidebar-requests"
         }
-      ]),
-    ...(isSeller
+      ]
+      : []),
+    ...(isSeller && !isAdmin
       ? [
         {
           label: "Create Listing",
@@ -123,7 +143,7 @@ export function DashboardSidebar({
         }
       ]
       : []),
-    ...(isSellerUnverified
+    ...(isSellerUnverified && !isAdmin
       ? [
         {
           label: "Get Verified",
@@ -134,12 +154,16 @@ export function DashboardSidebar({
         }
       ]
       : []),
-    {
-      label: "Manage Account",
-      icon: Settings,
-      href: "/dashboard/profile",
-      testId: "sidebar-manage-account"
-    },
+    ...(!isAdmin
+      ? [
+        {
+          label: "Manage Account",
+          icon: Settings,
+          href: "/dashboard/profile",
+          testId: "sidebar-manage-account"
+        }
+      ]
+      : []),
     ...(isAdmin
       ? [
         {
@@ -151,7 +175,7 @@ export function DashboardSidebar({
         }
       ]
       : [])
-  ];
+  ].filter(item => !item.hidden);
 
   // Shared sidebar content component
   const SidebarContent = () => (

@@ -29,6 +29,8 @@ interface MessageDialogProps {
   defaultSubject?: string;
   listingTitle?: string;
   listingId?: string;
+  projectId?: string;
+  projectTitle?: string;
 }
 
 export function MessageDialog({
@@ -40,6 +42,8 @@ export function MessageDialog({
   defaultSubject,
   listingTitle,
   listingId,
+  projectId,
+  projectTitle,
 }: MessageDialogProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -62,6 +66,17 @@ export function MessageDialog({
         const thread = await threadResp.json();
 
         // Post the message to the thread (server infers receiver)
+        const postResp = await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
+        return postResp.json();
+      }
+
+      // If projectId is provided, create or reuse a thread for that project
+      if (projectId) {
+        // Create thread tied to project
+        const threadResp = await apiRequest("POST", "/api/threads", { projectId, title: subject || `Inquiry about: ${projectTitle || ''}` });
+        const thread = await threadResp.json();
+
+        // Post the message to the thread
         const postResp = await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
         return postResp.json();
       }

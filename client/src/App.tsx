@@ -102,6 +102,7 @@ function Router() {
             <Route path="/dashboard/profile" component={DashboardLayout} />
             <Route path="/dashboard/verification" component={DashboardLayout} />
             <Route path="/dashboard/upgrade-tier" component={DashboardLayout} />
+            <Route path="/dashboard/interests" component={DashboardLayout} />
 
             <Route path="/admin" component={Admin} />
             <Route path="/admin/cms" component={AdminCMS} />

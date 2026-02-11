@@ -360,14 +360,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   app.get('/api/projects', async (req: any, res) => {
     try {
-      const projects = await storage.getProjects();
+      const [miningProjects, marketplaceProjects] = await Promise.all([
+        storage.getProjects(),
+        storage.getMarketplaceListings({ type: 'project' })
+      ]);
+
       const isAdmin = req.user && req.user.role === 'admin';
 
-      const filteredProjects = isAdmin
-        ? projects
-        : projects.filter(p => p.status === 'active');
+      const activeMiningProjects = isAdmin
+        ? miningProjects
+        : miningProjects.filter(p => p.status === 'active');
 
-      res.json(filteredProjects);
+      const approvedMarketplaceProjects = (marketplaceProjects || [])
+        .filter(l => isAdmin || l.status === 'approved')
+        .map(l => ({
+          id: l.id,
+          itemId: l.itemId,
+          ownerId: l.sellerId,
+          name: l.title,
+          description: l.description,
+          licenseType: (l as any).licenseType || 'mining',
+          minerals: l.mineralType ? [l.mineralType] : [],
+          location: l.location,
+          latitude: null,
+          longitude: null,
+          status: l.status === 'approved' ? 'active' : 'pending',
+          imageUrl: l.imageUrl,
+          createdAt: l.createdAt,
+          updatedAt: l.updatedAt,
+          owner: l.seller ? {
+            ...l.seller,
+            verified: l.seller.verificationStatus === 'approved'
+          } : null
+        }));
+
+      res.json([...activeMiningProjects, ...approvedMarketplaceProjects]);
     } catch (error) {
       console.error("Error fetching projects:", error);
       res.status(500).json({ message: "Failed to fetch projects" });
@@ -376,7 +403,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/projects/:id', async (req, res) => {
     try {
-      const project = await storage.getProjectById(req.params.id);
+      let project = await storage.getProjectById(req.params.id);
+
+      if (!project) {
+        const listing = await storage.getMarketplaceListingById(req.params.id);
+        if (listing && listing.type === 'project') {
+          project = {
+            id: listing.id,
+            itemId: listing.itemId,
+            ownerId: listing.sellerId,
+            name: listing.title,
+            description: listing.description,
+            licenseType: (listing as any).licenseType || 'mining',
+            minerals: listing.mineralType ? [listing.mineralType] : [],
+            location: listing.location,
+            latitude: null,
+            longitude: null,
+            status: listing.status === 'approved' ? 'active' : 'pending',
+            imageUrl: listing.imageUrl,
+            createdAt: listing.createdAt,
+            updatedAt: listing.updatedAt,
+            owner: listing.seller ? {
+              ...listing.seller,
+              verified: (listing.seller as any).verificationStatus === 'approved'
+            } : null
+          } as any;
+        }
+      }
+
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
@@ -452,142 +506,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/projects/interest', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
-      const { projectId, listingId } = req.body;
+      let { projectId, listingId, buyerRequestId, message } = req.body;
 
-      if (projectId) {
-        const hasInterest = await storage.checkUserHasExpressedInterest(userId, projectId);
+      // Handle case where frontend uses 'projectId' but it's actually a marketplace listing ID or RFQ ID
+      if (projectId && !listingId && !buyerRequestId) {
+        const projectExists = await storage.getProjectById(projectId);
+        if (!projectExists) {
+          const listingExists = await storage.getMarketplaceListingById(projectId);
+          if (listingExists) {
+            listingId = projectId;
+            projectId = undefined;
+          } else {
+            const rfqExists = await storage.getBuyerRequestById(projectId);
+            if (rfqExists) {
+              buyerRequestId = projectId;
+              projectId = undefined;
+            }
+          }
+        }
+      }
+
+      const targetId = projectId || listingId || buyerRequestId;
+      if (targetId) {
+        const hasInterest = await storage.checkUserHasExpressedInterest(userId, targetId);
         if (hasInterest) {
-          return res.status(400).json({ message: "You have already expressed interest in this project" });
+          await storage.removeExpressedInterest(userId, targetId);
+          await storage.createActivityLog({
+            userId: userId,
+            activityType: 'interest_expressed',
+            description: projectId ? `User removed bookmark for project ${projectId}` : `User removed bookmark for listing ${listingId}`,
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+          });
+          return res.json({ message: "Bookmark removed", bookmarked: false });
         }
       }
 
       const validatedData = insertExpressInterestSchema.parse({
-        ...req.body,
+        projectId,
+        listingId,
+        buyerRequestId,
+        message,
         userId,
       });
       const interest = await storage.expressProjectInterest(validatedData);
 
-      const buyer = await storage.getUserById(userId);
 
-      if (projectId) {
-        const project = await storage.getProjectById(projectId);
 
-        if (project && buyer && project.ownerId) {
-          const projectOwner = await storage.getUserById(project.ownerId);
-
-          if (projectOwner) {
-            // Create direct thread between buyer and project owner
-            const thread = await storage.createMessageThread({
-              title: `Inquiry about: ${project.name}`,
-              type: 'project_interest',
-              projectId,
-              buyerId: userId,
-              sellerId: project.ownerId,
-              adminId: null,
-              createdBy: userId,
-              context: 'project_interest',
-              status: 'open',
-            });
-
-            // Notify project owner of interest
-            await storage.createNotification({
-              userId: project.ownerId,
-              type: 'interest_received',
-              title: 'New Interest in Your Project',
-              message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${project.name}`,
-              link: `/dashboard/messages`,
-            });
-
-            // Send welcome message from owner to buyer
-            const ownerName = `${projectOwner.firstName || ''} ${projectOwner.lastName || ''}`.trim() || 'Project Owner';
-            const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
-
-            await storage.createMessage({
-              threadId: thread.id,
-              senderId: project.ownerId,
-              receiverId: userId,
-              subject: `Re: Inquiry about ${project.name}`,
-              content: `Hello ${buyerName},\n\nThank you for your interest in ${project.name}. I'm ${ownerName}, the project owner. I'd be happy to discuss this opportunity with you.\n\nPlease feel free to ask any questions you may have.\n\nBest regards,\n${ownerName}`,
-              context: 'project_interest',
-              relatedProjectId: projectId,
-              isAutoRelay: true,
-            });
-          }
-        }
-      } else if (listingId) {
-        const listing = await storage.getMarketplaceListingById(listingId);
-        const seller = listing ? await storage.getUserById(listing.sellerId) : null;
-
-        if (listing && buyer && seller) {
-          // Create direct thread between buyer and seller
-          const thread = await storage.createMessageThread({
-            title: `Inquiry about: ${listing.title}`,
-            type: 'marketplace_inquiry',
-            listingId,
-            buyerId: userId,
-            sellerId: listing.sellerId,
-            adminId: null,
-            createdBy: userId,
-            context: 'marketplace',
-            status: 'open',
-          });
-
-          // Notify seller of interest
-          await storage.createNotification({
-            userId: seller.id,
-            type: 'interest_received',
-            title: 'New Interest in Your Listing',
-            message: `${buyer.firstName} ${buyer.lastName} expressed interest in ${listing.title}`,
-            link: `/dashboard/messages`,
-          });
-
-          // Send welcome message from seller to buyer
-          const sellerName = `${seller.firstName || ''} ${seller.lastName || ''}`.trim() || 'Seller';
-          const buyerName = `${buyer.firstName || ''} ${buyer.lastName || ''}`.trim() || 'there';
-
-          await storage.createMessage({
-            threadId: thread.id,
-            senderId: listing.sellerId,
-            receiverId: userId,
-            subject: `Re: Inquiry about ${listing.title}`,
-            content: `Hello ${buyerName},\n\nThank you for your interest in ${listing.title}. I'm ${sellerName}, the seller. I'd be happy to provide more information and answer any questions you might have.\n\nFeel free to reach out with your questions.\n\nBest regards,\n${sellerName}`,
-            context: 'marketplace',
-            relatedListingId: listingId,
-            isAutoRelay: true,
-          });
-        }
-      }
-
-      // Create activity log
+      // Log activity
       await storage.createActivityLog({
-        userId,
+        userId: userId,
         activityType: 'interest_expressed',
-        description: projectId ? `User expressed interest in project ${projectId}` : `User expressed interest in listing ${listingId}`,
+        description: projectId ? `User bookmarked project ${projectId}` : `User bookmarked listing ${listingId}`,
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
-
-      // Notify all admin users (use 'interest_received' notification type)
-      const adminUsers = await storage.getUsersByRole('admin');
-      // Resolve a short title for the target (project or listing)
-      let titleText = '';
-      if (projectId) {
-        const proj = await storage.getProjectById(projectId);
-        titleText = proj?.name || projectId;
-      } else if (listingId) {
-        const list = await storage.getMarketplaceListingById(listingId);
-        titleText = list?.title || listingId;
-      }
-
-      for (const admin of adminUsers) {
-        await storage.createNotification({
-          userId: admin.id,
-          type: 'interest_received',
-          title: 'New Interest Expression',
-          message: `${buyer?.firstName || ''} ${buyer?.lastName || ''} expressed interest in ${projectId ? 'project' : 'listing'}: ${titleText}`,
-          link: projectId ? `/projects/${projectId}` : `/marketplace/${listingId}`,
-        });
-      }
 
       res.json(interest);
     } catch (error: any) {
@@ -853,6 +826,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/dashboard/interests', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.auth?.userId || req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const interests = await storage.getUserInterests(userId);
+      res.json(interests);
+    } catch (error) {
+      console.error("Error fetching user interests:", error);
+      res.status(500).json({ message: "Failed to fetch interests" });
+    }
+  });
+
   app.patch('/api/marketplace/listings/:id', isAuthenticated, async (req: any, res) => {
     try {
       const listing = await storage.getMarketplaceListingById(req.params.id);
@@ -1064,6 +1051,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let sellerId: string | null = null;
       let adminId: string | null = null;
       let threadTitle = title as string | undefined;
+      let finalProjectId = projectId;
+      let finalListingId = listingId;
+      let threadType: 'project_interest' | 'marketplace_inquiry' = projectId ? 'project_interest' : 'marketplace_inquiry';
 
       const adminUser = await storage.getAdminUser();
       adminId = adminUser?.id || null;
@@ -1071,12 +1061,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (projectId) {
         const project = await storage.getProjectById(projectId);
         if (!project) {
-          return res.status(404).json({ message: "Project not found" });
+          // Check if it's a marketplace listing with type 'project'
+          const listing = await storage.getMarketplaceListingById(projectId);
+          if (listing && listing.type === 'project') {
+            sellerId = listing.sellerId;
+            threadTitle = threadTitle || `Inquiry about: ${listing.title}`;
+            finalProjectId = null;
+            finalListingId = projectId;
+            threadType = 'marketplace_inquiry';
+          } else {
+            return res.status(404).json({ message: "Project not found" });
+          }
+        } else {
+          // Project interests should go to the project owner
+          sellerId = project.ownerId;
+          threadTitle = threadTitle || `Inquiry about: ${project.name}`;
         }
-
-        // Project interests should go to the project owner
-        sellerId = project.ownerId;
-        threadTitle = threadTitle || `Inquiry about: ${project.name}`;
       } else if (listingId) {
         const listing = await storage.getMarketplaceListingById(listingId);
         if (!listing) {
@@ -1090,9 +1090,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const thread = await storage.createMessageThread({
         title: threadTitle!,
-        type: projectId ? 'project_interest' : 'marketplace_inquiry',
-        projectId,
-        listingId,
+        type: threadType,
+        projectId: finalProjectId,
+        listingId: finalListingId,
         buyerId,
         sellerId,
         adminId,

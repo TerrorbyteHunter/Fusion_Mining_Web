@@ -114,7 +114,7 @@ export function Header() {
                 </Button>
               </Link>
             ))}
-            {isAuthenticated && (
+            {isAuthenticated && !isAdmin && (
               <Link href="/dashboard">
                 <Button
                   variant={location.startsWith("/dashboard") ? "secondary" : "ghost"}
@@ -123,6 +123,18 @@ export function Header() {
                   data-testid="link-dashboard"
                 >
                   Dashboard
+                </Button>
+              </Link>
+            )}
+            {isAuthenticated && isAdmin && (
+              <Link href="/admin">
+                <Button
+                  variant={location.startsWith("/admin") ? "secondary" : "ghost"}
+                  size="sm"
+                  className="ml-1"
+                  data-testid="link-admin"
+                >
+                  Admin Panel
                 </Button>
               </Link>
             )}
@@ -171,12 +183,14 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard" className="flex items-center gap-2" data-testid="menu-dashboard">
-                      <LayoutDashboard className="h-4 w-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
+                  {!isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/dashboard" className="flex items-center gap-2" data-testid="menu-dashboard">
+                        <LayoutDashboard className="h-4 w-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={handleSignOut}
@@ -233,7 +247,7 @@ export function Header() {
                 </Button>
               </Link>
             ))}
-            {isAuthenticated && (
+            {isAuthenticated && !isAdmin && (
               <Link href="/dashboard">
                 <Button
                   variant={location.startsWith("/dashboard") ? "secondary" : "ghost"}
@@ -242,6 +256,18 @@ export function Header() {
                   data-testid="link-mobile-dashboard"
                 >
                   Dashboard
+                </Button>
+              </Link>
+            )}
+            {isAuthenticated && isAdmin && (
+              <Link href="/admin">
+                <Button
+                  variant={location.startsWith("/admin") ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => setMobileMenuOpen(false)}
+                  data-testid="link-mobile-admin"
+                >
+                  Admin Panel
                 </Button>
               </Link>
             )}

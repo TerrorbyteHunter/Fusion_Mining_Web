@@ -128,6 +128,7 @@ export const expressInterest = pgTable("express_interest", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   projectId: varchar("project_id").references(() => projects.id, { onDelete: 'cascade' }),
   listingId: varchar("listing_id").references(() => marketplaceListings.id, { onDelete: 'cascade' }),
+  buyerRequestId: varchar("buyer_request_id").references(() => buyerRequests.id, { onDelete: 'cascade' }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   message: text("message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

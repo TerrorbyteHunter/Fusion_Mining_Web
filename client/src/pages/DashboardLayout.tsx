@@ -10,11 +10,27 @@ import ProfileManagement from "./ProfileManagement";
 import EditListing from "./EditListing";
 import SellerVerification from "./SellerVerification";
 import BuyerTierUpgrade from "./BuyerTierUpgrade";
+import Interests from "./Interests";
 import { DashboardSidebar, DashboardMobileMenuTrigger } from "@/components/DashboardSidebar";
 import { LayoutDashboard } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function DashboardLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isAdmin, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && isAdmin) {
+      setLocation("/admin");
+    }
+  }, [isAdmin, isLoading, setLocation]);
+
+  if (isLoading || isAdmin) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -42,6 +58,7 @@ export default function DashboardLayout() {
             <Route path="/dashboard/profile" component={ProfileManagement} />
             <Route path="/dashboard/verification" component={SellerVerification} />
             <Route path="/dashboard/upgrade-tier" component={BuyerTierUpgrade} />
+            <Route path="/dashboard/interests" component={Interests} />
           </Switch>
         </div>
       </div>

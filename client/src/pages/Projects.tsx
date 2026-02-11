@@ -2,6 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageDialog } from "@/components/MessageDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Dialog imports for future message dialog functionality
+import Spinner from "@/components/Spinner";
 void 0; // Suppress "unused import" warnings - dialog feature planned for future use
 // import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 // import { Textarea } from "@/components/ui/textarea";
@@ -47,18 +48,24 @@ export default function Projects() {
   const [selectedMineral, setSelectedMineral] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
-  const [openProjectDialog, setOpenProjectDialog] = useState<string | null>(null);
-  const [projectMessage, setProjectMessage] = useState<string>("");
-  const [isSendingMessage, setIsSendingMessage] = useState(false);
-
-  // Suppress unused variable warnings - dialog functionality planned for future use
-  void openProjectDialog;
-  void projectMessage;
-  void isSendingMessage;
+  const [messageDialogOpen, setMessageDialogOpen] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<{
+    id: string;
+    name?: string;
+    email?: string;
+    subject?: string;
+    projectTitle?: string;
+    projectId?: string;
+  } | null>(null);
 
   // Fetch projects
-  const { data: projects, isLoading } = useQuery<ProjectWithOwner[]>({
+  const { data: projects, isLoading: loadingProjects } = useQuery<ProjectWithOwner[]>({
     queryKey: ["/api/projects"],
+  });
+
+  // Fetch platform contact settings (for fallback)
+  const { data: adminSettings, isLoading: loadingAdminContact } = useQuery<any>({
+    queryKey: ['/api/contact/settings'],
   });
 
   // Check for expressed interests when projects load
@@ -89,13 +96,23 @@ export default function Projects() {
   // Express interest mutation
   const expressInterestMutation = useMutation({
     mutationFn: async (projectId: string) => {
-      return await apiRequest("POST", "/api/projects/interest", { projectId });
+      const res = await apiRequest("POST", "/api/projects/interest", { projectId });
+      return { projectId, data: await res.json() };
     },
-    onSuccess: (_, projectId) => {
-      setExpressedInterests(prev => new Set(prev).add(projectId));
+    onSuccess: ({ projectId, data }) => {
+      setExpressedInterests(prev => {
+        const next = new Set(prev);
+        if (data.bookmarked === false) {
+          next.delete(projectId);
+        } else {
+          next.add(projectId);
+        }
+        return next;
+      });
+
       toast({
-        title: "Interest Expressed",
-        description: "Your interest has been recorded. We'll be in touch soon!",
+        title: data.bookmarked === false ? "Bookmark Removed" : "Project Bookmarked",
+        description: data.bookmarked === false ? "Project removed from your saved items." : "This project has been added to your saved items.",
       });
     },
     onError: (error: Error) => {
@@ -154,7 +171,7 @@ export default function Projects() {
     if (!isAuthenticated) {
       toast({
         title: "Login Required",
-        description: "Please log in to express interest in projects",
+        description: "Please log in to bookmark projects",
       });
       setTimeout(() => {
         window.location.href = "/api/login";
@@ -164,7 +181,7 @@ export default function Projects() {
     expressInterestMutation.mutate(projectId);
   };
 
-  const handleContactSeller = (projectId: string) => {
+  const handleContactSeller = (project: ProjectWithOwner) => {
     if (!isAuthenticated) {
       toast({
         title: "Login Required",
@@ -175,31 +192,33 @@ export default function Projects() {
       }, 1000);
       return;
     }
-    setOpenProjectDialog(projectId);
-    setProjectMessage("");
-  };
 
-  const sendProjectMessage = async (projectId: string, message: string) => {
-    try {
-      setIsSendingMessage(true);
-      const response = await apiRequest("POST", "/api/threads", { projectId });
-      const thread = await response.json();
-      if (thread && thread.id) {
-        await apiRequest("POST", `/api/threads/${thread.id}/messages`, { content: message });
-      }
-      toast({ title: "Message Sent", description: "Conversation created. Redirecting to messages." });
-      setOpenProjectDialog(null);
-      window.location.href = "/dashboard/messages";
-    } catch (err) {
-      console.error("Failed to send project message:", err);
-      toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
-    } finally {
-      setIsSendingMessage(false);
+    const recipientId = project.ownerId || project.owner?.id;
+    const recipientName = project.owner
+      ? `${project.owner.firstName || ''} ${project.owner.lastName || ''}`.trim() || 'Owner'
+      : adminSettings?.email || 'Administrator';
+    const recipientEmail = project.owner?.email || adminSettings?.supportEmail;
+
+    if (!recipientId) {
+      toast({
+        title: "Error",
+        description: "Could not contact project owner. Please try again later.",
+        variant: "destructive",
+      });
+      return;
     }
+
+    setSelectedRecipient({
+      id: recipientId,
+      name: recipientName,
+      email: recipientEmail || '',
+      subject: `Inquiry about: ${project.name}`,
+      projectTitle: project.name,
+      projectId: project.id,
+    });
+    setMessageDialogOpen(true);
   };
 
-  // Suppress unused function warning - will be connected to dialog UI in future update
-  void sendProjectMessage;
 
   // Filter projects
   const filteredProjects = projects?.filter((project) => {
@@ -226,6 +245,14 @@ export default function Projects() {
           </div>
         </div>
       </section>
+
+      {/* Loading Skeleton */}
+      {loadingProjects && (
+        <div className="container mx-auto px-4 py-8">
+          <Skeleton className="h-12 w-3/4 mx-auto mb-4" />
+          <Skeleton className="h-6 w-1/2 mx-auto mb-8" />
+        </div>
+      )}
 
       {/* Interactive Map */}
       <section className="py-12 bg-card/30">
@@ -267,10 +294,16 @@ export default function Projects() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
+                  <SelectItem value="Lusaka">Lusaka</SelectItem>
+                  <SelectItem value="Central Province">Central Province</SelectItem>
+                  <SelectItem value="Eastern Province">Eastern Province</SelectItem>
                   <SelectItem value="Copperbelt">Copperbelt</SelectItem>
+                  <SelectItem value="Muchinga Province">Muchinga Province</SelectItem>
                   <SelectItem value="Northern Province">Northern Province</SelectItem>
                   <SelectItem value="Luapula Province">Luapula Province</SelectItem>
-                  <SelectItem value="Central Province">Central Province</SelectItem>
+                  <SelectItem value="Southern Province">Southern Province</SelectItem>
+                  <SelectItem value="North-Western Province">North-Western Province</SelectItem>
+                  <SelectItem value="Western Province">Western Province</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -283,9 +316,15 @@ export default function Projects() {
                 <SelectContent>
                   <SelectItem value="all">All Minerals</SelectItem>
                   <SelectItem value="Copper">Copper</SelectItem>
-                  <SelectItem value="Emerald">Emerald</SelectItem>
-                  <SelectItem value="Gold">Gold</SelectItem>
                   <SelectItem value="Cobalt">Cobalt</SelectItem>
+                  <SelectItem value="Gold">Gold</SelectItem>
+                  <SelectItem value="Silver">Silver</SelectItem>
+                  <SelectItem value="Emerald">Emerald</SelectItem>
+                  <SelectItem value="Manganese">Manganese</SelectItem>
+                  <SelectItem value="Aquamarine">Aquamarine</SelectItem>
+                  <SelectItem value="Tourmaline">Tourmaline</SelectItem>
+                  <SelectItem value="Amethyst">Amethyst</SelectItem>
+                  <SelectItem value="Uranium">Uranium</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -296,7 +335,7 @@ export default function Projects() {
       {/* Projects Grid */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          {isLoading ? (
+          {loadingProjects ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
                 <Card key={i}>
@@ -373,21 +412,32 @@ export default function Projects() {
                     <div className="flex gap-2">
                       <Button
                         className="flex-1"
-                        onClick={() => handleExpressInterest(project.id)}
-                        disabled={expressInterestMutation.isPending || expressedInterests.has(project.id)}
-                        variant={expressedInterests.has(project.id) ? "secondary" : "default"}
-                        data-testid={`button-express-interest-${project.id}`}
-                      >
-                        <Heart className={`mr-2 h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current' : ''}`} />
-                        {expressedInterests.has(project.id) ? 'Interested' : 'Interest'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => handleContactSeller(project.id)}
-                        disabled={contactSellerMutation.isPending}
+                        variant="default"
+                        onClick={() => handleContactSeller(project)}
+                        disabled={contactSellerMutation.isPending || loadingAdminContact}
                         data-testid={`button-contact-seller-${project.id}`}
                       >
-                        <MessageCircle className="h-4 w-4" />
+                        {contactSellerMutation.isPending || loadingAdminContact ? (
+                          <>
+                            <Spinner size="sm" className="mr-2" />
+                            {loadingAdminContact ? 'Preparing...' : 'Connecting...'}
+                          </>
+                        ) : (
+                          <>
+                            <MessageCircle className="mr-2 h-4 w-4" />
+                            Contact
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant={expressedInterests.has(project.id) ? "secondary" : "outline"}
+                        size="icon"
+                        onClick={() => handleExpressInterest(project.id)}
+                        disabled={expressInterestMutation.isPending}
+                        data-testid={`button-express-interest-${project.id}`}
+                        title={expressedInterests.has(project.id) ? "Remove Bookmark" : "Bookmark Project"}
+                      >
+                        <Heart className={`h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current text-red-500' : ''}`} />
                       </Button>
                     </div>
                   </CardContent>
@@ -421,6 +471,20 @@ export default function Projects() {
           )}
         </div>
       </section>
+
+      {/* Message Dialog */}
+      {selectedRecipient && (
+        <MessageDialog
+          open={messageDialogOpen}
+          onOpenChange={setMessageDialogOpen}
+          recipientId={selectedRecipient.id}
+          recipientName={selectedRecipient.name}
+          recipientEmail={selectedRecipient.email}
+          defaultSubject={selectedRecipient.subject}
+          projectId={selectedRecipient.projectId}
+          projectTitle={selectedRecipient.projectTitle}
+        />
+      )}
     </div>
   );
 }

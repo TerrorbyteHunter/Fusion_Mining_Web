@@ -199,6 +199,7 @@ export interface IStorage {
   deleteProject(id: string): Promise<void>;
   closeProject(id: string): Promise<Project>;
   expressProjectInterest(interest: InsertExpressInterest): Promise<ExpressInterest>;
+  removeExpressedInterest(userId: string, targetId: string): Promise<void>;
   getAllExpressedInterests(): Promise<any[]>;
 
   // Marketplace Listing operations
@@ -284,6 +285,7 @@ export interface IStorage {
   getUserListingsCount(userId: string): Promise<number>;
   getUserUnreadMessagesCount(userId: string): Promise<number>;
   getUserInterestsCount(userId: string): Promise<number>;
+  getUserInterests(userId: string): Promise<any[]>;
   checkUserHasExpressedInterest(userId: string, projectId: string): Promise<boolean>;
 
   // Video operations
@@ -741,6 +743,20 @@ export class DatabaseStorage implements IStorage {
       .values(interestData)
       .returning();
     return interest;
+  }
+
+  async removeExpressedInterest(userId: string, targetId: string): Promise<void> {
+    await db.delete(expressInterest)
+      .where(
+        and(
+          eq(expressInterest.userId, userId),
+          or(
+            eq(expressInterest.projectId, targetId),
+            eq(expressInterest.listingId, targetId),
+            eq(expressInterest.buyerRequestId, targetId)
+          )
+        )
+      );
   }
 
   async getAllExpressedInterests(): Promise<any[]> {
@@ -2146,14 +2162,43 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
-  async checkUserHasExpressedInterest(userId: string, projectId: string): Promise<boolean> {
+  async getUserInterests(userId: string): Promise<any[]> {
+    return await db
+      .select({
+        id: expressInterest.id,
+        projectId: expressInterest.projectId,
+        listingId: expressInterest.listingId,
+        userId: expressInterest.userId,
+        message: expressInterest.message,
+        createdAt: expressInterest.createdAt,
+        projectName: projects.name,
+        projectImageUrl: projects.imageUrl,
+        projectOwnerId: projects.ownerId,
+        listingTitle: marketplaceListings.title,
+        listingImageUrl: marketplaceListings.imageUrl,
+        listingSellerId: marketplaceListings.sellerId,
+        projectLicenseType: projects.licenseType,
+        listingType: marketplaceListings.type,
+      })
+      .from(expressInterest)
+      .leftJoin(projects, eq(expressInterest.projectId, projects.id))
+      .leftJoin(marketplaceListings, eq(expressInterest.listingId, marketplaceListings.id))
+      .where(eq(expressInterest.userId, userId))
+      .orderBy(desc(expressInterest.createdAt));
+  }
+
+  async checkUserHasExpressedInterest(userId: string, targetId: string): Promise<boolean> {
     const [interest] = await db
       .select()
       .from(expressInterest)
       .where(
         and(
           eq(expressInterest.userId, userId),
-          eq(expressInterest.projectId, projectId)
+          or(
+            eq(expressInterest.projectId, targetId),
+            eq(expressInterest.listingId, targetId),
+            eq(expressInterest.buyerRequestId, targetId)
+          )
         )
       )
       .limit(1);

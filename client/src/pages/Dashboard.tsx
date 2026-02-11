@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import {
   Package,
@@ -240,7 +239,7 @@ export default function Dashboard() {
                 <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-chart-3/60 hover:-translate-y-1">
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium text-muted-foreground">
-                      Interests
+                      Saved Items
                     </CardTitle>
                     <div className="p-2 bg-chart-3/10 rounded-lg">
                       <Heart className="h-4 w-4 text-chart-3" />
@@ -253,7 +252,7 @@ export default function Dashboard() {
                       <div className="text-3xl font-bold">{stats?.interestsCount || 0}</div>
                     )}
                     <p className="text-xs text-muted-foreground mt-1">
-                      Projects you're watching
+                      Items you've saved
                     </p>
                   </CardContent>
                 </Card>
@@ -274,7 +273,7 @@ export default function Dashboard() {
                       {user?.role === 'admin' ? 'Administrator' : user?.role === 'seller' ? 'Seller Account' : 'Buyer Account'}
                     </div>
                     <Link href="/dashboard/profile">
-                      <Button variant="link" className="h-auto p-0 text-xs mt-2 group-hover:translate-x-1 transition-transform">
+                      <Button variant="ghost" className="h-auto p-0 text-xs mt-2 group-hover:translate-x-1 transition-transform">
                         Manage Profile <ArrowRight className="ml-1 h-3 w-3" />
                       </Button>
                     </Link>

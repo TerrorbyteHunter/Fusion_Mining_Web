@@ -195,10 +195,10 @@ async function seed() {
       },
       {
         name: "Solwezi Copper-Gold Prospect",
-        description: "Promising copper-gold deposit in Northwestern Province. Recent surveys indicate high-grade mineralization. Perfect for joint venture partnerships.",
+        description: "Promising copper-gold deposit in North-Western Province. Recent surveys indicate high-grade mineralization. Perfect for joint venture partnerships.",
         licenseType: "exploration",
         minerals: ["Copper", "Gold"],
-        location: "Northwestern Province",
+        location: "North-Western Province",
         latitude: "-12.1833",
         longitude: "26.3833",
         status: "active",

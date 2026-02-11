@@ -1,5 +1,5 @@
 // Marketplace portal with hierarchical categories, listings, and buyer requests
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,9 +25,11 @@ import {
   Gem,
   Wrench,
   Briefcase,
-  ShieldCheck,
   BadgeCheck,
+  Heart,
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
 import { ImageDisplay } from "@/components/ImageDisplay";
@@ -116,6 +118,69 @@ export default function Marketplace() {
     listingId?: string;
   } | null>(null);
   const [contactedListings, setContactedListings] = useState<Set<string>>(new Set());
+  const [expressedInterests, setExpressedInterests] = useState<Set<string>>(new Set());
+
+  // Express interest mutation
+  const expressInterestMutation = useMutation({
+    mutationFn: async ({ listingId, buyerRequestId }: { listingId?: string, buyerRequestId?: string }) => {
+      const res = await apiRequest("POST", "/api/projects/interest", { listingId, buyerRequestId });
+      return { id: listingId || buyerRequestId, data: await res.json() };
+    },
+    onSuccess: ({ id, data }) => {
+      if (id) {
+        setExpressedInterests(prev => {
+          const next = new Set(prev);
+          if (data.bookmarked === false) {
+            next.delete(id);
+          } else {
+            next.add(id);
+          }
+          return next;
+        });
+
+        toast({
+          title: data.bookmarked === false ? "Bookmark Removed" : "Added to Saved Items",
+          description: data.bookmarked === false ? "Item removed from your saved items." : "This item has been saved to your dashboard.",
+        });
+      }
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to express interest. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExpressInterest = (id: string, type: 'listing' | 'rfq') => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: `Please log in to save this ${type === 'rfq' ? 'RFQ' : 'listing'}`,
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 1000);
+      return;
+    }
+    if (type === 'listing') {
+      expressInterestMutation.mutate({ listingId: id });
+    } else {
+      expressInterestMutation.mutate({ buyerRequestId: id });
+    }
+  };
 
   // Synchronize state with URL parameters
   useEffect(() => {
@@ -145,18 +210,29 @@ export default function Marketplace() {
     }
   }, [location]);
 
-  // Fetch admin contact (public lightweight endpoint)
-  const { data: adminContact, isLoading: loadingAdminContact } = useQuery<any>({
-    queryKey: ['/api/admin/contact-user'],
+  // Fetch platform contact settings (public)
+  const { data: adminSettings, isLoading: loadingAdminContact } = useQuery<any>({
+    queryKey: ['/api/contact/settings'],
   });
 
   const handleContactSeller = (listing: MarketplaceListingWithSeller) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to contact the seller",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 1000);
+      return;
+    }
+
     // Use seller ID if available, otherwise fall back to admin
     const recipientId = listing.sellerId || listing.seller?.id;
     const recipientName = listing.seller
       ? `${listing.seller.firstName || ''} ${listing.seller.lastName || ''}`.trim() || 'Seller'
-      : adminContact?.name || 'Administrator';
-    const recipientEmail = listing.seller?.email || adminContact?.email;
+      : adminSettings?.email || 'Administrator'; // Use email as fallback name if name missing
+    const recipientEmail = listing.seller?.email || adminSettings?.supportEmail;
 
     if (!recipientId) {
       toast({
@@ -179,6 +255,17 @@ export default function Marketplace() {
   };
 
   const handleRespondToRequest = (request: BuyerRequest) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to respond to requests",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 1000);
+      return;
+    }
+
     setSelectedRecipient({
       id: request.buyerId,
       subject: `Response to: ${request.title}`,
@@ -265,6 +352,53 @@ export default function Marketplace() {
     checkContactStatus();
   }, [listings, isAuthenticated]);
 
+  // Check for expressed interests when data loads
+  useEffect(() => {
+    const checkInterests = async () => {
+      if (!isAuthenticated) return;
+
+      const interests = new Set<string>();
+
+      // Check listings interests
+      if (listings) {
+        for (const listing of listings) {
+          try {
+            const response = await fetch(`/api/projects/${listing.id}/has-interest`, {
+              credentials: 'include',
+            });
+            const data = await response.json();
+            if (data.hasInterest) {
+              interests.add(listing.id);
+            }
+          } catch (error) {
+            console.error('Error checking interest for listing:', error);
+          }
+        }
+      }
+
+      // Check RFQ interests
+      if (buyerRequests) {
+        for (const request of buyerRequests) {
+          try {
+            const response = await fetch(`/api/projects/${request.id}/has-interest`, {
+              credentials: 'include',
+            });
+            const data = await response.json();
+            if (data.hasInterest) {
+              interests.add(request.id);
+            }
+          } catch (error) {
+            console.error('Error checking interest for RFQ:', error);
+          }
+        }
+      }
+
+      setExpressedInterests(interests);
+    };
+
+    checkInterests();
+  }, [listings, buyerRequests, isAuthenticated]);
+
   // Get subcategories for current main category
   const availableSubcategories = selectedMainCategory !== "all"
     ? getSubcategoriesForMain(selectedMainCategory)
@@ -307,6 +441,12 @@ export default function Marketplace() {
       listing.mineralType?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesMainCategory && matchesSubcategory && matchesSearch && listing.status === 'approved';
   });
+
+  const partnershipsListings = listings?.filter(l =>
+    l.type === 'partnership' &&
+    l.status === 'approved' &&
+    (!searchQuery || l.title.toLowerCase().includes(searchQuery.toLowerCase()) || l.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   const filteredRequests = buyerRequests?.filter((request) => {
     const matchesMainCategory = selectedMainCategory === "all" || request.mainCategory === selectedMainCategory;
@@ -352,7 +492,7 @@ export default function Marketplace() {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-8">
+            <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5 mb-8">
               <TabsTrigger value="minerals" data-testid="tab-minerals" onClick={() => { setSelectedMainCategory("minerals"); setSelectedSubcategory("all"); }}>
                 <Gem className="mr-2 h-4 w-4" />
                 Minerals
@@ -368,6 +508,10 @@ export default function Marketplace() {
               <TabsTrigger value="requests" data-testid="tab-requests" onClick={() => { setSelectedMainCategory("all"); setSelectedSubcategory("all"); }}>
                 <Package className="mr-2 h-4 w-4" />
                 RFQs
+              </TabsTrigger>
+              <TabsTrigger value="partnerships" data-testid="tab-partnerships" onClick={() => { setSelectedMainCategory("all"); setSelectedSubcategory("all"); }}>
+                <Users className="mr-2 h-4 w-4" />
+                Partnerships
               </TabsTrigger>
             </TabsList>
 
@@ -502,47 +646,31 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        {contactedListings.has(listing.id) ? (
-                          <div className="space-y-2">
-                            <Badge variant="secondary" className="w-full justify-center py-2" data-testid={`badge-contacted-${listing.id}`}>
-                              Already Contacted
-                            </Badge>
-                            <Button
-                              variant="outline"
-                              className="w-full"
-                              data-testid={`button-contact-seller-${listing.id}`}
-                              onClick={() => handleContactSeller(listing)}
-                              disabled={loadingAdminContact}
-                              title="Send another message"
-                            >
-                              {loadingAdminContact ? (
-                                <>
-                                  <Spinner size="sm" className="mr-2" />
-                                  Preparing...
-                                </>
-                              ) : (
-                                'Contact Seller Again'
-                              )}
-                            </Button>
-                          </div>
-                        ) : (
+                        <div className="flex gap-2">
                           <Button
-                            className="w-full"
+                            className="flex-1"
+                            variant={contactedListings.has(listing.id) ? "outline" : "default"}
                             data-testid={`button-contact-seller-${listing.id}`}
                             onClick={() => handleContactSeller(listing)}
                             disabled={loadingAdminContact}
-                            title={loadingAdminContact ? 'Loading contact...' : undefined}
                           >
                             {loadingAdminContact ? (
-                              <>
-                                <Spinner size="sm" className="mr-2" />
-                                Preparing...
-                              </>
+                              <><Spinner size="sm" className="mr-2" />Preparing...</>
                             ) : (
-                              'Contact Seller'
+                              'Contact'
                             )}
                           </Button>
-                        )}
+                          <Button
+                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
+                            size="icon"
+                            onClick={() => handleExpressInterest(listing.id, 'listing')}
+                            disabled={expressInterestMutation.isPending}
+                            data-testid={`button-interest-minerals-${listing.id}`}
+                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
+                          >
+                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -622,13 +750,25 @@ export default function Marketplace() {
                             <span>{request.location}</span>
                           </div>
                         )}
-                        <Button
-                          className="w-full"
-                          data-testid={`button-respond-${request.id}`}
-                          onClick={() => handleRespondToRequest(request)}
-                        >
-                          Respond to Request
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            data-testid={`button-respond-${request.id}`}
+                            onClick={() => handleRespondToRequest(request)}
+                          >
+                            Contact
+                          </Button>
+                          <Button
+                            variant={expressedInterests.has(request.id) ? "secondary" : "outline"}
+                            size="icon"
+                            onClick={() => handleExpressInterest(request.id, 'rfq')}
+                            disabled={expressInterestMutation.isPending || expressedInterests.has(request.id)}
+                            data-testid={`button-interest-rfq-${request.id}`}
+                            title={expressedInterests.has(request.id) ? "Expressed Interest" : "Express Interest"}
+                          >
+                            <Heart className={`h-4 w-4 ${expressedInterests.has(request.id) ? 'fill-current text-red-500' : ''}`} />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -708,21 +848,30 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button
-                          className="w-full"
-                          data-testid={`button-contact-seller-${listing.id}`}
-                          onClick={() => handleContactSeller(listing)}
-                          disabled={loadingAdminContact}
-                        >
-                          {loadingAdminContact ? (
-                            <>
-                              <Spinner size="sm" className="mr-2" />
-                              Preparing...
-                            </>
-                          ) : (
-                            'Inquire'
-                          )}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            data-testid={`button-contact-seller-${listing.id}`}
+                            onClick={() => handleContactSeller(listing)}
+                            disabled={loadingAdminContact}
+                          >
+                            {loadingAdminContact ? (
+                              <><Spinner size="sm" className="mr-2" />Preparing...</>
+                            ) : (
+                              'Contact'
+                            )}
+                          </Button>
+                          <Button
+                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
+                            size="icon"
+                            onClick={() => handleExpressInterest(listing.id, 'listing')}
+                            disabled={expressInterestMutation.isPending}
+                            data-testid={`button-interest-equipment-${listing.id}`}
+                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
+                          >
+                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -796,21 +945,30 @@ export default function Marketplace() {
                           <MapPin className="h-4 w-4" />
                           <span>{listing.location}</span>
                         </div>
-                        <Button
-                          className="w-full"
-                          data-testid={`button-contact-seller-${listing.id}`}
-                          onClick={() => handleContactSeller(listing)}
-                          disabled={loadingAdminContact}
-                        >
-                          {loadingAdminContact ? (
-                            <>
-                              <Spinner size="sm" className="mr-2" />
-                              Preparing...
-                            </>
-                          ) : (
-                            'Inquire'
-                          )}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            data-testid={`button-contact-seller-${listing.id}`}
+                            onClick={() => handleContactSeller(listing)}
+                            disabled={loadingAdminContact}
+                          >
+                            {loadingAdminContact ? (
+                              <><Spinner size="sm" className="mr-2" />Preparing...</>
+                            ) : (
+                              'Contact'
+                            )}
+                          </Button>
+                          <Button
+                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
+                            size="icon"
+                            onClick={() => handleExpressInterest(listing.id, 'listing')}
+                            disabled={expressInterestMutation.isPending || expressedInterests.has(listing.id)}
+                            data-testid={`button-interest-service-${listing.id}`}
+                            title={expressedInterests.has(listing.id) ? "Saved to Interests" : "Save to Interests"}
+                          >
+                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -830,9 +988,10 @@ export default function Marketplace() {
 
             <TabsContent value="partnerships">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[1, 2].map((i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[1, 2, 3].map((i) => (
                     <Card key={i}>
+                      <Skeleton className="h-48 w-full" />
                       <CardHeader>
                         <Skeleton className="h-6 w-3/4" />
                         <Skeleton className="h-4 w-full" />
@@ -840,37 +999,66 @@ export default function Marketplace() {
                     </Card>
                   ))}
                 </div>
-              ) : filteredListings && filteredListings.filter(l => l.type === 'partnership').length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {filteredListings.filter(l => l.type === 'partnership').map((listing) => (
+              ) : partnershipsListings && partnershipsListings.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {partnershipsListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
+                      <ImageDisplay
+                        imageUrl={listing.imageUrl}
+                        alt={listing.title}
+                        fallbackImage={catalogueImg}
+                      />
                       <CardHeader>
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl">{listing.title}</CardTitle>
+                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
                             {listing.itemId && (
                               <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
                             )}
                           </div>
-                          <StatusBadge status={listing.status} />
+                          <Badge variant="outline" className="capitalize">{listing.type}</Badge>
                         </div>
-                        <CardDescription className="line-clamp-3">
+                        <CardDescription className="line-clamp-2">
                           {listing.description}
                         </CardDescription>
                         {renderVerificationBadges(listing)}
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.location}</span>
+                        <div className="grid grid-cols-1 gap-1 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <MapPin className="h-4 w-4" />
+                            <span>{listing.location}</span>
+                          </div>
+                          {listing.price && (
+                            <div className="text-chart-3 font-bold mt-2">
+                              {listing.price}
+                            </div>
+                          )}
                         </div>
-                        <Button
-                          className="w-full"
-                          data-testid={`button-learn-partnership-${listing.id}`}
-                          onClick={() => handleContactSeller(listing)}
-                        >
-                          Learn More
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            className="flex-1"
+                            data-testid={`button-contact-seller-${listing.id}`}
+                            onClick={() => handleContactSeller(listing)}
+                            disabled={loadingAdminContact}
+                          >
+                            {loadingAdminContact ? (
+                              <><Spinner size="sm" className="mr-2" />Preparing...</>
+                            ) : (
+                              'Contact'
+                            )}
+                          </Button>
+                          <Button
+                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
+                            size="icon"
+                            onClick={() => handleExpressInterest(listing.id, 'listing')}
+                            disabled={expressInterestMutation.isPending}
+                            data-testid={`button-interest-partnership-${listing.id}`}
+                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
+                          >
+                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -879,9 +1067,9 @@ export default function Marketplace() {
                 <Card className="text-center py-12">
                   <CardContent>
                     <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">No Partnership Opportunities</h3>
+                    <h3 className="text-xl font-semibold mb-2">No Partnerships Found</h3>
                     <p className="text-muted-foreground">
-                      Check back later for new partnerships
+                      Interested in joining forces? Check back later for new opportunities.
                     </p>
                   </CardContent>
                 </Card>
