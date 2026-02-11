@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 
 interface DashboardSidebarProps {
   mobileOpen?: boolean;
@@ -36,6 +38,16 @@ export function DashboardSidebar({
   // Use external state if provided, otherwise use internal state
   const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
+
+  const { data: stats } = useQuery<{
+    listingsCount: number;
+    unreadMessagesCount: number;
+    interestsCount: number;
+  }>({
+    queryKey: ["/api/dashboard/stats"],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
 
   const getUserInitials = () => {
     if (!user) return "U";
@@ -192,7 +204,21 @@ export function DashboardSidebar({
                   data-testid={item.testId}
                 >
                   <Icon className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate flex-1 text-left">{item.label}</span>
+                  {item.label === "Messages" && stats && stats.unreadMessagesCount > 0 && (
+                    <motion.div
+                      key={stats.unreadMessagesCount}
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{
+                        scale: 1,
+                        opacity: 1,
+                        transition: { type: "spring", stiffness: 500, damping: 15 }
+                      }}
+                      className="ml-auto min-w-[20px] h-5 px-1 bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm"
+                    >
+                      {stats.unreadMessagesCount > 99 ? '99+' : stats.unreadMessagesCount}
+                    </motion.div>
+                  )}
                 </Button>
               </Link>
             );

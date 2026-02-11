@@ -92,6 +92,7 @@ export const userProfiles = pgTable("user_profiles", {
   location: varchar("location"),
   bio: text("bio"),
   interests: text("interests").array(),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   verified: boolean("verified").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -831,6 +831,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.claims?.sub;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const [listingsCount, unreadMessagesCount, interestsCount] = await Promise.all([
+        storage.getUserListingsCount(userId),
+        storage.getUserUnreadMessagesCount(userId),
+        storage.getUserInterestsCount(userId),
+      ]);
+      res.json({
+        listingsCount,
+        unreadMessagesCount,
+        interestsCount,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
   app.patch('/api/marketplace/listings/:id', isAuthenticated, async (req: any, res) => {
     try {
       const listing = await storage.getMarketplaceListingById(req.params.id);
@@ -1224,6 +1246,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating message:", error);
       res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+  app.post('/api/messages/mark-read', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.claims?.sub;
+      const { messageIds } = req.body;
+
+      if (!Array.isArray(messageIds)) {
+        return res.status(400).json({ message: "messageIds must be an array" });
+      }
+
+      // Only mark messages as read if the user is the receiver
+      for (const messageId of messageIds) {
+        const message = await storage.getMessageById(messageId);
+        if (message && message.receiverId === userId) {
+          await storage.markMessageAsRead(messageId);
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      res.status(500).json({ message: "Failed to mark messages as read" });
     }
   });
 
