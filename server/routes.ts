@@ -831,14 +831,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+  app.patch('/api/marketplace/listings/:id', isAuthenticated, async (req: any, res) => {
     try {
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+      const userId = getUserId(req);
+      const user = await storage.getUser(userId!);
+      const isAdmin = user?.role === 'admin';
+
+      // Only admin or the seller can update
+      if (!isAdmin && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to update this listing" });
+      }
+
       const validatedData = insertMarketplaceListingSchema.partial().parse(req.body);
-      const listing = await storage.updateMarketplaceListing(req.params.id, validatedData);
-      res.json(listing);
+      const updatedListing = await storage.updateMarketplaceListing(req.params.id, validatedData);
+      res.json(updatedListing);
     } catch (error: any) {
       if (error instanceof ZodError) {
-        console.error("Validation error updating listing:", formatZodError(error));
         return res.status(400).json({ message: formatZodError(error) });
       }
       console.error("Error updating listing:", error);
@@ -846,8 +857,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/marketplace/listings/:id', isAuthenticated, isAdmin, requireAdminPermission('canManageListings'), async (req, res) => {
+  app.delete('/api/marketplace/listings/:id', isAuthenticated, async (req, res) => {
     try {
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+      const userId = getUserId(req);
+      if (req.user.role !== 'admin' && listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Not authorized to delete this listing" });
+      }
+
       await storage.deleteMarketplaceListing(req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -874,6 +893,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error closing listing:", error);
       res.status(500).json({ message: "Failed to close listing" });
+    }
+  });
+
+  app.patch('/api/marketplace/listings/:id/cancel', isAuthenticated, async (req: any, res) => {
+    try {
+      const listing = await storage.getMarketplaceListingById(req.params.id);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+      const userId = getUserId(req);
+      if (listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller can cancel this listing" });
+      }
+
+      if (listing.status !== 'pending') {
+        return res.status(400).json({ message: "Only pending listings can be cancelled" });
+      }
+
+      const cancelledListing = await storage.cancelMarketplaceListing(req.params.id);
+      res.json(cancelledListing);
+    } catch (error) {
+      console.error("Error cancelling listing:", error);
+      res.status(500).json({ message: "Failed to cancel listing" });
+    }
+  });
+
+  app.patch('/api/marketplace/listings/:id/resubmit', isAuthenticated, async (req: any, res) => {
+    try {
+      const listingId = req.params.id;
+      const listing = await storage.getMarketplaceListingById(listingId);
+      if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+      const userId = getUserId(req);
+      if (listing.sellerId !== userId) {
+        return res.status(403).json({ message: "Only the seller can resubmit this listing" });
+      }
+
+      if (listing.status !== 'cancelled' && listing.status !== 'rejected') {
+        return res.status(400).json({ message: "Only cancelled or rejected listings can be resubmitted" });
+      }
+
+      const validatedData = insertMarketplaceListingSchema.parse({
+        ...req.body,
+        sellerId: userId,
+      });
+
+      const updated = await storage.resubmitMarketplaceListing(listingId, validatedData);
+      res.json(updated);
+    } catch (error: any) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: formatZodError(error) });
+      }
+      console.error("Error resubmitting listing:", error);
+      res.status(500).json({ message: "Failed to resubmit listing" });
     }
   });
 

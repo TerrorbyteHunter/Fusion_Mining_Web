@@ -136,7 +136,7 @@ export const expressInterest = pgTable("express_interest", {
 // Marketplace
 // ============================================================================
 export const listingTypeEnum = pgEnum('listing_type', ['mineral', 'partnership', 'project']);
-export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed']);
+export const listingStatusEnum = pgEnum('listing_status', ['pending', 'approved', 'rejected', 'inactive', 'closed', 'cancelled']);
 
 // Main categories matching B2B Mineral structure
 export const mainCategoryEnum = pgEnum('main_category', ['minerals', 'mining_tools', 'mining_services', 'mining_ppe', 'mining_equipment']);

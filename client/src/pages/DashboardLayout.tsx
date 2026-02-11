@@ -7,6 +7,7 @@ import CreateBuyerRequest from "./CreateBuyerRequest";
 import DashboardListings from "./DashboardListings";
 import EditBuyerRequest from "./EditBuyerRequest";
 import ProfileManagement from "./ProfileManagement";
+import EditListing from "./EditListing";
 import SellerVerification from "./SellerVerification";
 import BuyerTierUpgrade from "./BuyerTierUpgrade";
 import { DashboardSidebar, DashboardMobileMenuTrigger } from "@/components/DashboardSidebar";
@@ -17,9 +18,9 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex min-h-screen">
-      <DashboardSidebar 
-        mobileOpen={mobileMenuOpen} 
-        onMobileOpenChange={setMobileMenuOpen} 
+      <DashboardSidebar
+        mobileOpen={mobileMenuOpen}
+        onMobileOpenChange={setMobileMenuOpen}
       />
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Mobile header with menu trigger */}
@@ -37,6 +38,7 @@ export default function DashboardLayout() {
             <Route path="/dashboard/listings" component={DashboardListings} />
             <Route path="/dashboard/requests" component={DashboardListings} />
             <Route path="/dashboard/edit-rfq/:id" component={EditBuyerRequest} />
+            <Route path="/dashboard/edit-listing/:id" component={EditListing} />
             <Route path="/dashboard/profile" component={ProfileManagement} />
             <Route path="/dashboard/verification" component={SellerVerification} />
             <Route path="/dashboard/upgrade-tier" component={BuyerTierUpgrade} />

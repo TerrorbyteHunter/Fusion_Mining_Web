@@ -23,10 +23,7 @@ import {
   Plus,
   Filter,
   BadgeCheck,
-  CheckCircle2,
-  XCircle,
-  Archive,
-  MoreHorizontal
+  Archive
 } from "lucide-react";
 
 export default function DashboardListings() {
@@ -108,6 +105,31 @@ export default function DashboardListings() {
     },
   });
 
+  const cancelListingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("PATCH", `/api/marketplace/listings/${id}/cancel`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to cancel listing");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Listing cancelled",
+        description: "Your listing request has been cancelled.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/listings"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel listing",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Combined filtered list search logic
   const filteredItems = useMemo(() => {
     let list: any[] = [];
@@ -145,6 +167,8 @@ export default function DashboardListings() {
         return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800';
       case 'rejected':
         return 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
+      case 'cancelled':
+        return 'bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800';
       case 'closed':
       case 'archived':
         return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
@@ -300,7 +324,7 @@ export default function DashboardListings() {
                             <span className="font-semibold block mb-0.5">Rejection Reason</span>
                             <p className="text-xs opacity-90 leading-relaxed">{item.rejectionReason}</p>
                           </div>
-                          <Link href={`/dashboard/edit-rfq/${item.id}`}>
+                          <Link href={isSeller ? `/dashboard/edit-listing/${item.id}` : `/dashboard/edit-rfq/${item.id}`}>
                             <Button size="sm" variant="destructive" className="w-full text-xs h-8 shadow-sm">
                               Edit & Resubmit <ArrowRight className="ml-2 h-3 w-3" />
                             </Button>
@@ -309,21 +333,58 @@ export default function DashboardListings() {
                       </div>
                     </div>
                   )}
+
+                  {(item.status === 'cancelled') && isSeller && (
+                    <div className="mt-4">
+                      <Link href={`/dashboard/edit-listing/${item.id}`}>
+                        <Button size="sm" variant="outline" className="w-full text-xs h-9 border-indigo-200 text-indigo-600 hover:bg-indigo-50 shadow-sm transition-all group-hover:border-indigo-300">
+                          Edit & Resubmit <ArrowRight className="ml-2 h-3 w-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </CardContent>
 
-                {(isSeller ? item.status === "approved" || item.status === "active" : item.status === "active") && (
+                {/* Seller Actions for Pending/Approved/Active */}
+                {isSeller && (
+                  <CardFooter className="pt-0 pb-4">
+                    {item.status === 'pending' ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors font-medium border border-transparent hover:border-destructive/20"
+                        onClick={() => cancelListingMutation.mutate(item.id)}
+                        disabled={cancelListingMutation.isPending}
+                      >
+                        {cancelListingMutation.isPending ? "Cancelling..." : "Cancel Request"}
+                      </Button>
+                    ) : (item.status === 'approved' || item.status === 'active') && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                        onClick={() => closeListingMutation.mutate(item.id)}
+                        disabled={closeListingMutation.isPending}
+                        data-testid={`button-close-listing-${item.id}`}
+                      >
+                        {closeListingMutation.isPending ? "Closing..." : "Close Listing"}
+                      </Button>
+                    )}
+                  </CardFooter>
+                )}
+
+                {/* Buyer Actions for Active */}
+                {!isSeller && item.status === 'active' && (
                   <CardFooter className="pt-0 pb-4">
                     <Button
                       variant="ghost"
                       size="sm"
                       className="w-full hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-                      onClick={() => isSeller ? closeListingMutation.mutate(item.id) : closeRequestMutation.mutate(item.id)}
-                      disabled={isSeller ? closeListingMutation.isPending : closeRequestMutation.isPending}
-                      data-testid={`button-close-${isSeller ? 'listing' : 'request'}-${item.id}`}
+                      onClick={() => closeRequestMutation.mutate(item.id)}
+                      disabled={closeRequestMutation.isPending}
+                      data-testid={`button-close-request-${item.id}`}
                     >
-                      {isSeller
-                        ? (closeListingMutation.isPending ? "Closing..." : "Close Listing")
-                        : (closeRequestMutation.isPending ? "Closing..." : "Close RFQ")}
+                      {closeRequestMutation.isPending ? "Closing..." : "Close RFQ"}
                     </Button>
                   </CardFooter>
                 )}
@@ -459,7 +520,7 @@ export default function DashboardListings() {
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4 outline-none min-h-[300px]">
-              {renderContent(["closed", "rejected", "archived", "draft"])}
+              {renderContent(["closed", "rejected", "archived", "draft", "cancelled"])}
             </TabsContent>
 
             <TabsContent value="all" className="space-y-4 outline-none min-h-[300px]">

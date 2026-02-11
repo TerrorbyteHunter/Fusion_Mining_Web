@@ -209,6 +209,8 @@ export interface IStorage {
   updateMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing>;
   deleteMarketplaceListing(id: string): Promise<void>;
   closeMarketplaceListing(id: string): Promise<MarketplaceListing>;
+  cancelMarketplaceListing(id: string): Promise<MarketplaceListing>;
+  resubmitMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing>;
   getListingsBySellerId(sellerId: string): Promise<MarketplaceListing[]>;
 
   // Buyer Request operations
@@ -892,6 +894,35 @@ export class DatabaseStorage implements IStorage {
       .set({ status: 'closed', updatedAt: new Date() })
       .where(eq(marketplaceListings.id, id))
       .returning();
+    return listing;
+  }
+
+  async cancelMarketplaceListing(id: string): Promise<MarketplaceListing> {
+    const [listing] = await db
+      .update(marketplaceListings)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(marketplaceListings.id, id))
+      .returning();
+    return listing;
+  }
+
+  async resubmitMarketplaceListing(id: string, data: Partial<InsertMarketplaceListing>): Promise<MarketplaceListing> {
+    const [listing] = await db
+      .update(marketplaceListings)
+      .set({ ...data, status: 'pending', rejectionReason: null, updatedAt: new Date() })
+      .where(eq(marketplaceListings.id, id))
+      .returning();
+
+    // Reset verification queue
+    const [existingQueue] = await db.select().from(verificationQueue).where(eq(verificationQueue.listingId, id)).limit(1);
+    if (existingQueue) {
+      await db.update(verificationQueue)
+        .set({ submittedAt: new Date(), reviewedAt: null, reviewedBy: null, notes: null })
+        .where(eq(verificationQueue.listingId, id));
+    } else {
+      await db.insert(verificationQueue).values({ listingId: id });
+    }
+
     return listing;
   }
 

@@ -97,6 +97,8 @@ function Router() {
             <Route path="/dashboard/create-rfq" component={DashboardLayout} />
             <Route path="/dashboard/listings" component={DashboardLayout} />
             <Route path="/dashboard/requests" component={DashboardLayout} />
+            <Route path="/dashboard/edit-rfq/:id" component={DashboardLayout} />
+            <Route path="/dashboard/edit-listing/:id" component={DashboardLayout} />
             <Route path="/dashboard/profile" component={DashboardLayout} />
             <Route path="/dashboard/verification" component={DashboardLayout} />
             <Route path="/dashboard/upgrade-tier" component={DashboardLayout} />
