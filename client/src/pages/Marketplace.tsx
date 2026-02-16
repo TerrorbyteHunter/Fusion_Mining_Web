@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { VerificationBadge } from "@/components/VerificationBadge";
+import { MarketplaceMap } from "@/components/MarketplaceMap";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceListingWithSeller, BuyerRequest } from "@shared/schema";
@@ -33,6 +34,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
 import { ImageDisplay } from "@/components/ImageDisplay";
+
 // image imports from repository attached_assets
 import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
 import copper2Img from "../../../attached_assets/files/copper2.jpg";
@@ -106,6 +108,7 @@ export default function Marketplace() {
 
   const [activeTab, setActiveTab] = useState("minerals");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
   const [selectedMainCategory, setSelectedMainCategory] = useState<string>("minerals");
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
@@ -405,6 +408,11 @@ export default function Marketplace() {
     : {};
 
   const filteredListings = listings?.filter((listing) => {
+    // Location filter with normalization
+    const normalizeLoc = (loc: string) => loc.toLowerCase().replace(" province", "").trim();
+    const matchesLocation = selectedLocation === "all" ||
+      normalizeLoc(listing.location) === normalizeLoc(selectedLocation);
+
     // Handle main category matching - "mining_equipment" maps to both "mining_tools" and "mining_ppe"
     let matchesMainCategory = true;
     if (selectedMainCategory !== "all") {
@@ -439,7 +447,7 @@ export default function Marketplace() {
       listing.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       listing.mineralType?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesMainCategory && matchesSubcategory && matchesSearch && listing.status === 'approved';
+    return matchesLocation && matchesMainCategory && matchesSubcategory && matchesSearch && listing.status === 'approved';
   });
 
   const partnershipsListings = listings?.filter(l =>
@@ -449,6 +457,9 @@ export default function Marketplace() {
   );
 
   const filteredRequests = buyerRequests?.filter((request) => {
+    const normalizeLoc = (loc: string) => (loc || "").toLowerCase().replace(" province", "").trim();
+    const matchesLocation = selectedLocation === "all" ||
+      normalizeLoc(request.location || "") === normalizeLoc(selectedLocation);
     const matchesMainCategory = selectedMainCategory === "all" || request.mainCategory === selectedMainCategory;
     const matchesSubcategory = selectedSubcategory === "all" ||
       request.mineralSubcategory === selectedSubcategory ||
@@ -460,7 +471,7 @@ export default function Marketplace() {
       request.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.specificType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       request.mineralType?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesMainCategory && matchesSubcategory && matchesSearch && request.status === 'active';
+    return matchesLocation && matchesMainCategory && matchesSubcategory && matchesSearch && request.status === 'active';
   });
 
 
@@ -485,6 +496,24 @@ export default function Marketplace() {
               </Button>
             )}
           </div>
+        </div>
+      </section>
+      {/* Regional Trading Insights Map */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4 text-center">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Regional Trading Intelligence
+            </h2>
+            <p className="text-slate-500 text-sm">
+              Visualize verified supply hubs and mining activity across Zambia.
+            </p>
+          </div>
+
+          <MarketplaceMap
+            listings={listings || []}
+            onListingClick={(listing) => handleContactSeller(listing as any)}
+          />
         </div>
       </section>
 
@@ -516,7 +545,7 @@ export default function Marketplace() {
             </TabsList>
 
             {/* Filters */}
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+            <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
               <div>
                 <Label htmlFor="search-marketplace">Search</Label>
                 <div className="relative">
@@ -524,7 +553,7 @@ export default function Marketplace() {
                   <Input
                     id="search-marketplace"
                     placeholder="Search listings..."
-                    className="pl-10"
+                    className="pl-10 h-10"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     data-testid="input-search-marketplace"
@@ -537,7 +566,7 @@ export default function Marketplace() {
                   setSelectedMainCategory(val);
                   setSelectedSubcategory("all");
                 }}>
-                  <SelectTrigger id="main-category" data-testid="select-main-category">
+                  <SelectTrigger id="main-category" data-testid="select-main-category" className="h-10">
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -555,7 +584,7 @@ export default function Marketplace() {
                   onValueChange={setSelectedSubcategory}
                   disabled={selectedMainCategory === "all"}
                 >
-                  <SelectTrigger id="subcategory" data-testid="select-subcategory">
+                  <SelectTrigger id="subcategory" data-testid="select-subcategory" className="h-10">
                     <SelectValue placeholder="All Subcategories" />
                   </SelectTrigger>
                   <SelectContent>
@@ -563,6 +592,27 @@ export default function Marketplace() {
                     {Object.entries(availableSubcategories).map(([key, sub]: [string, any]) => (
                       <SelectItem key={key} value={key}>{sub.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="location-filter">Location</Label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger id="location-filter" data-testid="select-location" className="h-10">
+                    <SelectValue placeholder="All Locations" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Regions</SelectItem>
+                    <SelectItem value="Lusaka">Lusaka</SelectItem>
+                    <SelectItem value="Central Province">Central Province</SelectItem>
+                    <SelectItem value="Copperbelt Province">Copperbelt Province</SelectItem>
+                    <SelectItem value="Eastern Province">Eastern Province</SelectItem>
+                    <SelectItem value="Luapula Province">Luapula Province</SelectItem>
+                    <SelectItem value="Muchinga Province">Muchinga Province</SelectItem>
+                    <SelectItem value="Northern Province">Northern Province</SelectItem>
+                    <SelectItem value="North-Western Province">North-Western Province</SelectItem>
+                    <SelectItem value="Southern Province">Southern Province</SelectItem>
+                    <SelectItem value="Western Province">Western Province</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

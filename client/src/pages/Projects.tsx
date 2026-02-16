@@ -22,7 +22,7 @@ import {
   MessageCircle,
   BadgeCheck
 } from "lucide-react";
-import { ZambiaMap } from "@/components/ZambiaMap";
+import { MiningOperationsMap } from "@/components/MiningOperationsMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
 // image imports from repository attached_assets
 import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
@@ -222,7 +222,9 @@ export default function Projects() {
 
   // Filter projects
   const filteredProjects = projects?.filter((project) => {
-    const matchesRegion = selectedRegion === "all" || project.location === selectedRegion;
+    const normalizeLoc = (loc: string) => loc.toLowerCase().replace(" province", "").trim();
+    const matchesRegion = selectedRegion === "all" ||
+      normalizeLoc(project.location) === normalizeLoc(selectedRegion);
     const matchesMineral = selectedMineral === "all" || project.minerals.includes(selectedMineral);
     const matchesSearch = !searchQuery ||
       project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -254,14 +256,20 @@ export default function Projects() {
         </div>
       )}
 
-      {/* Interactive Map */}
-      <section className="py-12 bg-card/30">
+      {/* Interactive Mining Operations Map */}
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2">Interactive Zambia Map</h2>
-            <p className="text-muted-foreground">Click on regions to filter projects</p>
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-slate-900">
+              Interactive Zambia Map
+            </h2>
+            <p className="text-slate-500 text-sm">
+              Click on regions to filter projects
+            </p>
           </div>
-          <ZambiaMap
+          <MiningOperationsMap
+            projects={filteredProjects}
+            onProjectClick={(project) => handleContactSeller(project as any)}
             onRegionClick={(region) => setSelectedRegion(region)}
             selectedRegion={selectedRegion === "all" ? undefined : selectedRegion}
           />
@@ -297,7 +305,7 @@ export default function Projects() {
                   <SelectItem value="Lusaka">Lusaka</SelectItem>
                   <SelectItem value="Central Province">Central Province</SelectItem>
                   <SelectItem value="Eastern Province">Eastern Province</SelectItem>
-                  <SelectItem value="Copperbelt">Copperbelt</SelectItem>
+                  <SelectItem value="Copperbelt Province">Copperbelt Province</SelectItem>
                   <SelectItem value="Muchinga Province">Muchinga Province</SelectItem>
                   <SelectItem value="Northern Province">Northern Province</SelectItem>
                   <SelectItem value="Luapula Province">Luapula Province</SelectItem>

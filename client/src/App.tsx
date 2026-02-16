@@ -42,6 +42,7 @@ import DashboardLayout from "@/pages/DashboardLayout";
 import SellerVerification from "@/pages/SellerVerification";
 import { SupportChatWidget } from "@/components/SupportChatWidget";
 import Onboarding from "@/pages/Onboarding";
+import LMEPrices from "@/pages/LMEPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import AccountTypeSelector from "./components/AccountTypeSelector";
@@ -85,6 +86,7 @@ function Router() {
             <Route path="/news" component={News} />
             <Route path="/about" component={About} />
             <Route path="/contact" component={Contact} />
+            <Route path="/lme-prices" component={LMEPrices} />
 
             {/* Protected Routes */}
             <Route path="/profile/:id" component={ProfileView} />
