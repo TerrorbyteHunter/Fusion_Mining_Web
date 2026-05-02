@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
 import { VerificationBadge } from "@/components/VerificationBadge";
-import { MarketplaceMap } from "@/components/MarketplaceMap";
+
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import type { MarketplaceListingWithSeller, BuyerRequest } from "@shared/schema";
@@ -498,24 +498,7 @@ export default function Marketplace() {
           </div>
         </div>
       </section>
-      {/* Regional Trading Insights Map */}
-      <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 text-center">
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-slate-900">
-              Regional Trading Intelligence
-            </h2>
-            <p className="text-slate-500 text-sm">
-              Visualize verified supply hubs and mining activity across Zambia.
-            </p>
-          </div>
 
-          <MarketplaceMap
-            listings={listings || []}
-            onListingClick={(listing) => handleContactSeller(listing as any)}
-          />
-        </div>
-      </section>
 
       {/* Marketplace Tabs */}
       <section className="py-12">

@@ -36,7 +36,7 @@ function ContactInfo() {
 
   const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
   const phone = (contact?.phone as string) ?? '+260 978 838 939';
-  const email = (contact?.email as string) ?? 'info@fusionmining.com';
+  const email = (contact?.email as string) ?? 'fusionminingltd@gmail.com';
   const hoursMonFri = (contact?.mondayFriday as string) ?? '8:00 AM - 5:00 PM';
 
   return (

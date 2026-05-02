@@ -82,11 +82,15 @@ export default function Landing() {
     },
   ];
 
+  const { data: platformStats } = useQuery<{ activeProjects: number; verifiedPartners: number; mineralsTraded: number; successRate: string }>({
+    queryKey: ["/api/platform-stats"],
+  });
+
   const stats = [
-    { label: t('stats.activeProjects'), value: "50+", icon: Mountain },
-    { label: t('stats.verifiedPartners'), value: "200+", icon: HandshakeIcon },
-    { label: t('stats.mineralsTraded'), value: "15+", icon: Gem },
-    { label: t('stats.successRate'), value: "98%", icon: Shield },
+    { label: t('stats.activeProjects'), value: platformStats ? `${platformStats.activeProjects}+` : "50+", icon: Mountain },
+    { label: t('stats.verifiedPartners'), value: platformStats ? `${platformStats.verifiedPartners}+` : "200+", icon: HandshakeIcon },
+    { label: t('stats.mineralsTraded'), value: platformStats ? `${platformStats.mineralsTraded}+` : "15+", icon: Gem },
+    { label: t('stats.successRate'), value: platformStats?.successRate || "98%", icon: Shield },
   ];
   const { data: activeVideos } = useQuery<Video[]>({
     queryKey: ["/api/videos/active"],

@@ -191,7 +191,7 @@ export default function AdminContactSettings() {
                           {...field}
                           value={field.value ?? ""}
                           type="email"
-                          placeholder="primary@fusionmining.com"
+                          placeholder="fusionminingltd@gmail.com"
                         />
                       </FormControl>
                       <FormMessage />
@@ -210,7 +210,7 @@ export default function AdminContactSettings() {
                           {...field}
                           value={field.value ?? ""}
                           type="email"
-                          placeholder="support@fusionmining.com"
+                          placeholder="fusionminingltd@gmail.com"
                         />
                       </FormControl>
                       <FormMessage />

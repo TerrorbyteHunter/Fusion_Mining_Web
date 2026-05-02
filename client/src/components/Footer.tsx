@@ -14,7 +14,7 @@ export function Footer() {
 
     const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
   const phone = (contact?.phone as string) ?? '+260 978 838 939';
-  const email = (contact?.email as string) ?? 'info@fusionmining.com';
+  const email = (contact?.email as string) ?? 'fusionminingltd@gmail.com';
 
   return (
     <footer className="border-t bg-card/50">
@@ -38,7 +38,7 @@ export function Footer() {
             </p>
             <div className="flex gap-2">
               <a 
-                href="https://facebook.com" 
+                href="https://web.facebook.com/profile.php?id=61562823974955" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hover-elevate active-elevate-2 p-2 rounded-lg"
@@ -46,31 +46,16 @@ export function Footer() {
               >
                 <Facebook className="h-5 w-5 text-muted-foreground" />
               </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover-elevate active-elevate-2 p-2 rounded-lg"
-                data-testid="link-twitter"
-              >
-                <Twitter className="h-5 w-5 text-muted-foreground" />
-              </a>
-              <a 
-                href="https://linkedin.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover-elevate active-elevate-2 p-2 rounded-lg"
-                data-testid="link-linkedin"
-              >
-                <Linkedin className="h-5 w-5 text-muted-foreground" />
-              </a>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold mb-4">{t('footer.quickLinks')}</h3>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/90 mb-6 relative">
+              {t('footer.quickLinks')}
+              <span className="absolute -bottom-2 left-0 w-8 h-1 bg-primary rounded-full"></span>
+            </h3>
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/services" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t('nav.services')}
@@ -106,8 +91,11 @@ export function Footer() {
 
           {/* Resources */}
           <div>
-            <h3 className="font-semibold mb-4">{t('footer.legal')}</h3>
-            <ul className="space-y-2 text-sm">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/90 mb-6 relative">
+              {t('footer.legal')}
+              <span className="absolute -bottom-2 left-0 w-8 h-1 bg-primary rounded-full"></span>
+            </h3>
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/legal/terms" className="text-muted-foreground hover:text-foreground transition-colors">
                   {t('footer.terms')}
@@ -128,8 +116,11 @@ export function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="font-semibold mb-4">{t('footer.contact')}</h3>
-            <ul className="space-y-3 text-sm text-muted-foreground">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-foreground/90 mb-6 relative">
+              {t('footer.contact')}
+              <span className="absolute -bottom-2 left-0 w-8 h-1 bg-primary rounded-full"></span>
+            </h3>
+            <ul className="space-y-4 text-sm text-muted-foreground">
               <li className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span style={{ whiteSpace: 'pre-line' }}>{office}</span>

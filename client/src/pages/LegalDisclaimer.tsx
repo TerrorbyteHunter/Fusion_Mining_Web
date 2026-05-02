@@ -10,7 +10,7 @@ export default function LegalDisclaimer() {
             Disclaimer
           </h1>
           <p className="text-muted-foreground">
-            Last updated: October 2024
+            Last updated: May 1, 2026
           </p>
         </div>
       </section>
@@ -116,16 +116,19 @@ export default function LegalDisclaimer() {
 
           <Card className="mt-6">
             <CardHeader>
-              <CardTitle>Contact</CardTitle>
+              <CardTitle>Contact Information</CardTitle>
             </CardHeader>
-            <CardContent className="prose prose-sm max-w-none">
+            <CardContent className="prose prose-sm max-w-none space-y-4">
               <p>
-                For questions about this disclaimer, please contact:
+                For questions about this disclaimer, please contact us at:
               </p>
-              <p>
-                Email: legal@fusionmining.com<br />
-                Address: Lusaka, Zambia
-              </p>
+              <div className="mt-4 pt-4 border-t">
+                <p>
+                  <strong>Website:</strong> <a href="/contact" className="text-primary hover:underline">https://fusionmining.com/contact</a><br />
+                  <strong>Telephone:</strong> +260 978 838 939<br />
+                  <strong>Email:</strong> fusionminingltd@gmail.com
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

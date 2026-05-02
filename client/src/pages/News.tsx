@@ -57,7 +57,11 @@ export default function News() {
                 <Link key={post.id} href={`/news/${post.slug}`}>
                   <Card className="hover-elevate active-elevate-2 h-full cursor-pointer transition-all" data-testid={`card-post-${post.id}`}>
                     <div className="aspect-video bg-gradient-to-br from-primary/20 to-chart-2/20 flex items-center justify-center overflow-hidden">
-                      <img src={[copperrise, emeraldzambia, investmentguide, user_news1][idx % 4]} alt={post.title} className="w-full h-full object-cover" />
+                      <img 
+                        src={post.imageUrl || [copperrise, emeraldzambia, investmentguide, user_news1][idx % 4]} 
+                        alt={post.title} 
+                        className="w-full h-full object-cover" 
+                      />
                     </div>
                     <CardHeader>
                       <div className="flex items-center gap-2 mb-2">

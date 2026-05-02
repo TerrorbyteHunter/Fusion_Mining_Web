@@ -1,4 +1,4 @@
-﻿// API routes for Fusion Mining Limited platform
+// API routes for Fusion Mining Limited platform
 import type { Express } from "express";
 import multer from "multer";
 import path from "path";
@@ -338,6 +338,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const isAuthenticated = requireAuth;
   const isSeller = requireSeller;
   const isAdmin = requireAdmin;
+
+  // Platform Statistics (Public)
+  app.get('/api/platform-stats', async (_req, res) => {
+    try {
+      const stats = await storage.getPlatformStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching platform stats:", error);
+      res.status(500).json({ message: "Failed to fetch platform statistics" });
+    }
+  });
 
   // PATCH: Buyer can edit and resubmit a rejected RFQ
   app.patch('/api/marketplace/buyer-requests/:id/resubmit', isAuthenticated, async (req: any, res) => {
@@ -2128,6 +2139,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching all blog posts:", error);
       res.status(500).json({ message: "Failed to fetch blog posts" });
+    }
+  });
+
+  // Public test route
+  app.get('/api/public/test-news', async (req, res) => {
+    res.json([{ id: 'test', title: 'Test News' }]);
+  });
+
+  // News Discovery endpoint for admins
+  app.get('/api/admin/news-discovery', isAdmin, async (req, res) => {
+    console.log('[API] News Discovery route called');
+    try {
+      // Mock discovery results for Zambian mining/environment
+      const discoveryResults = [
+        {
+          id: "disc_1",
+          title: "Zambia's Copper Production Expected to Surge by 20% in 2026",
+          source: "Mining for Zambia",
+          url: "https://miningforzambia.com/copper-production-surge-2026",
+          snippet: "New investments in deep-level mining and refined processing techniques are set to boost output across the Copperbelt province.",
+          category: "Market Analysis",
+          imageUrl: "https://images.unsplash.com/photo-1574684591905-6548d447a110?auto=format&fit=crop&q=80&w=800",
+          publishedAt: new Date().toISOString()
+        },
+        {
+          id: "disc_2",
+          title: "New Environmental Regulations for Small-Scale Emerald Mines",
+          source: "Zambia Chamber of Mines",
+          url: "https://mines.org.zm/new-environmental-regs-emeralds",
+          snippet: "The Ministry of Mines and Mineral Development has announced stricter land reclamation requirements for all gemstone operations.",
+          category: "Sustainability",
+          imageUrl: "https://images.unsplash.com/photo-1599320853526-905141046995?auto=format&fit=crop&q=80&w=800",
+          publishedAt: new Date().toISOString()
+        },
+        {
+          id: "disc_3",
+          title: "Fusion Mining Limited Announces Partnership with Copperbelt University",
+          source: "Lusaka Times",
+          url: "https://lusakatimes.com/fusion-mining-cbu-partnership",
+          snippet: "A new research initiative aims to develop sustainable tailings management solutions for local artisanal mining communities.",
+          category: "Industry News",
+          imageUrl: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&q=80&w=800",
+          publishedAt: new Date().toISOString()
+        }
+      ];
+      res.json(discoveryResults);
+    } catch (error) {
+      console.error("Error in news discovery:", error);
+      res.status(500).json({ message: "Failed to discover news" });
     }
   });
 

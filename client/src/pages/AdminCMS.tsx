@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -40,6 +41,8 @@ import {
   Video as VideoIcon,
   Power,
   Settings,
+  Zap,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { AdminSidebar } from "@/components/AdminSidebar";
@@ -59,10 +62,11 @@ export default function AdminCMS() {
   const [postForm, setPostForm] = useState({
     title: "",
     slug: "",
+    category: "",
     excerpt: "",
     content: "",
-    category: "",
     imageUrl: "",
+    published: false,
   });
   const [videoForm, setVideoForm] = useState({
     title: "",
@@ -127,6 +131,12 @@ export default function AdminCMS() {
     queryKey: ["/api/sustainability"],
   });
 
+  const { data: discoveryNews, isLoading: loadingDiscovery, error: discoveryError } = useQuery<any[]>({
+    queryKey: ["/api/admin/news-discovery"],
+  });
+
+  console.log('Discovery News Data:', discoveryNews, 'Error:', discoveryError);
+
 
   const createPostMutation = useMutation({
     mutationFn: async (data: typeof postForm) => {
@@ -135,7 +145,7 @@ export default function AdminCMS() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/blog/admin/all"] });
       setIsCreatePostOpen(false);
-      setPostForm({ title: "", slug: "", excerpt: "", content: "", category: "", imageUrl: "" });
+      setPostForm({ title: "", slug: "", excerpt: "", content: "", category: "", imageUrl: "", published: false });
       toast({ title: "Blog post created successfully" });
     },
     onError: (error: Error) => {
@@ -169,7 +179,7 @@ export default function AdminCMS() {
       queryClient.invalidateQueries({ queryKey: ["/api/blog/admin/all"] });
       setIsEditPostOpen(false);
       setEditingPost(null);
-      setPostForm({ title: "", slug: "", excerpt: "", content: "", category: "", imageUrl: "" });
+      setPostForm({ title: "", slug: "", excerpt: "", content: "", category: "", imageUrl: "", published: false });
       toast({ title: "Blog post updated successfully" });
     },
     onError: () => {
@@ -312,6 +322,7 @@ export default function AdminCMS() {
       content: post.content,
       category: post.category || "",
       imageUrl: post.imageUrl || "",
+      published: !!post.published,
     });
     setIsEditPostOpen(true);
   };
@@ -352,6 +363,23 @@ export default function AdminCMS() {
     updateSustainabilityMutation.mutate({ id: editingSustainability.id, data: sustainabilityForm });
   };
 
+  const handlePromoteToPost = (item: any) => {
+    setPostForm({
+      title: item.title,
+      slug: item.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+      excerpt: item.snippet,
+      content: `${item.snippet}\n\nSource: ${item.source}\nRead more at: ${item.url}\n\n[Add your insights here]`,
+      category: item.category || "Industry News",
+      imageUrl: item.imageUrl || "",
+      published: false,
+    });
+    setIsCreatePostOpen(true);
+    toast({ 
+      title: "News details pre-filled!", 
+      description: "You can now edit and publish this as a blog post.",
+    });
+  };
+
   return (
     <div className="flex min-h-screen">
       <AdminSidebar />
@@ -373,10 +401,14 @@ export default function AdminCMS() {
         <section className="py-12">
           <div className="container mx-auto px-4">
             <Tabs defaultValue="blog" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="blog" data-testid="tab-blog">
                   <Newspaper className="mr-2 h-4 w-4" />
                   Blog Posts
+                </TabsTrigger>
+                <TabsTrigger value="discovery" data-testid="tab-discovery">
+                  <Zap className="mr-2 h-4 w-4 text-amber-500" />
+                  News Discovery
                 </TabsTrigger>
                 <TabsTrigger value="videos" data-testid="tab-videos">
                   <VideoIcon className="mr-2 h-4 w-4" />
@@ -466,10 +498,20 @@ export default function AdminCMS() {
                           <Label htmlFor="imageUrl">Image URL</Label>
                           <Input
                             id="imageUrl"
+                            placeholder="https://images.unsplash.com/photo-..."
                             value={postForm.imageUrl}
                             onChange={(e) => setPostForm({ ...postForm, imageUrl: e.target.value })}
                             data-testid="input-blog-image"
                           />
+                        </div>
+                        <div className="flex items-center space-x-2 py-2">
+                          <Switch
+                            id="published"
+                            checked={postForm.published}
+                            onCheckedChange={(checked) => setPostForm({ ...postForm, published: checked })}
+                            data-testid="switch-post-published"
+                          />
+                          <Label htmlFor="published">Publish immediately</Label>
                         </div>
                       </div>
                       <DialogFooter>
@@ -637,6 +679,96 @@ export default function AdminCMS() {
                       <Newspaper className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
                       <h3 className="text-xl font-semibold mb-2">No Blog Posts</h3>
                       <p className="text-muted-foreground mb-4">Create your first blog post</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="discovery" className="mt-6">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold">News Discovery</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Find relevant news from across Zambia and promote them to your blog with one click.
+                  </p>
+                </div>
+
+                {loadingDiscovery ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i}>
+                        <Skeleton className="h-40 w-full" />
+                        <CardHeader>
+                          <Skeleton className="h-6 w-3/4" />
+                          <Skeleton className="h-4 w-full mt-2" />
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                ) : discoveryNews && discoveryNews.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {discoveryNews.map((item) => (
+                      <Card key={item.id} className="overflow-hidden flex flex-col hover:border-primary/50 transition-colors">
+                        <div className="h-40 overflow-hidden relative">
+                          <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover" />
+                          <Badge className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm border-none">
+                            {item.source}
+                          </Badge>
+                        </div>
+                        <CardHeader className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" className="text-[10px] uppercase">{item.category}</Badge>
+                          </div>
+                          <CardTitle className="text-lg line-clamp-2 leading-tight">{item.title}</CardTitle>
+                          <CardDescription className="line-clamp-3 mt-2 text-xs">
+                            {item.snippet}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="flex-1 text-[10px] h-8" 
+                              onClick={() => window.open(item.url, '_blank')}
+                            >
+                              View Source
+                            </Button>
+                            <Button 
+                              size="sm"
+                              className="flex-1 text-[10px] h-8 gap-1 bg-amber-500 hover:bg-amber-600 text-white"
+                              onClick={() => handlePromoteToPost(item)}
+                            >
+                              <Plus className="h-3 w-3" />
+                              Promote
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : discoveryError ? (
+                  <Card className="border-destructive/50 bg-destructive/5">
+                    <CardContent className="py-12 text-center">
+                      <AlertCircle className="h-12 w-12 mx-auto mb-4 text-destructive" />
+                      <h3 className="text-xl font-semibold mb-2 text-destructive">Discovery Error</h3>
+                      <p className="text-muted-foreground">
+                        {(discoveryError as any).message || "An error occurred while fetching news."}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4" 
+                        onClick={() => window.location.reload()}
+                      >
+                        Try Again
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <Zap className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-xl font-semibold mb-2">No News Found</h3>
+                      <p className="text-muted-foreground">Try again later or check your API settings</p>
                     </CardContent>
                   </Card>
                 )}

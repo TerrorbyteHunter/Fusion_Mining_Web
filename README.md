@@ -500,7 +500,7 @@ Proprietary - © 2024 Fusion Mining Limited
 ## 🔗 Links
 
 - **Platform**: https://fusionmining.repl.co
-- **Support**: info@fusionmining.com
+- **Support**: fusionminingltd@gmail.com
 - **Documentation**: See `replit.md` for detailed technical docs
 
 ## 🙏 Acknowledgments
