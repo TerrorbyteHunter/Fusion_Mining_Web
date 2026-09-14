@@ -105,7 +105,14 @@ app.use((req, res, next) => {
     app.get('/api/auth/user', requireAuth, authUserHandler);
 
     // Serve uploaded files (documents, payment proofs, etc.)
-    app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+    app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'), {
+      setHeaders(res, filePath) {
+        if (filePath.toLowerCase().endsWith('.pdf')) {
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'inline');
+        }
+      },
+    }));
 
     // In development, setup Vite
 

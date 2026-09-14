@@ -89,6 +89,7 @@ The application uses a normalized PostgreSQL database with the following main en
      - Project overview
      - Activity logs with IP tracking
    - Analytics and platform oversight
+  - Seller verification review with in-app document preview and download
 
 ## API Endpoints
 
@@ -236,6 +237,7 @@ npm run db:studio
 
 ## Recent Changes
 
+- **September 14, 2026**: Global scroll-to-top on URL change; admin seller verification documents open in a preview overlay, with a separate download button
 - **January 26, 2026**: Authentication Fixes & Tier Upgrade Implementation
   - Resolved 401 authentication errors preventing tier upgrade functionality
   - Added comprehensive debugging for Clerk token retrieval and session status

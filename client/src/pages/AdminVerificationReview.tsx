@@ -25,8 +25,14 @@ import {
   Shield,
   AlertCircle,
   Eye,
+  Download,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import {
+  DocumentPreviewOverlay,
+  downloadDocument,
+  type PreviewableDocument,
+} from "@/components/DocumentPreviewOverlay";
 
 type VerificationStatus = 'not_requested' | 'pending' | 'approved' | 'rejected';
 
@@ -48,6 +54,7 @@ interface VerificationDocument {
   documentType: string;
   fileName: string;
   filePath: string;
+  mimeType?: string | null;
   uploadedAt: string;
 }
 
@@ -58,6 +65,7 @@ export default function AdminVerificationReview() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [previewDocument, setPreviewDocument] = useState<PreviewableDocument | null>(null);
   const [isRejecting, setIsRejecting] = useState(false);
 
   // Fetch all verification requests
@@ -155,6 +163,18 @@ export default function AdminVerificationReview() {
   const viewDocuments = (requestId: string) => {
     setSelectedRequestId(requestId);
     setDocumentsDialogOpen(true);
+  };
+
+  const handleDownloadDocument = async (doc: PreviewableDocument) => {
+    try {
+      await downloadDocument(doc);
+    } catch {
+      toast({
+        title: "Download failed",
+        description: "Could not download this document. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getStatusBadge = (status: VerificationStatus) => {
@@ -453,11 +473,20 @@ export default function AdminVerificationReview() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => window.open(doc.filePath, '_blank')}
+                            onClick={() => setPreviewDocument(doc)}
                             data-testid={`button-view-file-${doc.id}`}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadDocument(doc)}
+                            data-testid={`button-download-file-${doc.id}`}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Download
                           </Button>
                         </div>
                       </div>
@@ -477,6 +506,12 @@ export default function AdminVerificationReview() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            <DocumentPreviewOverlay
+              file={previewDocument}
+              onClose={() => setPreviewDocument(null)}
+              onDownload={handleDownloadDocument}
+            />
           </div>
         </div>
       </div>

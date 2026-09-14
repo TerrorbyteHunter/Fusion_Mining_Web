@@ -46,6 +46,7 @@ import LMEPrices from "@/pages/LMEPrices";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import AccountTypeSelector from "./components/AccountTypeSelector";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -144,6 +145,7 @@ export default function App() {
         <LanguageProvider>
           <TooltipProvider>
             <Toaster />
+            <ScrollToTop />
             <Router />
           </TooltipProvider>
         </LanguageProvider>

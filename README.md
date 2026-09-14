@@ -25,6 +25,7 @@ A comprehensive full-stack platform for mining investments, mineral trading, and
 
 ### Admin Features
 - **Verification Queue**: Review and approve/reject marketplace listings
+- **Seller Verification Review**: Review seller KYC documents in a preview overlay, with a separate download action
 - **User Management**: View all users, manage roles and per-admin permissions
 - **Messages**: Categorized admin messaging; start conversations with any user
 - **Content CMS**: Manage blog posts, videos, and content
@@ -213,6 +214,7 @@ fusion-mining-platform/
 │   │   │   ├── ui/          # Shadcn components
 │   │   │   ├── Header.tsx
 │   │   │   ├── Footer.tsx
+│   │   │   ├── ScrollToTop.tsx  # Resets scroll position on route change
 │   │   │   └── StatusBadge.tsx
 │   │   ├── hooks/           # Custom React hooks
 │   │   │   └── useAuth.ts
@@ -371,7 +373,11 @@ After adding the table, the existing message creation endpoint will accept `Idem
 
 - App standardized to ZMW and USD (replace any ZAR values in sample data with ZMW).
 
-## 🔄 Recent Changes (January 2026)
+## 🔄 Recent Changes (September 2026)
+
+### Navigation & Admin Document Review
+- **September 14, 2026**: Added a global `ScrollToTop` component so the page returns to the top whenever the URL changes (Wouter client-side navigation).
+- **September 14, 2026**: Seller verification documents in the admin panel now open in a preview overlay (View) instead of a new browser tab. Download is a separate button beside View.
 
 ### Authentication & Tier Upgrade Fixes
 - **January 26, 2026**: Resolved 401 authentication errors in tier upgrade flow
