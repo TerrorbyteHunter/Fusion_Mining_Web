@@ -2079,9 +2079,14 @@ export default function Admin() {
                   <Label>Location</Label>
                   <Input value={listingForm.location || ''} onChange={(e) => setListingForm({ ...listingForm, location: e.target.value })} />
                 </div>
-                <div className="md:col-span-2">
-                  <Label>Image URL</Label>
-                  <Input value={listingForm.imageUrl || ''} onChange={(e) => setListingForm({ ...listingForm, imageUrl: e.target.value })} />
+                <div className="md:col-span-2 space-y-2">
+                  <Label>Listing Image</Label>
+                  <ImageSelector
+                    value={listingForm.imageUrl || ''}
+                    onChange={(val) => setListingForm({ ...listingForm, imageUrl: val })}
+                    label=""
+                    testId="input-edit-listing-image"
+                  />
                 </div>
               </div>
               <DialogFooter>
