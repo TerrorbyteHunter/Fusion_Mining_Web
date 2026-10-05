@@ -203,7 +203,7 @@ export interface IStorage {
   getAllExpressedInterests(): Promise<any[]>;
 
   // Marketplace Listing operations
-  createMarketplaceListing(listing: InsertMarketplaceListing): Promise<MarketplaceListing>;
+  createMarketplaceListing(listing: InsertMarketplaceListing & { status?: string }): Promise<MarketplaceListing>;
   getMarketplaceListings(filters?: { type?: string; status?: string }): Promise<MarketplaceListingWithSeller[]>;
   getMarketplaceListingById(id: string): Promise<MarketplaceListingWithSeller | undefined>;
   updateListingStatus(id: string, status: string): Promise<MarketplaceListing>;
@@ -788,16 +788,24 @@ export class DatabaseStorage implements IStorage {
   // ========================================================================
   // Marketplace Listing operations
   // ========================================================================
-  async createMarketplaceListing(listingData: InsertMarketplaceListing): Promise<MarketplaceListing> {
+  async createMarketplaceListing(listingData: InsertMarketplaceListing & { status?: string }): Promise<MarketplaceListing> {
+    const status = (listingData as any).status || 'pending';
+    const dataToInsert: any = { ...listingData, status };
+    if (!dataToInsert.itemId && status === 'approved') {
+      dataToInsert.itemId = await generateUniqueItemId(db);
+    }
+
     const [listing] = await db
       .insert(marketplaceListings)
-      .values(listingData)
+      .values(dataToInsert)
       .returning();
 
-    // Create verification queue entry
+    // Create verification queue entry only if listing is pending
+    if (status === 'pending') {
     await db.insert(verificationQueue).values({
       listingId: listing.id,
     });
+    }
 
     return listing;
   }

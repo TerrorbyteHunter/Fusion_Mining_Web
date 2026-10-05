@@ -963,6 +963,10 @@ export const insertMarketplaceListingSchema = createInsertSchema(marketplaceList
   status: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  price: z.preprocess((val) => (typeof val === 'number' ? String(val) : val === '' ? undefined : val), z.string().optional().nullable()),
+  quantity: z.preprocess((val) => (typeof val === 'number' ? String(val) : val === '' ? undefined : val), z.string().optional().nullable()),
+  sellerId: z.string().optional(),
 });
 export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
 export type MarketplaceListing = typeof marketplaceListings.$inferSelect;

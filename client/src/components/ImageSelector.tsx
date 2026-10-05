@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,8 @@ import {
   Upload,
   X,
   Image as ImageIcon,
-  Loader2
+  Loader2,
+  Link2
 } from "lucide-react";
 
 const ICON_OPTIONS = [
@@ -62,13 +63,23 @@ export function ImageSelector({
   placeholder = "Upload an image or select an icon",
   testId = "input-image"
 }: ImageSelectorProps) {
-  const [activeTab, setActiveTab] = useState<string>(
-    value.startsWith("icon:") ? "icons" : "upload"
-  );
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (value && value.startsWith("icon:")) return "icons";
+    if (value && (value.startsWith("http://") || value.startsWith("https://"))) return "url";
+    return "upload";
+  });
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(
     value && !value.startsWith("icon:") ? value : null
   );
+
+  useEffect(() => {
+    if (value && !value.startsWith("icon:")) {
+      setPreview(value);
+    } else if (!value) {
+      setPreview(null);
+    }
+  }, [value]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -153,14 +164,18 @@ export function ImageSelector({
     <div className="space-y-2">
       <Label>{label}</Label>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="upload" data-testid="tab-upload">
             <Upload className="h-4 w-4 mr-2" />
-            Upload Image
+            Upload
+          </TabsTrigger>
+          <TabsTrigger value="url" data-testid="tab-url">
+            <Link2 className="h-4 w-4 mr-2" />
+            Image URL
           </TabsTrigger>
           <TabsTrigger value="icons" data-testid="tab-icons">
             <Sparkles className="h-4 w-4 mr-2" />
-            Select Icon
+            Icon
           </TabsTrigger>
         </TabsList>
 
@@ -227,6 +242,70 @@ export function ImageSelector({
                 <p className="text-xs text-muted-foreground">
                   PNG, JPEG, GIF, or WebP (max 5MB)
                 </p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="url" className="space-y-3">
+          <div className="space-y-3 p-4 border rounded-lg bg-card">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Direct Image Link</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="url"
+                  placeholder="https://example.com/image.jpg"
+                  value={value && !value.startsWith("icon:") ? value : ""}
+                  onChange={(e) => {
+                    const url = e.target.value;
+                    onChange(url);
+                    setPreview(url || null);
+                  }}
+                  data-testid={`${testId}-url`}
+                  className="flex-1"
+                />
+                {value && !value.startsWith("icon:") && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleRemoveImage}
+                    title="Clear URL"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Paste a web link to any image (JPEG, PNG, WebP, etc.)
+              </p>
+            </div>
+
+            {preview && !value.startsWith("icon:") && (
+              <div className="p-3 border rounded-lg text-center bg-muted/20">
+                <p className="text-xs text-muted-foreground mb-2">Live Preview:</p>
+                <div className="relative inline-block">
+                  <img
+                    src={preview}
+                    alt="Image Preview"
+                    className="max-h-44 rounded-lg shadow-sm mx-auto object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLElement).style.display = 'none';
+                    }}
+                    onLoad={(e) => {
+                      (e.target as HTMLElement).style.display = 'block';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full p-0"
+                    onClick={handleRemoveImage}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>

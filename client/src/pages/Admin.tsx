@@ -41,6 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
 import type { MarketplaceListing, MarketplaceListingWithSeller, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
 import { ImageDisplay } from "@/components/ImageDisplay";
+import { ImageSelector } from "@/components/ImageSelector";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import {
   ShieldCheck, Users, Package, MessageSquare, Activity,
@@ -643,16 +644,26 @@ export default function Admin() {
   // Create admin listing mutation
   const createAdminListingMutation = useMutation({
     mutationFn: async (listingData: typeof createListingForm) => {
-      // Convert price to number
-      const payload = {
-        ...listingData,
-        price: parseFloat(listingData.price) || 0,
+      const payload: Record<string, any> = {
+        title: listingData.title,
+        description: listingData.description,
+        type: listingData.type,
+        location: listingData.location,
+        price: listingData.price ? String(listingData.price).trim() : undefined,
       };
 
-      // Remove empty optional fields to avoid validation errors if backend expects valid values
-      if (!payload.sellerId) delete (payload as any).sellerId;
-      if (!payload.imageUrl) delete (payload as any).imageUrl;
-      if (!payload.specifications) delete (payload as any).specifications; // This might need to be an object if schema requires it, but schema says json/string?
+      if (listingData.quantity && listingData.quantity.trim()) {
+        payload.quantity = listingData.quantity.trim();
+      }
+      if (listingData.sellerId && listingData.sellerId.trim()) {
+        payload.sellerId = listingData.sellerId.trim();
+      }
+      if (listingData.imageUrl && listingData.imageUrl.trim()) {
+        payload.imageUrl = listingData.imageUrl.trim();
+      }
+      if (listingData.specifications && listingData.specifications.trim()) {
+        payload.grade = listingData.specifications.trim();
+      }
 
       return await apiRequest("POST", "/api/admin/listings/create", payload);
     },
@@ -3218,6 +3229,17 @@ export default function Admin() {
                   placeholder="Technical specifications (purity, grade, etc.)"
                   value={createListingForm.specifications}
                   onChange={(e) => setCreateListingForm({ ...createListingForm, specifications: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Listing Image</Label>
+                <ImageSelector
+                  value={createListingForm.imageUrl}
+                  onChange={(val) => setCreateListingForm({ ...createListingForm, imageUrl: val })}
+                  label=""
+                  placeholder="Upload an image or enter Image URL"
+                  testId="input-admin-create-image"
                 />
               </div>
             </div>

@@ -977,14 +977,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertMarketplaceListingSchema.parse({
         ...req.body,
-        sellerId: req.body.sellerId || req.user!.id, // Default to admin's ID if no sellerId provided
-        status: 'active', // Admin created listings are active by default
-        verified: true, // Admin created listings are verified by default
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        price: (req.body.price !== undefined && req.body.price !== null && req.body.price !== '') ? String(req.body.price) : undefined,
+        quantity: (req.body.quantity !== undefined && req.body.quantity !== null && req.body.quantity !== '') ? String(req.body.quantity) : undefined,
+        grade: req.body.grade || req.body.specifications || undefined,
+        sellerId: req.body.sellerId || req.user!.id,
       });
 
-      const listing = await storage.createMarketplaceListing(validatedData);
+      const listing = await storage.createMarketplaceListing({
+        ...validatedData,
+        status: 'approved',
+      });
 
       // Log activity
       try {
