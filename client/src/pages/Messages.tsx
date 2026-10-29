@@ -21,7 +21,7 @@ import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { format } from "date-fns";
-import type { MessageThread, Message, User } from "@shared/schema";
+import type { ContactSubmission, MessageThread, Message, User } from "@shared/schema";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Messages() {
@@ -33,19 +33,22 @@ export default function Messages() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("inbox");
+  const [ticketQueueFilter, setTicketQueueFilter] = useState("all");
   const [usersSubTab, setUsersSubTab] = useState("sellers");
   const [messageDialogOpen, setMessageDialogOpen] = useState(false);
   const [selectedRecipient, setSelectedRecipient] = useState<{
     id: string;
     name?: string;
     subject?: string;
-    context?: string;
   } | null>(null);
   const [userDetailsDialogOpen, setUserDetailsDialogOpen] = useState(false);
   const [selectedUserDetails, setSelectedUserDetails] = useState<User | null>(null);
+  const [selectedContactSubmission, setSelectedContactSubmission] = useState<ContactSubmission | null>(null);
+  const [contactReply, setContactReply] = useState("");
   const [openContactAdminDialog, setOpenContactAdminDialog] = useState(false);
   const [contactAdminSubject, setContactAdminSubject] = useState("");
   const [contactAdminMessage, setContactAdminMessage] = useState("");
+  const [selectedContactSubmissionForThread, setSelectedContactSubmissionForThread] = useState<ContactSubmission | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -222,7 +225,10 @@ export default function Messages() {
     const meId = user?.id || (user as any)?.claims?.sub;
     if (!meId) return null;
     if (selectedThread.buyerId === meId) {
-      return { user: threadDetails.seller, profile: threadDetails.sellerProfile };
+      return {
+        user: threadDetails.seller || threadDetails.admin,
+        profile: threadDetails.sellerProfile || threadDetails.adminProfile,
+      };
     }
     return { user: threadDetails.buyer, profile: threadDetails.buyerProfile };
   })();
@@ -323,17 +329,23 @@ export default function Messages() {
   });
 
   const contactAdminMutation = useMutation({
-    mutationFn: async (payload: any) => { return await apiRequest("POST", "/api/contact", payload); },
-    onSuccess: () => {
+    mutationFn: async (payload: { title: string; description: string }) => {
+      const response = await apiRequest("POST", "/api/support/tickets", payload);
+      return response.json() as Promise<MessageThread>;
+    },
+    onSuccess: (ticket) => {
       setOpenContactAdminDialog(false);
       setContactAdminSubject("");
       setContactAdminMessage("");
+      setSelectedThread(ticket);
+      setActiveTab("inbox");
+      refetchThreads();
       toast({ title: "Message sent", description: "Administrators will respond soon." });
     },
     onError: () => { toast({ title: "Error", description: "Failed to send message.", variant: "destructive" }); },
   });
 
-  const { data: contactSubmissions, isLoading: contactSubmissionsLoading, refetch: refetchContactSubmissions } = useQuery<any[]>({
+  const { data: contactSubmissions, isLoading: contactSubmissionsLoading, refetch: refetchContactSubmissions } = useQuery<ContactSubmission[]>({
     queryKey: ['/api/contact/submissions'],
     queryFn: async () => {
       const response = await apiRequest("GET", "/api/contact/submissions");
@@ -350,6 +362,50 @@ export default function Messages() {
     onSuccess: () => { refetchContactSubmissions(); toast({ title: "Success", description: "Submission status updated" }); }
   });
 
+  const contactSubmissionReplyMutation = useMutation({
+    mutationFn: async ({ submissionId, threadId, content }: { submissionId: string; threadId: string; content: string }) => {
+      const response = await apiRequest("POST", `/api/contact/submissions/${submissionId}/reply`, { content });
+      return response.json();
+    },
+    onSuccess: (_reply, variables) => {
+      setSelectedContactSubmission(null);
+      setContactReply("");
+      refetchContactSubmissions();
+      refetchThreads();
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/threads", variables.threadId, "messages"] });
+      toast({ title: "Reply sent", description: "Your reply was added to the user's support conversation." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Reply failed", description: error.message || "Could not send this reply.", variant: "destructive" });
+    },
+  });
+
+  const openContactReply = (submission: ContactSubmission) => {
+    setSelectedContactSubmission(submission);
+    setContactReply("");
+  };
+
+  const sendContactReply = () => {
+    if (!selectedContactSubmission?.threadId || !contactReply.trim()) return;
+    contactSubmissionReplyMutation.mutate({
+      submissionId: selectedContactSubmission.id,
+      threadId: selectedContactSubmission.threadId,
+      content: contactReply.trim(),
+    });
+  };
+
+  const contactReplySubject = selectedContactSubmission
+    ? selectedContactSubmission.subject.toLowerCase().startsWith("re:")
+      ? selectedContactSubmission.subject
+      : `Re: ${selectedContactSubmission.subject}`
+    : "";
+  const contactReplyMailto = selectedContactSubmission
+    ? `mailto:${selectedContactSubmission.email}?subject=${encodeURIComponent(contactReplySubject)}&body=${encodeURIComponent(
+      `${contactReply.trim()}\n\n--- Original message ---\n${selectedContactSubmission.message}`
+    )}`
+    : "";
+
   // Mark Read Effect
   useEffect(() => {
     if (!threadMessages || !isAuthenticated || !user) return;
@@ -362,6 +418,7 @@ export default function Messages() {
 
   useEffect(() => {
     if (user?.role === 'buyer' && activeTab === 'sellers') setActiveTab('inbox');
+    if (user?.role === 'admin' && activeTab === 'inbox') setActiveTab('sellers');
   }, [user?.role, activeTab]);
 
   // Derived State
@@ -378,6 +435,15 @@ export default function Messages() {
     return (allMessages || []).filter(m => !m.read && m.receiverId === (user?.id || (user as any)?.claims?.sub)).length;
   }, [allMessages, user]);
 
+  const adminSupportThreads = useMemo(
+    () => processedThreads.filter(thread => thread.isAdminSupport),
+    [processedThreads]
+  );
+  const adminOpenCount = adminSupportThreads.filter(thread => (thread.ticketStatus || "open") === "open").length;
+  const adminInProgressCount = adminSupportThreads.filter(thread => thread.ticketStatus === "in_progress").length;
+  const adminWaitingCount = adminSupportThreads.filter(thread => thread.ticketStatus === "waiting_user").length;
+  const adminUnreadCount = adminSupportThreads.reduce((count, thread) => count + (thread.unreadCount || 0), 0);
+
   // Filtering
   const filteredThreads = () => {
     if (!processedThreads) return [] as any[];
@@ -386,11 +452,18 @@ export default function Messages() {
     let base: (MessageThread & { unreadCount?: number })[] = [];
 
     if (isAdmin) {
-      base = processedThreads.filter(t => (t as any).isAdminSupport === true);
+      base = adminSupportThreads;
+      if (ticketQueueFilter !== "all") {
+        base = base.filter(thread => (thread.ticketStatus || "open") === ticketQueueFilter);
+      }
     } else {
       switch (activeTab) {
         case "inbox":
-          base = processedThreads.filter(t => (t as any).context === 'marketplace' || (!!t.listingId && !t.projectId)); break;
+          base = processedThreads.filter(t =>
+            t.isAdminSupport ||
+            (t as any).context === 'marketplace' ||
+            (!!t.listingId && !t.projectId)
+          ); break;
         case "projects":
           base = processedThreads.filter(t => (t as any).context === 'project_interest' || !!t.projectId); break;
         case "sellers":
@@ -430,6 +503,13 @@ export default function Messages() {
     return list;
   };
 
+  const getContactAccountMatch = (submission: ContactSubmission) => {
+    const matches = (allUsers || []).filter(
+      account => account.email?.trim().toLowerCase() === submission.email.trim().toLowerCase()
+    );
+    return matches.length === 1 ? matches[0] : null;
+  };
+
   const { data: selectedUserProfile } = useQuery<any>({
     queryKey: ["/api/user-profiles", selectedUserDetails?.id],
     queryFn: async () => {
@@ -445,10 +525,47 @@ export default function Messages() {
     setUserDetailsDialogOpen(true);
   };
 
+  const handleStartSupportThread = (thread: MessageThread) => {
+    setTicketQueueFilter("all");
+    setThreadSearchQuery("");
+    setActiveTab("sellers");
+    setSelectedThread(thread);
+    refetchThreads();
+  };
+
+  const handleContactThreadStarted = (thread: MessageThread) => {
+    setSelectedContactSubmissionForThread(null);
+    refetchContactSubmissions();
+    handleStartSupportThread(thread);
+    toast({ title: "Conversation started", description: "The contact submission is now linked to an in-app thread." });
+  };
+
+  const handleMessageUser = (recipient: User) => {
+    setSelectedContactSubmissionForThread(null);
+    setSelectedRecipient({
+      id: recipient.id,
+      name: `${recipient.firstName || ""} ${recipient.lastName || ""}`.trim(),
+      subject: "",
+    });
+    setMessageDialogOpen(true);
+  };
+
+  const handleStartContactThread = (submission: ContactSubmission, recipient: User) => {
+    setSelectedContactSubmissionForThread(submission);
+    setSelectedRecipient({
+      id: recipient.id,
+      name: `${recipient.firstName || ""} ${recipient.lastName || ""}`.trim(),
+      subject: submission.subject.toLowerCase().startsWith("re:")
+        ? submission.subject
+        : `Re: ${submission.subject}`,
+    });
+    setMessageDialogOpen(true);
+  };
+
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className={`flex flex-col bg-background ${user?.role === "admin" ? "min-h-0" : "min-h-screen"}`}>
       {/* Premium Header */}
       <section className="py-8 border-b bg-gradient-to-r from-background via-muted/30 to-background relative overflow-hidden flex-none">
         <div className="absolute inset-0 bg-grid-slate-200/20 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] dark:[mask-image:linear-gradient(0deg,rgba(255,255,255,0.1),rgba(255,255,255,0.5))] pointer-events-none" />
@@ -489,7 +606,11 @@ export default function Messages() {
       {/* Main Content */}
       <section className="flex-1 py-6 flex min-h-0">
         <div className="container mx-auto px-6 flex-1 min-h-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[800px] lg:h-[calc(100vh-250px)] max-h-[1000px]">
+          <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[480px] ${
+            user?.role === "admin"
+              ? "h-[680px] lg:h-[calc(100vh-360px)] max-h-[760px]"
+              : "h-[800px] lg:h-[calc(100vh-250px)] max-h-[1000px]"
+          }`}>
             {/* Sidebar */}
             <div className="lg:col-span-4 flex flex-col min-h-0 bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
               <div className="p-4 border-b bg-muted/20">
@@ -504,7 +625,7 @@ export default function Messages() {
                     ) : (
                       <>
                         <TabsTrigger value="sellers" className="flex-1">Tickets</TabsTrigger>
-                        <TabsTrigger value="contact-submissions" className="flex-1">Forms</TabsTrigger>
+                        <TabsTrigger value="contact-submissions" className="flex-1">Contact forms</TabsTrigger>
                         <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
                       </>
                     )}
@@ -516,9 +637,42 @@ export default function Messages() {
                     <Input
                       value={threadSearchQuery}
                       onChange={(e) => setThreadSearchQuery(e.target.value)}
-                      placeholder="Search conversations..."
+                      placeholder={user?.role === "admin" ? "Search support tickets..." : "Search conversations..."}
                       className="pl-9 h-9"
                     />
+                  </div>
+                )}
+                {user?.role === "admin" && activeTab === "sellers" && (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg border bg-background px-2.5 py-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Tickets</p>
+                        <p className="mt-0.5 text-lg font-semibold leading-none">{adminSupportThreads.length}</p>
+                      </div>
+                      <div className="rounded-lg border bg-background px-2.5 py-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Active</p>
+                        <p className="mt-0.5 text-lg font-semibold leading-none">{adminOpenCount + adminInProgressCount}</p>
+                      </div>
+                      <div className="rounded-lg border bg-background px-2.5 py-2">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Unread</p>
+                        <p className="mt-0.5 text-lg font-semibold leading-none text-primary">{adminUnreadCount}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-medium text-muted-foreground">Queue status</span>
+                      <Select value={ticketQueueFilter} onValueChange={setTicketQueueFilter}>
+                        <SelectTrigger className="h-8 w-[150px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All tickets ({adminSupportThreads.length})</SelectItem>
+                          <SelectItem value="open">Open ({adminOpenCount})</SelectItem>
+                          <SelectItem value="in_progress">In progress ({adminInProgressCount})</SelectItem>
+                          <SelectItem value="waiting_user">Waiting on user ({adminWaitingCount})</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 )}
               </div>
@@ -544,40 +698,109 @@ export default function Messages() {
                       />
                     </div>
                     {filteredUsers().map(usr => (
-                      <div key={usr.id} onClick={() => handleViewUserDetails(usr)} className="p-3 hover:bg-muted/50 rounded-lg cursor-pointer border border-transparent hover:border-border transition-all">
+                      <div key={usr.id} className="rounded-lg border border-transparent p-3 transition-all hover:border-border hover:bg-muted/50">
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarFallback>{(usr.firstName?.[0] || 'U')}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <p className="font-medium text-sm truncate">{usr.firstName} {usr.lastName}</p>
-                              {usr.verificationStatus === 'approved' && (
-                                <BadgeCheck className="w-3.5 h-3.5 text-blue-500 fill-blue-500/10 shrink-0" />
-                              )}
+                          <button type="button" onClick={() => handleViewUserDetails(usr)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                            <Avatar className="h-9 w-9">
+                              <AvatarFallback>{(usr.firstName?.[0] || 'U')}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="truncate text-sm font-medium">{usr.firstName} {usr.lastName}</p>
+                                {usr.verificationStatus === 'approved' && (
+                                  <BadgeCheck className="h-3.5 w-3.5 shrink-0 fill-blue-500/10 text-blue-500" />
+                                )}
+                              </div>
+                              <p className="truncate text-xs text-muted-foreground">{usr.email}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground truncate">{usr.email}</p>
-                          </div>
+                          </button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 shrink-0 px-2.5"
+                            onClick={() => handleMessageUser(usr)}
+                            disabled={usr.id === (user?.id || (user as any)?.claims?.sub)}
+                          >
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                            {usr.id === (user?.id || (user as any)?.claims?.sub) ? "You" : "Message"}
+                          </Button>
                         </div>
                       </div>
                     ))}
                   </>
                 ) : user?.role === "admin" && activeTab === "contact-submissions" ? (
                   // Contact Submissions
-                  contactSubmissions?.map((s: any) => (
-                    <div key={s.id} className="p-3 bg-card border rounded-lg space-y-2 hover:shadow-sm">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-semibold text-sm">{s.name}</h4>
-                        <Badge variant="outline" className="text-[10px] h-5">{s.status}</Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">{s.subject}</p>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })}>
-                          Resolve
-                        </Button>
-                      </div>
+                  <>
+                    <div className="mx-1 rounded-lg border border-dashed bg-muted/20 p-3 text-xs leading-relaxed text-muted-foreground">
+                      Messages submitted through the public website contact form, including visitors without accounts. Account conversations are in Tickets.
                     </div>
-                  ))
+                    {contactSubmissionsLoading ? (
+                      <div className="space-y-2 p-2">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    ) : contactSubmissions && contactSubmissions.length > 0 ? contactSubmissions.map((s) => (
+                      (() => {
+                        const matchedAccount = getContactAccountMatch(s);
+                        return (
+                      <div key={s.id} className="space-y-2 rounded-lg border bg-card p-3 hover:shadow-sm">
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-sm font-semibold">{s.name}</h4>
+                          <Badge variant="outline" className="h-5 text-[10px]">{s.status}</Badge>
+                        </div>
+                        <a href={`mailto:${s.email}`} className="block truncate text-xs text-primary hover:underline">{s.email}</a>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {s.threadId ? "In-app thread" : matchedAccount ? "Account match" : "Visitor"}
+                        </Badge>
+                        {matchedAccount && !s.threadId && (
+                          <p className="text-xs text-muted-foreground">
+                            Account: {`${matchedAccount.firstName || ""} ${matchedAccount.lastName || ""}`.trim() || matchedAccount.email}
+                          </p>
+                        )}
+                        <p className="text-xs font-medium">{s.subject}</p>
+                        <p className="line-clamp-3 whitespace-pre-line text-xs text-muted-foreground">{s.message}</p>
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {matchedAccount && !s.threadId && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px]"
+                              onClick={() => handleStartContactThread(s, matchedAccount)}
+                            >
+                              <MessageCircle className="mr-1.5 h-3 w-3" />
+                              Start thread
+                            </Button>
+                          )}
+                          <Button size="sm" className="h-7 text-[10px]" onClick={() => openContactReply(s)} disabled={updateSubmissionStatusMutation.isPending}>
+                            {s.threadId ? <MessageCircle className="mr-1.5 h-3 w-3" /> : <Mail className="mr-1.5 h-3 w-3" />}
+                            {s.threadId ? "Reply in app" : "Reply by email"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px]"
+                            onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'contacted' })}
+                            disabled={s.status === 'contacted' || s.status === 'resolved' || updateSubmissionStatusMutation.isPending}
+                          >
+                            Mark contacted
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px]"
+                            onClick={() => updateSubmissionStatusMutation.mutate({ id: s.id, status: 'resolved' })}
+                            disabled={s.status === 'resolved' || updateSubmissionStatusMutation.isPending}
+                          >
+                            Resolve
+                          </Button>
+                        </div>
+                      </div>
+                        );
+                      })()
+                    )) : (
+                      <p className="py-8 text-center text-sm text-muted-foreground">No contact form submissions.</p>
+                    )}
+                  </>
                 ) : (
                   // Message Threads
                   filteredThreads().map((thread: any) => (
@@ -607,9 +830,24 @@ export default function Messages() {
                           </div>
 
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground truncate leading-relaxed">
-                              {thread.context === 'marketplace' ? 'Marketplace Inquiry' : thread.context === 'project_interest' ? 'Project Interest' : 'Direct Message'}
-                            </p>
+                            {user?.role === "admin" ? (
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <Badge variant="outline" className={`h-5 max-w-[105px] truncate px-1.5 text-[9px] capitalize ${
+                                  thread.ticketStatus === "open" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" :
+                                  thread.ticketStatus === "resolved" ? "border-muted-foreground/30 bg-muted text-muted-foreground" :
+                                  "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                }`}>
+                                  {(thread.ticketStatus || "open").replace("_", " ")}
+                                </Badge>
+                                <span className="truncate text-[10px] capitalize text-muted-foreground">
+                                  {thread.ticketPriority || "normal"} priority
+                                </span>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground truncate leading-relaxed">
+                                {thread.context === 'marketplace' ? 'Marketplace Inquiry' : thread.context === 'project_interest' ? 'Project Interest' : 'Direct Message'}
+                              </p>
+                            )}
                             {(thread.unreadCount || 0) > 0 && (
                               <Badge className="h-4 min-w-[16px] px-1 bg-blue-600 text-[9px] flex items-center justify-center rounded-full animate-pulse">
                                 {thread.unreadCount}
@@ -625,9 +863,11 @@ export default function Messages() {
                     </div>
                   ))
                 )}
-                {filteredThreads().length === 0 && user?.role !== 'admin' && (
+                {filteredThreads().length === 0 && (
                   <div className="text-center py-8 text-muted-foreground text-sm">
-                    No messages found
+                    {user?.role === "admin"
+                      ? ticketQueueFilter === "all" ? "No support tickets yet" : "No tickets match this status"
+                      : "No messages found"}
                   </div>
                 )}
               </div>
@@ -660,30 +900,73 @@ export default function Messages() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* Admin Controls */}
-                      {user?.role === 'admin' && (
-                        <div className="flex items-center gap-2 mr-2 border-r pr-2 border-border/50">
-                          <Select
-                            value={(selectedThread as any).ticketStatus || 'open'}
-                            onValueChange={(val) => updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status: val })}
-                          >
-                            <SelectTrigger className="h-8 w-[110px] text-[10px] font-bold uppercase tracking-wider bg-primary/5 border-primary/20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="open">Open</SelectItem>
-                              <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="resolved">Resolved</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
+                    {user?.role !== "admin" && (
                       <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted/50 rounded-full">
                         <MoreVertical className="h-4 w-4" />
                       </Button>
-                    </div>
+                    )}
                   </div>
+
+                  {user?.role === "admin" && (
+                    <div className="grid grid-cols-1 gap-3 border-b bg-muted/20 p-3 sm:grid-cols-3">
+                      <div className="space-y-1">
+                        <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
+                        <Select
+                          value={threadDetails?.thread?.ticketStatus || selectedThread.ticketStatus || "open"}
+                          onValueChange={(status) => updateTicketStatusMutation.mutate({ threadId: selectedThread.id, status })}
+                        >
+                          <SelectTrigger className="h-9 bg-background text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">In progress</SelectItem>
+                            <SelectItem value="waiting_user">Waiting on user</SelectItem>
+                            <SelectItem value="resolved">Resolved</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Priority</span>
+                        <Select
+                          value={threadDetails?.thread?.ticketPriority || selectedThread.ticketPriority || "normal"}
+                          onValueChange={(priority) => updateTicketPriorityMutation.mutate({ threadId: selectedThread.id, priority })}
+                        >
+                          <SelectTrigger className="h-9 bg-background text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="normal">Normal</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Assigned admin</span>
+                        <Select
+                          value={threadDetails?.thread?.assignedAdminId || selectedThread.assignedAdminId || "unassigned"}
+                          onValueChange={(assignedAdminId) => updateTicketAssigneeMutation.mutate({
+                            threadId: selectedThread.id,
+                            assignedAdminId: assignedAdminId === "unassigned" ? null : assignedAdminId,
+                          })}
+                        >
+                          <SelectTrigger className="h-9 bg-background text-xs">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned">Unassigned</SelectItem>
+                            {allUsers?.filter(admin => admin.role === "admin").map(admin => (
+                              <SelectItem key={admin.id} value={admin.id}>
+                                {[admin.firstName, admin.lastName].filter(Boolean).join(" ") || admin.email || "Admin"}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Thread Info Banner (Optional/Contextual) */}
                   {(selectedThread.listingId || selectedThread.projectId) && (
@@ -831,8 +1114,17 @@ export default function Messages() {
       {/* Dialogs */}
       < MessageDialog
         open={messageDialogOpen}
-        onOpenChange={setMessageDialogOpen}
-        recipient={selectedRecipient}
+        onOpenChange={(open) => {
+          setMessageDialogOpen(open);
+          if (!open) setSelectedContactSubmissionForThread(null);
+        }}
+        recipientId={selectedRecipient?.id || ""}
+        recipientName={selectedRecipient?.name}
+        defaultSubject={selectedRecipient?.subject}
+        supportThread={user?.role === "admin"}
+        contactSubmissionId={selectedContactSubmissionForThread?.id}
+        contactContext={selectedContactSubmissionForThread?.message}
+        onSent={selectedContactSubmissionForThread ? handleContactThreadStarted : handleStartSupportThread}
       />
 
       <Dialog open={openContactAdminDialog} onOpenChange={setOpenContactAdminDialog}>
@@ -853,7 +1145,79 @@ export default function Messages() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenContactAdminDialog(false)}>Cancel</Button>
-            <Button onClick={() => contactAdminMutation.mutate({ subject: contactAdminSubject, message: contactAdminMessage, name: user?.firstName || 'User', email: user?.email })}>Send Message</Button>
+            <Button
+              onClick={() => contactAdminMutation.mutate({ title: contactAdminSubject.trim(), description: contactAdminMessage.trim() })}
+              disabled={!contactAdminSubject.trim() || !contactAdminMessage.trim() || contactAdminMutation.isPending}
+            >
+              {contactAdminMutation.isPending ? "Sending..." : "Send Message"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!selectedContactSubmission}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedContactSubmission(null);
+            setContactReply("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Reply to contact form</DialogTitle>
+            <DialogDescription>
+              {selectedContactSubmission?.threadId
+                ? "Your reply will be sent in the user's support conversation."
+                : "This visitor is not signed in, so your email app will open with their address and original message."}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedContactSubmission && (
+            <div className="space-y-4">
+              <div className="space-y-1 rounded-lg border bg-muted/30 p-3 text-sm">
+                <p><span className="font-medium">To:</span> {selectedContactSubmission.name} &lt;{selectedContactSubmission.email}&gt;</p>
+                <p><span className="font-medium">Subject:</span> {contactReplySubject}</p>
+                <p className="pt-2 text-xs font-medium text-muted-foreground">Original message</p>
+                <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">{selectedContactSubmission.message}</p>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="contact-reply" className="text-sm font-medium">Your reply</label>
+                <Textarea
+                  id="contact-reply"
+                  value={contactReply}
+                  onChange={(event) => setContactReply(event.target.value)}
+                  placeholder="Write your response..."
+                  className="min-h-32"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedContactSubmission(null)}>Cancel</Button>
+            {selectedContactSubmission?.threadId ? (
+              <Button
+                onClick={sendContactReply}
+                disabled={!contactReply.trim() || contactSubmissionReplyMutation.isPending}
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {contactSubmissionReplyMutation.isPending ? "Sending..." : "Send reply"}
+              </Button>
+            ) : (
+              <Button asChild disabled={!contactReply.trim()}>
+                <a href={contactReplyMailto} onClick={(event) => {
+                  if (!contactReply.trim()) {
+                    event.preventDefault();
+                    return;
+                  }
+                  setSelectedContactSubmission(null);
+                  setContactReply("");
+                }}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Open email app
+                </a>
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

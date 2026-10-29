@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Package,
   MessageSquare,
@@ -30,6 +30,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { motion } from "framer-motion";
 
 export default function Dashboard() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading, isAdmin, isSeller } = useAuth();
 
@@ -47,14 +48,16 @@ export default function Dashboard() {
   const [adminMessage, setAdminMessage] = useState("");
 
   const contactAdminMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return await apiRequest("POST", "/api/contact", payload);
+    mutationFn: async (payload: { title: string; description: string }) => {
+      const response = await apiRequest("POST", "/api/support/tickets", payload);
+      return response.json() as Promise<{ id: string }>;
     },
-    onSuccess: () => {
+    onSuccess: (ticket) => {
       setOpenAdminDialog(false);
       setAdminSubject("");
       setAdminMessage("");
       toast({ title: "Message sent", description: "We'll get back to you soon." });
+      setLocation(`/dashboard/messages?threadId=${ticket.id}`);
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to send message.", variant: "destructive" });
@@ -110,10 +113,8 @@ export default function Dashboard() {
 
   const sendContactToAdmin = () => {
     const payload = {
-      name: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || undefined,
-      email: user?.email,
-      subject: adminSubject || "Contact from dashboard",
-      message: adminMessage,
+      title: adminSubject.trim() || "Contact from dashboard",
+      description: adminMessage.trim(),
     };
     contactAdminMutation.mutate(payload);
   };

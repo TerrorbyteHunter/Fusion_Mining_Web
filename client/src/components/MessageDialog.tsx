@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Send } from "lucide-react";
 import Spinner from "@/components/Spinner";
 import { generateIdempotencyKey } from "@/lib/queryClient";
+import type { MessageThread } from "@shared/schema";
 
 interface MessageDialogProps {
   open: boolean;
@@ -31,6 +32,10 @@ interface MessageDialogProps {
   listingId?: string;
   projectId?: string;
   projectTitle?: string;
+  supportThread?: boolean;
+  contactSubmissionId?: string;
+  contactContext?: string;
+  onSent?: (thread: MessageThread) => void;
 }
 
 export function MessageDialog({
@@ -44,6 +49,10 @@ export function MessageDialog({
   listingId,
   projectId,
   projectTitle,
+  supportThread = false,
+  contactSubmissionId,
+  contactContext,
+  onSent,
 }: MessageDialogProps) {
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
@@ -59,6 +68,18 @@ export function MessageDialog({
 
   const sendMessageMutation = useMutation({
     mutationFn: async () => {
+      if (supportThread) {
+        const endpoint = contactSubmissionId
+          ? `/api/contact/submissions/${contactSubmissionId}/start-thread`
+          : "/api/admin/support/threads";
+        const response = await apiRequest("POST", endpoint, {
+          recipientId,
+          title: subject.trim(),
+          content,
+        });
+        return { kind: "support" as const, thread: await response.json() as MessageThread };
+      }
+
       // If listingId is provided, create or reuse a thread for that listing
       if (listingId) {
         // Create thread tied to listing (server will set seller/buyer appropriately)
@@ -66,8 +87,8 @@ export function MessageDialog({
         const thread = await threadResp.json();
 
         // Post the message to the thread (server infers receiver)
-        const postResp = await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
-        return postResp.json();
+        await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
+        return { kind: "sent" as const };
       }
 
       // If projectId is provided, create or reuse a thread for that project
@@ -77,8 +98,8 @@ export function MessageDialog({
         const thread = await threadResp.json();
 
         // Post the message to the thread
-        const postResp = await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
-        return postResp.json();
+        await apiRequest("POST", `/api/threads/${thread.id}/messages`, { subject: subject || thread.title, content });
+        return { kind: "sent" as const };
       }
 
       // Fallback: send regular direct message
@@ -98,18 +119,20 @@ export function MessageDialog({
         messagePayload.relatedListingId = listingId;
       }
 
-      return await apiRequest(
+      await apiRequest(
         "POST",
         "/api/messages",
         messagePayload,
         { "Idempotency-Key": idKey }
       );
+      return { kind: "sent" as const };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       toast({
         title: "Message Sent",
         description: "Your message has been sent successfully!",
       });
+      if (result.kind === "support") onSent?.(result.thread);
       setSubject("");
       setContent("");
       onOpenChange(false);
@@ -125,6 +148,15 @@ export function MessageDialog({
   const sendingRef = useRef(false);
 
   const handleSend = async () => {
+    if (supportThread && !subject.trim()) {
+      toast({
+        title: "Subject required",
+        description: "Please enter a subject for this support conversation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!content.trim()) {
       toast({
         title: "Error",
@@ -160,10 +192,20 @@ export function MessageDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Send Message</DialogTitle>
-          <DialogDescription>Send Message</DialogDescription>
+          <DialogTitle>{supportThread ? `Start a conversation with ${_recipientName || "user"}` : "Send Message"}</DialogTitle>
+          <DialogDescription>
+            {supportThread
+              ? "This will create a support thread the user can reply to from their inbox."
+              : "Send a message to continue the conversation."}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {contactContext && (
+            <div className="space-y-1 rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Original contact form message</p>
+              <p className="whitespace-pre-wrap text-sm">{contactContext}</p>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
             <Input
@@ -196,7 +238,7 @@ export function MessageDialog({
           </Button>
           <Button
             onClick={handleSend}
-            disabled={sendMessageMutation.isPending}
+            disabled={sendMessageMutation.isPending || (supportThread && !subject.trim()) || !content.trim()}
           >
             {sendMessageMutation.isPending ? (
               <>

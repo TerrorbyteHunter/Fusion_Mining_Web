@@ -606,7 +606,7 @@ export default function Marketplace() {
 
             <TabsContent value="minerals">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -618,9 +618,9 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredListings.map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-listing-${listing.id}`}>
+                    <Card key={listing.id} className="hover-elevate h-full transition-all" data-testid={`card-listing-${listing.id}`}>
                       <ImageDisplay
                         imageUrl={listing.imageUrl}
                         alt={listing.title}
@@ -636,10 +636,10 @@ export default function Marketplace() {
                             : catalogueImg
                         }
                       />
-                      <CardHeader>
+                      <CardHeader className="p-4 pb-3">
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
+                            <CardTitle className="text-lg line-clamp-1">{listing.title}</CardTitle>
                             {listing.itemId && (
                               <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
                             )}
@@ -651,8 +651,8 @@ export default function Marketplace() {
                         </CardDescription>
                         {renderVerificationBadges(listing)}
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
+                      <CardContent className="space-y-3 p-4 pt-0">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
                           {listing.mineralType && (
                             <div>
                               <p className="text-muted-foreground text-xs">Type</p>
@@ -855,7 +855,7 @@ export default function Marketplace() {
 
             <TabsContent value="mining_equipment">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -867,7 +867,7 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-equipment-${listing.id}`}>
                       <ImageDisplay
@@ -958,7 +958,7 @@ export default function Marketplace() {
 
             <TabsContent value="mining_services">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -970,7 +970,7 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filteredListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-service-${listing.id}`}>
                       <ImageDisplay
@@ -1055,7 +1055,7 @@ export default function Marketplace() {
 
             <TabsContent value="partnerships">
               {loadingListings ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -1067,7 +1067,7 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : partnershipsListings && partnershipsListings.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {partnershipsListings.map((listing) => (
                     <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
                       <ImageDisplay

@@ -254,7 +254,9 @@ export interface IStorage {
 
   // Contact Submission operations
   createContactSubmission(submission: InsertContactSubmission): Promise<ContactSubmission>;
+  getContactSubmissionById(id: string): Promise<ContactSubmission | undefined>;
   getContactSubmissions(): Promise<ContactSubmission[]>;
+  updateContactSubmissionThread(id: string, threadId: string): Promise<ContactSubmission | undefined>;
   updateContactSubmissionStatus(id: string, status: string): Promise<ContactSubmission>;
 
   // Contact Settings operations
@@ -1104,6 +1106,9 @@ export class DatabaseStorage implements IStorage {
 
     const seller = thread.sellerId ? await this.getUserById(thread.sellerId) : null;
     const sellerProfile = thread.sellerId ? await this.getUserProfile(thread.sellerId) : null;
+    const supportAdminId = thread.assignedAdminId || thread.adminId;
+    const supportAdmin = supportAdminId ? await this.getUserById(supportAdminId) : null;
+    const supportAdminProfile = supportAdminId ? await this.getUserProfile(supportAdminId) : null;
 
     return {
       thread,
@@ -1113,6 +1118,8 @@ export class DatabaseStorage implements IStorage {
       buyerProfile: buyerProfile || null,
       seller: seller || null,
       sellerProfile: sellerProfile || null,
+      admin: supportAdmin || null,
+      adminProfile: supportAdminProfile || null,
     };
   }
 
@@ -1291,6 +1298,7 @@ export class DatabaseStorage implements IStorage {
     description: string,
     priority: 'low' | 'normal' | 'high' | 'urgent' = 'normal'
   ): Promise<MessageThread> {
+    const admin = await this.getAdminUser();
     const [thread] = await db
       .insert(messageThreads)
       .values({
@@ -1298,9 +1306,11 @@ export class DatabaseStorage implements IStorage {
         type: 'general',
         createdBy: userId,
         buyerId: userId,
+        adminId: admin?.id || null,
         context: 'general',
         status: 'open',
         isAdminSupport: true,
+        assignedAdminId: admin?.id || null,
         ticketStatus: 'open',
         ticketPriority: priority,
       })
@@ -1842,6 +1852,24 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(contactSubmissions)
       .orderBy(desc(contactSubmissions.createdAt));
+  }
+
+  async getContactSubmissionById(id: string): Promise<ContactSubmission | undefined> {
+    const [submission] = await db
+      .select()
+      .from(contactSubmissions)
+      .where(eq(contactSubmissions.id, id))
+      .limit(1);
+    return submission;
+  }
+
+  async updateContactSubmissionThread(id: string, threadId: string): Promise<ContactSubmission | undefined> {
+    const [submission] = await db
+      .update(contactSubmissions)
+      .set({ threadId })
+      .where(eq(contactSubmissions.id, id))
+      .returning();
+    return submission;
   }
 
   async updateContactSubmissionStatus(id: string, status: string): Promise<ContactSubmission> {

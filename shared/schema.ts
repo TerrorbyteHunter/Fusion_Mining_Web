@@ -324,6 +324,7 @@ export const contactSubmissions = pgTable("contact_submissions", {
   phone: varchar("phone", { length: 50 }),
   subject: varchar("subject", { length: 255 }).notNull(),
   message: text("message").notNull(),
+  threadId: varchar("thread_id").references(() => messageThreads.id, { onDelete: 'set null' }),
   status: varchar("status").notNull().default('new'), // new, contacted, resolved
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -1038,6 +1039,7 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 // Contact Submission schemas
 export const insertContactSubmissionSchema = createInsertSchema(contactSubmissions).omit({
   id: true,
+  threadId: true,
   status: true,
   createdAt: true,
 });

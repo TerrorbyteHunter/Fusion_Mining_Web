@@ -1047,6 +1047,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Message Thread Routes
   // ========================================================================
+  const getAuthorizedMessageThread = async (threadId: string, userId: string) => {
+    const [thread, requester] = await Promise.all([
+      storage.getThreadById(threadId),
+      storage.getUserById(userId),
+    ]);
+    if (!thread || !requester) return null;
+
+    if (requester.role === 'admin') {
+      return thread.isAdminSupport ? thread : null;
+    }
+    return thread.buyerId === userId || thread.sellerId === userId ? thread : null;
+  };
+
   app.post('/api/threads', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
@@ -1174,7 +1187,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/threads/:id', isAuthenticated, async (req: any, res) => {
     try {
-      const thread = await storage.getThreadById(req.params.id);
+      const userId = req.user.claims?.sub || req.user.id;
+      const thread = await getAuthorizedMessageThread(req.params.id, userId);
       if (!thread) {
         return res.status(404).json({ message: "Thread not found" });
       }
@@ -1189,6 +1203,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/threads/:id/details', isAuthenticated, async (req: any, res) => {
     try {
       const threadId = req.params.id;
+      const userId = req.user.claims?.sub || req.user.id;
+      const thread = await getAuthorizedMessageThread(threadId, userId);
+      if (!thread) return res.status(404).json({ message: 'Thread not found' });
       const details = await storage.getThreadWithParticipants(threadId);
       if (!details) return res.status(404).json({ message: 'Thread not found' });
       res.json(details);
@@ -1200,6 +1217,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/threads/:id/messages', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims?.sub || req.user.id;
+      const thread = await getAuthorizedMessageThread(req.params.id, userId);
+      if (!thread) return res.status(404).json({ message: 'Thread not found' });
       const messages = await storage.getMessagesByThreadId(req.params.id);
       res.json(messages);
     } catch (error) {
@@ -1223,7 +1243,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      const receiverId = senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+      const authorizedThread = await getAuthorizedMessageThread(threadId, senderId);
+      if (!authorizedThread) {
+        return res.status(404).json({ message: "Thread not found" });
+      }
+
+      const receiverId = senderId === thread.buyerId
+        ? thread.sellerId || thread.assignedAdminId || thread.adminId
+        : thread.buyerId;
+      if (!receiverId) {
+        return res.status(409).json({ message: "This thread has no available recipient" });
+      }
 
       const validatedData = insertMessageSchema.parse({
         threadId,
@@ -1289,8 +1319,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch('/api/threads/:id/close', isAuthenticated, async (req: any, res) => {
     try {
-      const thread = await storage.closeThread(req.params.id);
-      res.json(thread);
+      const userId = req.user.claims?.sub || req.user.id;
+      const authorizedThread = await getAuthorizedMessageThread(req.params.id, userId);
+      if (!authorizedThread) return res.status(404).json({ message: "Thread not found" });
+      const closedThread = await storage.closeThread(req.params.id);
+      res.json(closedThread);
     } catch (error) {
       console.error("Error closing thread:", error);
       res.status(500).json({ message: "Failed to close thread" });
@@ -1301,29 +1334,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Support Ticket Routes (Privacy-Compliant Admin Support Only)
   // ========================================================================
 
+  app.post('/api/admin/support/threads', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const { recipientId, title, content } = req.body;
+      if (typeof recipientId !== 'string' || !recipientId.trim()) {
+        return res.status(400).json({ message: "A recipient is required" });
+      }
+      if (recipientId === adminId) {
+        return res.status(400).json({ message: "You cannot start a conversation with yourself" });
+      }
+      if (typeof title !== 'string' || !title.trim() || title.trim().length > 255) {
+        return res.status(400).json({ message: "A subject between 1 and 255 characters is required" });
+      }
+      if (typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ message: "A message is required" });
+      }
+
+      const recipient = await storage.getUserById(recipientId);
+      if (!recipient) return res.status(404).json({ message: "Recipient not found" });
+
+      const thread = await storage.createMessageThread({
+        title: title.trim(),
+        type: 'general',
+        projectId: null,
+        listingId: null,
+        buyerId: recipientId,
+        sellerId: null,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+        isAdminSupport: true,
+        assignedAdminId: adminId,
+        ticketStatus: 'open',
+        ticketPriority: 'normal',
+      });
+
+      await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId: recipientId,
+        subject: thread.title,
+        content: content.trim(),
+      });
+      await storage.updateThreadLastMessage(thread.id);
+
+      res.status(201).json(thread);
+    } catch (error) {
+      console.error("Error creating admin support thread:", error);
+      res.status(500).json({ message: "Failed to start conversation" });
+    }
+  });
+
   // User creates a support ticket
   app.post('/api/support/tickets', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims?.sub || req.user.id;
       const { title, description, priority } = req.body;
 
-      if (!title || !description) {
+      if (typeof title !== 'string' || !title.trim() || title.trim().length > 255 ||
+        typeof description !== 'string' || !description.trim()) {
         return res.status(400).json({ message: "Title and description are required" });
       }
+      if (priority && !['low', 'normal', 'high', 'urgent'].includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority value" });
+      }
 
-      const ticket = await storage.createSupportTicket(userId, title, description, priority);
+      const admin = await storage.getAdminUser();
+      if (!admin) {
+        return res.status(503).json({ message: "Support is currently unavailable" });
+      }
+      const ticket = await storage.createSupportTicket(userId, title.trim(), description.trim(), priority);
 
       // Create first message in the ticket thread
       await storage.createMessage({
         threadId: ticket.id,
         senderId: userId,
-        receiverId: 'admin', // Will be matched to actual admin later
-        subject: title,
-        content: description,
-        context: 'general',
+        receiverId: ticket.assignedAdminId || admin.id,
+        subject: title.trim(),
+        content: description.trim(),
       });
+      await storage.updateThreadLastMessage(ticket.id);
 
-      res.json(ticket);
+      res.status(201).json(ticket);
     } catch (error) {
       console.error("Error creating support ticket:", error);
       res.status(500).json({ message: "Failed to create support ticket" });
@@ -2249,11 +2343,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // Contact Routes
   // ========================================================================
-  app.post('/api/contact', async (req, res) => {
+  app.post('/api/contact', clerk.expressWithAuth(), async (req: any, res) => {
     try {
       const validatedData = insertContactSubmissionSchema.parse(req.body);
-      const submission = await storage.createContactSubmission(validatedData);
+      let submission = await storage.createContactSubmission(validatedData);
       let thread: any = null;
+      const requester = req.auth?.userId
+        ? await storage.getUserByClerkId(req.auth.userId)
+        : null;
 
       // Also create an internal support thread so admins see the submission in Messages
       try {
@@ -2262,24 +2359,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // If the requester is authenticated, create a thread owned by them so
           // the conversation appears in their Messages view. Otherwise create
           // an internal admin-side thread for unauthenticated submissions.
-          const requesterId = (req as any).user ? ((req as any).user.claims?.sub || (req as any).user.id) : null;
+          const requesterId = requester?.id || null;
 
           if (requesterId) {
             thread = await storage.createMessageThread({
               title: submission.subject || 'Contact Admin',
-              type: 'support',
+              type: 'general',
               projectId: null,
               listingId: null,
               buyerId: requesterId,
               sellerId: null,
               adminId: adminUser.id,
               createdBy: requesterId,
-              context: 'support',
+              context: 'general',
               status: 'open',
               isAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
-            } as any);
+            });
 
             const content = `Contact submission from ${submission.name || ''} <${submission.email || ''}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
             await storage.createMessage({
@@ -2288,28 +2385,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: adminUser.id,
               subject: submission.subject,
               content,
-              context: 'support',
               isAutoRelay: false,
-            } as any);
+            });
 
             await storage.updateThreadLastMessage(thread.id);
+            const linkedSubmission = await storage.updateContactSubmissionThread(submission.id, thread.id);
+            if (!linkedSubmission) {
+              throw new Error(`Failed to link contact submission ${submission.id} to support thread ${thread.id}`);
+            }
+            submission = linkedSubmission;
           } else {
             // Unauthenticated submission: create an internal admin thread and a relay message
             thread = await storage.createMessageThread({
               title: submission.subject || 'Contact Form Submission',
-              type: 'support',
+              type: 'general',
               projectId: null,
               listingId: null,
               buyerId: null,
               sellerId: null,
               adminId: adminUser.id,
               createdBy: adminUser.id,
-              context: 'support',
+              context: 'general',
               status: 'open',
               isAdminSupport: true,
               assignedAdminId: adminUser.id,
               ticketStatus: 'open',
-            } as any);
+            });
 
             const content = `Contact submission from ${submission.name} <${submission.email}>\nPhone: ${submission.phone || 'N/A'}\n\n${submission.message}\n\nView thread: /dashboard/messages?threadId=${thread.id}`;
             await storage.createMessage({
@@ -2318,15 +2419,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
               receiverId: adminUser.id,
               subject: submission.subject,
               content,
-              context: 'support',
               isAutoRelay: true,
-            } as any);
+            });
 
             await storage.updateThreadLastMessage(thread.id);
           }
         }
       } catch (err) {
         console.error('Failed to create support thread for contact submission:', err);
+        throw err;
       }
 
       // Notify all admin users about the new contact submission
@@ -2363,6 +2464,123 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching contact submissions:", error);
       res.status(500).json({ message: "Failed to fetch submissions" });
+    }
+  });
+
+  app.post('/api/contact/submissions/:id/start-thread', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { recipientId, title, content } = req.body;
+      if (typeof recipientId !== 'string' || !recipientId.trim()) {
+        return res.status(400).json({ message: "A recipient is required" });
+      }
+      if (typeof title !== 'string' || !title.trim() || title.trim().length > 255) {
+        return res.status(400).json({ message: "A subject between 1 and 255 characters is required" });
+      }
+      if (typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ message: "A message is required" });
+      }
+
+      const submission = await storage.getContactSubmissionById(req.params.id);
+      if (!submission) return res.status(404).json({ message: "Contact submission not found" });
+      if (submission.threadId) {
+        return res.status(409).json({ message: "This contact submission already has an in-app thread" });
+      }
+
+      const email = submission.email.trim().toLowerCase();
+      const matchingUsers = await db
+        .select()
+        .from(users)
+        .where(sql`lower(${users.email}) = ${email}`)
+        .limit(2);
+      if (matchingUsers.length === 0) {
+        return res.status(404).json({ message: "No account matches this contact email" });
+      }
+      if (matchingUsers.length > 1) {
+        return res.status(409).json({ message: "More than one account matches this contact email" });
+      }
+
+      const recipient = matchingUsers[0];
+      const adminId = req.user.claims?.sub || req.user.id;
+      if (recipient.id !== recipientId) {
+        return res.status(409).json({ message: "The matched account changed; refresh contact submissions and try again" });
+      }
+      if (recipient.id === adminId) {
+        return res.status(400).json({ message: "You cannot start a conversation with yourself" });
+      }
+
+      const thread = await storage.createMessageThread({
+        title: title.trim(),
+        type: 'general',
+        projectId: null,
+        listingId: null,
+        buyerId: recipient.id,
+        sellerId: null,
+        adminId,
+        createdBy: adminId,
+        context: 'general',
+        status: 'open',
+        isAdminSupport: true,
+        assignedAdminId: adminId,
+        ticketStatus: 'open',
+      });
+
+      await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId: recipient.id,
+        subject: thread.title,
+        content: content.trim(),
+      });
+      await storage.updateThreadLastMessage(thread.id);
+
+      const linkedSubmission = await storage.updateContactSubmissionThread(submission.id, thread.id);
+      if (!linkedSubmission) {
+        throw new Error(`Failed to link contact submission ${submission.id} to support thread ${thread.id}`);
+      }
+      if (submission.status === 'new') {
+        await storage.updateContactSubmissionStatus(submission.id, 'contacted');
+      }
+
+      res.status(201).json(thread);
+    } catch (error) {
+      console.error("Error starting thread from contact submission:", error);
+      res.status(500).json({ message: "Failed to start conversation" });
+    }
+  });
+
+  app.post('/api/contact/submissions/:id/reply', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const adminId = req.user.claims?.sub || req.user.id;
+      const content = req.body?.content;
+      if (typeof content !== 'string' || !content.trim()) {
+        return res.status(400).json({ message: "A reply message is required" });
+      }
+
+      const submission = await storage.getContactSubmissionById(req.params.id);
+      if (!submission) return res.status(404).json({ message: "Contact submission not found" });
+      if (!submission.threadId) {
+        return res.status(409).json({ message: "This visitor is not signed in; reply by email instead" });
+      }
+
+      const thread = await storage.getThreadById(submission.threadId);
+      if (!thread || !thread.isAdminSupport || !thread.buyerId) {
+        return res.status(409).json({ message: "No signed-in support conversation is available for this submission" });
+      }
+
+      const reply = await storage.createMessage({
+        threadId: thread.id,
+        senderId: adminId,
+        receiverId: thread.buyerId,
+        subject: thread.title,
+        content: content.trim(),
+      });
+      await storage.updateThreadLastMessage(thread.id);
+      await storage.updateContactSubmissionStatus(submission.id, 'contacted');
+
+      res.status(201).json(reply);
+    } catch (error) {
+      console.error("Error replying to contact submission:", error);
+      res.status(500).json({ message: "Failed to send reply" });
     }
   });
 
@@ -2808,4 +3026,3 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   return httpServer;
 }
-
