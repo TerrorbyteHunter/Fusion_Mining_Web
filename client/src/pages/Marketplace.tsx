@@ -21,6 +21,7 @@ import {
   Search,
   MapPin,
   Package,
+  ClipboardList,
   Users,
   Plus,
   Gem,
@@ -28,6 +29,8 @@ import {
   Briefcase,
   BadgeCheck,
   Heart,
+  Boxes,
+  CircleDollarSign,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -736,60 +739,91 @@ export default function Marketplace() {
               ) : filteredRequests && filteredRequests.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredRequests.map((request) => (
-                    <Card key={request.id} className="hover-elevate transition-all" data-testid={`card-request-${request.id}`}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl line-clamp-1">{request.title}</CardTitle>
-                            {request.itemId && (
-                              <Badge variant="secondary" className="uppercase text-xs">{request.itemId}</Badge>
+                    <Card
+                      key={request.id}
+                      className="group relative flex h-full flex-col overflow-hidden border-border/70 bg-gradient-to-br from-card via-card to-muted/30 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
+                      data-testid={`card-request-${request.id}`}
+                    >
+                      <div className="h-1 w-full bg-gradient-to-r from-primary via-primary/70 to-primary/10" />
+                      <CardHeader className="space-y-4 p-5 pb-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                              <ClipboardList className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <CardTitle className="line-clamp-1 text-lg font-semibold leading-tight">
+                                {request.title}
+                              </CardTitle>
+                              {request.itemId && (
+                                <span className="mt-1 inline-block text-xs font-medium tracking-wide text-muted-foreground">
+                                  RFQ #{request.itemId.toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
+                              Open
+                            </Badge>
+                            {request.verified && (
+                              <Badge variant="outline" className="gap-1 border-primary/25 bg-primary/5 text-primary">
+                                <BadgeCheck className="h-3 w-3" />
+                                Verified
+                              </Badge>
                             )}
                           </div>
-                          {request.status === 'approved' || request.status === 'active' ? (
-                            <Badge className="bg-emerald-600 text-white border-emerald-500 h-5 text-[10px] w-fit font-bold">
-                              <BadgeCheck className="h-3 w-3 mr-1" />
-                              Verified Ad
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="capitalize">{request.status}</Badge>
-                          )}
                         </div>
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="line-clamp-3 min-h-[3.75rem] text-sm leading-relaxed">
                           {request.description}
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary" className="font-medium">
+                            {request.mainCategory
+                              ? Object.values(MAIN_CATEGORIES).find((category) => category.value === request.mainCategory)?.label
+                              : request.mineralType ? "Minerals" : "General"}
+                          </Badge>
+                          {(request.specificType || request.mineralType) && (
+                            <Badge variant="outline" className="max-w-full truncate">
+                              {request.specificType || request.mineralType}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <p className="text-muted-foreground text-xs">Mineral</p>
-                            <p className="font-medium">{request.mineralType}</p>
-                          </div>
                           {request.quantity && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Quantity</p>
-                              <p className="font-medium">{request.quantity}</p>
+                            <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                              <p className="mb-1 text-xs font-medium text-muted-foreground">Quantity</p>
+                              <div className="flex items-center gap-2">
+                                <Boxes className="h-4 w-4 shrink-0 text-primary" />
+                                <p className="line-clamp-1 font-semibold">{request.quantity}</p>
+                              </div>
                             </div>
                           )}
                           {request.budget && (
-                            <div className="col-span-2">
-                              <p className="text-muted-foreground text-xs">Budget</p>
-                              <p className="font-medium text-chart-3">{request.budget}</p>
+                            <div className="rounded-lg border border-border/60 bg-background/70 p-3">
+                              <p className="mb-1 text-xs font-medium text-muted-foreground">Budget</p>
+                              <div className="flex items-center gap-2">
+                                <CircleDollarSign className="h-4 w-4 shrink-0 text-primary" />
+                                <p className="line-clamp-1 font-semibold text-primary">{request.budget}</p>
+                              </div>
                             </div>
                           )}
                         </div>
                         {request.location && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span>{request.location}</span>
+                          <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">
+                            <MapPin className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="line-clamp-1">{request.location}</span>
                           </div>
                         )}
-                        <div className="flex gap-2">
+                        <div className="mt-auto flex gap-2 pt-1">
                           <Button
-                            className="flex-1"
+                            className="flex-1 shadow-sm"
                             data-testid={`button-respond-${request.id}`}
                             onClick={() => handleRespondToRequest(request)}
                           >
-                            Contact
+                            Respond to RFQ
                           </Button>
                           <Button
                             variant={expressedInterests.has(request.id) ? "secondary" : "outline"}
