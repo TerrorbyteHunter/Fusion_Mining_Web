@@ -1,6 +1,7 @@
 // Landing page with hero, category cards, latest RFQs, and video
+import { useEffect } from "react";
 import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,15 +15,237 @@ import {
   Briefcase,
   CheckCircle2,
   ShoppingCart,
-  Package
+  Package,
+  ArrowUpRight,
+  BadgeCheck,
+  Bookmark,
+  CalendarDays,
+  Clock3,
+  Share2
 } from "lucide-react";
 import { format } from "date-fns";
 import heroImage from "@assets/generated_images/Zambian_copper_mining_operation_aerial_46e06322.png";
 import mineralsImg from "@assets/stock_images/mining_minerals_copp_a83cbefb.jpg";
 import toolsImg from "@assets/stock_images/mining_heavy_equipme_90ded174.jpg";
 import servicesImg from "@assets/stock_images/mining_engineer_serv_7e4e30bf.jpg";
-import type { Video, BuyerRequest } from "@shared/schema";
+import type { Video, BuyerRequestWithBuyer } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+
+function LatestRFQCard({ rfq, index }: { rfq: BuyerRequestWithBuyer; index: number }) {
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const requestHref = `/marketplace?tab=requests&requestId=${rfq.id}`;
+  const interestQueryKey = ["/api/projects", rfq.id, "has-interest"];
+  const interestQuery = useQuery<boolean>({
+    queryKey: interestQueryKey,
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/projects/${rfq.id}/has-interest`);
+      const data = await response.json() as { hasInterest?: boolean };
+      if (typeof data.hasInterest !== "boolean") {
+        throw new Error("The bookmark status response was invalid.");
+      }
+      return data.hasInterest;
+    },
+    enabled: isAuthenticated,
+  });
+  const bookmarkMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/projects/interest", { buyerRequestId: rfq.id });
+      const data = await response.json() as { bookmarked?: boolean };
+      return data.bookmarked ?? true;
+    },
+    onSuccess: (bookmarked) => {
+      queryClient.setQueryData(interestQueryKey, bookmarked);
+      toast({
+        title: bookmarked ? "RFQ bookmarked" : "Bookmark removed",
+        description: bookmarked ? "You can find this request in your saved items." : "This request was removed from your saved items.",
+      });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        window.location.href = "/api/login";
+        return;
+      }
+      toast({
+        title: "Unable to update bookmark",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (interestQuery.error) {
+      toast({
+        title: "Unable to load bookmark status",
+        description: interestQuery.error.message || "Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [interestQuery.error, toast]);
+
+  const commodityName = rfq.specificType || rfq.mineralType || rfq.title;
+  const buyerName = [rfq.buyer?.firstName, rfq.buyer?.lastName].filter(Boolean).join(" ") || "Buyer on Fusion";
+  const buyerIsVerified = Boolean(rfq.buyer?.verified);
+  const isVerified = Boolean(rfq.verified || buyerIsVerified);
+  const createdAt = new Date(rfq.createdAt);
+  const ageInHours = (Date.now() - createdAt.getTime()) / (60 * 60 * 1000);
+  const expiryAt = rfq.expiryDate ? new Date(rfq.expiryDate) : null;
+  const isNew = Number.isFinite(ageInHours) && ageInHours >= 0 && ageInHours <= 48;
+  const isUrgent = Boolean(
+    expiryAt &&
+    expiryAt.getTime() > Date.now() &&
+    expiryAt.getTime() - Date.now() <= 7 * 24 * 60 * 60 * 1000
+  );
+  const isBookmarked = interestQuery.data ?? false;
+
+  const shareRequest = async () => {
+    const url = new URL(requestHref, window.location.origin).toString();
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: commodityName, url });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Sharing is not supported by this browser.");
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "The RFQ link is ready to share." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Unable to share this RFQ",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <Card
+      className="group relative h-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
+      data-testid={`card-rfq-${index}`}
+    >
+      <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-500 via-primary to-emerald-700 opacity-80" />
+      <CardHeader className="space-y-2 p-4 pb-2">
+        <div className="flex items-start gap-2.5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-700/10 bg-gradient-to-br from-amber-100 to-stone-100 text-amber-800 shadow-inner dark:from-amber-950/60 dark:to-stone-900 dark:text-amber-300">
+            <Gem className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <Link
+              href={requestHref}
+              className="block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <CardTitle className="line-clamp-1 text-base font-semibold tracking-tight transition-colors group-hover:text-primary">
+                {commodityName}
+              </CardTitle>
+            </Link>
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              {rfq.mainCategory?.replace(/_/g, " ") || "Mineral request"}
+            </p>
+          </div>
+          <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
+        </div>
+
+        <div className="flex flex-wrap gap-1.5">
+          {isNew && (
+            <Badge className="border-emerald-700/10 bg-emerald-100 px-2 py-0 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              New
+            </Badge>
+          )}
+          {isUrgent && (
+            <Badge className="border-rose-700/10 bg-rose-100 px-2 py-0 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+              <Clock3 className="mr-1 h-3 w-3" aria-hidden="true" />
+              Urgent
+            </Badge>
+          )}
+          {isVerified && (
+            <Badge className="border-sky-700/10 bg-sky-100 px-2 py-0 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+              <BadgeCheck className="mr-1 h-3 w-3" aria-hidden="true" />
+              Verified
+            </Badge>
+          )}
+        </div>
+
+        <CardDescription className="line-clamp-1 text-xs leading-5">
+          {rfq.description}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-2 px-4 pb-4 pt-1">
+        <div className="flex min-w-0 items-center gap-2 border-t border-border/70 pt-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold text-stone-700 dark:bg-stone-800 dark:text-stone-200">
+            {buyerName.charAt(0).toUpperCase()}
+          </div>
+          <span className="truncate text-xs font-medium">{buyerName}</span>
+          {buyerIsVerified && (
+            <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+              Verified
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quantity</p>
+            <p className="mt-0.5 truncate text-xs font-semibold">{rfq.quantity || "Not specified"}</p>
+          </div>
+          <div className="min-w-0 border-l border-border/70 pl-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
+            <p className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold">
+              <CalendarDays className="h-3 w-3 text-primary" aria-hidden="true" />
+              {Number.isFinite(createdAt.getTime()) ? format(createdAt, "MMM d, yyyy") : "Date unavailable"}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-t border-border/70 pt-2">
+          <Button asChild size="sm" className="min-w-0 flex-1">
+            <Link href={requestHref}>
+              Respond
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
+          <Button
+            type="button"
+            variant={isBookmarked ? "secondary" : "outline"}
+            size="icon"
+            aria-label={isBookmarked ? "Remove bookmark" : "Bookmark RFQ"}
+            aria-pressed={isBookmarked}
+            title={isBookmarked ? "Remove bookmark" : "Bookmark RFQ"}
+            disabled={bookmarkMutation.isPending || interestQuery.isLoading}
+            onClick={() => {
+              if (!isAuthenticated) {
+                window.location.href = "/api/login";
+                return;
+              }
+              bookmarkMutation.mutate();
+            }}
+          >
+            <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-current text-primary" : ""}`} aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label="Share RFQ"
+            title="Share RFQ"
+            onClick={() => void shareRequest()}
+          >
+            <Share2 className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // Convert YouTube URL to embed format
 function getEmbedUrl(url: string): string {
@@ -96,7 +319,7 @@ export default function Landing() {
     queryKey: ["/api/videos/active"],
   });
 
-  const { data: latestRFQs } = useQuery<BuyerRequest[]>({
+  const { data: latestRFQs } = useQuery<BuyerRequestWithBuyer[]>({
     queryKey: ["/api/buyer-requests/latest"],
   });
 
@@ -223,40 +446,7 @@ export default function Landing() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {latestRFQs.slice(0, 6).map((rfq, index) => (
-                <Link key={rfq.id} href={`/marketplace?tab=requests&requestId=${rfq.id}`}>
-                  <Card className="hover-elevate active-elevate-2 h-full transition-all cursor-pointer" data-testid={`card-rfq-${index}`}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          {rfq.country && (
-                            <img
-                              src={`https://flagsapi.com/${rfq.country}/flat/24.png`}
-                              alt={rfq.country}
-                              className="w-6 h-4 object-cover rounded"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          )}
-                          <CardTitle className="text-base line-clamp-1">{rfq.title}</CardTitle>
-                        </div>
-                        {rfq.verified && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {t('rfq.verified')}
-                          </Badge>
-                        )}
-                      </div>
-                      <CardDescription className="line-clamp-2">{rfq.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <span>{rfq.mineralType || rfq.specificType || 'Various'}</span>
-                        <span>{format(new Date(rfq.createdAt), 'yyyy/MM/dd')}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                <LatestRFQCard key={rfq.id} rfq={rfq} index={index} />
               ))}
             </div>
 
