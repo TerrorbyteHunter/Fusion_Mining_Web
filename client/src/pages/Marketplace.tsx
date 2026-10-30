@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/StatusBadge";
-import { VerificationBadge } from "@/components/VerificationBadge";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +30,8 @@ import {
   Heart,
   Boxes,
   CircleDollarSign,
+  Scale,
+  Share2,
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
@@ -57,6 +58,169 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+interface CompactListingCardProps {
+  listing: MarketplaceListingWithSeller;
+  fallbackImage: string;
+  testId: string;
+  contactTestId: string;
+  interestTestId: string;
+  isInterested: boolean;
+  isContacted: boolean;
+  interestDisabled: boolean;
+  contactDisabled: boolean;
+  onContact: () => void;
+  onToggleInterest: () => void;
+}
+
+function CompactListingCard({
+  listing,
+  fallbackImage,
+  testId,
+  contactTestId,
+  interestTestId,
+  isInterested,
+  isContacted,
+  interestDisabled,
+  contactDisabled,
+  onContact,
+  onToggleInterest,
+}: CompactListingCardProps) {
+  const { toast } = useToast();
+  const sellerName = listing.profile?.companyName ||
+    (listing.seller ? `${listing.seller.firstName || ""} ${listing.seller.lastName || ""}`.trim() : "") ||
+    "Fusion Mining";
+  const isVerified = listing.seller?.verificationStatus === "approved";
+  const listingTab = listing.type === "partnership"
+    ? "partnerships"
+    : listing.mainCategory === "mining_services"
+      ? "mining_services"
+      : listing.mainCategory === "mining_equipment" || listing.mainCategory === "mining_tools" || listing.mainCategory === "mining_ppe"
+        ? "mining_equipment"
+        : "minerals";
+
+  const attributes = [
+    { label: "Type", value: listing.specificType || listing.mineralType || "Not specified", icon: Gem },
+    { label: "Grade", value: listing.grade || "Not specified", icon: Scale },
+    { label: "Quantity", value: listing.quantity || "Not specified", icon: Boxes },
+    { label: "Price", value: listing.price || "Contact for price", icon: CircleDollarSign },
+    { label: "Location", value: listing.location || "Not specified", icon: MapPin, wide: true },
+  ];
+
+  const shareListing = async () => {
+    const url = new URL(
+      `/marketplace?tab=${listingTab}&listingId=${encodeURIComponent(listing.id)}`,
+      window.location.origin,
+    ).toString();
+
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: listing.title, url });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) {
+        throw new Error("Sharing is not supported by this browser.");
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "The listing link is ready to share." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Unable to share this listing",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <Card
+      className="group/listing relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg focus-within:border-amber-700/30"
+      data-testid={testId}
+      id={`listing-${listing.id}`}
+    >
+      <CardContent className="flex flex-1 flex-col gap-3 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <ImageDisplay
+            imageUrl={listing.imageUrl}
+            alt={listing.title}
+            fallbackImage={fallbackImage}
+            className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted"
+            iconClassName="h-10 w-10"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CardTitle className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+                {listing.title}
+              </CardTitle>
+              {isVerified && (
+                <Badge className="shrink-0 gap-1 border-amber-700/15 bg-amber-100 px-1.5 py-0 text-[9px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                  Verified Ad
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {sellerName}
+              {listing.itemId && <span className="ml-1.5 text-[10px] text-muted-foreground/70">#{listing.itemId}</span>}
+            </p>
+            <p className="mt-1 line-clamp-1 text-xs leading-4 text-muted-foreground transition-all group-hover/listing:line-clamp-3 group-focus-within/listing:line-clamp-3">
+              {listing.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/60 pt-2">
+          {attributes.map(({ label, value, icon: Icon, wide }) => (
+            <div key={label} className={`flex min-w-0 items-center gap-1.5 ${wide ? "col-span-2" : ""}`}>
+              <Icon className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+              <span className="shrink-0 text-[10px] text-muted-foreground">{label}</span>
+              <span className={`min-w-0 truncate text-xs font-medium ${label === "Price" ? "text-emerald-700 dark:text-emerald-400" : ""}`}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-2">
+          <StatusBadge status={listing.status} />
+          <Button
+            className="ml-auto h-8 min-h-8 px-3 text-xs"
+            variant={isContacted ? "outline" : "default"}
+            onClick={onContact}
+            disabled={contactDisabled}
+            data-testid={contactTestId}
+          >
+            {contactDisabled ? <><Spinner size="sm" /> Preparing...</> : "Contact"}
+          </Button>
+          <Button
+            variant={isInterested ? "secondary" : "outline"}
+            size="icon"
+            className="h-8 w-8"
+            onClick={onToggleInterest}
+            disabled={interestDisabled}
+            aria-label={isInterested ? "Remove bookmark" : "Save to interests"}
+            title={isInterested ? "Remove Bookmark" : "Save to Interests"}
+            data-testid={interestTestId}
+          >
+            <Heart className={`h-4 w-4 ${isInterested ? "fill-current text-red-500" : ""}`} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => void shareListing()}
+            aria-label="Share listing"
+            title="Share listing"
+            data-testid={`button-share-${listing.id}`}
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // Helper function to get appropriate image for equipment/service based on keywords
 function getEquipmentImage(listing: MarketplaceListingWithSeller): string {
@@ -101,6 +265,14 @@ function getEquipmentImage(listing: MarketplaceListingWithSeller): string {
     return equipment2Img;
   }
 
+  return catalogueImg;
+}
+
+function getMineralImage(listing: MarketplaceListingWithSeller): string {
+  const mineral = (listing.mineralType || listing.specificType || "").toLowerCase();
+  if (mineral.includes("copper")) return copper2Img;
+  if (mineral.includes("gold")) return gold2Img;
+  if (mineral.includes("emerald") || mineral.includes("green")) return green2Img;
   return catalogueImg;
 }
 
@@ -280,44 +452,6 @@ export default function Marketplace() {
     setMessageDialogOpen(true);
   };
 
-  // Helper for rendering verification badges for seller
-  const renderVerificationBadges = (listing: MarketplaceListingWithSeller) => {
-    const sellerName = listing.profile?.companyName ||
-      (listing.seller ? `${listing.seller.firstName || ''} ${listing.seller.lastName || ''}`.trim() : 'Unknown Seller');
-
-    return (
-      <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
-        {/* Seller Info & Verification - Shows individual seller verification status next to name */}
-        {listing.seller && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-0.5">Posted by</span>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-700 font-bold">{sellerName}</span>
-                {listing.seller.verificationStatus === 'approved' && (
-                  <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10 shrink-0" />
-                )}
-                {listing.seller.verificationStatus === 'approved' ? (
-                  <VerificationBadge
-                    verificationStatus={listing.seller.verificationStatus}
-                    badgeColor={listing.seller.badgeColor}
-                    size="sm"
-                    showIcon={true}
-                  />
-                ) : (
-                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-slate-400 border-slate-200 bg-slate-50 font-medium">
-                    Unverified
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-
   // Fetch listings
   const { data: listings, isLoading: loadingListings } = useQuery<MarketplaceListingWithSeller[]>({
     queryKey: ["/api/marketplace/listings"],
@@ -477,6 +611,23 @@ export default function Marketplace() {
     return matchesLocation && matchesMainCategory && matchesSubcategory && matchesSearch && request.status === 'active';
   });
 
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.split('?')[1] || '');
+    const listingId = searchParams.get('listingId');
+    const requestedTab = searchParams.get('tab');
+    const visibleListings = requestedTab === 'partnerships' ? partnershipsListings : filteredListings;
+
+    if (!listingId || requestedTab !== activeTab || !visibleListings?.some((listing) => listing.id === listingId)) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      document.getElementById(`listing-${listingId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [location, activeTab, filteredListings, partnershipsListings]);
+
 
   return (
     <div className="flex flex-col">
@@ -606,7 +757,7 @@ export default function Marketplace() {
 
             <TabsContent value="minerals">
               {loadingListings ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -618,97 +769,22 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredListings.map((listing) => (
-                    <Card key={listing.id} className="hover-elevate h-full transition-all" data-testid={`card-listing-${listing.id}`}>
-                      <ImageDisplay
-                        imageUrl={listing.imageUrl}
-                        alt={listing.title}
-                        fallbackImage={
-                          listing.mineralType
-                            ? (function getMineralImage(mineral: string) {
-                              const m = mineral.toLowerCase();
-                              if (m.includes('copper')) return copper2Img;
-                              if (m.includes('gold')) return gold2Img;
-                              if (m.includes('emerald') || m.includes('green')) return green2Img;
-                              return catalogueImg;
-                            })(listing.mineralType)
-                            : catalogueImg
-                        }
-                      />
-                      <CardHeader className="p-4 pb-3">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg line-clamp-1">{listing.title}</CardTitle>
-                            {listing.itemId && (
-                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
-                            )}
-                          </div>
-                          <StatusBadge status={listing.status} />
-                        </div>
-                        <CardDescription className="line-clamp-2">
-                          {listing.description}
-                        </CardDescription>
-                        {renderVerificationBadges(listing)}
-                      </CardHeader>
-                      <CardContent className="space-y-3 p-4 pt-0">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          {listing.mineralType && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Type</p>
-                              <p className="font-medium">{listing.mineralType}</p>
-                            </div>
-                          )}
-                          {listing.grade && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Grade</p>
-                              <p className="font-medium">{listing.grade}</p>
-                            </div>
-                          )}
-                          {listing.quantity && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Quantity</p>
-                              <p className="font-medium">{listing.quantity}</p>
-                            </div>
-                          )}
-                          {listing.price && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Price</p>
-                              <p className="font-medium text-chart-3">{listing.price}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.location}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            className="flex-1"
-                            variant={contactedListings.has(listing.id) ? "outline" : "default"}
-                            data-testid={`button-contact-seller-${listing.id}`}
-                            onClick={() => handleContactSeller(listing)}
-                            disabled={loadingAdminContact}
-                          >
-                            {loadingAdminContact ? (
-                              <><Spinner size="sm" className="mr-2" />Preparing...</>
-                            ) : (
-                              'Contact'
-                            )}
-                          </Button>
-                          <Button
-                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => handleExpressInterest(listing.id, 'listing')}
-                            disabled={expressInterestMutation.isPending}
-                            data-testid={`button-interest-minerals-${listing.id}`}
-                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
-                          >
-                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <CompactListingCard
+                      key={listing.id}
+                      listing={listing}
+                      fallbackImage={getMineralImage(listing)}
+                      testId={`card-listing-${listing.id}`}
+                      contactTestId={`button-contact-seller-${listing.id}`}
+                      interestTestId={`button-interest-minerals-${listing.id}`}
+                      isInterested={expressedInterests.has(listing.id)}
+                      isContacted={contactedListings.has(listing.id)}
+                      interestDisabled={expressInterestMutation.isPending}
+                      contactDisabled={loadingAdminContact}
+                      onContact={() => handleContactSeller(listing)}
+                      onToggleInterest={() => handleExpressInterest(listing.id, "listing")}
+                    />
                   ))}
                 </div>
               ) : (
@@ -855,7 +931,7 @@ export default function Marketplace() {
 
             <TabsContent value="mining_equipment">
               {loadingListings ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -867,80 +943,22 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredListings.map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-equipment-${listing.id}`}>
-                      <ImageDisplay
-                        imageUrl={listing.imageUrl}
-                        alt={listing.title}
-                        fallbackImage={getEquipmentImage(listing)}
-                      />
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
-                            {listing.itemId && (
-                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
-                            )}
-                          </div>
-                          <StatusBadge status={listing.status} />
-                        </div>
-                        <CardDescription className="line-clamp-2">
-                          {listing.description}
-                        </CardDescription>
-                        {renderVerificationBadges(listing)}
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          {listing.specificType && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Type</p>
-                              <p className="font-medium">{listing.specificType}</p>
-                            </div>
-                          )}
-                          {listing.price && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Price</p>
-                              <p className="font-medium text-chart-3">{listing.price}</p>
-                            </div>
-                          )}
-                          {listing.quantity && (
-                            <div className="col-span-2">
-                              <p className="text-muted-foreground text-xs">Quantity</p>
-                              <p className="font-medium">{listing.quantity}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.location}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            className="flex-1"
-                            data-testid={`button-contact-seller-${listing.id}`}
-                            onClick={() => handleContactSeller(listing)}
-                            disabled={loadingAdminContact}
-                          >
-                            {loadingAdminContact ? (
-                              <><Spinner size="sm" className="mr-2" />Preparing...</>
-                            ) : (
-                              'Contact'
-                            )}
-                          </Button>
-                          <Button
-                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => handleExpressInterest(listing.id, 'listing')}
-                            disabled={expressInterestMutation.isPending}
-                            data-testid={`button-interest-equipment-${listing.id}`}
-                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
-                          >
-                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <CompactListingCard
+                      key={listing.id}
+                      listing={listing}
+                      fallbackImage={getEquipmentImage(listing)}
+                      testId={`card-equipment-${listing.id}`}
+                      contactTestId={`button-contact-seller-${listing.id}`}
+                      interestTestId={`button-interest-equipment-${listing.id}`}
+                      isInterested={expressedInterests.has(listing.id)}
+                      isContacted={contactedListings.has(listing.id)}
+                      interestDisabled={expressInterestMutation.isPending}
+                      contactDisabled={loadingAdminContact}
+                      onContact={() => handleContactSeller(listing)}
+                      onToggleInterest={() => handleExpressInterest(listing.id, "listing")}
+                    />
                   ))}
                 </div>
               ) : (
@@ -958,7 +976,7 @@ export default function Marketplace() {
 
             <TabsContent value="mining_services">
               {loadingListings ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -970,74 +988,22 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : filteredListings && filteredListings.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredListings.map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-service-${listing.id}`}>
-                      <ImageDisplay
-                        imageUrl={listing.imageUrl}
-                        alt={listing.title}
-                        fallbackImage={getEquipmentImage(listing)}
-                      />
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
-                            {listing.itemId && (
-                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
-                            )}
-                          </div>
-                          <StatusBadge status={listing.status} />
-                        </div>
-                        <CardDescription className="line-clamp-2">
-                          {listing.description}
-                        </CardDescription>
-                        {renderVerificationBadges(listing)}
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          {listing.specificType && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Service Type</p>
-                              <p className="font-medium">{listing.specificType}</p>
-                            </div>
-                          )}
-                          {listing.price && (
-                            <div>
-                              <p className="text-muted-foreground text-xs">Price</p>
-                              <p className="font-medium text-chart-3">{listing.price}</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.location}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            className="flex-1"
-                            data-testid={`button-contact-seller-${listing.id}`}
-                            onClick={() => handleContactSeller(listing)}
-                            disabled={loadingAdminContact}
-                          >
-                            {loadingAdminContact ? (
-                              <><Spinner size="sm" className="mr-2" />Preparing...</>
-                            ) : (
-                              'Contact'
-                            )}
-                          </Button>
-                          <Button
-                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => handleExpressInterest(listing.id, 'listing')}
-                            disabled={expressInterestMutation.isPending || expressedInterests.has(listing.id)}
-                            data-testid={`button-interest-service-${listing.id}`}
-                            title={expressedInterests.has(listing.id) ? "Saved to Interests" : "Save to Interests"}
-                          >
-                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <CompactListingCard
+                      key={listing.id}
+                      listing={listing}
+                      fallbackImage={getEquipmentImage(listing)}
+                      testId={`card-service-${listing.id}`}
+                      contactTestId={`button-contact-seller-${listing.id}`}
+                      interestTestId={`button-interest-service-${listing.id}`}
+                      isInterested={expressedInterests.has(listing.id)}
+                      isContacted={contactedListings.has(listing.id)}
+                      interestDisabled={expressInterestMutation.isPending || expressedInterests.has(listing.id)}
+                      contactDisabled={loadingAdminContact}
+                      onContact={() => handleContactSeller(listing)}
+                      onToggleInterest={() => handleExpressInterest(listing.id, "listing")}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1055,7 +1021,7 @@ export default function Marketplace() {
 
             <TabsContent value="partnerships">
               {loadingListings ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
                       <Skeleton className="h-48 w-full" />
@@ -1067,67 +1033,22 @@ export default function Marketplace() {
                   ))}
                 </div>
               ) : partnershipsListings && partnershipsListings.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {partnershipsListings.map((listing) => (
-                    <Card key={listing.id} className="hover-elevate transition-all" data-testid={`card-partnership-${listing.id}`}>
-                      <ImageDisplay
-                        imageUrl={listing.imageUrl}
-                        alt={listing.title}
-                        fallbackImage={catalogueImg}
-                      />
-                      <CardHeader>
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-xl line-clamp-1">{listing.title}</CardTitle>
-                            {listing.itemId && (
-                              <Badge variant="secondary" className="uppercase text-xs">{listing.itemId}</Badge>
-                            )}
-                          </div>
-                          <Badge variant="outline" className="capitalize">{listing.type}</Badge>
-                        </div>
-                        <CardDescription className="line-clamp-2">
-                          {listing.description}
-                        </CardDescription>
-                        {renderVerificationBadges(listing)}
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 gap-1 text-sm">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span>{listing.location}</span>
-                          </div>
-                          {listing.price && (
-                            <div className="text-chart-3 font-bold mt-2">
-                              {listing.price}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            className="flex-1"
-                            data-testid={`button-contact-seller-${listing.id}`}
-                            onClick={() => handleContactSeller(listing)}
-                            disabled={loadingAdminContact}
-                          >
-                            {loadingAdminContact ? (
-                              <><Spinner size="sm" className="mr-2" />Preparing...</>
-                            ) : (
-                              'Contact'
-                            )}
-                          </Button>
-                          <Button
-                            variant={expressedInterests.has(listing.id) ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => handleExpressInterest(listing.id, 'listing')}
-                            disabled={expressInterestMutation.isPending}
-                            data-testid={`button-interest-partnership-${listing.id}`}
-                            title={expressedInterests.has(listing.id) ? "Remove Bookmark" : "Save to Interests"}
-                          >
-                            <Heart className={`h-4 w-4 ${expressedInterests.has(listing.id) ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <CompactListingCard
+                      key={listing.id}
+                      listing={listing}
+                      fallbackImage={catalogueImg}
+                      testId={`card-partnership-${listing.id}`}
+                      contactTestId={`button-contact-seller-${listing.id}`}
+                      interestTestId={`button-interest-partnership-${listing.id}`}
+                      isInterested={expressedInterests.has(listing.id)}
+                      isContacted={contactedListings.has(listing.id)}
+                      interestDisabled={expressInterestMutation.isPending}
+                      contactDisabled={loadingAdminContact}
+                      onContact={() => handleContactSeller(listing)}
+                      onToggleInterest={() => handleExpressInterest(listing.id, "listing")}
+                    />
                   ))}
                 </div>
               ) : (
