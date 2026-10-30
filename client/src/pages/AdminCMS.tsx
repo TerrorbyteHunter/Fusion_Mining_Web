@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ALTERNATE_CONTACT_PHONE, PRIMARY_CONTACT_PHONE } from "@/lib/contactDetails";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -368,7 +369,7 @@ export default function AdminCMS() {
       title: item.title,
       slug: item.title.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
       excerpt: item.snippet,
-      content: `${item.snippet}\n\nSource: ${item.source}\nRead more at: ${item.url}\n\n[Add your insights here]`,
+      content: `${item.snippet}\n\nSource: ${item.source}\nRead more at: ${item.url}`,
       category: item.category || "Industry News",
       imageUrl: item.imageUrl || "",
       published: false,
@@ -1283,7 +1284,8 @@ export default function AdminCMS() {
                       </div>
                       <div>
                         <p className="text-muted-foreground mb-1">Phone Number</p>
-                        <p className="font-medium">+260 211 123456</p>
+                        <p className="font-medium">{PRIMARY_CONTACT_PHONE}</p>
+                        <p className="font-medium">{ALTERNATE_CONTACT_PHONE}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground mb-1">Office Address</p>

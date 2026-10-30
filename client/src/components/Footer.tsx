@@ -4,6 +4,7 @@ import { Mountain, Mail, Phone, MapPin, Facebook, Twitter, Linkedin } from "luci
 import { useQuery } from "@tanstack/react-query";
 import { getQueryFn } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getContactPhoneNumbers, PRIMARY_CONTACT_PHONE } from "@/lib/contactDetails";
 
 export function Footer() {
   const { t } = useLanguage();
@@ -12,8 +13,9 @@ export function Footer() {
     queryFn: getQueryFn({ on401: 'returnNull' }),
   });
 
-    const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
-  const phone = (contact?.phone as string) ?? '+260 978 838 939';
+  const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
+  const phone = (contact?.phone as string) ?? PRIMARY_CONTACT_PHONE;
+  const phoneNumbers = getContactPhoneNumbers(phone);
   const email = (contact?.email as string) ?? 'fusionminingltd@gmail.com';
 
   return (
@@ -127,7 +129,14 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Phone className="h-4 w-4 flex-shrink-0" />
-                <span>{phone}</span>
+                <span>
+                  {phoneNumbers.map((number, index) => (
+                    <span key={number}>
+                      {index > 0 && <br />}
+                      {number}
+                    </span>
+                  ))}
+                </span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4 flex-shrink-0" />

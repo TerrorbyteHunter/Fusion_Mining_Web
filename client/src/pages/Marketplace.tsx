@@ -2,7 +2,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,8 @@ import {
   Search,
   MapPin,
   Package,
-  ClipboardList,
+  CalendarDays,
+  Clock3,
   Users,
   Plus,
   Gem,
@@ -38,6 +39,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import Spinner from "@/components/Spinner";
 import { Link } from "wouter";
 import { ImageDisplay } from "@/components/ImageDisplay";
+import { format } from "date-fns";
 
 // image imports from repository attached_assets
 import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
@@ -90,15 +92,7 @@ function CompactListingCard({
   const sellerName = listing.profile?.companyName ||
     (listing.seller ? `${listing.seller.firstName || ""} ${listing.seller.lastName || ""}`.trim() : "") ||
     "Fusion Mining";
-  const isVerified = listing.seller?.verificationStatus === "approved";
-  const listingTab = listing.type === "partnership"
-    ? "partnerships"
-    : listing.mainCategory === "mining_services"
-      ? "mining_services"
-      : listing.mainCategory === "mining_equipment" || listing.mainCategory === "mining_tools" || listing.mainCategory === "mining_ppe"
-        ? "mining_equipment"
-        : "minerals";
-
+  const isVerified = Boolean(listing.seller?.verified || listing.seller?.verificationStatus === "approved");
   const attributes = [
     { label: "Type", value: listing.specificType || listing.mineralType || "Not specified", icon: Gem },
     { label: "Grade", value: listing.grade || "Not specified", icon: Scale },
@@ -108,10 +102,7 @@ function CompactListingCard({
   ];
 
   const shareListing = async () => {
-    const url = new URL(
-      `/marketplace?tab=${listingTab}&listingId=${encodeURIComponent(listing.id)}`,
-      window.location.origin,
-    ).toString();
+    const url = new URL(`/marketplace/listings/${encodeURIComponent(listing.id)}`, window.location.origin).toString();
 
     try {
       if (typeof navigator.share === "function") {
@@ -139,7 +130,13 @@ function CompactListingCard({
       data-testid={testId}
       id={`listing-${listing.id}`}
     >
-      <CardContent className="flex flex-1 flex-col gap-3 p-3">
+      <Link
+        href={`/marketplace/listings/${listing.id}`}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-700"
+        aria-label={`View ${listing.title} details`}
+        data-testid={`link-listing-${listing.id}`}
+      />
+      <CardContent className="relative z-10 flex flex-1 pointer-events-none flex-col gap-3 p-3">
         <div className="flex min-w-0 items-center gap-3">
           <ImageDisplay
             imageUrl={listing.imageUrl}
@@ -156,7 +153,7 @@ function CompactListingCard({
               {isVerified && (
                 <Badge className="shrink-0 gap-1 border-amber-700/15 bg-amber-100 px-1.5 py-0 text-[9px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
                   <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                  Verified Ad
+                  Verified Seller
                 </Badge>
               )}
             </div>
@@ -185,7 +182,7 @@ function CompactListingCard({
         <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-2">
           <StatusBadge status={listing.status} />
           <Button
-            className="ml-auto h-8 min-h-8 px-3 text-xs"
+            className="pointer-events-auto ml-auto h-8 min-h-8 px-3 text-xs"
             variant={isContacted ? "outline" : "default"}
             onClick={onContact}
             disabled={contactDisabled}
@@ -196,7 +193,7 @@ function CompactListingCard({
           <Button
             variant={isInterested ? "secondary" : "outline"}
             size="icon"
-            className="h-8 w-8"
+            className="pointer-events-auto h-8 w-8"
             onClick={onToggleInterest}
             disabled={interestDisabled}
             aria-label={isInterested ? "Remove bookmark" : "Save to interests"}
@@ -208,7 +205,7 @@ function CompactListingCard({
           <Button
             variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="pointer-events-auto h-8 w-8"
             onClick={() => void shareListing()}
             aria-label="Share listing"
             title="Share listing"
@@ -274,6 +271,193 @@ function getMineralImage(listing: MarketplaceListingWithSeller): string {
   if (mineral.includes("gold")) return gold2Img;
   if (mineral.includes("emerald") || mineral.includes("green")) return green2Img;
   return catalogueImg;
+}
+
+function getRequestImage(request: BuyerRequest): string {
+  const category = request.mainCategory;
+  if (category === "mining_equipment" || category === "mining_tools" || category === "mining_ppe") {
+    return equipmentImg;
+  }
+  if (category === "mining_services") return equipment2Img;
+
+  const commodity = `${request.specificType || ""} ${request.mineralType || ""}`.toLowerCase();
+  if (commodity.includes("copper")) return copper2Img;
+  if (commodity.includes("gold")) return gold2Img;
+  if (commodity.includes("emerald") || commodity.includes("green")) return green2Img;
+  return catalogueImg;
+}
+
+interface CompactRequestCardProps {
+  request: BuyerRequest;
+  isInterested: boolean;
+  interestDisabled: boolean;
+  onRespond: () => void;
+  onToggleInterest: () => void;
+}
+
+function CompactRequestCard({
+  request,
+  isInterested,
+  interestDisabled,
+  onRespond,
+  onToggleInterest,
+}: CompactRequestCardProps) {
+  const { toast } = useToast();
+  const commodityName = request.specificType || request.mineralType || request.title;
+  const requestHref = `/marketplace?tab=requests&requestId=${encodeURIComponent(request.id)}`;
+  const createdAt = new Date(request.createdAt);
+  const ageInHours = (Date.now() - createdAt.getTime()) / (60 * 60 * 1000);
+  const expiryAt = request.expiryDate ? new Date(request.expiryDate) : null;
+  const isNew = Number.isFinite(ageInHours) && ageInHours >= 0 && ageInHours <= 48;
+  const isUrgent = Boolean(
+    expiryAt &&
+    expiryAt.getTime() > Date.now() &&
+    expiryAt.getTime() - Date.now() <= 7 * 24 * 60 * 60 * 1000
+  );
+  const categoryLabel = request.mainCategory
+    ? Object.values(MAIN_CATEGORIES).find((category) => category.value === request.mainCategory)?.label
+    : request.mineralType ? "Minerals" : "General";
+
+  const shareRequest = async () => {
+    const url = new URL(requestHref, window.location.origin).toString();
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: commodityName, url });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error("Sharing is not supported by this browser.");
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "The RFQ link is ready to share." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Unable to share this RFQ",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <Card
+      className="group/rfq relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg focus-within:border-amber-700/30"
+      data-testid={`card-request-${request.id}`}
+      id={`rfq-${request.id}`}
+    >
+      <Link
+        href={requestHref}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-700"
+        aria-label={`View ${commodityName} RFQ`}
+      />
+      <CardContent className="relative z-10 flex flex-1 pointer-events-none flex-col gap-3 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src={getRequestImage(request)}
+            alt=""
+            className="h-[100px] w-[100px] shrink-0 rounded-lg border border-border/70 bg-muted object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CardTitle className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
+                {commodityName}
+              </CardTitle>
+              {request.verified && (
+                <Badge className="shrink-0 gap-1 border-amber-700/15 bg-amber-100 px-1.5 py-0 text-[9px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                  Verified RFQ
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {request.itemId ? `RFQ #${request.itemId.toUpperCase()}` : "Buyer request"}
+            </p>
+            <p className="mt-1 line-clamp-1 text-xs leading-4 text-muted-foreground transition-all group-hover/rfq:line-clamp-3 group-focus-within/rfq:line-clamp-3">
+              {request.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex min-h-5 flex-wrap items-center gap-1.5">
+          <Badge className="border-emerald-700/10 bg-emerald-100 px-1.5 py-0 text-[9px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+            Open
+          </Badge>
+          {isNew && (
+            <Badge className="border-sky-700/10 bg-sky-100 px-1.5 py-0 text-[9px] text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+              New
+            </Badge>
+          )}
+          {isUrgent && (
+            <Badge className="border-rose-700/10 bg-rose-100 px-1.5 py-0 text-[9px] text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+              <Clock3 className="mr-1 h-3 w-3" aria-hidden="true" />
+              Urgent
+            </Badge>
+          )}
+          <span className="ml-auto truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {categoryLabel}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/60 pt-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Boxes className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Quantity</span>
+            <span className="min-w-0 truncate text-xs font-medium">{request.quantity || "Not specified"}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Budget</span>
+            <span className="min-w-0 truncate text-xs font-medium text-emerald-700 dark:text-emerald-400">{request.budget || "Not specified"}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Location</span>
+            <span className="min-w-0 truncate text-xs font-medium">{request.location || request.country || "Not specified"}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Requested</span>
+            <span className="min-w-0 truncate text-xs font-medium">
+              {Number.isFinite(createdAt.getTime()) ? format(createdAt, "MMM d, yyyy") : "Unavailable"}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-2">
+          <Button
+            className="pointer-events-auto h-8 min-h-8 min-w-0 flex-1 px-3 text-xs"
+            data-testid={`button-respond-${request.id}`}
+            onClick={onRespond}
+          >
+            Respond
+          </Button>
+          <Button
+            variant={isInterested ? "secondary" : "outline"}
+            size="icon"
+            className="pointer-events-auto h-8 w-8"
+            onClick={onToggleInterest}
+            disabled={interestDisabled}
+            aria-label={isInterested ? "Remove RFQ bookmark" : "Bookmark RFQ"}
+            aria-pressed={isInterested}
+            data-testid={`button-interest-rfq-${request.id}`}
+            title={isInterested ? "Remove bookmark" : "Bookmark RFQ"}
+          >
+            <Heart className={`h-4 w-4 ${isInterested ? "fill-current text-red-500" : ""}`} />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="pointer-events-auto h-8 w-8"
+            onClick={() => void shareRequest()}
+            aria-label="Share RFQ"
+            title="Share RFQ"
+            data-testid={`button-share-rfq-${request.id}`}
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 export default function Marketplace() {
@@ -614,19 +798,27 @@ export default function Marketplace() {
   useEffect(() => {
     const searchParams = new URLSearchParams(location.split('?')[1] || '');
     const listingId = searchParams.get('listingId');
+    const requestId = searchParams.get('requestId');
     const requestedTab = searchParams.get('tab');
     const visibleListings = requestedTab === 'partnerships' ? partnershipsListings : filteredListings;
 
-    if (!listingId || requestedTab !== activeTab || !visibleListings?.some((listing) => listing.id === listingId)) {
-      return;
+    let targetId: string | null = null;
+    if (listingId && requestedTab === activeTab && visibleListings?.some((listing) => listing.id === listingId)) {
+      targetId = `listing-${listingId}`;
+    } else if (requestId && requestedTab === 'requests' && activeTab === 'requests' &&
+      filteredRequests?.some((request) => request.id === requestId)) {
+      targetId = `rfq-${requestId}`;
     }
 
+    if (!targetId) return;
+    const scrollTargetId = targetId;
+
     const timeoutId = window.setTimeout(() => {
-      document.getElementById(`listing-${listingId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById(scrollTargetId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [location, activeTab, filteredListings, partnershipsListings]);
+  }, [location, activeTab, filteredListings, partnershipsListings, filteredRequests]);
 
 
   return (
@@ -802,118 +994,29 @@ export default function Marketplace() {
 
             <TabsContent value="requests">
               {loadingRequests ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {[1, 2, 3].map((i) => (
-                    <Card key={i}>
-                      <CardHeader>
-                        <Skeleton className="h-6 w-3/4" />
+                    <Card key={i} className="flex items-center gap-3 p-3">
+                      <Skeleton className="h-[100px] w-[100px] shrink-0 rounded-lg" />
+                      <div className="flex-1 space-y-3">
+                        <Skeleton className="h-5 w-3/4" />
                         <Skeleton className="h-4 w-full" />
-                      </CardHeader>
+                        <Skeleton className="h-4 w-2/3" />
+                      </div>
                     </Card>
                   ))}
                 </div>
               ) : filteredRequests && filteredRequests.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredRequests.map((request) => (
-                    <Card
+                    <CompactRequestCard
                       key={request.id}
-                      className="group relative flex h-full flex-col overflow-hidden border-border/70 bg-gradient-to-br from-card via-card to-muted/30 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-primary/40 hover:shadow-lg"
-                      data-testid={`card-request-${request.id}`}
-                    >
-                      <div className="h-1 w-full bg-gradient-to-r from-primary via-primary/70 to-primary/10" />
-                      <CardHeader className="space-y-4 p-5 pb-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                              <ClipboardList className="h-5 w-5" />
-                            </div>
-                            <div className="min-w-0">
-                              <CardTitle className="line-clamp-1 text-lg font-semibold leading-tight">
-                                {request.title}
-                              </CardTitle>
-                              {request.itemId && (
-                                <span className="mt-1 inline-block text-xs font-medium tracking-wide text-muted-foreground">
-                                  RFQ #{request.itemId.toUpperCase()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
-                              Open
-                            </Badge>
-                            {request.verified && (
-                              <Badge variant="outline" className="gap-1 border-primary/25 bg-primary/5 text-primary">
-                                <BadgeCheck className="h-3 w-3" />
-                                Verified
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <CardDescription className="line-clamp-3 min-h-[3.75rem] text-sm leading-relaxed">
-                          {request.description}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="flex flex-1 flex-col gap-4 p-5 pt-0">
-                        <div className="flex flex-wrap gap-2">
-                          <Badge variant="secondary" className="font-medium">
-                            {request.mainCategory
-                              ? Object.values(MAIN_CATEGORIES).find((category) => category.value === request.mainCategory)?.label
-                              : request.mineralType ? "Minerals" : "General"}
-                          </Badge>
-                          {(request.specificType || request.mineralType) && (
-                            <Badge variant="outline" className="max-w-full truncate">
-                              {request.specificType || request.mineralType}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          {request.quantity && (
-                            <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                              <p className="mb-1 text-xs font-medium text-muted-foreground">Quantity</p>
-                              <div className="flex items-center gap-2">
-                                <Boxes className="h-4 w-4 shrink-0 text-primary" />
-                                <p className="line-clamp-1 font-semibold">{request.quantity}</p>
-                              </div>
-                            </div>
-                          )}
-                          {request.budget && (
-                            <div className="rounded-lg border border-border/60 bg-background/70 p-3">
-                              <p className="mb-1 text-xs font-medium text-muted-foreground">Budget</p>
-                              <div className="flex items-center gap-2">
-                                <CircleDollarSign className="h-4 w-4 shrink-0 text-primary" />
-                                <p className="line-clamp-1 font-semibold text-primary">{request.budget}</p>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        {request.location && (
-                          <div className="flex items-center gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">
-                            <MapPin className="h-4 w-4 shrink-0 text-primary" />
-                            <span className="line-clamp-1">{request.location}</span>
-                          </div>
-                        )}
-                        <div className="mt-auto flex gap-2 pt-1">
-                          <Button
-                            className="flex-1 shadow-sm"
-                            data-testid={`button-respond-${request.id}`}
-                            onClick={() => handleRespondToRequest(request)}
-                          >
-                            Respond to RFQ
-                          </Button>
-                          <Button
-                            variant={expressedInterests.has(request.id) ? "secondary" : "outline"}
-                            size="icon"
-                            onClick={() => handleExpressInterest(request.id, 'rfq')}
-                            disabled={expressInterestMutation.isPending || expressedInterests.has(request.id)}
-                            data-testid={`button-interest-rfq-${request.id}`}
-                            title={expressedInterests.has(request.id) ? "Expressed Interest" : "Express Interest"}
-                          >
-                            <Heart className={`h-4 w-4 ${expressedInterests.has(request.id) ? 'fill-current text-red-500' : ''}`} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      request={request}
+                      isInterested={expressedInterests.has(request.id)}
+                      interestDisabled={expressInterestMutation.isPending}
+                      onRespond={() => handleRespondToRequest(request)}
+                      onToggleInterest={() => handleExpressInterest(request.id, 'rfq')}
+                    />
                   ))}
                 </div>
               ) : (

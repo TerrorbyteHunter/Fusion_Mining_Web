@@ -118,8 +118,10 @@ export const projects = pgTable("projects", {
   longitude: decimal("longitude", { precision: 10, scale: 7 }),
   status: projectStatusEnum("status").notNull().default('active'),
   imageUrl: varchar("image_url"),
+  imageUrls: text("image_urls").array().notNull().default(sql`ARRAY[]::text[]`),
   area: varchar("area"), // e.g., "500 hectares"
   estimatedValue: varchar("estimated_value"),
+  certifications: text("certifications").array().notNull().default(sql`ARRAY[]::text[]`),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -173,6 +175,7 @@ export const marketplaceListings = pgTable("marketplace_listings", {
   quantity: varchar("quantity"), // e.g., "1000 tonnes"
   price: varchar("price"), // e.g., "$5000/tonne"
   imageUrl: varchar("image_url"),
+  imageUrls: text("image_urls").array().notNull().default(sql`ARRAY[]::text[]`),
   status: listingStatusEnum("status").notNull().default('pending'),
   rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -935,6 +938,8 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updatedAt: true,
 }).extend({
   ownerId: z.string().optional(), // Optional since it will be set from authenticated user
+  imageUrls: z.array(z.string().min(1).max(2048)).max(6).optional(),
+  certifications: z.array(z.string().min(1).max(255)).max(30).optional(),
 });
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
@@ -968,6 +973,7 @@ export const insertMarketplaceListingSchema = createInsertSchema(marketplaceList
   price: z.preprocess((val) => (typeof val === 'number' ? String(val) : val === '' ? undefined : val), z.string().optional().nullable()),
   quantity: z.preprocess((val) => (typeof val === 'number' ? String(val) : val === '' ? undefined : val), z.string().optional().nullable()),
   sellerId: z.string().optional(),
+  imageUrls: z.array(z.string().min(1).max(2048)).max(6).optional(),
 });
 export type InsertMarketplaceListing = z.infer<typeof insertMarketplaceListingSchema>;
 export type MarketplaceListing = typeof marketplaceListings.$inferSelect;

@@ -5,7 +5,11 @@ import {
     Search,
     ChevronRight,
     MessageSquare,
-    Calendar
+    Calendar,
+    MapPin,
+    Boxes,
+    CircleDollarSign,
+    Scale,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,7 +34,15 @@ interface Interest {
     listingTitle: string | null;
     listingImageUrl: string | null;
     projectLicenseType: string | null;
+    projectMinerals?: string[] | null;
+    projectLocation?: string | null;
+    projectArea?: string | null;
     listingType: string | null;
+    listingSpecificType?: string | null;
+    listingGrade?: string | null;
+    listingQuantity?: string | null;
+    listingPrice?: string | null;
+    listingLocation?: string | null;
     projectOwnerId?: string;
     listingSellerId?: string;
 }
@@ -136,72 +148,114 @@ export default function Interests() {
                         variants={container}
                         initial="hidden"
                         animate="show"
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-6"
                     >
                         {filteredInterests.map((interest) => {
                             const displayImage = interest.listingImageUrl || interest.projectImageUrl;
                             const displayTitle = interest.projectName || interest.listingTitle;
                             const displayType = interest.projectId ? 'Project' : 'Marketplace';
                             const displaySubtype = interest.projectLicenseType || interest.listingType;
+                            const attributes = interest.projectId
+                                ? [
+                                    { label: "Minerals", value: interest.projectMinerals?.join(", "), icon: Boxes },
+                                    { label: "Area", value: interest.projectArea, icon: Scale },
+                                    { label: "Location", value: interest.projectLocation, icon: MapPin },
+                                ]
+                                : [
+                                    { label: "Grade", value: interest.listingGrade, icon: Scale },
+                                    { label: "Quantity", value: interest.listingQuantity, icon: Boxes },
+                                    { label: "Price", value: interest.listingPrice, icon: CircleDollarSign },
+                                    { label: "Location", value: interest.listingLocation, icon: MapPin },
+                                ];
+                            const detailHref = interest.projectId
+                                ? `/projects/${encodeURIComponent(interest.projectId)}`
+                                : interest.listingId
+                                    ? `/marketplace/listings/${encodeURIComponent(interest.listingId)}`
+                                    : null;
 
                             return (
                                 <motion.div key={interest.id} variants={item}>
-                                    <Card className="group overflow-hidden border-border/50 hover:border-primary/30 shadow-sm hover:shadow-xl transition-all duration-300 bg-card/50 backdrop-blur-sm h-full flex flex-col">
-                                        <div className="relative h-48 overflow-hidden bg-muted">
+                                    <Card className="group/saved relative h-full overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg">
+                                        <CardContent className="flex h-full flex-col gap-3 p-3">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                        <div className="relative h-36 w-36 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted">
                                             {displayImage ? (
                                                 <img
                                                     src={displayImage}
                                                     alt={displayTitle || "Interest"}
-                                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                                    className="h-full w-full object-cover transition-transform duration-300 group-hover/saved:scale-105"
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center">
-                                                    <Heart className="h-12 w-12 text-muted-foreground opacity-10" />
+                                                    <Heart className="h-8 w-8 text-amber-700/30" />
                                                 </div>
                                             )}
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                                         </div>
-                                        <CardContent className="p-6 flex-1 flex flex-col">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <Badge variant="secondary" className="bg-primary/5 text-primary border-primary/10 text-[10px] font-bold uppercase tracking-wider">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                                                <Badge variant="secondary" className="border-amber-700/10 bg-amber-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-950 dark:text-amber-200">
                                                     {displayType}
                                                 </Badge>
                                                 {displaySubtype && (
-                                                    <Badge variant="outline" className="text-[10px] capitalize">
+                                                    <Badge variant="outline" className="h-5 px-1.5 text-[9px] capitalize">
                                                         {displaySubtype.replace('_', ' ')}
                                                     </Badge>
                                                 )}
-                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 ml-auto">
-                                                    <Calendar className="h-3 w-3" />
-                                                    {format(new Date(interest.createdAt), 'MMM d, yyyy')}
-                                                </span>
                                             </div>
-
-                                            <h3 className="text-xl font-bold mb-2 line-clamp-1 group-hover:text-primary transition-colors">
-                                                {displayTitle}
+                                            <h3 className="line-clamp-1 text-sm font-semibold tracking-tight text-foreground transition-colors group-hover/saved:text-amber-800 dark:group-hover/saved:text-amber-300">
+                                                {displayTitle || "Saved item"}
                                             </h3>
+                                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                                                {interest.projectId
+                                                    ? interest.projectMinerals?.join(", ") || "Mining project"
+                                                    : interest.listingSpecificType || interest.listingType || "Marketplace listing"}
+                                            </p>
+                                            <p className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                                                <Calendar className="h-3 w-3 text-amber-700 dark:text-amber-400" />
+                                                Saved {format(new Date(interest.createdAt), 'MMM d, yyyy')}
+                                            </p>
+                                        </div>
+                                        </div>
 
-                                            {interest.message && (
-                                                <div className="mb-4 bg-muted/50 p-3 rounded-lg border border-border/50 italic text-sm text-muted-foreground line-clamp-2">
-                                                    "{interest.message}"
-                                                </div>
-                                            )}
+                                        {attributes.some(({ value }) => Boolean(value)) && (
+                                            <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/60 pt-2">
+                                                {attributes.filter(({ value }) => Boolean(value)).map(({ label, value, icon: Icon }) => (
+                                                    <div key={label} className="flex min-w-0 items-center gap-1.5">
+                                                        <Icon className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                                                        <span className="shrink-0 text-[10px] text-muted-foreground">{label}</span>
+                                                        <span className={`min-w-0 truncate text-xs font-medium ${label === "Price" ? "text-emerald-700 dark:text-emerald-400" : ""}`}>{value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
-                                            <div className="mt-auto flex flex-col gap-2 pt-4">
-                                                <Link href={interest.projectId ? `/projects?search=${encodeURIComponent(interest.projectName || '')}` : `/marketplace?search=${encodeURIComponent(interest.listingTitle || '')}`}>
-                                                    <Button className="w-full justify-between group/btn" variant="outline">
-                                                        <span>View Details</span>
-                                                        <ChevronRight className="h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
+                                        {interest.message && (
+                                            <p className="line-clamp-2 rounded-lg border border-border/60 bg-muted/30 p-2 text-xs italic text-muted-foreground">
+                                                "{interest.message}"
+                                            </p>
+                                        )}
+
+                                            <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-2">
+                                                {detailHref ? (
+                                                    <Link href={`${detailHref}?returnTo=${encodeURIComponent("/dashboard/interests")}`} className="flex-1">
+                                                        <Button className="h-8 w-full justify-between px-3 text-xs" variant="outline">
+                                                            <span>View details</span>
+                                                            <ChevronRight className="h-4 w-4 transition-transform group-hover/saved:translate-x-1" />
+                                                        </Button>
+                                                    </Link>
+                                                ) : (
+                                                    <Button className="h-8 flex-1 justify-between px-3 text-xs" variant="outline" disabled>
+                                                        <span>Details unavailable</span>
+                                                        <ChevronRight className="h-4 w-4" />
                                                     </Button>
-                                                </Link>
-
+                                                )}
                                                 <Button
-                                                    className="w-full justify-between gap-2"
-                                                    variant="ghost"
+                                                    className="h-8 gap-1.5 px-3 text-xs"
+                                                    variant="default"
                                                     onClick={() => handleContact(interest)}
                                                 >
-                                                    <span>Contact Seller</span>
-                                                    <MessageSquare className="h-4 w-4" />
+                                                    <span>Contact</span>
+                                                    <MessageSquare className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>
                                         </CardContent>

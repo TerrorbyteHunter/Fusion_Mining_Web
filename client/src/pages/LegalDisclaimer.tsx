@@ -1,5 +1,6 @@
 // Disclaimer legal page
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ALTERNATE_CONTACT_PHONE, PRIMARY_CONTACT_PHONE } from "@/lib/contactDetails";
 
 export default function LegalDisclaimer() {
   return (
@@ -125,7 +126,8 @@ export default function LegalDisclaimer() {
               <div className="mt-4 pt-4 border-t">
                 <p>
                   <strong>Website:</strong> <a href="/contact" className="text-primary hover:underline">https://fusionmining.com/contact</a><br />
-                  <strong>Telephone:</strong> +260 978 838 939<br />
+                  <strong>Telephone:</strong> {PRIMARY_CONTACT_PHONE}<br />
+                  <strong>Telephone:</strong> {ALTERNATE_CONTACT_PHONE}<br />
                   <strong>Email:</strong> fusionminingltd@gmail.com
                 </p>
               </div>

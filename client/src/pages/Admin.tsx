@@ -1,6 +1,6 @@
 // Comprehensive Admin Dashboard with full management capabilities
 import { useEffect, useState, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -41,7 +41,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminSidebar, AdminMobileMenuTrigger } from "@/components/AdminSidebar";
 import type { MarketplaceListing, MarketplaceListingWithSeller, User, Message, Project, BuyerRequest, BuyerRequestWithBuyer } from "@shared/schema";
 import { ImageDisplay } from "@/components/ImageDisplay";
-import { ImageSelector } from "@/components/ImageSelector";
+import { ListingImageGallerySelector } from "@/components/ListingImageGallerySelector";
 import { VerificationBadge } from "@/components/VerificationBadge";
 import {
   ShieldCheck, Users, Package, MessageSquare, Activity,
@@ -59,34 +59,14 @@ export default function Admin() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading, isAdmin } = useAuth();
   const [location, navigate] = useLocation();
+  const search = useSearch();
+  const requestedTab = new URLSearchParams(search).get("tab");
+  const activeTab = requestedTab || "overview";
 
-  // Derive initial tab from ?tab= query parameter so sidebar links like
-  // /admin?tab=users can deep-link directly to a specific section.
-  const getInitialTab = () => {
-    try {
-      const [, search = ""] = location.split("?");
-      const params = new URLSearchParams(search);
-      const tab = params.get("tab");
-      if (tab) return tab;
-    } catch {
-      // ignore and fall back to overview
-    }
-    return "overview";
-  };
-
-  const [activeTab, setActiveTabState] = useState<string>(getInitialTab);
-
-  // Keep URL in sync when the active tab changes inside the Admin dashboard
+  // Keep dashboard tabs in the URL so sidebar clicks, deep links, and browser
+  // back/forward navigation all use the same source of truth.
   const setActiveTab = (tab: string) => {
-    setActiveTabState(tab);
-    try {
-      const [path, search = ""] = location.split("?");
-      const params = new URLSearchParams(search);
-      params.set("tab", tab);
-      navigate(`${path}?${params.toString()}`);
-    } catch {
-      // If URL parsing fails for any reason, still update state
-    }
+    navigate(`/admin?tab=${encodeURIComponent(tab)}`);
   };
   // Initialize with minimal permissions - only add what the backend returns
   const [adminPermissions, setAdminPermissions] = useState<any>({
@@ -144,7 +124,8 @@ export default function Admin() {
     location: "",
     specifications: "",
     sellerId: "", // Optional: if empty, defaults to admin
-    imageUrl: ""
+    imageUrl: "",
+    imageUrls: [] as string[],
   });
   const [newUserForm, setNewUserForm] = useState({
     email: "",
@@ -309,6 +290,7 @@ export default function Admin() {
         quantity: editingListing.quantity,
         price: editingListing.price,
         imageUrl: editingListing.imageUrl,
+        imageUrls: editingListing.imageUrls?.length ? editingListing.imageUrls : editingListing.imageUrl ? [editingListing.imageUrl] : [],
         status: editingListing.status,
       });
     }
@@ -317,7 +299,10 @@ export default function Admin() {
   const updateListingMutation = useMutation({
     mutationFn: async () => {
       if (!listingForm.id) return;
-      const payload = { ...listingForm } as any;
+      const payload = {
+        ...listingForm,
+        imageUrl: listingForm.imageUrls?.[0] || listingForm.imageUrl,
+      } as any;
       delete payload.id;
       return await apiRequest("PATCH", `/api/marketplace/listings/${listingForm.id}`, payload);
     },
@@ -407,7 +392,7 @@ export default function Admin() {
   const [activityFilter, setActivityFilter] = useState<string>("all");
   const [activitySearchQuery, setActivitySearchQuery] = useState<string>("");
 
-  const { data: activityLogs, isLoading: loadingActivity, refetch: refetchActivityLogs } = useQuery<any[]>({
+  const { data: activityLogs, isLoading: loadingActivity, isError: activityLogsError, refetch: refetchActivityLogs } = useQuery<any[]>({
     queryKey: ["/api/admin/activity-logs", activityFilter],
     enabled: !!isAdmin && activeTab === "activity",
     queryFn: async () => {
@@ -427,7 +412,7 @@ export default function Admin() {
   const [adminActivitiesActionFilter, setAdminActivitiesActionFilter] = useState<string>("all");
 
   // Fetch admin audit logs (admin-specific actions)
-  const { data: adminAuditLogs, isLoading: loadingAdminActivities, refetch: refetchAdminActivities } = useQuery<any[]>({
+  const { data: adminAuditLogs, isLoading: loadingAdminActivities, isError: adminActivitiesError, refetch: refetchAdminActivities } = useQuery<any[]>({
     queryKey: ["/api/admin/audit-logs", adminActivitiesDateFrom, adminActivitiesDateTo, adminActivitiesActionFilter],
     enabled: !!isAdmin && activeTab === "admin-activities",
     queryFn: async () => {
@@ -475,9 +460,9 @@ export default function Admin() {
   });
 
   // Fetch consolidated admin stats (server-side counts) to avoid relying on multiple conditional queries
-  const { data: adminStats } = useQuery<any>({
+  const { data: adminStats, isLoading: loadingAdminStats, isError: adminStatsError, refetch: refetchAdminStats } = useQuery<any>({
     queryKey: ['/api/admin/stats'],
-    enabled: !!isAdmin && activeTab === 'overview',
+    enabled: !!isAdmin && (activeTab === 'overview' || activeTab === 'analytics'),
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/admin/stats');
       return await res.json();
@@ -650,6 +635,8 @@ export default function Admin() {
         type: listingData.type,
         location: listingData.location,
         price: listingData.price ? String(listingData.price).trim() : undefined,
+        imageUrl: listingData.imageUrls[0] || listingData.imageUrl,
+        imageUrls: listingData.imageUrls,
       };
 
       if (listingData.quantity && listingData.quantity.trim()) {
@@ -680,7 +667,8 @@ export default function Admin() {
         location: "",
         specifications: "",
         sellerId: "",
-        imageUrl: ""
+        imageUrl: "",
+        imageUrls: [],
       });
       toast({ title: "Listing created", description: "New listing has been created successfully." });
     },
@@ -2080,11 +2068,10 @@ export default function Admin() {
                   <Input value={listingForm.location || ''} onChange={(e) => setListingForm({ ...listingForm, location: e.target.value })} />
                 </div>
                 <div className="md:col-span-2 space-y-2">
-                  <Label>Listing Image</Label>
-                  <ImageSelector
-                    value={listingForm.imageUrl || ''}
-                    onChange={(val) => setListingForm({ ...listingForm, imageUrl: val })}
-                    label=""
+                  <Label>Listing Photos</Label>
+                  <ListingImageGallerySelector
+                    value={listingForm.imageUrls?.length ? listingForm.imageUrls : listingForm.imageUrl ? [listingForm.imageUrl] : []}
+                    onChange={(imageUrls) => setListingForm({ ...listingForm, imageUrls, imageUrl: imageUrls[0] || "" })}
                     testId="input-edit-listing-image"
                   />
                 </div>
@@ -2104,6 +2091,21 @@ export default function Admin() {
                 <p className="text-muted-foreground">Comprehensive platform statistics and insights</p>
               </div>
 
+              {!adminStats && loadingAdminStats ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    Loading platform analytics...
+                  </CardContent>
+                </Card>
+              ) : !adminStats && adminStatsError ? (
+                <Card>
+                  <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
+                    <p>Unable to load platform analytics. Please try again.</p>
+                    <Button variant="outline" onClick={() => refetchAdminStats()}>Retry</Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
               {/* KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
@@ -2314,6 +2316,8 @@ export default function Admin() {
                   </CardContent>
                 </Card>
               </div>
+                </>
+              )}
             </div>
           )}
 
@@ -2363,7 +2367,14 @@ export default function Admin() {
                 </CardHeader>
               </Card>
 
-              {loadingActivity ? (
+              {activityLogsError ? (
+                <Card>
+                  <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
+                    <p>Unable to load activity logs. Please try again.</p>
+                    <Button variant="outline" onClick={() => refetchActivityLogs()}>Retry</Button>
+                  </CardContent>
+                </Card>
+              ) : loadingActivity ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
@@ -2567,7 +2578,14 @@ export default function Admin() {
                 </CardContent>
               </Card>
 
-              {loadingAdminActivities ? (
+              {adminActivitiesError ? (
+                <Card>
+                  <CardContent className="py-8 flex flex-col items-center gap-3 text-center">
+                    <p>Unable to load admin activities. Please try again.</p>
+                    <Button variant="outline" onClick={() => refetchAdminActivities()}>Retry</Button>
+                  </CardContent>
+                </Card>
+              ) : loadingAdminActivities ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map((i) => (
                     <Card key={i}>
@@ -3238,12 +3256,10 @@ export default function Admin() {
               </div>
 
               <div className="space-y-2">
-                <Label>Listing Image</Label>
-                <ImageSelector
-                  value={createListingForm.imageUrl}
-                  onChange={(val) => setCreateListingForm({ ...createListingForm, imageUrl: val })}
-                  label=""
-                  placeholder="Upload an image or enter Image URL"
+                <Label>Listing Photos</Label>
+                <ListingImageGallerySelector
+                  value={createListingForm.imageUrls}
+                  onChange={(imageUrls) => setCreateListingForm({ ...createListingForm, imageUrls, imageUrl: imageUrls[0] || "" })}
                   testId="input-admin-create-image"
                 />
               </div>
@@ -3727,4 +3743,3 @@ function VerificationCard({
     </Card>
   );
 }
-

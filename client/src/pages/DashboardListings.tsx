@@ -18,6 +18,9 @@ import {
   FileText,
   MapPin,
   Package,
+  Boxes,
+  CalendarDays,
+  CircleDollarSign,
   Clock,
   ArrowRight,
   Plus,
@@ -25,6 +28,18 @@ import {
   BadgeCheck,
   Archive
 } from "lucide-react";
+import catalogueImg from "../../../attached_assets/files/catalogue.jpg";
+import copperImg from "../../../attached_assets/files/copper2.jpg";
+import goldImg from "../../../attached_assets/files/gold2.jpg";
+import emeraldImg from "../../../attached_assets/files/green-emerald2.jpg";
+
+function getBuyerRequestImage(request: any): string {
+  const commodity = `${request.specificType || ""} ${request.mineralType || ""} ${request.title || ""}`.toLowerCase();
+  if (commodity.includes("copper")) return copperImg;
+  if (commodity.includes("gold")) return goldImg;
+  if (commodity.includes("emerald") || commodity.includes("green")) return emeraldImg;
+  return catalogueImg;
+}
 
 export default function DashboardListings() {
   const { user, isAuthenticated } = useAuth();
@@ -245,16 +260,46 @@ export default function DashboardListings() {
         variants={containerVariants}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mt-6"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-6 mt-6"
       >
         <AnimatePresence>
           {items.map((item: any) => (
             <motion.div key={item.id} variants={itemVariants} layoutId={item.id}>
               <motion.div
-                className="h-full group relative p-0 overflow-hidden rounded-2xl border bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-900/5 transition-all duration-300 flex flex-col"
+                className={`h-full group relative p-0 overflow-hidden rounded-xl border transition-all duration-200 flex flex-col ${
+                  isSeller
+                    ? "bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-900/5"
+                    : "bg-card border-border/70 shadow-sm hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg"
+                }`}
               >
-                <CardHeader className="pb-4 space-y-4">
-                  <div className="flex justify-between items-start gap-4">
+                <CardHeader className={isSeller ? "pb-4 space-y-4" : "pb-3 pt-3 px-3"}>
+                  {!isSeller ? (
+                    <div className="flex min-w-0 items-center gap-3">
+                      <img
+                        src={getBuyerRequestImage(item)}
+                        alt=""
+                        className="h-36 w-36 shrink-0 rounded-lg border border-border/70 bg-muted object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-semibold tracking-tight text-foreground">
+                            {item.specificType || item.mineralType || item.title}
+                          </CardTitle>
+                          <Badge variant="outline" className={`shrink-0 px-1.5 py-0 text-[9px] capitalize ${getStatusColor(item.status)}`}>
+                            {item.status || "active"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                          {item.itemId ? `RFQ #${item.itemId}` : "Buyer request"}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                  <>
+                    <div className="flex justify-between items-start gap-4">
                     {/* Icon Box */}
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-sm transition-colors ${item.status === 'active' || item.status === 'approved'
                       ? 'bg-emerald-500 text-white shadow-emerald-200'
@@ -270,26 +315,53 @@ export default function DashboardListings() {
                       <span className={`w-1.5 h-1.5 rounded-full mr-2 bg-current opacity-75`} />
                       {(item.status || "active").toLowerCase()}
                     </Badge>
-                  </div>
-
-                  <div>
-                    <CardTitle className="line-clamp-1 group-hover:text-indigo-600 transition-colors text-lg font-bold text-slate-900 mb-1.5">
-                      {item.title}
-                    </CardTitle>
-                    <div className="flex flex-wrap gap-3 text-xs text-slate-500 font-medium">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                        {item.location || item.country}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5 text-slate-400" />
-                        {format(new Date(item.createdAt), "MMM d, yyyy")}
-                      </span>
                     </div>
-                  </div>
+
+                    <div>
+                      <CardTitle className="line-clamp-1 group-hover:text-indigo-600 transition-colors text-lg font-bold text-slate-900 mb-1.5">
+                        {item.title}
+                      </CardTitle>
+                      <div className="flex flex-wrap gap-3 text-xs text-slate-500 font-medium">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                          {item.location || item.country}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-slate-400" />
+                          {format(new Date(item.createdAt), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                  )}
                 </CardHeader>
 
-                <CardContent className="flex-1 pb-4">
+                <CardContent className={`flex-1 ${isSeller ? "pb-4" : "px-3 pb-3"}`}>
+                  {!isSeller ? (
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/60 pt-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Boxes className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-[10px] text-muted-foreground">Quantity</span>
+                        <span className="min-w-0 truncate text-xs font-medium">{item.quantity || "Not specified"}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-[10px] text-muted-foreground">Budget</span>
+                        <span className="min-w-0 truncate text-xs font-medium text-emerald-700 dark:text-emerald-400">{item.budget || "Not specified"}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-[10px] text-muted-foreground">Location</span>
+                        <span className="min-w-0 truncate text-xs font-medium">{item.location || item.country || "Not specified"}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <CalendarDays className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-[10px] text-muted-foreground">Requested</span>
+                        <span className="min-w-0 truncate text-xs font-medium">{format(new Date(item.createdAt), "MMM d, yyyy")}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
                   <p className="text-sm text-slate-600 line-clamp-3 mb-6 min-h-[3.75rem] leading-relaxed">
                     {item.description}
                   </p>
@@ -314,6 +386,8 @@ export default function DashboardListings() {
                       </div>
                     )}
                   </div>
+                    </>
+                  )}
 
                   {item.status === 'rejected' && item.rejectionReason && (
                     <div className="mt-2 text-sm bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/50 p-3 rounded-lg animate-in fade-in zoom-in-95 duration-300">

@@ -11,16 +11,18 @@ import {
   Gem, 
   Shield, 
   ArrowRight,
+  Boxes,
   Wrench,
   Briefcase,
   CheckCircle2,
   ShoppingCart,
   Package,
-  ArrowUpRight,
   BadgeCheck,
   Bookmark,
   CalendarDays,
+  CircleDollarSign,
   Clock3,
+  MapPin,
   Share2
 } from "lucide-react";
 import { format } from "date-fns";
@@ -92,7 +94,12 @@ function LatestRFQCard({ rfq, index }: { rfq: BuyerRequestWithBuyer; index: numb
   const commodityName = rfq.specificType || rfq.mineralType || rfq.title;
   const buyerName = [rfq.buyer?.firstName, rfq.buyer?.lastName].filter(Boolean).join(" ") || "Buyer on Fusion";
   const buyerIsVerified = Boolean(rfq.buyer?.verified);
-  const isVerified = Boolean(rfq.verified || buyerIsVerified);
+  const rfqIsVerified = Boolean(rfq.verified);
+  const thumbnail = rfq.mainCategory === "mining_equipment" || rfq.mainCategory === "mining_tools" || rfq.mainCategory === "mining_ppe"
+    ? toolsImg
+    : rfq.mainCategory === "mining_services"
+      ? servicesImg
+      : mineralsImg;
   const createdAt = new Date(rfq.createdAt);
   const ageInHours = (Date.now() - createdAt.getTime()) / (60 * 60 * 1000);
   const expiryAt = rfq.expiryDate ? new Date(rfq.expiryDate) : null;
@@ -128,95 +135,101 @@ function LatestRFQCard({ rfq, index }: { rfq: BuyerRequestWithBuyer; index: numb
 
   return (
     <Card
-      className="group relative h-full overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl"
+      className="group/rfq relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg focus-within:border-amber-700/30"
       data-testid={`card-rfq-${index}`}
     >
-      <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-amber-500 via-primary to-emerald-700 opacity-80" />
-      <CardHeader className="space-y-2 p-4 pb-2">
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-700/10 bg-gradient-to-br from-amber-100 to-stone-100 text-amber-800 shadow-inner dark:from-amber-950/60 dark:to-stone-900 dark:text-amber-300">
-            <Gem className="h-5 w-5" aria-hidden="true" />
-          </div>
+      <Link
+        href={requestHref}
+        className="absolute inset-0 z-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-700"
+        aria-label={`View ${commodityName} RFQ`}
+      />
+      <CardContent className="relative z-10 flex flex-1 pointer-events-none flex-col gap-3 p-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <img
+            src={thumbnail}
+            alt=""
+            className="h-[100px] w-[100px] shrink-0 rounded-lg border border-border/70 bg-muted object-cover"
+          />
           <div className="min-w-0 flex-1">
-            <Link
-              href={requestHref}
-              className="block rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <CardTitle className="line-clamp-1 text-base font-semibold tracking-tight transition-colors group-hover:text-primary">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <CardTitle className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">
                 {commodityName}
               </CardTitle>
-            </Link>
-            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              {rfq.mainCategory?.replace(/_/g, " ") || "Mineral request"}
+              {rfqIsVerified && (
+                <Badge className="shrink-0 gap-1 border-amber-700/15 bg-amber-100 px-1.5 py-0 text-[9px] text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                  <BadgeCheck className="h-3 w-3" aria-hidden="true" />
+                  Verified RFQ
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {buyerName}
+              {buyerIsVerified && (
+                <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                  Verified Buyer
+                </span>
+              )}
+            </p>
+            <p className="mt-1 line-clamp-1 text-xs leading-4 text-muted-foreground transition-all group-hover/rfq:line-clamp-3 group-focus-within/rfq:line-clamp-3">
+              {rfq.description}
             </p>
           </div>
-          <ArrowUpRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex min-h-5 flex-wrap items-center gap-1.5">
           {isNew && (
-            <Badge className="border-emerald-700/10 bg-emerald-100 px-2 py-0 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+            <Badge className="border-emerald-700/10 bg-emerald-100 px-1.5 py-0 text-[9px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
               New
             </Badge>
           )}
           {isUrgent && (
-            <Badge className="border-rose-700/10 bg-rose-100 px-2 py-0 text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+            <Badge className="border-rose-700/10 bg-rose-100 px-1.5 py-0 text-[9px] text-rose-800 dark:bg-rose-950 dark:text-rose-300">
               <Clock3 className="mr-1 h-3 w-3" aria-hidden="true" />
               Urgent
             </Badge>
           )}
-          {isVerified && (
-            <Badge className="border-sky-700/10 bg-sky-100 px-2 py-0 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-              <BadgeCheck className="mr-1 h-3 w-3" aria-hidden="true" />
-              Verified
-            </Badge>
-          )}
+          <span className="ml-auto truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {rfq.mainCategory?.replace(/_/g, " ") || "Mineral request"}
+          </span>
         </div>
 
-        <CardDescription className="line-clamp-1 text-xs leading-5">
-          {rfq.description}
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-2 px-4 pb-4 pt-1">
-        <div className="flex min-w-0 items-center gap-2 border-t border-border/70 pt-2">
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-200 text-[11px] font-semibold text-stone-700 dark:bg-stone-800 dark:text-stone-200">
-            {buyerName.charAt(0).toUpperCase()}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border/60 pt-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <Boxes className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Quantity</span>
+            <span className="min-w-0 truncate text-xs font-medium">{rfq.quantity || "Not specified"}</span>
           </div>
-          <span className="truncate text-xs font-medium">{buyerName}</span>
-          {buyerIsVerified && (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-              Verified
+          <div className="flex min-w-0 items-center gap-1.5">
+            <CircleDollarSign className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Budget</span>
+            <span className="min-w-0 truncate text-xs font-medium text-emerald-700 dark:text-emerald-400">{rfq.budget || "Not specified"}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Location</span>
+            <span className="min-w-0 truncate text-xs font-medium">{rfq.location || rfq.country || "Not specified"}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <CalendarDays className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" aria-hidden="true" />
+            <span className="shrink-0 text-[10px] text-muted-foreground">Requested</span>
+            <span className="min-w-0 truncate text-xs font-medium">
+              {Number.isFinite(createdAt.getTime()) ? format(createdAt, "MMM d, yyyy") : "Unavailable"}
             </span>
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-2">
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quantity</p>
-            <p className="mt-0.5 truncate text-xs font-semibold">{rfq.quantity || "Not specified"}</p>
-          </div>
-          <div className="min-w-0 border-l border-border/70 pl-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Requested</p>
-            <p className="mt-0.5 flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold">
-              <CalendarDays className="h-3 w-3 text-primary" aria-hidden="true" />
-              {Number.isFinite(createdAt.getTime()) ? format(createdAt, "MMM d, yyyy") : "Date unavailable"}
-            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 border-t border-border/70 pt-2">
-          <Button asChild size="sm" className="min-w-0 flex-1">
+        <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-2">
+          <Button asChild size="sm" className="pointer-events-auto h-8 min-h-8 min-w-0 flex-1 px-3 text-xs">
             <Link href={requestHref}>
               Respond
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </Button>
           <Button
             type="button"
             variant={isBookmarked ? "secondary" : "outline"}
             size="icon"
+            className="pointer-events-auto h-8 w-8"
             aria-label={isBookmarked ? "Remove bookmark" : "Bookmark RFQ"}
             aria-pressed={isBookmarked}
             title={isBookmarked ? "Remove bookmark" : "Bookmark RFQ"}
@@ -235,6 +248,7 @@ function LatestRFQCard({ rfq, index }: { rfq: BuyerRequestWithBuyer; index: numb
             type="button"
             variant="outline"
             size="icon"
+            className="pointer-events-auto h-8 w-8"
             aria-label="Share RFQ"
             title="Share RFQ"
             onClick={() => void shareRequest()}
@@ -444,7 +458,7 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
               {latestRFQs.slice(0, 6).map((rfq, index) => (
                 <LatestRFQCard key={rfq.id} rfq={rfq} index={index} />
               ))}

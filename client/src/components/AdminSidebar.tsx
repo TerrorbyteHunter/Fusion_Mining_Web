@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -71,12 +71,14 @@ export function AdminSidebar({
   onMobileOpenChange
 }: AdminSidebarProps) {
   const [location] = useLocation();
+  const [search] = useSearch();
   const { user, permissions: authPermissions } = useAuth();
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
 
   // Use external state if provided, otherwise use internal state
   const mobileOpen = externalMobileOpen !== undefined ? externalMobileOpen : internalMobileOpen;
   const setMobileOpen = onMobileOpenChange || setInternalMobileOpen;
+  const isMobileMenuControlled = externalMobileOpen !== undefined;
 
   // Prefer explicitly passed-in permissions (used on the main Admin dashboard),
   // but fall back to the permissions coming from useAuth() so that other admin
@@ -200,16 +202,16 @@ export function AdminSidebar({
     return effectivePermissions[item.permission as keyof AdminPermissions] === true; // Only show if explicitly permitted
   });
 
-  const handleTabClick = (item: typeof menuItems[0]) => {
-    if (item.tab && onTabChange) {
-      onTabChange(item.tab);
-    }
-    setMobileOpen(false);
-  };
-
   const handleLinkClick = () => {
     setMobileOpen(false);
   };
+
+  const getNavigationClassName = (isActive: boolean) => cn(
+    "inline-flex min-h-10 w-full items-center justify-start gap-3 rounded-md border border-transparent px-3 text-xs font-semibold transition-all duration-200 hover:bg-slate-800/50 hover:text-white focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+    isActive
+      ? "border-r-2 border-r-indigo-600 bg-indigo-600/10 text-indigo-400 shadow-sm"
+      : "hover:translate-x-1"
+  );
 
   // Shared sidebar content component
   const SidebarContent = () => (
@@ -261,48 +263,24 @@ export function AdminSidebar({
                         item.tab === 'verification' ? 'text-cyan-400' :
                           'text-indigo-400';
 
-            // For tab-based items
+            // Use URL navigation for dashboard sections so they stay in sync
+            // with browser history and work consistently from every admin page.
             if (item.tab) {
-              const isActive = activeTab === item.tab;
-
-              // If we're on a href-based page (no onTabChange), navigate to the
-              // Admin dashboard with the appropriate ?tab= query so the tab
-              // selection is preserved and deep-linkable.
-              if (!onTabChange) {
-                const href = `/admin?tab=${item.tab}`;
-                return (
-                  <Link key={item.tab} href={href}>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
-                        isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600" : "hover:translate-x-1"
-                      )}
-                      onClick={handleLinkClick}
-                      data-testid={item.testId}
-                    >
-                      <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
-                      <span className="truncate">{item.label}</span>
-                    </Button>
-                  </Link>
-                );
-              }
-
-              // If we're on the Admin page with tab support
+              const selectedTab = new URLSearchParams(search).get("tab") || "overview";
+              const isActive = onTabChange
+                ? activeTab === item.tab
+                : location === "/admin" && selectedTab === item.tab;
               return (
-                <Button
+                <Link
                   key={item.tab}
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
-                    isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600 shadow-sm" : "hover:translate-x-1"
-                  )}
-                  onClick={() => handleTabClick(item)}
+                  href={`/admin?tab=${encodeURIComponent(item.tab)}`}
+                  className={`${getNavigationClassName(isActive)} group`}
+                  onClick={handleLinkClick}
                   data-testid={item.testId}
                 >
                   <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
                   <span className="truncate">{item.label}</span>
-                </Button>
+                </Link>
               );
             }
 
@@ -310,19 +288,15 @@ export function AdminSidebar({
             if (item.href) {
               const isActive = location === item.href;
               return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant="ghost"
-                    className={cn(
-                      "w-full justify-start gap-3 text-xs font-semibold h-10 transition-all duration-200 hover:bg-slate-800/50 hover:text-white group",
-                      isActive ? "bg-indigo-600/10 text-indigo-400 border-r-2 border-indigo-600 shadow-sm" : "hover:translate-x-1"
-                    )}
-                    onClick={handleLinkClick}
-                    data-testid={item.testId}
-                  >
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${getNavigationClassName(isActive)} group`}
+                  onClick={handleLinkClick}
+                  data-testid={item.testId}
+                >
                     <Icon className={cn("h-4 w-4 transition-colors", isActive ? "text-indigo-400" : itemColorClass)} />
                     <span className="truncate">{item.label}</span>
-                  </Button>
                 </Link>
               );
             }
@@ -356,6 +330,19 @@ export function AdminSidebar({
         </SheetContent>
       </Sheet>
 
+      {!isMobileMenuControlled && (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => setMobileOpen(true)}
+          className="fixed left-4 top-4 z-40 border-slate-300 bg-background shadow-md md:hidden"
+          aria-label="Open admin navigation"
+          data-testid="button-admin-sidebar-menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
+
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 border-r border-slate-800 min-h-screen sticky top-0 h-screen flex-col shadow-xl z-20">
         <SidebarContent />
@@ -378,4 +365,3 @@ export function AdminMobileMenuTrigger({ onOpen }: { onOpen: () => void }) {
     </Button>
   );
 }
-

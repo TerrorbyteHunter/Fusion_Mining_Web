@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ImageSelector } from "@/components/ImageSelector";
+import { ListingImageGallerySelector } from "@/components/ListingImageGallerySelector";
 import { Package, CheckCircle, Info, ArrowLeft, Loader2 } from "lucide-react";
 import { useLocation, Link, useParams } from "wouter";
 import { MAIN_CATEGORIES, getSubcategoriesForMain, getSpecificTypes } from "@shared/categories";
@@ -42,6 +42,7 @@ export default function EditListing() {
         quantity: "",
         price: "",
         imageUrl: "",
+        imageUrls: [] as string[],
     });
 
     const { data: listing, isLoading: loadingListing } = useQuery({
@@ -68,6 +69,7 @@ export default function EditListing() {
                 quantity: listing.quantity || "",
                 price: listing.price || "",
                 imageUrl: listing.imageUrl || "",
+                imageUrls: listing.imageUrls?.length ? listing.imageUrls : listing.imageUrl ? [listing.imageUrl] : [],
             });
         }
     }, [listing]);
@@ -79,7 +81,8 @@ export default function EditListing() {
                 title: data.title,
                 description: data.description,
                 location: data.location,
-                imageUrl: data.imageUrl,
+                imageUrl: data.imageUrls[0] || data.imageUrl,
+                imageUrls: data.imageUrls,
             };
 
             if (data.mainCategory) {
@@ -280,11 +283,11 @@ export default function EditListing() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Listing Image</Label>
-                                    <ImageSelector
-                                        value={listingForm.imageUrl}
-                                        onChange={(value) => setListingForm({ ...listingForm, imageUrl: value })}
-                                        label=""
+                                    <Label>Listing Photos</Label>
+                                    <ListingImageGallerySelector
+                                        value={listingForm.imageUrls}
+                                        onChange={(imageUrls) => setListingForm({ ...listingForm, imageUrls, imageUrl: imageUrls[0] || "" })}
+                                        testId="input-listing-gallery"
                                     />
                                 </div>
 

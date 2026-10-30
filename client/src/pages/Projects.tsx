@@ -1,7 +1,8 @@
 // Projects page with interactive map and project cards
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link, useLocation } from "wouter";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,11 @@ import {
   Search,
   Heart,
   MessageCircle,
-  BadgeCheck
+  BadgeCheck,
+  Boxes,
+  CircleDollarSign,
+  Gem,
+  Share2
 } from "lucide-react";
 import { MiningOperationsMap } from "@/components/MiningOperationsMap";
 import { ImageDisplay } from "@/components/ImageDisplay";
@@ -42,6 +47,7 @@ void 0; // Suppress "unused import" warnings - dialog feature planned for future
 // import { Textarea } from "@/components/ui/textarea";
 
 export default function Projects() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
@@ -219,6 +225,25 @@ export default function Projects() {
     setMessageDialogOpen(true);
   };
 
+  const shareProject = async (project: ProjectWithOwner) => {
+    const url = new URL(`/projects/${encodeURIComponent(project.id)}`, window.location.origin).toString();
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: project.name, url });
+        return;
+      }
+      if (!navigator.clipboard?.writeText) throw new Error("Sharing is not supported by this browser.");
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "The project link is ready to share." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      toast({
+        title: "Unable to share this project",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Filter projects
   const filteredProjects = projects?.filter((project) => {
@@ -269,7 +294,7 @@ export default function Projects() {
           </div>
           <MiningOperationsMap
             projects={filteredProjects}
-            onProjectClick={(project) => handleContactSeller(project as any)}
+            onProjectClick={(project) => setLocation(`/projects/${encodeURIComponent(project.id)}`)}
             onRegionClick={(region) => setSelectedRegion(region)}
             selectedRegion={selectedRegion === "all" ? undefined : selectedRegion}
           />
@@ -344,83 +369,123 @@ export default function Projects() {
       <section className="py-16">
         <div className="container mx-auto px-4">
           {loadingProjects ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
-                <Card key={i}>
-                  <Skeleton className="h-48 w-full" />
-                  <CardHeader>
+                <Card key={i} className="flex items-center gap-4 p-4">
+                  <Skeleton className="h-[120px] w-[120px] shrink-0 rounded-lg" />
+                  <div className="flex-1 space-y-3">
                     <Skeleton className="h-6 w-3/4" />
                     <Skeleton className="h-4 w-full" />
-                  </CardHeader>
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
                 </Card>
               ))}
             </div>
           ) : filteredProjects && filteredProjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredProjects.map((project) => (
-                <Card key={project.id} className="hover-elevate transition-all" data-testid={`card-project-${project.id}`}>
-                  <ImageDisplay
-                    imageUrl={project.imageUrl}
-                    alt={project.name}
-                    // use a contextual fallback image from attached_assets
-                    fallbackImage={
-                      project.minerals && project.minerals.length > 0
-                        ? (function getMineralImage(mineral: string) {
-                          const m = mineral.toLowerCase();
-                          if (m.includes('copper')) return copper1Img;
-                          if (m.includes('gold')) return gold1Img;
-                          if (m.includes('emerald') || m.includes('green')) return green1Img;
-                          return catalogueImg;
-                        })(project.minerals[0])
-                        : catalogueImg
-                    }
-                  />
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="flex items-center gap-2">
-                        <CardTitle className="text-xl line-clamp-1">{project.name}</CardTitle>
-                        {project.itemId ? (
-                          <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
-                            {project.itemId}
+                <Card
+                  key={project.id}
+                  className="group/project relative flex h-full flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-700/30 hover:shadow-lg"
+                  data-testid={`card-project-${project.id}`}
+                >
+                  <Link
+                    href={`/projects/${encodeURIComponent(project.id)}`}
+                    className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
+                    aria-label={`View project ${project.name}`}
+                  >
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-2 items-center justify-center bg-gradient-to-t from-black/70 to-transparent py-5 pt-12 text-sm font-medium text-white opacity-0 transition-all group-hover/project:translate-y-0 group-hover/project:opacity-100">
+                      View project details
+                    </span>
+                  </Link>
+                  <CardContent className="pointer-events-none relative z-20 flex flex-1 flex-col gap-4 p-4">
+                    <div className="flex min-w-0 items-center gap-4">
+                      <ImageDisplay
+                        imageUrl={project.imageUrls?.[0] || project.imageUrl}
+                        alt={project.name}
+                        fallbackImage={
+                          project.minerals && project.minerals.length > 0
+                            ? (function getMineralImage(mineral: string) {
+                              const m = mineral.toLowerCase();
+                              if (m.includes('copper')) return copper1Img;
+                              if (m.includes('gold')) return gold1Img;
+                              if (m.includes('emerald') || m.includes('green')) return green1Img;
+                              return catalogueImg;
+                            })(project.minerals[0])
+                            : catalogueImg
+                        }
+                        className="h-[120px] w-[120px] shrink-0 overflow-hidden rounded-lg border border-border/70 bg-muted"
+                        iconClassName="h-12 w-12"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <CardTitle className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">
+                            {project.name}
+                          </CardTitle>
+                          {project.itemId && (
+                            <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">
+                              #{project.itemId}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground" data-testid={`text-owner-${project.id}`}>
+                          <span className="truncate">
+                            {project.owner
+                              ? `${project.owner.firstName || ""} ${project.owner.lastName || ""}`.trim() || "Project owner"
+                              : "Project owner"}
                           </span>
-                        ) : null}
+                        </div>
+                        <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground transition-all group-hover/project:line-clamp-4">
+                          {project.description}
+                        </p>
                       </div>
+                    </div>
+
+                    <div className="flex min-h-6 flex-wrap items-center gap-2">
                       <StatusBadge status={project.status} />
-                    </div>
-                    <CardDescription className="line-clamp-2">
-                      {project.description}
-                    </CardDescription>
-                    {project.owner && (
-                      <div className="flex items-center gap-1 mt-2 text-sm text-muted-foreground" data-testid={`text-owner-${project.id}`}>
-                        <span>{project.owner.firstName} {project.owner.lastName}</span>
-                        {project.owner?.verified && (
-                          <BadgeCheck className="h-4 w-4 text-blue-500 fill-blue-500/10 flex-shrink-0" data-testid={`badge-verified-${project.id}`} />
-                        )}
-                      </div>
-                    )}
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <FileText className="h-4 w-4" />
-                        <span className="capitalize">{project.licenseType}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="h-4 w-4" />
-                        <span>{project.location}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {project.minerals.map((mineral: string, idx: number) => (
-                        <Badge key={idx} variant="secondary">
-                          {mineral}
+                      {project.owner?.verified && (
+                        <Badge className="gap-1 border-emerald-700/15 bg-emerald-100 px-2 py-0 text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                          <BadgeCheck className="h-3 w-3" aria-hidden="true" data-testid={`badge-verified-${project.id}`} />
+                          Verified Owner
                         </Badge>
-                      ))}
+                      )}
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 pt-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-xs text-muted-foreground">License</span>
+                        <span className="min-w-0 truncate text-sm font-medium capitalize">{project.licenseType.replace(/_/g, " ")}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-xs text-muted-foreground">Location</span>
+                        <span className="min-w-0 truncate text-sm font-medium">{project.location}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Gem className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-xs text-muted-foreground">Minerals</span>
+                        <span className="min-w-0 truncate text-sm font-medium">{project.minerals.join(", ") || "Not specified"}</span>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Boxes className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-xs text-muted-foreground">Area</span>
+                        <span className="min-w-0 truncate text-sm font-medium">{project.area || "Not specified"}</span>
+                      </div>
+                      <div className="col-span-2 flex min-w-0 items-center gap-2">
+                        <CircleDollarSign className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                        <span className="shrink-0 text-xs text-muted-foreground">Estimated value</span>
+                        <span className="min-w-0 truncate text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                          {project.estimatedValue || "Contact owner"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto flex items-center gap-2 border-t border-border/60 pt-3">
                       <Button
-                        className="flex-1"
+                        className="h-9 min-h-9 min-w-0 flex-1 px-3 text-sm"
                         variant="default"
+                        style={{ pointerEvents: "auto" }}
                         onClick={() => handleContactSeller(project)}
                         disabled={contactSellerMutation.isPending || loadingAdminContact}
                         data-testid={`button-contact-seller-${project.id}`}
@@ -440,12 +505,27 @@ export default function Projects() {
                       <Button
                         variant={expressedInterests.has(project.id) ? "secondary" : "outline"}
                         size="icon"
+                        className="h-9 w-9"
+                        style={{ pointerEvents: "auto" }}
                         onClick={() => handleExpressInterest(project.id)}
                         disabled={expressInterestMutation.isPending}
                         data-testid={`button-express-interest-${project.id}`}
                         title={expressedInterests.has(project.id) ? "Remove Bookmark" : "Bookmark Project"}
+                        aria-label={expressedInterests.has(project.id) ? "Remove project bookmark" : "Bookmark project"}
                       >
                         <Heart className={`h-4 w-4 ${expressedInterests.has(project.id) ? 'fill-current text-red-500' : ''}`} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-9 w-9"
+                        style={{ pointerEvents: "auto" }}
+                        onClick={() => void shareProject(project)}
+                        aria-label="Share project"
+                        title="Share project"
+                        data-testid={`button-share-project-${project.id}`}
+                      >
+                        <Share2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardContent>

@@ -391,13 +391,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ownerId: l.sellerId,
           name: l.title,
           description: l.description,
-          licenseType: (l as any).licenseType || 'mining',
+          licenseType: 'mining',
           minerals: l.mineralType ? [l.mineralType] : [],
           location: l.location,
           latitude: null,
           longitude: null,
           status: l.status === 'approved' ? 'active' : 'pending',
           imageUrl: l.imageUrl,
+          imageUrls: l.imageUrls || [],
+          area: null,
+          estimatedValue: null,
+          certifications: [],
           createdAt: l.createdAt,
           updatedAt: l.updatedAt,
           owner: l.seller ? {
@@ -426,13 +430,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ownerId: listing.sellerId,
             name: listing.title,
             description: listing.description,
-            licenseType: (listing as any).licenseType || 'mining',
+            licenseType: 'mining',
             minerals: listing.mineralType ? [listing.mineralType] : [],
             location: listing.location,
             latitude: null,
             longitude: null,
             status: listing.status === 'approved' ? 'active' : 'pending',
             imageUrl: listing.imageUrl,
+            imageUrls: listing.imageUrls || [],
+            area: null,
+            estimatedValue: null,
+            certifications: [],
             createdAt: listing.createdAt,
             updatedAt: listing.updatedAt,
             owner: listing.seller ? {
@@ -1055,7 +1063,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!thread || !requester) return null;
 
     if (requester.role === 'admin') {
-      return thread.isAdminSupport ? thread : null;
+      if (thread.isAdminSupport) return thread;
+      if (thread.type === 'admin_to_seller' && thread.adminId === userId) return thread;
+      return null;
     }
     return thread.buyerId === userId || thread.sellerId === userId ? thread : null;
   };
@@ -1145,17 +1155,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Admin endpoint to get support tickets (PRIVACY: only support tickets, never buyer-seller conversations)
+  // Admins may see support tickets and their own admin-initiated seller conversations.
   app.get('/api/threads/all', isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      // PRIVACY CONTROL: Admins ONLY see support tickets (isAdminSupport=true)
-      // They can NEVER see buyer-seller marketplace conversations
+      // Admins see support tickets and admin-initiated seller conversations only.
       const status = req.query.status as string | undefined;
       const priority = req.query.priority as string | undefined;
       const assignedAdminId = req.query.assignedAdminId as string | undefined;
 
-      const tickets = await storage.getAdminSupportTickets({ status, priority, assignedAdminId });
-      res.json(tickets);
+      const adminId = req.user.claims?.sub || req.user.id;
+      const [tickets, sellerThreads] = await Promise.all([
+        storage.getAdminSupportTickets({ status, priority, assignedAdminId }),
+        storage.getAdminSellerThreads(adminId),
+      ]);
+      res.json([...tickets, ...sellerThreads].sort(
+        (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+      ));
     } catch (error) {
       console.error("Error fetching admin support tickets:", error);
       res.status(500).json({ message: "Failed to fetch support tickets" });
@@ -1248,9 +1263,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Thread not found" });
       }
 
-      const receiverId = senderId === thread.buyerId
-        ? thread.sellerId || thread.assignedAdminId || thread.adminId
-        : thread.buyerId;
+      const receiverId = thread.type === 'admin_to_seller'
+        ? (senderId === thread.adminId ? thread.sellerId : thread.adminId)
+        : senderId === thread.buyerId
+          ? thread.sellerId || thread.assignedAdminId || thread.adminId
+          : thread.buyerId;
       if (!receiverId) {
         return res.status(409).json({ message: "This thread has no available recipient" });
       }
@@ -1916,11 +1933,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Only admins can use this endpoint" });
       }
 
+      const listing = listingId ? await storage.getMarketplaceListingById(listingId) : undefined;
+      const project = projectId ? await storage.getProjectById(projectId) : undefined;
+      if (listingId && !listing) {
+        return res.status(404).json({ message: "Listing not found" });
+      }
+      if (projectId && !project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      const linkedSellerId = listing?.sellerId || project?.ownerId;
+      if (linkedSellerId !== sellerId) {
+        return res.status(400).json({ message: "The seller does not own this listing or project" });
+      }
+
       // Check if thread already exists
-      const existingThreads = await storage.getAllMessageThreads();
-      let existingThread = existingThreads.find(t =>
-        t.type === 'admin_to_seller' &&
-        t.adminId === adminId &&
+      const existingThreads = await storage.getAdminSellerThreads(adminId);
+      const existingThread = existingThreads.find(t =>
         t.sellerId === sellerId &&
         (projectId ? t.projectId === projectId : t.listingId === listingId)
       );
@@ -1933,17 +1961,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create new thread
       let threadTitle = '';
       if (projectId) {
-        const project = await storage.getProjectById(projectId);
-        if (!project) {
-          return res.status(404).json({ message: "Project not found" });
-        }
-        threadTitle = `Admin inquiry about project: ${project.name}`;
+        threadTitle = `Admin inquiry about project: ${project!.name}`;
       } else if (listingId) {
-        const listing = await storage.getMarketplaceListingById(listingId);
-        if (!listing) {
-          return res.status(404).json({ message: "Listing not found" });
-        }
-        threadTitle = `Admin inquiry about listing: ${listing.title}`;
+        threadTitle = `Admin inquiry about listing: ${listing!.title}`;
       }
 
       const newThread = await storage.createMessageThread({
@@ -2149,7 +2169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/blog/:slug', async (req, res) => {
     try {
       const post = await storage.getBlogPostBySlug(req.params.slug);
-      if (!post) {
+      if (!post || !post.published) {
         return res.status(404).json({ message: "Blog post not found" });
       }
       res.json(post);
@@ -2638,6 +2658,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching RFQ verification queue:", error);
       res.status(500).json({ message: "Failed to fetch RFQ verification queue" });
+    }
+  });
+
+  app.get('/api/admin/activity-logs', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const requestedLimit = Number.parseInt(String(req.query.limit ?? "500"), 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 500) : 500;
+      const activityType = typeof req.query.activityType === "string" ? req.query.activityType : undefined;
+      const userId = typeof req.query.userId === "string" ? req.query.userId : undefined;
+      const logs = await storage.getActivityLogs(limit);
+      const filteredLogs = logs.filter((log) =>
+        log.user?.role !== "admin" &&
+        (!activityType || log.activityType === activityType) &&
+        (!userId || log.userId === userId)
+      );
+      res.json(filteredLogs);
+    } catch (error) {
+      console.error("Error fetching activity logs:", error);
+      res.status(500).json({ message: "Failed to fetch activity logs" });
+    }
+  });
+
+  app.get('/api/admin/audit-logs', isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const requestedLimit = Number.parseInt(String(req.query.limit ?? "200"), 10);
+      const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 200) : 200;
+      const fromDate = typeof req.query.from === "string" ? new Date(req.query.from) : undefined;
+      const toDate = typeof req.query.to === "string" ? new Date(req.query.to) : undefined;
+      const action = typeof req.query.action === "string" ? req.query.action : undefined;
+
+      if ((fromDate && !Number.isFinite(fromDate.getTime())) || (toDate && !Number.isFinite(toDate.getTime()))) {
+        return res.status(400).json({ message: "Invalid audit-log date filter" });
+      }
+      if (fromDate && toDate && fromDate > toDate) {
+        return res.status(400).json({ message: "The start date must be before the end date" });
+      }
+
+      let logs = await storage.getAdminAuditLogs();
+      if (action && action !== "all") logs = logs.filter((log) => log.action === action);
+      if (fromDate) logs = logs.filter((log) => new Date(log.createdAt) >= fromDate);
+      if (toDate) {
+        toDate.setUTCHours(23, 59, 59, 999);
+        logs = logs.filter((log) => new Date(log.createdAt) <= toDate);
+      }
+      res.json(logs.slice(0, limit));
+    } catch (error) {
+      console.error("Error fetching admin audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch admin audit logs" });
+    }
+  });
+
+  app.post('/api/admin/audit-log', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { action, targetType, targetId, changes } = req.body;
+      if (typeof action !== "string" || !action.trim() || typeof targetType !== "string" || !targetType.trim()) {
+        return res.status(400).json({ message: "Action and target type are required" });
+      }
+
+      await storage.logAdminAudit({
+        adminId: req.user.id,
+        action: action.trim(),
+        targetType: targetType.trim(),
+        targetId: typeof targetId === "string" ? targetId : null,
+        changes: changes ?? null,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent") || null,
+      });
+      res.json({ message: "Audit log recorded" });
+    } catch (error) {
+      console.error("Error recording admin audit log:", error);
+      res.status(500).json({ message: "Failed to record admin audit log" });
     }
   });
 

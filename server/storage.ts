@@ -225,6 +225,7 @@ export interface IStorage {
   createMessageThread(thread: InsertMessageThread): Promise<MessageThread>;
   getThreadById(id: string): Promise<MessageThread | undefined>;
   getThreadsByUserId(userId: string): Promise<MessageThread[]>;
+  getAdminSellerThreads(adminId: string): Promise<MessageThread[]>;
   getThreadsByBuyerId(buyerId: string): Promise<MessageThread[]>;
   getThreadsBySellerId(sellerId: string): Promise<MessageThread[]>;
   getThreadWithParticipants(id: string): Promise<any>;
@@ -1133,6 +1134,17 @@ export class DatabaseStorage implements IStorage {
           eq(messageThreads.sellerId, userId)
         )
       )
+      .orderBy(desc(messageThreads.lastMessageAt));
+  }
+
+  async getAdminSellerThreads(adminId: string): Promise<MessageThread[]> {
+    return await db
+      .select()
+      .from(messageThreads)
+      .where(and(
+        eq(messageThreads.adminId, adminId),
+        eq(messageThreads.type, 'admin_to_seller'),
+      ))
       .orderBy(desc(messageThreads.lastMessageAt));
   }
 
@@ -2213,11 +2225,19 @@ export class DatabaseStorage implements IStorage {
         projectName: projects.name,
         projectImageUrl: projects.imageUrl,
         projectOwnerId: projects.ownerId,
+        projectMinerals: projects.minerals,
+        projectLocation: projects.location,
+        projectArea: projects.area,
         listingTitle: marketplaceListings.title,
         listingImageUrl: marketplaceListings.imageUrl,
         listingSellerId: marketplaceListings.sellerId,
         projectLicenseType: projects.licenseType,
         listingType: marketplaceListings.type,
+        listingSpecificType: marketplaceListings.specificType,
+        listingGrade: marketplaceListings.grade,
+        listingQuantity: marketplaceListings.quantity,
+        listingPrice: marketplaceListings.price,
+        listingLocation: marketplaceListings.location,
       })
       .from(expressInterest)
       .leftJoin(projects, eq(expressInterest.projectId, projects.id))

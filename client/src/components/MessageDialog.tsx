@@ -1,6 +1,6 @@
 // Message dialog for contacting sellers and buyers
 import { useState, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +55,8 @@ export function MessageDialog({
   onSent,
 }: MessageDialogProps) {
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const queryClient = useQueryClient();
   const [subject, setSubject] = useState(defaultSubject || "");
   const [content, setContent] = useState("");
 
@@ -82,6 +83,19 @@ export function MessageDialog({
 
       // If listingId is provided, create or reuse a thread for that listing
       if (listingId) {
+        if (user?.role === "admin") {
+          const threadResponse = await apiRequest("POST", "/api/messages/contact-seller", {
+            listingId,
+            sellerId: recipientId,
+          });
+          const { thread } = await threadResponse.json() as { thread: MessageThread };
+          await apiRequest("POST", `/api/threads/${thread.id}/messages`, {
+            subject: subject || thread.title,
+            content,
+          });
+          return { kind: "sent" as const };
+        }
+
         // Create thread tied to listing (server will set seller/buyer appropriately)
         const threadResp = await apiRequest("POST", "/api/threads", { listingId, title: subject || `Inquiry about: ${listingTitle || ''}` });
         const thread = await threadResp.json();
@@ -93,6 +107,19 @@ export function MessageDialog({
 
       // If projectId is provided, create or reuse a thread for that project
       if (projectId) {
+        if (user?.role === "admin") {
+          const threadResponse = await apiRequest("POST", "/api/messages/contact-seller", {
+            projectId,
+            sellerId: recipientId,
+          });
+          const { thread } = await threadResponse.json() as { thread: MessageThread };
+          await apiRequest("POST", `/api/threads/${thread.id}/messages`, {
+            subject: subject || thread.title,
+            content,
+          });
+          return { kind: "sent" as const };
+        }
+
         // Create thread tied to project
         const threadResp = await apiRequest("POST", "/api/threads", { projectId, title: subject || `Inquiry about: ${projectTitle || ''}` });
         const thread = await threadResp.json();
@@ -128,6 +155,8 @@ export function MessageDialog({
       return { kind: "sent" as const };
     },
     onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      void queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
       toast({
         title: "Message Sent",
         description: "Your message has been sent successfully!",

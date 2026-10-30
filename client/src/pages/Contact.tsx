@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { useQuery } from '@tanstack/react-query';
 import { getQueryFn } from '@/lib/queryClient';
+import { getContactPhoneNumbers, PRIMARY_CONTACT_PHONE } from '@/lib/contactDetails';
 
 function ContactInfo() {
   const { data: contact } = useQuery<any>({
@@ -35,7 +36,8 @@ function ContactInfo() {
   });
 
   const office = (contact?.officeAddress as string) ?? 'Shaolin Temple\nNgwerere Road\nOffice # 1';
-  const phone = (contact?.phone as string) ?? '+260 978 838 939';
+  const phone = (contact?.phone as string) ?? PRIMARY_CONTACT_PHONE;
+  const phoneNumbers = getContactPhoneNumbers(phone);
   const email = (contact?.email as string) ?? 'fusionminingltd@gmail.com';
   const hoursMonFri = (contact?.mondayFriday as string) ?? '8:00 AM - 5:00 PM';
 
@@ -60,7 +62,12 @@ function ContactInfo() {
         <div>
           <h3 className="font-semibold mb-1">Phone</h3>
           <p className="text-muted-foreground">
-            {phone}
+            {phoneNumbers.map((number, index) => (
+              <span key={number}>
+                {index > 0 && <br />}
+                {number}
+              </span>
+            ))}
             <br />
             Mon - Fri: {hoursMonFri}
           </p>

@@ -1,0 +1,2 @@
+ALTER TABLE "projects" ADD COLUMN "image_urls" text[] DEFAULT ARRAY[]::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "projects" ADD COLUMN "certifications" text[] DEFAULT ARRAY[]::text[] NOT NULL;

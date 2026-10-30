@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   MessageSquare, Send, X, Users, Briefcase, UserCircle, ShieldCheck, Mail, Phone,
   MapPin, Building2, Copy, Eye, MessageCircle, CheckCircle, Paperclip, MoreVertical,
-  Search, ArrowLeft, BadgeCheck, Package
+  Search, ArrowLeft, BadgeCheck, Package, RefreshCw
 } from "lucide-react";
 import { MessageDialog } from "@/components/MessageDialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -49,16 +49,14 @@ export default function Messages() {
   const [contactAdminSubject, setContactAdminSubject] = useState("");
   const [contactAdminMessage, setContactAdminMessage] = useState("");
   const [selectedContactSubmissionForThread, setSelectedContactSubmissionForThread] = useState<ContactSubmission | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
   };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [selectedThread, messageContent]); // Also scroll when thread changes
 
   const renderMessageContent = (content: string) => {
     const attachmentMatch = content.match(/Attachment:\s*(.+?)\s*-\s*(https?:\/\/\S+|\S+)/i);
@@ -157,10 +155,12 @@ export default function Messages() {
       const found = threads.find(t => t.id === tid);
       if (found) {
         setSelectedThread(found as any);
-        setActiveTab(found.projectId ? 'projects' : 'inbox');
+        setActiveTab(user?.role === 'admin'
+          ? found.isAdminSupport ? 'sellers' : 'seller-messages'
+          : 'inbox');
       }
     } catch (err) { }
-  }, [threads]);
+  }, [threads, user?.role]);
 
   // Handle new message from query params
   useEffect(() => {
@@ -202,10 +202,10 @@ export default function Messages() {
   });
 
   useEffect(() => {
-    if (threadMessages) {
-      setTimeout(scrollToBottom, 100);
-    }
-  }, [threadMessages]);
+    if (!selectedThread || messagesLoading || !threadMessages) return;
+    const frame = requestAnimationFrame(scrollToBottom);
+    return () => cancelAnimationFrame(frame);
+  }, [selectedThread?.id, threadMessages, messagesLoading]);
 
 
   // Fetch selected thread details
@@ -224,6 +224,18 @@ export default function Messages() {
     if (!threadDetails || !selectedThread) return null;
     const meId = user?.id || (user as any)?.claims?.sub;
     if (!meId) return null;
+    if (selectedThread.adminId === meId) {
+      return {
+        user: threadDetails.seller || threadDetails.buyer,
+        profile: threadDetails.sellerProfile || threadDetails.buyerProfile,
+      };
+    }
+    if (selectedThread.sellerId === meId && selectedThread.adminId) {
+      return {
+        user: threadDetails.admin,
+        profile: threadDetails.adminProfile,
+      };
+    }
     if (selectedThread.buyerId === meId) {
       return {
         user: threadDetails.seller || threadDetails.admin,
@@ -254,6 +266,25 @@ export default function Messages() {
   const handleSendMessage = () => {
     if (!selectedThread || !messageContent.trim()) return;
     sendMessageMutation.mutate({ threadId: selectedThread.id, content: messageContent });
+  };
+
+  const handleRefreshMessages = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/threads"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/messages"] }),
+      ]);
+    } catch (error) {
+      console.error("Failed to refresh messages:", error);
+      toast({
+        title: "Refresh failed",
+        description: "Could not refresh your conversations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const uploadAttachmentMutation = useMutation({
@@ -417,7 +448,7 @@ export default function Messages() {
   }, [threadMessages, isAuthenticated, user]);
 
   useEffect(() => {
-    if (user?.role === 'buyer' && activeTab === 'sellers') setActiveTab('inbox');
+    if (user?.role !== 'admin' && activeTab !== 'inbox') setActiveTab('inbox');
     if (user?.role === 'admin' && activeTab === 'inbox') setActiveTab('sellers');
   }, [user?.role, activeTab]);
 
@@ -439,6 +470,10 @@ export default function Messages() {
     () => processedThreads.filter(thread => thread.isAdminSupport),
     [processedThreads]
   );
+  const adminSellerThreads = useMemo(
+    () => processedThreads.filter(thread => thread.type === "admin_to_seller"),
+    [processedThreads]
+  );
   const adminOpenCount = adminSupportThreads.filter(thread => (thread.ticketStatus || "open") === "open").length;
   const adminInProgressCount = adminSupportThreads.filter(thread => thread.ticketStatus === "in_progress").length;
   const adminWaitingCount = adminSupportThreads.filter(thread => thread.ticketStatus === "waiting_user").length;
@@ -447,33 +482,16 @@ export default function Messages() {
   // Filtering
   const filteredThreads = () => {
     if (!processedThreads) return [] as any[];
-    const currentUserId = user?.id || (user as any)?.claims?.sub;
     const isAdmin = user?.role === 'admin';
     let base: (MessageThread & { unreadCount?: number })[] = [];
 
     if (isAdmin) {
-      base = adminSupportThreads;
-      if (ticketQueueFilter !== "all") {
+      base = activeTab === "seller-messages" ? adminSellerThreads : adminSupportThreads;
+      if (activeTab !== "seller-messages" && ticketQueueFilter !== "all") {
         base = base.filter(thread => (thread.ticketStatus || "open") === ticketQueueFilter);
       }
     } else {
-      switch (activeTab) {
-        case "inbox":
-          base = processedThreads.filter(t =>
-            t.isAdminSupport ||
-            (t as any).context === 'marketplace' ||
-            (!!t.listingId && !t.projectId)
-          ); break;
-        case "projects":
-          base = processedThreads.filter(t => (t as any).context === 'project_interest' || !!t.projectId); break;
-        case "sellers":
-          base = processedThreads.filter(t => {
-            if (t.sellerId === currentUserId) return true;
-            if (t.buyerId === currentUserId && !!t.sellerId) return true;
-            return false;
-          }); break;
-        default: base = processedThreads;
-      }
+      base = processedThreads;
     }
 
     const q = threadSearchQuery.trim().toLowerCase();
@@ -594,10 +612,21 @@ export default function Messages() {
               </div>
             </div>
             {user?.role !== 'admin' && (
-              <Button onClick={() => setOpenContactAdminDialog(true)} className="shadow-lg shadow-primary/20">
-                <ShieldCheck className="w-4 h-4 mr-2" />
-                Contact Support
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleRefreshMessages}
+                  disabled={isRefreshing}
+                  aria-label="Refresh messages"
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+                <Button onClick={() => setOpenContactAdminDialog(true)} className="shadow-lg shadow-primary/20">
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Contact Support
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -617,14 +646,11 @@ export default function Messages() {
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="flex w-full overflow-x-auto pb-0.5 no-scrollbar justify-start gap-1">
                     {user?.role !== "admin" ? (
-                      <>
-                        <TabsTrigger value="inbox" className="flex-1">Inbox</TabsTrigger>
-                        <TabsTrigger value="projects" className="flex-1">Projects</TabsTrigger>
-                        <TabsTrigger value="sellers" className="flex-1">{user?.role === 'buyer' ? 'Sellers' : 'Buyers'}</TabsTrigger>
-                      </>
+                      <TabsTrigger value="inbox" className="w-full">Inbox</TabsTrigger>
                     ) : (
                       <>
                         <TabsTrigger value="sellers" className="flex-1">Tickets</TabsTrigger>
+                        <TabsTrigger value="seller-messages" className="flex-1">Seller messages</TabsTrigger>
                         <TabsTrigger value="contact-submissions" className="flex-1">Contact forms</TabsTrigger>
                         <TabsTrigger value="users" className="flex-1">Users</TabsTrigger>
                       </>
@@ -637,7 +663,9 @@ export default function Messages() {
                     <Input
                       value={threadSearchQuery}
                       onChange={(e) => setThreadSearchQuery(e.target.value)}
-                      placeholder={user?.role === "admin" ? "Search support tickets..." : "Search conversations..."}
+                      placeholder={user?.role === "admin"
+                        ? activeTab === "seller-messages" ? "Search seller messages..." : "Search support tickets..."
+                        : "Search conversations..."}
                       className="pl-9 h-9"
                     />
                   </div>
@@ -830,7 +858,7 @@ export default function Messages() {
                           </div>
 
                           <div className="flex items-center justify-between gap-2">
-                            {user?.role === "admin" ? (
+                            {user?.role === "admin" && thread.isAdminSupport ? (
                               <div className="flex min-w-0 items-center gap-1.5">
                                 <Badge variant="outline" className={`h-5 max-w-[105px] truncate px-1.5 text-[9px] capitalize ${
                                   thread.ticketStatus === "open" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" :
@@ -845,7 +873,9 @@ export default function Messages() {
                               </div>
                             ) : (
                               <p className="text-xs text-muted-foreground truncate leading-relaxed">
-                                {thread.context === 'marketplace' ? 'Marketplace Inquiry' : thread.context === 'project_interest' ? 'Project Interest' : 'Direct Message'}
+                                {user?.role === "admin" && thread.type === "admin_to_seller"
+                                  ? "Seller conversation"
+                                  : thread.context === 'marketplace' ? 'Marketplace Inquiry' : thread.context === 'project_interest' ? 'Project Interest' : 'Direct Message'}
                               </p>
                             )}
                             {(thread.unreadCount || 0) > 0 && (
@@ -866,7 +896,9 @@ export default function Messages() {
                 {filteredThreads().length === 0 && (
                   <div className="text-center py-8 text-muted-foreground text-sm">
                     {user?.role === "admin"
-                      ? ticketQueueFilter === "all" ? "No support tickets yet" : "No tickets match this status"
+                      ? activeTab === "seller-messages"
+                        ? "No seller conversations yet"
+                        : ticketQueueFilter === "all" ? "No support tickets yet" : "No tickets match this status"
                       : "No messages found"}
                   </div>
                 )}
@@ -907,7 +939,7 @@ export default function Messages() {
                     )}
                   </div>
 
-                  {user?.role === "admin" && (
+                  {user?.role === "admin" && selectedThread.isAdminSupport && (
                     <div className="grid grid-cols-1 gap-3 border-b bg-muted/20 p-3 sm:grid-cols-3">
                       <div className="space-y-1">
                         <span className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
@@ -988,7 +1020,7 @@ export default function Messages() {
                   )}
 
                   {/* Messages List */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 dark:bg-slate-900/10 scrollbar-thin scrollbar-thumb-border">
+                  <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 dark:bg-slate-900/10 scrollbar-thin scrollbar-thumb-border">
                     {messagesLoading ? (
                       <div className="space-y-6">
                         <Skeleton className="h-10 w-[40%] rounded-2xl" />
@@ -1041,7 +1073,6 @@ export default function Messages() {
                         </div>
                       ))
                     )}
-                    <div ref={messagesEndRef} />
                   </div>
 
                   {/* Input Area */}

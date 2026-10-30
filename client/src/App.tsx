@@ -17,8 +17,11 @@ import Login from "@/pages/Login";
 import AdminLogin from "@/pages/AdminLogin";
 import Signup from "@/pages/Signup";
 import Projects from "@/pages/Projects";
+import ProjectDetail from "@/pages/ProjectDetail";
 import Marketplace from "@/pages/Marketplace";
+import ProductDetail from "@/pages/ProductDetail";
 import News from "@/pages/News";
+import NewsArticle from "@/pages/NewsArticle";
 import Contact from "@/pages/Contact";
 import Admin from "@/pages/Admin";
 import AdminCMS from "@/pages/AdminCMS";
@@ -81,9 +84,12 @@ function Router() {
             <Route path="/admin/login" component={AdminLogin} />
             <Route path="/signup" component={Signup} />
             <Route path="/services" component={ServicesCompliance} />
+            <Route path="/projects/:id" component={ProjectDetail} />
             <Route path="/projects" component={Projects} />
+            <Route path="/marketplace/listings/:id" component={ProductDetail} />
             <Route path="/marketplace" component={Marketplace} />
             <Route path="/sustainability" component={Sustainability} />
+            <Route path="/news/:slug" component={NewsArticle} />
             <Route path="/news" component={News} />
             <Route path="/about" component={About} />
             <Route path="/contact" component={Contact} />

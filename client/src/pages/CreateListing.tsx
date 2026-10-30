@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ImageSelector } from "@/components/ImageSelector";
+import { ListingImageGallerySelector } from "@/components/ListingImageGallerySelector";
 import { Package, CheckCircle, Info, ArrowLeft } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { MAIN_CATEGORIES, getSubcategoriesForMain, getSpecificTypes } from "@shared/categories";
@@ -40,6 +40,7 @@ export default function CreateListing() {
     quantity: "",
     price: "",
     imageUrl: "",
+    imageUrls: [] as string[],
   });
 
   const createListingMutation = useMutation({
@@ -49,7 +50,8 @@ export default function CreateListing() {
         title: data.title,
         description: data.description,
         location: data.location,
-        imageUrl: data.imageUrl,
+        imageUrl: data.imageUrls[0] || data.imageUrl,
+        imageUrls: data.imageUrls,
       };
 
       // Add category fields based on main category
@@ -408,14 +410,13 @@ export default function CreateListing() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-base font-semibold">Listing Image</Label>
-                  <ImageSelector
-                    value={listingForm.imageUrl}
-                    onChange={(value) =>
-                      setListingForm({ ...listingForm, imageUrl: value })
+                  <Label className="text-base font-semibold">Listing Photos</Label>
+                  <ListingImageGallerySelector
+                    value={listingForm.imageUrls}
+                    onChange={(imageUrls) =>
+                      setListingForm({ ...listingForm, imageUrls, imageUrl: imageUrls[0] || "" })
                     }
-                    label=""
-                    testId="input-image-url"
+                    testId="input-listing-gallery"
                   />
                 </div>
 

@@ -1,5 +1,6 @@
 // Privacy Policy legal page
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ALTERNATE_CONTACT_PHONE, PRIMARY_CONTACT_PHONE } from "@/lib/contactDetails";
 
 export default function LegalPrivacy() {
   return (
@@ -161,7 +162,8 @@ export default function LegalPrivacy() {
               <div className="mt-4 pt-4 border-t">
                 <p>
                   <strong>Email:</strong> fusionminingltd@gmail.com<br />
-                  <strong>Phone:</strong> +260 978 838 939
+                  <strong>Phone:</strong> {PRIMARY_CONTACT_PHONE}<br />
+                  <strong>Phone:</strong> {ALTERNATE_CONTACT_PHONE}
                 </p>
               </div>
             </CardContent>
